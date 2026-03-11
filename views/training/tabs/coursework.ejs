@@ -1,0 +1,861 @@
+<!-- Coursework Tab -->
+<div id="coursework-tab" class="tab-content">
+  <style>
+    /* Coursework: make material action buttons (Open/Download/Menu) responsive */
+    @media (max-width: 768px) {
+      #coursework-tab .material-item {
+        align-items: flex-start;
+      }
+      #coursework-tab .material-item > div[onclick] {
+        flex-wrap: wrap !important;
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 480px) {
+      #coursework-tab .material-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+      }
+
+      #coursework-tab .material-item-link {
+        width: 100%;
+      }
+
+      /* The right-side actions container uses inline styles; override to stack */
+      #coursework-tab .material-item > div[onclick] {
+        width: 100%;
+        display: flex !important;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+      }
+
+      #coursework-tab .material-item > div[onclick] .btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      #coursework-tab .material-actions {
+        width: 100%;
+      }
+
+      #coursework-tab .material-menu-btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      /* Keep dropdown visible on small screens */
+      #coursework-tab .material-menu-dropdown {
+        left: 0;
+        right: auto;
+        min-width: 220px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border-radius: 8px;
+        background: white;
+        z-index: 1000;
+      }
+
+      /* Improve dropdown positioning and styling */
+      #coursework-tab .material-menu-dropdown {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 4px;
+        border: 1px solid #E8EAED;
+        overflow: hidden;
+      }
+
+      #coursework-tab .material-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        color: #202124;
+        text-decoration: none;
+        transition: background-color 0.15s ease;
+        border: none;
+        background: transparent;
+        width: 100%;
+        cursor: pointer;
+        font-size: 0.9375rem;
+      }
+
+      #coursework-tab .material-menu-item:hover {
+        background-color: #F8F9FA;
+      }
+
+      #coursework-tab .material-menu-item.delete {
+        color: #D93025;
+      }
+
+      #coursework-tab .material-menu-item.delete:hover {
+        background-color: #FCE8E6;
+      }
+
+      #coursework-tab .material-menu-item i {
+        width: 16px;
+        text-align: center;
+      }
+    }
+  </style>
+
+  <!-- Training Media (Photos) -->
+  <div class="section-card" style="margin-bottom: 2rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap: 0.75rem; flex-wrap: wrap;">
+      <h3 class="section-title" style="margin: 0;">
+        <i class="fas fa-images" style="margin-right: 0.5rem;"></i>
+        Training Media
+      </h3>
+      <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+        <div style="display:flex; gap: 0.5rem; flex-wrap: wrap;">
+          <input id="coursework-media-input" type="file" accept="image/*" multiple style="display:none;" <%= training.status === 'completed' ? 'disabled' : '' %>>
+          <button type="button" class="btn btn-outline" onclick="openCourseworkMediaPicker()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+            <i class="fas fa-images"></i> Add Photos
+          </button>
+          <button type="button" class="btn btn-primary" onclick="uploadQueuedTrainingMedia()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+            <i class="fas fa-cloud-upload-alt"></i> Upload
+          </button>
+          <button type="button" class="btn btn-outline" onclick="clearQueuedTrainingMedia()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+            <i class="fas fa-trash"></i> Clear Queue
+          </button>
+        </div>
+      <% } %>
+    </div>
+
+    <p style="margin: 0.75rem 0 0 0; color:#5F6368; font-size: 0.9rem; line-height:1.4;">
+      Photos only • Max <strong>20</strong> • <strong>5MB</strong> each.
+    </p>
+
+    <div id="coursework-media-error" style="display:none; margin-top: 0.75rem; color: var(--color-error); font-weight: 600;">
+      <i class="fas fa-exclamation-circle"></i> <span></span>
+    </div>
+
+    <% if (['admin', 'trainer'].includes(user.userRole) && training.status !== 'completed') { %>
+      <div id="coursework-media-dropzone" class="training-media-dropzone" style="margin-top: 1rem;">
+        <div class="training-media-dropzone-inner">
+          <div class="training-media-dropzone-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+          <div style="font-weight: 500; color:#202124;">Drag & drop photos here</div>
+          <div style="color:#5F6368; font-size: 0.9rem; margin-top: 0.15rem;">or click “Add Photos”</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 1rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap: 0.75rem; flex-wrap: wrap;">
+          <div style="font-weight: 500; color:#202124;">Queue</div>
+          <div id="coursework-media-queue-meta" style="color:#5F6368; font-size: 0.9rem;">0 queued</div>
+        </div>
+        <div class="training-media-grid" id="coursework-media-queue-grid" style="margin-top: 0.75rem;"></div>
+      </div>
+    <% } %>
+
+    <div style="margin-top: 1.25rem;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap: 0.75rem; flex-wrap: wrap;">
+        <div style="font-weight: 500; color:#202124;">Uploaded</div>
+        <div style="color:#5F6368; font-size: 0.9rem;"><%= (trainingMedia && trainingMedia.length) ? trainingMedia.length : 0 %> uploaded</div>
+      </div>
+    </div>
+
+    <div class="training-media-grid" id="coursework-media-grid" style="margin-top: 0.75rem;">
+      <% if (typeof trainingMedia !== 'undefined' && trainingMedia && trainingMedia.length > 0) { %>
+        <% trainingMedia.forEach(m => { %>
+          <div class="training-media-item" data-media-id="<%= m.id %>">
+            <a href="<%= m.file_path %>" target="_blank" rel="noopener">
+              <img src="<%= m.file_path %>" alt="<%= m.original_name || 'Training media' %>">
+            </a>
+            <% if (['admin', 'trainer'].includes(user.userRole) && training.status !== 'completed') { %>
+              <button type="button" class="training-media-delete" onclick="deleteTrainingMedia(<%= m.id %>)" title="Delete">
+                <i class="fas fa-trash"></i>
+              </button>
+            <% } %>
+          </div>
+        <% }); %>
+      <% } else { %>
+        <div style="color:#5F6368; font-size: 0.9rem;">No photos uploaded yet.</div>
+      <% } %>
+    </div>
+
+    <style>
+      .training-media-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 0.75rem;
+      }
+      .training-media-item {
+        position: relative;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #E8EAED;
+        background: #F8F9FA;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      }
+      .training-media-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px rgba(87, 63, 215, 0.12);
+        border-color: rgba(87, 63, 215, 0.35);
+      }
+      .training-media-item img {
+        width: 100%;
+        height: 140px;
+        object-fit: cover;
+        display: block;
+      }
+      .training-media-delete {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        background: rgba(255,255,255,0.9);
+        box-shadow: 0 10px 22px rgba(0,0,0,0.15);
+        color: #D93025;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .training-media-uploading {
+        opacity: 0.85;
+      }
+      .training-media-progress {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 6px;
+        background: rgba(0,0,0,0.12);
+      }
+      .training-media-progress > div {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #573FD7 0%, #11358B 60%, #E48F24 100%);
+        transition: width 0.15s ease;
+      }
+
+      .training-media-dropzone {
+        border: 2px dashed rgba(87, 63, 215, 0.30);
+        background: linear-gradient(135deg, rgba(87, 63, 215, 0.05) 0%, rgba(17, 53, 139, 0.04) 60%, rgba(228, 143, 36, 0.04) 100%);
+        border-radius: 16px;
+        padding: 1.25rem;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+      }
+      .training-media-dropzone-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 0.35rem;
+      }
+      .training-media-dropzone-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+        background: rgba(87, 63, 215, 0.12);
+        color: #573FD7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        box-shadow: 0 10px 24px rgba(87, 63, 215, 0.14);
+        margin-bottom: 0.25rem;
+      }
+      .training-media-dropzone.is-dragover {
+        border-color: rgba(87, 63, 215, 0.70);
+        box-shadow: 0 0 0 4px rgba(87, 63, 215, 0.12), 0 12px 28px rgba(87, 63, 215, 0.14);
+        transform: translateY(-1px);
+      }
+
+      .training-media-remove-queued {
+        position: absolute;
+        top: 0.5rem;
+        left: 0.5rem;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        background: rgba(255,255,255,0.9);
+        box-shadow: 0 10px 22px rgba(0,0,0,0.15);
+        color: #111827;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      @media (max-width: 360px) {
+        .training-media-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .training-media-item img {
+          height: 120px;
+        }
+      }
+    </style>
+
+    <script>
+      (function () {
+        const TRAINING_ID = <%- JSON.stringify(training.id) %>;
+        const MAX_FILES = 20;
+        const MAX_SIZE = 5 * 1024 * 1024;
+        const CHUNK_SIZE = 750 * 1024;
+
+        const input = document.getElementById('coursework-media-input');
+        const grid = document.getElementById('coursework-media-grid');
+        const queueGrid = document.getElementById('coursework-media-queue-grid');
+        const queueMeta = document.getElementById('coursework-media-queue-meta');
+        const dropzone = document.getElementById('coursework-media-dropzone');
+        const errEl = document.getElementById('coursework-media-error');
+
+        const queue = new Map(); // qid -> { file, status, progress, el, bar }
+        let isUploading = false;
+
+        function showErr(msg) {
+          if (!errEl) return;
+          const s = errEl.querySelector('span');
+          if (s) s.textContent = msg || '';
+          errEl.style.display = msg ? 'block' : 'none';
+        }
+
+        function uuid() {
+          return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + '-' + Math.random().toString(16).slice(2);
+        }
+
+        window.openCourseworkMediaPicker = function () {
+          showErr('');
+          if (input) input.click();
+        };
+
+        window.deleteTrainingMedia = async function (mediaId) {
+          if (isUploading) {
+            qssShowWarning('Please wait until the current upload finishes.');
+            return;
+          }
+          const ok = typeof window.qssConfirm === 'function'
+            ? await window.qssConfirm({ title: 'Delete photo?', message: 'This will permanently delete the photo.', confirmText: 'Delete', cancelText: 'Cancel', danger: true })
+            : false;
+          if (!ok) return;
+          try {
+            const resp = await fetch(`/training/${TRAINING_ID}/media/${mediaId}/delete`, { method: 'POST' });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data.success) throw new Error(data.error || 'Delete failed');
+            const el = grid?.querySelector(`[data-media-id="${mediaId}"]`);
+            if (el) el.remove();
+          } catch (e) {
+            qssShowError(String(e.message || e));
+          }
+        };
+
+        function currentCount() {
+          // count only real items (those with data-media-id)
+          return grid ? grid.querySelectorAll('[data-media-id]').length : 0;
+        }
+
+        function updateQueueMeta() {
+          if (!queueMeta) return;
+          const n = queue.size;
+          queueMeta.textContent = `${n} queued`;
+        }
+
+        function addQueuedCard(file) {
+          if (!queueGrid) return null;
+          const qid = uuid();
+          const wrap = document.createElement('div');
+          wrap.className = 'training-media-item';
+          wrap.dataset.queueId = qid;
+
+          const img = document.createElement('img');
+          try { img.src = URL.createObjectURL(file); } catch (e) {}
+          img.alt = file.name;
+
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'training-media-remove-queued';
+          remove.title = 'Remove from queue';
+          remove.innerHTML = '<i class="fas fa-times"></i>';
+          remove.onclick = () => {
+            if (isUploading) {
+              qssShowWarning('Please wait until the current upload finishes.');
+              return;
+            }
+            queue.delete(qid);
+            wrap.remove();
+            updateQueueMeta();
+          };
+
+          const prog = document.createElement('div');
+          prog.className = 'training-media-progress';
+          const bar = document.createElement('div');
+          prog.appendChild(bar);
+          prog.style.display = 'none';
+
+          wrap.appendChild(img);
+          wrap.appendChild(remove);
+          wrap.appendChild(prog);
+          queueGrid.appendChild(wrap);
+
+          queue.set(qid, { file, status: 'queued', progress: 0, el: wrap, bar, prog });
+          updateQueueMeta();
+          return qid;
+        }
+
+        function removeUploadedPlaceholderIfNeeded() {
+          if (!grid) return;
+          const placeholder = Array.from(grid.children).find(n => n && n.textContent && n.textContent.includes('No photos uploaded yet.'));
+          if (placeholder) placeholder.remove();
+        }
+
+        function enforceLimits(files) {
+          const existing = currentCount();
+          const queued = queue.size;
+          if (existing + queued + files.length > MAX_FILES) {
+            return `Maximum ${MAX_FILES} photos total. You already have ${existing} uploaded and ${queued} queued.`;
+          }
+          return null;
+        }
+
+        async function uploadFile(file) {
+          const fileId = uuid();
+          const uploadKey = uuid();
+
+          // Show progress on the queued card during upload
+          const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+          for (let i = 0; i < totalChunks; i++) {
+            const start = i * CHUNK_SIZE;
+            const end = Math.min(file.size, start + CHUNK_SIZE);
+            const blob = file.slice(start, end);
+
+            const fd = new FormData();
+            fd.append('upload_key', uploadKey);
+            fd.append('file_id', fileId);
+            fd.append('file_name', file.name);
+            fd.append('mime_type', file.type || 'image/*');
+            fd.append('chunk_index', String(i));
+            fd.append('total_chunks', String(totalChunks));
+            fd.append('total_size', String(file.size));
+            fd.append('chunk', blob, `chunk-${i}.bin`);
+
+            const resp = await fetch(`/training/${TRAINING_ID}/media/upload-chunk`, { method: 'POST', body: fd });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data.success) throw new Error(data.error || 'Upload failed');
+
+            if (data.completed && data.media && data.media.id) {
+              // Add to uploaded grid
+              removeUploadedPlaceholderIfNeeded();
+              const card = document.createElement('div');
+              card.className = 'training-media-item';
+              card.dataset.mediaId = data.media.id;
+              card.innerHTML = `
+                <a href="${data.media.file_path}" target="_blank" rel="noopener">
+                  <img src="${data.media.file_path}" alt="${(data.media.original_name || 'Training media').replace(/"/g, '&quot;')}">
+                </a>
+                <button type="button" class="training-media-delete" onclick="deleteTrainingMedia(${data.media.id})" title="Delete">
+                  <i class="fas fa-trash"></i>
+                </button>
+              `;
+              grid.prepend(card);
+              return;
+            }
+          }
+        }
+
+        if (input) {
+          input.addEventListener('change', async function () {
+            showErr('');
+            const files = Array.from(input.files || []);
+            input.value = '';
+            if (files.length === 0) return;
+
+            const limitMsg = enforceLimits(files);
+            if (limitMsg) { showErr(limitMsg); return; }
+
+            for (const f of files) {
+              if (!f.type || !f.type.startsWith('image/')) {
+                showErr('Only image files are allowed.');
+                continue;
+              }
+              if (f.size > MAX_SIZE) {
+                showErr(`"${f.name}" exceeds 5MB.`);
+                continue;
+              }
+              addQueuedCard(f);
+            }
+          });
+        }
+
+        function pickFilesFromDrop(e) {
+          const dt = e.dataTransfer;
+          if (!dt) return [];
+          return Array.from(dt.files || []);
+        }
+
+        if (dropzone) {
+          ['dragenter', 'dragover'].forEach(evt => {
+            dropzone.addEventListener(evt, (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              dropzone.classList.add('is-dragover');
+            });
+          });
+          ['dragleave', 'drop'].forEach(evt => {
+            dropzone.addEventListener(evt, (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              dropzone.classList.remove('is-dragover');
+            });
+          });
+          dropzone.addEventListener('drop', (e) => {
+            showErr('');
+            const files = pickFilesFromDrop(e);
+            if (files.length === 0) return;
+            const limitMsg = enforceLimits(files);
+            if (limitMsg) { showErr(limitMsg); return; }
+            files.forEach(f => {
+              if (!f.type || !f.type.startsWith('image/')) {
+                showErr('Only image files are allowed.');
+                return;
+              }
+              if (f.size > MAX_SIZE) {
+                showErr(`"${f.name}" exceeds 5MB.`);
+                return;
+              }
+              addQueuedCard(f);
+            });
+          });
+        }
+
+        window.clearQueuedTrainingMedia = function () {
+          if (isUploading) {
+            qssShowWarning('Please wait until the current upload finishes.');
+            return;
+          }
+          queue.clear();
+          if (queueGrid) queueGrid.innerHTML = '';
+          updateQueueMeta();
+          showErr('');
+        };
+
+        window.uploadQueuedTrainingMedia = async function () {
+          if (isUploading) return;
+          showErr('');
+          if (queue.size === 0) {
+            qssShowWarning('Your queue is empty. Add photos first.');
+            return;
+          }
+          isUploading = true;
+          try {
+            for (const [qid, item] of Array.from(queue.entries())) {
+              item.status = 'uploading';
+              if (item.prog) item.prog.style.display = 'block';
+              if (item.el) item.el.classList.add('training-media-uploading');
+              const totalChunks = Math.ceil(item.file.size / CHUNK_SIZE);
+              for (let i = 0; i < totalChunks; i++) {
+                const start = i * CHUNK_SIZE;
+                const end = Math.min(item.file.size, start + CHUNK_SIZE);
+                const blob = item.file.slice(start, end);
+
+                const fd = new FormData();
+                fd.append('upload_key', qid); // stable per queued item
+                fd.append('file_id', qid);
+                fd.append('file_name', item.file.name);
+                fd.append('mime_type', item.file.type || 'image/*');
+                fd.append('chunk_index', String(i));
+                fd.append('total_chunks', String(totalChunks));
+                fd.append('total_size', String(item.file.size));
+                fd.append('chunk', blob, `chunk-${i}.bin`);
+
+                const resp = await fetch(`/training/${TRAINING_ID}/media/upload-chunk`, { method: 'POST', body: fd });
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok || !data.success) throw new Error(data.error || 'Upload failed');
+                if (item.bar) item.bar.style.width = `${Math.round(((i + 1) / totalChunks) * 100)}%`;
+
+                if (data.completed && data.media && data.media.id) {
+                  removeUploadedPlaceholderIfNeeded();
+                  const card = document.createElement('div');
+                  card.className = 'training-media-item';
+                  card.dataset.mediaId = data.media.id;
+                  card.innerHTML = `
+                    <a href="${data.media.file_path}" target="_blank" rel="noopener">
+                      <img src="${data.media.file_path}" alt="${(data.media.original_name || 'Training media').replace(/"/g, '&quot;')}">
+                    </a>
+                    <button type="button" class="training-media-delete" onclick="deleteTrainingMedia(${data.media.id})" title="Delete">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  `;
+                  if (grid) grid.prepend(card);
+                }
+              }
+              // remove from queue
+              if (item.el) item.el.remove();
+              queue.delete(qid);
+              updateQueueMeta();
+            }
+            qssShowSuccess('Photos uploaded successfully.');
+          } catch (e) {
+            showErr(String(e.message || e));
+            qssShowError(String(e.message || e));
+          } finally {
+            isUploading = false;
+          }
+        };
+
+        updateQueueMeta();
+      })();
+    </script>
+  </div>
+
+  <!-- Materials Section -->
+  <div class="materials-section">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem;">
+      <h2 style="margin: 0; font-size: 1.25rem; font-weight: 400; color: #202124;">Training Materials</h2>
+      <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-outline" onclick="openCreateSectionModal()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+            <i class="fas fa-folder-plus"></i> Create Section
+          </button>
+          <button class="btn btn-primary" onclick="openCreateMaterialModal()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+            <i class="fas fa-plus"></i> Create Material
+          </button>
+        </div>
+      <% } %>
+    </div>
+    
+    <!-- Materials in "General Materials" section -->
+    <% 
+      let generalMaterialsSection = null;
+      let materialsWithoutSection = [];
+      if (sections.length > 0) {
+        generalMaterialsSection = sections.find(s => s.title === 'General Materials');
+      }
+      if (generalMaterialsSection && generalMaterialsSection.materials && generalMaterialsSection.materials.length > 0) {
+        materialsWithoutSection = generalMaterialsSection.materials;
+      }
+    %>
+    <% if (materialsWithoutSection.length > 0) { %>
+      <div class="section-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h3 class="section-title" style="margin: 0; flex: 1;">General Materials</h3>
+            <% if (['admin', 'trainer'].includes(user.userRole) && generalMaterialsSection) { %>
+              <div class="material-actions">
+                <button class="material-menu-btn" onclick="toggleMaterialMenu(event, 'section-general')" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+                  <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <% if (training.status !== 'completed') { %>
+                  <div id="section-general" class="material-menu-dropdown">
+                    <a href="/training/<%= training.id %>/sections/<%= generalMaterialsSection.id %>/edit" class="material-menu-item">
+                      <i class="fas fa-edit"></i>
+                      <span>Edit Section</span>
+                    </a>
+                  </div>
+                <% } %>
+              </div>
+            <% } %>
+        </div>
+        <% materialsWithoutSection.forEach(material => { %>
+          <div class="material-item">
+            <a href="/training/<%= training.id %>/materials/<%= material.id %>" class="material-item-link">
+              <div class="material-icon <%= material.type %>">
+                <% if (material.type === 'document') { %>
+                  <i class="fas fa-file-alt"></i>
+                <% } else if (material.type === 'video') { %>
+                  <i class="fas fa-video"></i>
+                <% } else if (material.type === 'link') { %>
+                  <i class="fas fa-link"></i>
+                <% } else { %>
+                  <i class="fas fa-file"></i>
+                <% } %>
+              </div>
+              <div class="material-info">
+                <h4><%= material.title %></h4>
+                <p>Uploaded by <%= material.uploaded_by %></p>
+              </div>
+            </a>
+            <div style="display: flex; gap: 0.5rem; align-items: center;" onclick="event.stopPropagation();">
+              <% if (material.file_path) { %>
+                <a href="<%= material.file_path %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
+                  <i class="fas fa-download"></i> Download
+                </a>
+              <% } %>
+              <% if (material.url) { %>
+                <a href="<%= material.url %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
+                  <i class="fas fa-external-link-alt"></i> Open
+                </a>
+              <% } %>
+              <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+                <div class="material-actions">
+                  <button class="material-menu-btn" onclick="event.stopPropagation(); toggleMaterialMenu(event, 'material-<%= material.id %>')" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+                    <i class="fas fa-ellipsis-v"></i>
+                  </button>
+                  <% if (training.status !== 'completed') { %>
+                    <div id="material-<%= material.id %>" class="material-menu-dropdown">
+                      <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="material-menu-item">
+                        <i class="fas fa-edit"></i>
+                        <span>Edit</span>
+                      </a>
+                      <button class="material-menu-item delete" onclick="deleteMaterial(<%= material.id %>)">
+                        <i class="fas fa-trash"></i>
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  <% } %>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+    
+    <!-- Materials organized by sections -->
+    <% 
+      const sectionsToShow = sections.filter(s => s.title !== 'General Materials');
+    %>
+    <% if (sectionsToShow.length > 0) { %>
+      <% sectionsToShow.forEach(section => { %>
+        <div class="section-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 class="section-title" style="margin: 0; flex: 1;"><%= section.title %></h3>
+            <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+              <div class="material-actions">
+                <button class="material-menu-btn" onclick="toggleMaterialMenu(event, 'section-<%= section.id %>')" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+                  <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <% if (training.status !== 'completed') { %>
+                  <div id="section-<%= section.id %>" class="material-menu-dropdown">
+                    <a href="/training/<%= training.id %>/sections/<%= section.id %>/edit" class="material-menu-item">
+                      <i class="fas fa-edit"></i>
+                      <span>Edit Section</span>
+                    </a>
+                    <button class="material-menu-item delete" onclick="deleteSection(<%= section.id %>)">
+                      <i class="fas fa-trash"></i>
+                      <span>Delete Section</span>
+                    </button>
+                  </div>
+                <% } %>
+              </div>
+            <% } %>
+          </div>
+          
+          <% if (section.materials && section.materials.length > 0) { %>
+            <% section.materials.forEach(material => { %>
+              <div class="material-item">
+                <a href="/training/<%= training.id %>/materials/<%= material.id %>" class="material-item-link">
+                  <div class="material-icon <%= material.type %>">
+                    <% if (material.type === 'document') { %>
+                      <i class="fas fa-file-alt"></i>
+                    <% } else if (material.type === 'video') { %>
+                      <i class="fas fa-video"></i>
+                    <% } else if (material.type === 'link') { %>
+                      <i class="fas fa-link"></i>
+                    <% } else { %>
+                      <i class="fas fa-file"></i>
+                    <% } %>
+                  </div>
+                  <div class="material-info">
+                    <h4><%= material.title %></h4>
+                    <p>Uploaded by <%= material.uploaded_by %></p>
+                  </div>
+                </a>
+                <div style="display: flex; gap: 0.5rem; align-items: center;" onclick="event.stopPropagation();">
+                  <% if (material.file_path) { %>
+                    <a href="<%= material.file_path %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
+                      <i class="fas fa-download"></i> Download
+                    </a>
+                  <% } %>
+                  <% if (material.url) { %>
+                    <a href="<%= material.url %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
+                      <i class="fas fa-external-link-alt"></i> Open
+                    </a>
+                  <% } %>
+                  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+                    <div class="material-actions">
+                      <button class="material-menu-btn" onclick="event.stopPropagation(); toggleMaterialMenu(event, 'material-<%= material.id %>')" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+                        <i class="fas fa-ellipsis-v"></i>
+                      </button>
+                      <% if (training.status !== 'completed') { %>
+                        <div id="material-<%= material.id %>" class="material-menu-dropdown">
+                          <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="material-menu-item">
+                            <i class="fas fa-edit"></i>
+                            <span>Edit</span>
+                          </a>
+                          <button class="material-menu-item delete" onclick="deleteMaterial(<%= material.id %>)">
+                            <i class="fas fa-trash"></i>
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      <% } %>
+                    </div>
+                  <% } %>
+                </div>
+              </div>
+            <% }); %>
+          <% } else { %>
+            <p style="color: #5F6368; font-size: 0.875rem; margin: 0;">No materials in this section yet.</p>
+          <% } %>
+        </div>
+      <% }); %>
+    <% } %>
+    
+    <% if (sections.length === 0 && materialsWithoutSection.length === 0) { %>
+      <div class="empty-state">
+        <p>No materials added yet.</p>
+        <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+          <button class="btn btn-primary" onclick="openCreateMaterialModal()" style="margin-top: 1rem;">
+            <i class="fas fa-plus"></i> Create First Material
+          </button>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+  
+  <!-- Tests Section -->
+  <div class="section-card" style="margin-top: 2rem;">
+    <h3 class="section-title">Tests</h3>
+    <% if (trainingTests && trainingTests.length > 0) { %>
+      <ul style="list-style: none; padding: 0; margin: 0;">
+        <% trainingTests.forEach(test => { %>
+          <li style="padding: 0.75rem 0; border-bottom: 1px solid #E8EAED; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-weight: 500;">
+                <%= test.test_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %>
+              </span>
+              <span style="color: #5F6368; font-size: 0.875rem; margin-left: 0.5rem;">
+                (<%= test.total_questions %> questions)
+              </span>
+            </div>
+            <% if (user.userRole === 'trainee' && enrollment) { %>
+              <% 
+                const testType = test.test_type;
+                let completed = false;
+                if (testType === 'pre_test') completed = enrollment.pre_test_completed;
+                else if (testType === 'post_test') completed = enrollment.post_test_completed;
+                else if (testType === 'refreshment') completed = enrollment.refreshment_test_completed;
+              %>
+              <% if (completed) { %>
+                <span style="color: #137333; font-weight: 500;"><i class="fas fa-check-circle"></i> Completed</span>
+              <% } else if (testType === 'post_test' && !enrollment.pre_test_completed) { %>
+                <span style="color: #5F6368;">Complete Pre-Test first</span>
+              <% } else { %>
+                <a href="/tests/start/<%= enrollment.id %>/<%= testType %>" class="btn btn-sm btn-primary">Take Test</a>
+              <% } %>
+            <% } else if (['admin', 'trainer'].includes(user.userRole)) { %>
+              <span style="color: #5F6368; font-size: 0.875rem;">View responses in Marks tab</span>
+            <% } %>
+          </li>
+        <% }); %>
+      </ul>
+      <% if (user.userRole === 'trainee' && enrollment) { %>
+        <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+          <a href="/results/enrollment/<%= enrollment.id %>" class="btn btn-secondary btn-sm">View Results</a>
+          <a href="/attendance/trainee/<%= enrollment.id %>" class="btn btn-outline btn-sm">View Attendance</a>
+        </div>
+      <% } %>
+    <% } else { %>
+      <p style="color: #5F6368; margin: 0;">No tests available for this training.</p>
+    <% } %>
+  </div>
+</div>
+

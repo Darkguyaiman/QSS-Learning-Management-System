@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trainee Dashboard - LMS</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <%- include('../partials/navbar', { user }) %>
+
+  <main class="main-content">
+    <!-- Welcome Hero Section -->
+    <div class="welcome-hero">
+      <div class="container">
+        <div class="hero-content">
+          <div class="hero-content-centered">
+            <h1>Welcome back, <%= user.userName %> <span class="emoji-wave">👋</span></h1>
+            <p>Continue your learning journey and track your progress</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <!-- Quick Actions Section -->
+      <div class="quick-actions-section">
+        <div class="section-header">
+          <h2><i class="fas fa-bolt"></i> Quick Actions</h2>
+          <p>Get started with your training</p>
+        </div>
+        <div class="action-cards-grid">
+          <a href="/training" class="action-card-primary">
+            <div class="action-card-bg">
+              <div class="action-card-content">
+                <div class="action-card-text">
+                  <h3>Browse Trainings</h3>
+                  <p>Explore available training programs and enroll in new courses</p>
+                  <div class="action-card-arrow">
+                    <i class="fas fa-arrow-right"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </a>
+
+          <div class="action-cards-secondary">
+            <a href="/profile" class="action-card-secondary">
+              <div class="action-card-secondary-header">
+                <h4><i class="fas fa-id-card"></i> Your Profile</h4>
+              </div>
+              <div class="action-card-secondary-content">
+                <div class="profile-info-item">
+                  <i class="fas fa-user"></i>
+                  <span><%= user.userName %></span>
+                </div>
+                <% if (traineeProfile.email) { %>
+                  <div class="profile-info-item">
+                    <i class="fas fa-envelope"></i>
+                    <span><%= traineeProfile.email %></span>
+                  </div>
+                <% } %>
+                <% if (traineeProfile.designation) { %>
+                  <div class="profile-info-item">
+                    <i class="fas fa-briefcase"></i>
+                    <span><%= traineeProfile.designation %></span>
+                  </div>
+                <% } %>
+                <% if (traineeProfile.hospital_name) { %>
+                  <div class="profile-info-item">
+                    <i class="fas fa-hospital"></i>
+                    <span><%= traineeProfile.hospital_name %></span>
+                  </div>
+                <% } %>
+                <% if (!traineeProfile.email && !traineeProfile.designation && !traineeProfile.hospital_name) { %>
+                  <div class="profile-info-item">
+                    <i class="fas fa-info-circle"></i>
+                    <span>View and update your information</span>
+                  </div>
+                <% } %>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress Analytics Section -->
+      <div class="analytics-section">
+        <div class="section-header">
+          <h2><i class="fas fa-chart-line"></i> Learning Progress</h2>
+          <p>Your training journey at a glance</p>
+        </div>
+        <div class="analytics-grid">
+          <div class="analytics-main-card">
+            <div class="analytics-main-header">
+              <div class="analytics-main-icon">
+                <i class="fas fa-trophy"></i>
+              </div>
+              <div class="analytics-main-content">
+                <h3><%= analytics.trainings_completed %></h3>
+                <p>Trainings Completed</p>
+              </div>
+            </div>
+            <div class="analytics-main-progress">
+              <div class="progress-ring">
+                <svg width="120" height="120" viewBox="0 0 120 120">
+                  <circle cx="60" cy="60" r="50" stroke="rgba(87, 63, 215, 0.2)" stroke-width="8" fill="none"/>
+                  <circle cx="60" cy="60" r="50" stroke="url(#progressGradient)" stroke-width="8" fill="none"
+                          stroke-dasharray="<%= 2 * Math.PI * 50 %>"
+                          stroke-dashoffset="<%= 2 * Math.PI * 50 * (1 - analytics.trainings_completed / (analytics.total_enrolled || 1)) %>"
+                          transform="rotate(-90 60 60)"/>
+                  <defs>
+                    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" style="stop-color:#6366f1"/>
+                      <stop offset="100%" style="stop-color:#4f46e5"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div class="progress-ring-text">
+                  <span class="progress-ring-number"><%= Math.round((analytics.trainings_completed / (analytics.total_enrolled || 1)) * 100) %>%</span>
+                  <span class="progress-ring-label">Complete</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="analytics-cards">
+            <div class="analytics-card">
+              <div class="analytics-card-icon">
+                <i class="fas fa-check-circle"></i>
+              </div>
+              <div class="analytics-card-content">
+                <div class="analytics-card-number"><%= analytics.activities_completed %></div>
+                <div class="analytics-card-label">Activities Done</div>
+                <div class="analytics-card-trend">
+                  <i class="fas fa-arrow-up"></i>
+                  <span>Tests & Assessments</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="analytics-card">
+              <div class="analytics-card-icon">
+                <i class="fas fa-calendar-alt"></i>
+              </div>
+              <div class="analytics-card-content">
+                <div class="analytics-card-number"><%= analytics.total_enrolled %></div>
+                <div class="analytics-card-label">Active Courses</div>
+                <div class="analytics-card-trend">
+                  <i class="fas fa-book-open"></i>
+                  <span>In Progress</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Trainings Section -->
+      <div class="trainings-section">
+        <div class="section-header">
+          <h2><i class="fas fa-list"></i> Recent Trainings</h2>
+          <p>Continue where you left off</p>
+          <a href="/training" class="section-link">
+            <span>View All Trainings</span>
+            <i class="fas fa-arrow-right"></i>
+          </a>
+        </div>
+
+        <% if (enrollments.length === 0) { %>
+          <div class="empty-trainings">
+            <div class="empty-trainings-icon">
+              <i class="fas fa-book-open"></i>
+            </div>
+            <div class="empty-trainings-content">
+              <h3>No trainings yet</h3>
+              <p>Start your learning journey by exploring available training programs</p>
+              <a href="/training" class="btn btn-primary">
+                <i class="fas fa-search"></i>
+                Explore Trainings
+              </a>
+            </div>
+          </div>
+        <% } else { %>
+          <div class="trainings-grid">
+            <% enrollments.forEach(enrollment => { %>
+              <%
+                // Calculate completion percentage
+                let totalActivities = 1; // Pre-test always required
+                let completedActivities = enrollment.pre_test_completed ? 1 : 0;
+
+                if (enrollment.type === 'main') {
+                  totalActivities += 2; // Post-test + Hands-on assessment
+                  completedActivities += enrollment.post_test_completed ? 1 : 0;
+                  // Note: Hands-on assessment completion would need to be calculated from attendance/marks
+                } else {
+                  totalActivities += 1; // Refreshment test
+                  completedActivities += enrollment.refreshment_test_completed ? 1 : 0;
+                }
+
+                const completionPercentage = Math.round((completedActivities / totalActivities) * 100);
+                const isCompleted = completionPercentage === 100;
+                const isInProgress = completionPercentage > 0 && completionPercentage < 100;
+                const isNotStarted = completionPercentage === 0;
+              %>
+              <div class="training-card-modern">
+                <div class="training-card-header">
+                  <div class="training-badge">
+                    <span class="badge badge-<%= enrollment.type %>">
+                      <i class="fas fa-<%= enrollment.type === 'main' ? 'star' : 'refresh' %>"></i>
+                      <%= enrollment.type %>
+                    </span>
+                  </div>
+                  <div class="training-status">
+                    <% if (isCompleted) { %>
+                      <span class="status-completed">
+                        <i class="fas fa-check"></i>
+                        Completed
+                      </span>
+                    <% } else if (isInProgress) { %>
+                      <span class="status-in-progress">
+                        <i class="fas fa-play"></i>
+                        In Progress
+                      </span>
+                    <% } else { %>
+                      <span class="status-not-started">
+                        <i class="fas fa-clock"></i>
+                        Not Started
+                      </span>
+                    <% } %>
+                  </div>
+                </div>
+
+                <div class="training-card-content">
+                  <h3 class="training-title"><%= enrollment.title %></h3>
+
+                  <!-- Progress Visualization -->
+                  <div class="training-progress">
+                    <div class="progress-circle">
+                      <svg width="80" height="80" viewBox="0 0 80 80">
+                        <circle cx="40" cy="40" r="35" stroke="rgba(87, 63, 215, 0.2)" stroke-width="6" fill="none"/>
+                        <circle cx="40" cy="40" r="35" stroke="url(#trainingProgress<%= enrollment.id %>)" stroke-width="6" fill="none"
+                                stroke-dasharray="<%= 2 * Math.PI * 35 %>"
+                                stroke-dashoffset="<%= 2 * Math.PI * 35 * (1 - completionPercentage / 100) %>"
+                                transform="rotate(-90 40 40)"/>
+                        <defs>
+                          <linearGradient id="trainingProgress<%= enrollment.id %>" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:<%= isCompleted ? '#10B981' : isInProgress ? '#F59E0B' : '#6B7280' %>"/>
+                            <stop offset="100%" style="stop-color:<%= isCompleted ? '#059669' : isInProgress ? '#D97706' : '#4B5563' %>"/>
+                          </linearGradient>
+                        </defs>
+                      </svg>
+                      <div class="progress-circle-text">
+                        <span class="progress-circle-number" data-target="<%= completionPercentage %>">0%</span>
+                      </div>
+                    </div>
+
+                    <div class="progress-details">
+                      <div class="progress-stats">
+                        <div class="progress-stat">
+                          <span class="progress-stat-number"><%= completedActivities %></span>
+                          <span class="progress-stat-label">Done</span>
+                        </div>
+                        <div class="progress-stat">
+                          <span class="progress-stat-number"><%= totalActivities - completedActivities %></span>
+                          <span class="progress-stat-label">Left</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Quick Progress Checklist -->
+                  <div class="training-checklist">
+                    <div class="checklist-item <%= enrollment.pre_test_completed ? 'completed' : 'pending' %>">
+                      <i class="fas fa-<%= enrollment.pre_test_completed ? 'check-circle' : 'circle' %>"></i>
+                      <span>Pre-Test</span>
+                    </div>
+
+                    <% if (enrollment.type === 'main') { %>
+                      <div class="checklist-item pending">
+                        <i class="fas fa-circle"></i>
+                        <span>Hands-On</span>
+                      </div>
+                      <div class="checklist-item <%= enrollment.post_test_completed ? 'completed' : 'pending' %>">
+                        <i class="fas fa-<%= enrollment.post_test_completed ? 'check-circle' : 'circle' %>"></i>
+                        <span>Post-Test</span>
+                      </div>
+                    <% } else { %>
+                      <div class="checklist-item <%= enrollment.refreshment_test_completed ? 'completed' : 'pending' %>">
+                        <i class="fas fa-<%= enrollment.refreshment_test_completed ? 'check-circle' : 'circle' %>"></i>
+                        <span>Assessment</span>
+                      </div>
+                    <% } %>
+                  </div>
+                </div>
+
+                <div class="training-card-actions">
+                  <a href="/training/<%= enrollment.training_id %>" class="btn btn-primary">
+                    <i class="fas fa-play"></i>
+                    <%= isCompleted ? 'Review' : 'Continue' %>
+                  </a>
+                  <a href="/results/enrollment/<%= enrollment.id %>" class="btn btn-outline">
+                    <i class="fas fa-chart-bar"></i>
+                    Results
+                  </a>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </main>
+
+  <style>
+    /* Welcome Hero Section */
+    .welcome-hero {
+      background: linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.6)), url('/images/Dashboard Images/Hero.webp');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      color: white;
+      padding: var(--spacing-xl) 0;
+      margin: -2rem -1rem 0 -1rem;
+      position: relative;
+      width: calc(100% + 2rem);
+      min-height: 400px;
+      display: flex;
+      align-items: center;
+      border-radius: 0 0 30px 30px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .hero-content {
+      width: 100%;
+      display: flex;
+      justify-content: flex-start;
+    }
+
+    .welcome-hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%);
+      border-radius: 0 0 30px 30px;
+      transition: all 0.3s ease;
+    }
+
+    .hero-content-centered {
+      position: absolute;
+      left: 5%;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 2;
+      text-align: left;
+      max-width: 600px;
+      width: 100%;
+      padding: 0 var(--spacing-lg);
+      box-sizing: border-box;
+    }
+
+    .hero-content-centered h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 700;
+      margin: 0 0 var(--spacing-sm) 0;
+      color: white;
+      text-shadow: 0 3px 6px rgba(0, 0, 0, 0.7);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+
+
+    .hero-content-centered p {
+      font-size: clamp(1rem, 2.5vw, 1.375rem);
+      opacity: 0.95;
+      margin: 0;
+      color: rgba(255, 255, 255, 0.95);
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+      line-height: 1.4;
+      max-width: 500px;
+    }
+
+    .emoji-wave {
+      color: white;
+      filter: brightness(0) invert(1);
+    }
+
+    /* Section Headers */
+    .section-header {
+      text-align: left;
+      margin-bottom: var(--spacing-2xl);
+    }
+
+    .section-header h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--color-dark);
+      margin: 0 0 var(--spacing-sm) 0;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .section-header h2 i {
+      color: var(--color-purple);
+      font-size: 1.5rem;
+    }
+
+    .section-header p {
+      font-size: 1rem;
+      color: var(--color-gray);
+      margin: 0;
+    }
+
+    .section-link {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      color: var(--color-purple);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.875rem;
+      margin-top: var(--spacing-md);
+      transition: all 0.3s ease;
+    }
+
+    .section-link:hover {
+      transform: translateX(4px);
+    }
+
+    /* Quick Actions Section */
+    .quick-actions-section {
+      margin-bottom: var(--spacing-2xl);
+    }
+
+    .action-cards-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: var(--spacing-xl);
+      margin-top: var(--spacing-xl);
+    }
+
+    .action-card-primary {
+      background: white;
+      border-radius: 20px;
+      overflow: hidden;
+      text-decoration: none;
+      color: var(--color-dark);
+      transition: all 0.4s ease;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      border: 2px solid rgba(0, 0, 0, 0.05);
+      position: relative;
+    }
+
+    .action-card-primary:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+      border-color: var(--color-purple);
+    }
+
+    .action-card-bg {
+      position: relative;
+      min-height: 200px;
+      display: flex;
+      background: url('/images/Dashboard Images/Trainings.webp');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      border-radius: 20px;
+    }
+
+
+    .action-card-content {
+      position: relative;
+      z-index: 2;
+      padding: var(--spacing-xl);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-lg);
+      width: 100%;
+      background: linear-gradient(135deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.5) 100%);
+      backdrop-filter: blur(2px);
+    }
+
+
+    .action-card-text {
+      flex: 1;
+    }
+
+    .action-card-text h3 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0 0 var(--spacing-sm) 0;
+      color: white;
+    }
+
+    .action-card-text p {
+      margin: 0 0 var(--spacing-md) 0;
+      color: white;
+      font-size: 0.95rem;
+    }
+
+
+    .action-card-arrow {
+      font-size: 1.25rem;
+      color: white;
+      transition: all 0.3s ease;
+    }
+
+    .action-card-primary:hover .action-card-arrow {
+      transform: translateX(4px);
+    }
+
+    .action-cards-secondary {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-md);
+    }
+
+    .action-card-secondary {
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      background: white;
+      border-radius: 16px;
+      text-decoration: none;
+      color: var(--color-dark);
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      border: 2px solid transparent;
+      overflow: hidden;
+    }
+
+    .action-card-secondary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      border-color: var(--color-purple);
+    }
+
+    .action-card-secondary-header {
+      background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-blue) 100%);
+      padding: var(--spacing-lg);
+      text-align: center;
+      color: white;
+    }
+
+    .action-card-secondary-header h4 {
+      margin: 0;
+      font-size: 1.125rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--spacing-sm);
+    }
+
+    .action-card-secondary-header h4 i {
+      font-size: 1rem;
+    }
+
+    .action-card-secondary-content {
+      padding: var(--spacing-lg);
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-sm);
+    }
+
+    .profile-info-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      font-size: 0.875rem;
+      color: var(--color-gray);
+    }
+
+    .profile-info-item i {
+      width: 16px;
+      color: var(--color-purple);
+      font-size: 0.875rem;
+    }
+
+    .profile-info-item span {
+      flex: 1;
+      color: var(--color-dark);
+      font-weight: 500;
+    }
+
+    /* Analytics Section */
+    .analytics-section {
+      margin-bottom: var(--spacing-2xl);
+    }
+
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: var(--spacing-xl);
+      margin-top: var(--spacing-xl);
+    }
+
+    .analytics-main-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+      border-radius: 20px;
+      padding: var(--spacing-xl);
+      color: var(--color-dark);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      border: 2px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .analytics-main-header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      position: relative;
+      z-index: 2;
+    }
+
+    .analytics-main-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-blue) 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      color: white;
+      box-shadow: 0 4px 12px rgba(87, 63, 215, 0.3);
+    }
+
+    .analytics-main-content h3 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin: 0 0 var(--spacing-xs) 0;
+      color: var(--color-purple);
+    }
+
+    .analytics-main-content p {
+      margin: 0;
+      color: var(--color-gray);
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .analytics-main-progress {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      justify-content: center;
+    }
+
+    .progress-ring {
+      position: relative;
+      width: 120px;
+      height: 120px;
+    }
+
+    .progress-ring svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .progress-ring-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+
+    .progress-ring-number {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--color-purple);
+      display: block;
+      line-height: 1;
+    }
+
+    .progress-ring-label {
+      font-size: 0.75rem;
+      color: var(--color-gray);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: var(--spacing-xs);
+      font-weight: 600;
+    }
+
+    .analytics-cards {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--spacing-md);
+    }
+
+    .analytics-card {
+      background: white;
+      border-radius: 16px;
+      padding: var(--spacing-lg);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      border: 2px solid transparent;
+      transition: all 0.3s ease;
+    }
+
+    .analytics-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      border-color: rgba(87, 63, 215, 0.2);
+    }
+
+    .analytics-card-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-blue) 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.25rem;
+    }
+
+    .analytics-card-content {
+      flex: 1;
+    }
+
+    .analytics-card-number {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--color-dark);
+      margin-bottom: var(--spacing-xs);
+      display: block;
+    }
+
+    .analytics-card-label {
+      font-size: 0.875rem;
+      color: var(--color-gray);
+      margin-bottom: var(--spacing-xs);
+      font-weight: 500;
+    }
+
+    .analytics-card-trend {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .analytics-card-trend i {
+      font-size: 0.625rem;
+    }
+
+    .analytics-card-trend:not(.pending) {
+      color: var(--color-success);
+    }
+
+    .analytics-card-trend.pending {
+      color: var(--color-orange);
+    }
+
+    /* Trainings Section */
+    .trainings-section {
+      margin-bottom: var(--spacing-2xl);
+    }
+
+    .empty-trainings {
+      background: linear-gradient(135deg, rgba(87, 63, 215, 0.05) 0%, rgba(17, 53, 139, 0.05) 100%);
+      border: 2px dashed rgba(87, 63, 215, 0.2);
+      border-radius: 20px;
+      padding: var(--spacing-2xl);
+      text-align: center;
+      margin-top: var(--spacing-xl);
+    }
+
+    .empty-trainings-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-blue) 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 2rem;
+      margin: 0 auto var(--spacing-lg) auto;
+      box-shadow: 0 8px 24px rgba(87, 63, 215, 0.3);
+    }
+
+    .empty-trainings-content h3 {
+      font-size: 1.5rem;
+      color: var(--color-dark);
+      margin: 0 0 var(--spacing-sm) 0;
+      font-weight: 600;
+    }
+
+    .empty-trainings-content p {
+      color: var(--color-gray);
+      margin: 0 0 var(--spacing-lg) 0;
+      font-size: 1rem;
+    }
+
+    .trainings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: var(--spacing-xl);
+      margin-top: var(--spacing-xl);
+    }
+
+    .training-card-modern {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      border: 2px solid transparent;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .training-card-modern:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+      border-color: rgba(87, 63, 215, 0.2);
+    }
+
+    .training-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--spacing-lg);
+      background: linear-gradient(135deg, rgba(87, 63, 215, 0.05) 0%, rgba(17, 53, 139, 0.05) 100%);
+      border-bottom: 1px solid rgba(87, 63, 215, 0.1);
+    }
+
+    .training-badge .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: 0.75rem;
+      padding: var(--spacing-xs) var(--spacing-sm);
+    }
+
+    .training-status {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-completed {
+      color: var(--color-success);
+    }
+
+    .status-completed i {
+      margin-right: var(--spacing-xs);
+    }
+
+    .status-in-progress {
+      color: var(--color-orange);
+    }
+
+    .status-in-progress i {
+      margin-right: var(--spacing-xs);
+    }
+
+    .status-not-started {
+      color: var(--color-gray);
+    }
+
+    .status-not-started i {
+      margin-right: var(--spacing-xs);
+    }
+
+    .training-card-content {
+      padding: var(--spacing-lg);
+    }
+
+    .training-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--color-dark);
+      margin: 0 0 var(--spacing-lg) 0;
+      line-height: 1.4;
+    }
+
+    .training-progress {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-lg);
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .progress-circle {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      flex-shrink: 0;
+    }
+
+    .progress-circle svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .progress-circle-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+
+    .progress-circle-number {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--color-dark);
+      display: block;
+      line-height: 1;
+    }
+
+    .progress-details {
+      flex: 1;
+    }
+
+    .progress-stats {
+      display: flex;
+      gap: var(--spacing-md);
+    }
+
+    .progress-stat {
+      text-align: center;
+    }
+
+    .progress-stat-number {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--color-purple);
+      display: block;
+      line-height: 1;
+    }
+
+    .progress-stat-label {
+      font-size: 0.75rem;
+      color: var(--color-gray);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: var(--spacing-xs);
+    }
+
+    .training-checklist {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .checklist-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .checklist-item.completed {
+      color: var(--color-success);
+    }
+
+    .checklist-item.completed i {
+      color: var(--color-success);
+    }
+
+    .checklist-item.pending {
+      color: var(--color-gray);
+    }
+
+    .checklist-item.pending i {
+      color: var(--color-gray);
+    }
+
+    .checklist-item i {
+      width: 16px;
+      font-size: 0.75rem;
+    }
+
+    .training-card-actions {
+      padding: 0 var(--spacing-lg) var(--spacing-lg) var(--spacing-lg);
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+
+    .training-card-actions .btn {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--spacing-xs);
+      font-weight: 600;
+      padding: var(--spacing-sm) var(--spacing-md);
+    }
+
+    /* Responsive Design */
+    @media (min-width: 1440px) {
+      .welcome-hero {
+        min-height: 450px;
+      }
+
+      .hero-content-centered {
+        max-width: 700px;
+        left: 6%;
+      }
+
+      .hero-content-centered h1 {
+        font-size: 4rem;
+      }
+
+      .hero-content-centered p {
+        font-size: 1.5rem;
+      }
+    }
+
+    @media (max-width: 1200px) {
+      .welcome-hero {
+        min-height: 350px;
+      }
+
+      .hero-content-centered h1 {
+        font-size: 2.75rem;
+      }
+    }
+
+    @media (max-width: 1024px) {
+      .analytics-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .action-cards-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .action-cards-secondary {
+        flex-direction: row;
+        gap: var(--spacing-md);
+      }
+
+      .welcome-hero {
+        min-height: 320px;
+      }
+
+      .hero-content-centered {
+        left: 6%;
+        max-width: 450px;
+      }
+
+      .hero-content-centered h1 {
+        font-size: 2.5rem;
+      }
+
+      .hero-content-centered p {
+        font-size: 1.25rem;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .welcome-hero {
+        min-height: 300px;
+        padding: var(--spacing-xl) 0;
+      }
+
+      .hero-content-centered {
+        left: 7%;
+        max-width: 400px;
+      }
+
+      .hero-content-centered h1 {
+        font-size: 2.25rem;
+      }
+
+      .hero-content-centered p {
+        font-size: 1.125rem;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .welcome-hero {
+        min-height: 280px;
+        padding: var(--spacing-lg) 0;
+        background-position: center center;
+        background-size: cover;
+      }
+
+      .hero-content-centered {
+        left: 5%;
+        top: 50%;
+        transform: translateY(-50%);
+        max-width: 85%;
+        text-align: left;
+      }
+
+      .hero-content-centered h1 {
+        font-size: 2rem;
+        margin-bottom: var(--spacing-md);
+        text-shadow: 0 3px 6px rgba(0, 0, 0, 0.7);
+      }
+
+      .hero-content-centered p {
+        font-size: 1rem;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+      }
+
+      .analytics-main-card {
+        padding: var(--spacing-lg);
+      }
+
+      .progress-ring {
+        width: 100px;
+        height: 100px;
+      }
+
+      .progress-ring-number {
+        font-size: 1.25rem;
+      }
+
+      .section-header h2 {
+        font-size: 1.75rem;
+      }
+
+      .action-card-content {
+        padding: var(--spacing-lg);
+      }
+
+      .action-card-text h3 {
+        font-size: 1.25rem;
+      }
+
+      .trainings-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .training-progress {
+        flex-direction: column;
+        gap: var(--spacing-md);
+        text-align: center;
+      }
+
+      .progress-circle {
+        margin: 0 auto;
+      }
+
+      .training-card-actions {
+        flex-direction: column;
+      }
+
+      .action-cards-secondary {
+        flex-direction: column;
+      }
+
+      .action-card-secondary-content {
+        padding: var(--spacing-md);
+      }
+
+      .profile-info-item {
+        font-size: 0.8125rem;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .welcome-hero {
+        min-height: 250px;
+        padding: var(--spacing-md) 0;
+        background-attachment: scroll;
+      }
+
+      .hero-content-centered {
+        left: 4%;
+        max-width: 90%;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+
+      .hero-content-centered h1 {
+        font-size: 1.75rem;
+        margin-bottom: var(--spacing-sm);
+      }
+
+      .hero-content-centered p {
+        font-size: 0.95rem;
+        line-height: 1.4;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .welcome-hero {
+        min-height: 220px;
+        padding: var(--spacing-md) 0;
+        margin: -1.5rem -1rem 0 -1rem;
+        width: calc(100% + 2rem);
+        background-size: cover;
+        background-position: center;
+      }
+    }
+
+    @media (max-width: 425px) {
+      .welcome-hero {
+        margin: -2rem -1rem 0 -1rem;
+      }
+    }
+
+      .hero-content-centered {
+        left: 5%;
+        top: 50%;
+        transform: translateY(-50%);
+        max-width: 85%;
+        text-align: left;
+      }
+
+      .hero-content-centered h1 {
+        font-size: 1.5rem;
+        margin-bottom: var(--spacing-xs);
+        line-height: 1.2;
+      }
+
+      .hero-content-centered p {
+        font-size: 0.875rem;
+        line-height: 1.4;
+        margin: 0;
+      }
+
+      .section-header h2 {
+        font-size: 1.5rem;
+      }
+
+      .analytics-main-card {
+        padding: var(--spacing-md);
+      }
+
+      .analytics-main-content h3 {
+        font-size: 2rem;
+      }
+
+      .progress-ring {
+        width: 80px;
+        height: 80px;
+      }
+
+      .training-card-content {
+        padding: var(--spacing-md);
+      }
+
+      .training-title {
+        font-size: 1.125rem;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .welcome-hero {
+        min-height: 200px;
+        padding: var(--spacing-sm) 0;
+      }
+
+      .hero-content-centered {
+        left: 4%;
+        max-width: 88%;
+      }
+
+      .hero-content-centered h1 {
+        font-size: 1.375rem;
+      }
+
+      .hero-content-centered p {
+        font-size: 0.8125rem;
+      }
+
+      .analytics-main-content h3 {
+        font-size: 1.75rem;
+      }
+    }
+  </style>
+
+  <script>
+    // Animate progress bars and circles on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      // Animate progress rings in analytics section
+      const progressRings = document.querySelectorAll('.progress-ring circle:last-child');
+      progressRings.forEach((ring, index) => {
+        setTimeout(() => {
+          const radius = 35; // SVG circle radius
+          const circumference = 2 * Math.PI * radius;
+          const progress = ring.parentElement.querySelector('.progress-circle-number');
+          if (progress) {
+            const percentage = parseInt(progress.textContent);
+            const offset = circumference - (percentage / 100) * circumference;
+            ring.style.strokeDashoffset = offset;
+          }
+        }, index * 200);
+      });
+
+      // Animate training progress circles
+      const trainingCircles = document.querySelectorAll('.training-progress .progress-circle circle:last-child');
+      trainingCircles.forEach((circle, index) => {
+        setTimeout(() => {
+          const radius = 35; // SVG circle radius
+          const circumference = 2 * Math.PI * radius;
+          const progress = circle.parentElement.querySelector('.progress-circle-number');
+          if (progress) {
+            const percentage = parseInt(progress.textContent);
+            const offset = circumference - (percentage / 100) * circumference;
+            circle.style.strokeDashoffset = offset;
+          }
+        }, index * 300);
+      });
+
+      // Animate percentage counters in training cards
+      const percentageCounters = document.querySelectorAll('.progress-circle-number[data-target]');
+      percentageCounters.forEach((counter, index) => {
+        const target = parseInt(counter.getAttribute('data-target'));
+        let current = 0;
+        const increment = target / 60; // 60 frames for smooth animation
+        const timer = setInterval(() => {
+          current += increment;
+          if (current >= target) {
+            current = target;
+            clearInterval(timer);
+          }
+          counter.textContent = Math.floor(current) + '%';
+        }, 25);
+      });
+
+      // Add entrance animations for cards
+      const cards = document.querySelectorAll('.analytics-card, .training-card-modern, .action-card-secondary');
+      cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+          card.style.transition = 'all 0.6s ease';
+          card.style.opacity = '1';
+          card.style.transform = 'translateY(0)';
+        }, index * 100);
+      });
+    });
+  </script>
+</body>
+</html>

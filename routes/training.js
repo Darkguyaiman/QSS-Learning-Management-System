@@ -1,0 +1,2399 @@
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const router = express.Router();
+const fs = require('fs');
+const sharp = require('sharp');
+
+/**
+ * Helper function to randomly select questions for a test
+ * Ensures at least 2 questions from each objective
+ * @param {Object} db - Database connection
+ * @param {string} testType - Type of test (pre_test, post_test, refreshment, certificate_enrolment)
+ * @param {number} totalQuestions - Total number of questions needed
+ * @returns {Promise<Array>} Array of question IDs
+ */
+async function selectQuestionsForTest(db, testType, totalQuestions) {
+  // Get all objectives
+  const [objectives] = await db.query('SELECT id FROM objectives ORDER BY id');
+  
+  if (objectives.length === 0) {
+    throw new Error('No objectives found in the system');
+  }
+  
+  const selectedQuestionIds = [];
+  const questionsByObjective = {};
+  const usedQuestionIds = new Set();
+  
+  // First, ensure at least 2 questions from each objective
+  const minPerObjective = 2;
+  const requiredQuestions = objectives.length * minPerObjective;
+  
+  if (totalQuestions < requiredQuestions) {
+    throw new Error(`Not enough questions requested. Need at least ${requiredQuestions} questions (2 per objective for ${objectives.length} objectives)`);
+  }
+  
+  // Get questions grouped by objective
+  for (const objective of objectives) {
+    const [questions] = await db.query(
+      'SELECT id FROM questions WHERE test_type = ? AND objective_id = ? ORDER BY RAND()',
+      [testType, objective.id]
+    );
+    
+    if (questions.length < minPerObjective) {
+      throw new Error(`Not enough questions of type "${testType}" for objective ID ${objective.id}. Need at least ${minPerObjective}, found ${questions.length}`);
+    }
+    
+    questionsByObjective[objective.id] = questions.map(q => q.id);
+  }
+  
+  // Select at least 2 from each objective
+  for (const objective of objectives) {
+    const availableQuestions = questionsByObjective[objective.id].filter(id => !usedQuestionIds.has(id));
+    
+    if (availableQuestions.length < minPerObjective) {
+      // If we don't have enough unused questions, use what we have
+      const toSelect = Math.min(minPerObjective, availableQuestions.length);
+      const selected = availableQuestions.slice(0, toSelect);
+      selected.forEach(id => {
+        selectedQuestionIds.push(id);
+        usedQuestionIds.add(id);
+      });
+    } else {
+      // Randomly select minPerObjective questions
+      const shuffled = availableQuestions.sort(() => Math.random() - 0.5);
+      const selected = shuffled.slice(0, minPerObjective);
+      selected.forEach(id => {
+        selectedQuestionIds.push(id);
+        usedQuestionIds.add(id);
+      });
+    }
+  }
+  
+  // Fill remaining slots with random questions from any objective
+  const remainingSlots = totalQuestions - selectedQuestionIds.length;
+  
+  if (remainingSlots > 0) {
+    // Get all available questions of this test type
+    const [allQuestions] = await db.query(
+      'SELECT id FROM questions WHERE test_type = ? ORDER BY RAND()',
+      [testType]
+    );
+    
+    const availableQuestions = allQuestions
+      .map(q => q.id)
+      .filter(id => !usedQuestionIds.has(id));
+    
+    if (availableQuestions.length < remainingSlots) {
+      throw new Error(`Not enough questions available. Need ${remainingSlots} more, but only ${availableQuestions.length} available`);
+    }
+    
+    // Randomly select remaining questions
+    const shuffled = availableQuestions.sort(() => Math.random() - 0.5);
+    const additionalQuestions = shuffled.slice(0, remainingSlots);
+    selectedQuestionIds.push(...additionalQuestions);
+  }
+  
+  // Shuffle the final array to randomize order
+  return selectedQuestionIds.sort(() => Math.random() - 0.5);
+}
+
+/**
+ * Validate if there are enough questions available for test creation
+ * @param {Object} db - Database connection
+ * @param {string} trainingType - Type of training (main or refreshment)
+ * @returns {Promise<{valid: boolean, errors: string[]}>}
+ */
+async function validateTestQuestions(db, trainingType) {
+  const errors = [];
+  
+  // Get all objectives
+  const [objectives] = await db.query('SELECT id FROM objectives ORDER BY id');
+  
+  if (objectives.length === 0) {
+    return { valid: false, errors: ['No objectives found in the system. Please create objectives first.'] };
+  }
+  
+  const minPerObjective = 2;
+  const requiredPerObjective = objectives.length * minPerObjective;
+  
+  if (trainingType === 'main') {
+    // Main training: pre_test (10), post_test (10), certificate_enrolment (40)
+    const tests = [
+      { type: 'pre_test', count: 10 },
+      { type: 'post_test', count: 10 },
+      { type: 'certificate_enrolment', count: 40 }
+    ];
+    
+    for (const test of tests) {
+      // Check if we have enough questions for this test type
+      if (test.count < requiredPerObjective) {
+        errors.push(`${test.type}: Need at least ${requiredPerObjective} questions (2 per objective for ${objectives.length} objectives), but only ${test.count} requested.`);
+        continue;
+      }
+      
+      // Check each objective has enough questions
+      for (const objective of objectives) {
+        const [questions] = await db.query(
+          'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND objective_id = ?',
+          [test.type, objective.id]
+        );
+        
+        const questionCount = questions[0].count;
+        if (questionCount < minPerObjective) {
+          errors.push(`${test.type}: Not enough questions for objective ID ${objective.id}. Need at least ${minPerObjective}, found ${questionCount}.`);
+        }
+      }
+      
+      // Check total available questions
+      const [totalQuestions] = await db.query(
+        'SELECT COUNT(*) as count FROM questions WHERE test_type = ?',
+        [test.type]
+      );
+      
+      if (totalQuestions[0].count < test.count) {
+        errors.push(`${test.type}: Not enough total questions available. Need ${test.count}, found ${totalQuestions[0].count}.`);
+      }
+    }
+  } else if (trainingType === 'refreshment') {
+    // Refreshment training: only refreshment test (10)
+    if (10 < requiredPerObjective) {
+      errors.push(`refreshment: Need at least ${requiredPerObjective} questions (2 per objective for ${objectives.length} objectives), but only 10 requested.`);
+    } else {
+      // Check each objective has enough questions
+      for (const objective of objectives) {
+        const [questions] = await db.query(
+          'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND objective_id = ?',
+          ['refreshment', objective.id]
+        );
+        
+        const questionCount = questions[0].count;
+        if (questionCount < minPerObjective) {
+          errors.push(`refreshment: Not enough questions for objective ID ${objective.id}. Need at least ${minPerObjective}, found ${questionCount}.`);
+        }
+      }
+      
+      // Check total available questions
+      const [totalQuestions] = await db.query(
+        'SELECT COUNT(*) as count FROM questions WHERE test_type = ?',
+        ['refreshment']
+      );
+      
+      if (totalQuestions[0].count < 10) {
+        errors.push(`refreshment: Not enough total questions available. Need 10, found ${totalQuestions[0].count}.`);
+      }
+    }
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+
+/**
+ * Create tests for a training
+ * @param {Object} db - Database connection
+ * @param {number} trainingId - Training ID
+ * @param {string} trainingType - Type of training (main or refreshment)
+ */
+async function createTrainingTests(db, trainingId, trainingType) {
+  try {
+    if (trainingType === 'main') {
+      // Main training: pre_test (10), post_test (10), certificate_enrolment (40)
+      const tests = [
+        { type: 'pre_test', count: 10 },
+        { type: 'post_test', count: 10 },
+        { type: 'certificate_enrolment', count: 40 }
+      ];
+      
+      for (const test of tests) {
+        // Select questions
+        const questionIds = await selectQuestionsForTest(db, test.type, test.count);
+        
+        // Create training_test record
+        const [testResult] = await db.query(
+          'INSERT INTO training_tests (training_id, test_type, total_questions) VALUES (?, ?, ?)',
+          [trainingId, test.type, test.count]
+        );
+        
+        const trainingTestId = testResult.insertId;
+        
+        // Insert selected questions
+        for (let i = 0; i < questionIds.length; i++) {
+          await db.query(
+            'INSERT INTO training_test_questions (training_test_id, question_id, question_order) VALUES (?, ?, ?)',
+            [trainingTestId, questionIds[i], i + 1]
+          );
+        }
+      }
+    } else if (trainingType === 'refreshment') {
+      // Refreshment training: only refreshment test (10)
+      const questionIds = await selectQuestionsForTest(db, 'refreshment', 10);
+      
+      // Create training_test record
+      const [testResult] = await db.query(
+        'INSERT INTO training_tests (training_id, test_type, total_questions) VALUES (?, ?, ?)',
+        [trainingId, 'refreshment', 10]
+      );
+      
+      const trainingTestId = testResult.insertId;
+      
+      // Insert selected questions
+      for (let i = 0; i < questionIds.length; i++) {
+        await db.query(
+          'INSERT INTO training_test_questions (training_test_id, question_id, question_order) VALUES (?, ?, ?)',
+          [trainingTestId, questionIds[i], i + 1]
+        );
+      }
+    }
+  } catch (error) {
+    console.error('Error creating training tests:', error);
+    throw error;
+  }
+}
+
+// File upload for training materials
+const storage = multer.diskStorage({
+  destination: './public/uploads/materials/',
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage });
+
+// Chunk upload for training media (image-only, 750KB chunks)
+const mediaChunkUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 800 * 1024 } // allow a bit of overhead; client chunks at 750KB
+});
+
+function ensureDir(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
+function safeBaseName(name) {
+  const base = String(name || 'image')
+    .replace(/\.[^/.]+$/, '') // strip ext
+    .replace(/[^a-zA-Z0-9-_ ]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .toLowerCase();
+  return base || 'image';
+}
+
+// Upload one chunk; server assembles + converts to WebP when all chunks arrive (directly attached to a training)
+router.post('/:id/media/upload-chunk', mediaChunkUpload.single('chunk'), async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+
+  try {
+    const trainingId = req.params.id;
+    const [tRows] = await req.db.query('SELECT id, status FROM trainings WHERE id = ?', [trainingId]);
+    if (!tRows || tRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Training not found' });
+    }
+    if (tRows[0].status === 'completed') {
+      return res.status(400).json({ success: false, error: 'Training is locked' });
+    }
+
+    const {
+      upload_key,
+      file_id,
+      file_name,
+      chunk_index,
+      total_chunks,
+      total_size,
+      mime_type
+    } = req.body || {};
+
+    if (!upload_key || !file_id || !file_name || chunk_index === undefined || !total_chunks || !total_size) {
+      return res.status(400).json({ success: false, error: 'Missing upload fields' });
+    }
+
+    const totalSizeNum = parseInt(total_size, 10);
+    const chunkIndexNum = parseInt(chunk_index, 10);
+    const totalChunksNum = parseInt(total_chunks, 10);
+
+    if (!Number.isFinite(totalSizeNum) || totalSizeNum <= 0 || totalSizeNum > 5 * 1024 * 1024) {
+      return res.status(400).json({ success: false, error: 'File size exceeds 5MB limit' });
+    }
+    if (!Number.isFinite(chunkIndexNum) || !Number.isFinite(totalChunksNum) || chunkIndexNum < 0 || chunkIndexNum >= totalChunksNum) {
+      return res.status(400).json({ success: false, error: 'Invalid chunk index' });
+    }
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ success: false, error: 'Missing chunk file' });
+    }
+
+    // basic type gate (sharp will also validate)
+    if (mime_type && !String(mime_type).toLowerCase().startsWith('image/')) {
+      return res.status(400).json({ success: false, error: 'Only images are allowed' });
+    }
+
+    // Enforce max 20 images per training (count existing + allow current upload)
+    const [countRows] = await req.db.query('SELECT COUNT(*) as cnt FROM training_media WHERE training_id = ?', [trainingId]);
+    const currentCount = countRows?.[0]?.cnt || 0;
+    if (currentCount >= 20) {
+      return res.status(400).json({ success: false, error: 'Maximum 20 images allowed' });
+    }
+
+    const tmpBase = path.join(__dirname, '..', 'public', 'uploads', 'training_media', 'tmp', String(trainingId), upload_key, file_id);
+    ensureDir(tmpBase);
+
+    const chunkPath = path.join(tmpBase, `${chunkIndexNum}.part`);
+    fs.writeFileSync(chunkPath, req.file.buffer);
+
+    // If not all chunks yet, return early
+    const parts = fs.readdirSync(tmpBase).filter(f => f.endsWith('.part'));
+    if (parts.length < totalChunksNum) {
+      return res.json({ success: true, completed: false, received: parts.length, total_chunks: totalChunksNum });
+    }
+
+    // Assemble
+    const assembledPath = path.join(tmpBase, `assembled-${Date.now()}.bin`);
+    const outStream = fs.createWriteStream(assembledPath);
+    for (let i = 0; i < totalChunksNum; i++) {
+      const p = path.join(tmpBase, `${i}.part`);
+      if (!fs.existsSync(p)) {
+        outStream.close();
+        return res.status(400).json({ success: false, error: 'Missing chunk part(s)' });
+      }
+      outStream.write(fs.readFileSync(p));
+    }
+    outStream.end();
+
+    await new Promise((resolve, reject) => {
+      outStream.on('finish', resolve);
+      outStream.on('error', reject);
+    });
+
+    // Convert to WebP
+    const baseName = safeBaseName(file_name);
+    const webpName = `${baseName}-${Date.now()}.webp`;
+    const webpAbsPath = path.join(tmpBase, webpName);
+
+    try {
+      await sharp(assembledPath)
+        .rotate()
+        .webp({ quality: 82 })
+        .toFile(webpAbsPath);
+    } catch (e) {
+      return res.status(400).json({ success: false, error: 'Invalid image file' });
+    } finally {
+      // Cleanup assembled file + parts
+      try { fs.unlinkSync(assembledPath); } catch (e) {}
+      try {
+        fs.readdirSync(tmpBase).forEach(f => {
+          if (f.endsWith('.part')) {
+            try { fs.unlinkSync(path.join(tmpBase, f)); } catch (e) {}
+          }
+        });
+      } catch (e) {}
+    }
+
+    // Move into final training folder + insert DB row
+    const destDir = path.join(__dirname, '..', 'public', 'uploads', 'training_media', String(trainingId));
+    ensureDir(destDir);
+    const finalName = `media-${Date.now()}-${Math.random().toString(16).slice(2)}.webp`;
+    const destAbs = path.join(destDir, finalName);
+    moveFileSafe(webpAbsPath, destAbs);
+
+    // Clean up tmp folder for this file_id
+    try {
+      const tmpKeyDir = path.join(__dirname, '..', 'public', 'uploads', 'training_media', 'tmp', String(trainingId), upload_key, file_id);
+      if (fs.existsSync(tmpKeyDir)) fs.rmSync(tmpKeyDir, { recursive: true, force: true });
+    } catch (e) {}
+
+    const finalRel = `/uploads/training_media/${trainingId}/${finalName}`;
+    const [orderRows] = await req.db.query('SELECT COALESCE(MAX(sort_order), -1) as max_order FROM training_media WHERE training_id = ?', [trainingId]);
+    const nextOrder = (orderRows?.[0]?.max_order ?? -1) + 1;
+
+    const [ins] = await req.db.query(
+      'INSERT INTO training_media (training_id, file_path, original_name, uploaded_by, sort_order) VALUES (?, ?, ?, ?, ?)',
+      [trainingId, finalRel, String(file_name || ''), req.session.userId, nextOrder]
+    );
+
+    return res.json({
+      success: true,
+      completed: true,
+      media: { id: ins.insertId, file_path: finalRel, original_name: String(file_name || '') }
+    });
+  } catch (error) {
+    console.error('Media chunk upload error:', error);
+    return res.status(500).json({ success: false, error: 'Upload failed' });
+  }
+});
+
+// Delete a training media item
+router.post('/:id/media/:mediaId/delete', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+
+  try {
+    const trainingId = req.params.id;
+    const mediaId = req.params.mediaId;
+
+    const [tRows] = await req.db.query('SELECT id, status FROM trainings WHERE id = ?', [trainingId]);
+    if (!tRows || tRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Training not found' });
+    }
+    if (tRows[0].status === 'completed') {
+      return res.status(400).json({ success: false, error: 'Training is locked' });
+    }
+
+    const [rows] = await req.db.query(
+      'SELECT id, file_path FROM training_media WHERE id = ? AND training_id = ?',
+      [mediaId, trainingId]
+    );
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Media not found' });
+    }
+
+    const rel = rows[0].file_path;
+    const abs = path.join(__dirname, '..', 'public', String(rel || '').replace(/^\//, ''));
+
+    await req.db.query('DELETE FROM training_media WHERE id = ? AND training_id = ?', [mediaId, trainingId]);
+    try {
+      if (abs && fs.existsSync(abs)) fs.unlinkSync(abs);
+    } catch (e) {}
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Training media delete error:', error);
+    return res.status(500).json({ success: false, error: 'Delete failed' });
+  }
+});
+
+function moveFileSafe(srcAbs, destAbs) {
+  ensureDir(path.dirname(destAbs));
+  try {
+    fs.renameSync(srcAbs, destAbs);
+  } catch (e) {
+    // Cross-device fallback
+    fs.copyFileSync(srcAbs, destAbs);
+    fs.unlinkSync(srcAbs);
+  }
+}
+
+// (Old create-time media attachment removed; media is uploaded during training via Coursework tab.)
+
+// List all trainings
+router.get('/', async (req, res) => {
+  try {
+    const statusFilter = req.query.status ? (Array.isArray(req.query.status) ? req.query.status : [req.query.status]) : [];
+    const trainerFilter = req.query.trainer || null;
+    const healthcareFilter = req.query.healthcare || null;
+    const deviceFilter = req.query.device || null;
+    const typeFilter = req.query.type || null;
+    const searchQuery = req.query.search || null;
+
+    let query = `
+      SELECT DISTINCT t.*,
+        (SELECT COUNT(*) FROM enrollments WHERE training_id = t.id) as enrolled_count,
+        (SELECT GROUP_CONCAT(CONCAT(u.first_name, ' ', u.last_name) SEPARATOR ', ')
+         FROM training_trainers tt
+         JOIN users u ON tt.trainer_id = u.id
+         WHERE tt.training_id = t.id) as trainer_names
+      FROM trainings t
+      LEFT JOIN training_healthcare th ON t.id = th.training_id
+      LEFT JOIN training_devices td ON t.id = td.training_id
+      WHERE 1=1
+    `;
+
+    const queryParams = [];
+
+    // Add role-based access control
+    if (req.session.userRole === 'trainee') {
+      // Trainees can only see trainings they're enrolled in
+      query += ` AND EXISTS (
+        SELECT 1 FROM enrollments e
+        WHERE e.training_id = t.id AND e.trainee_id = ?
+      )`;
+      queryParams.push(req.session.userId);
+    } else if (req.session.userRole === 'trainer') {
+      // Trainers can only see trainings they're assigned to teach
+      query += ` AND EXISTS (
+        SELECT 1 FROM training_trainers tt
+        WHERE tt.training_id = t.id AND tt.trainer_id = ?
+      )`;
+      queryParams.push(req.session.userId);
+    }
+    // Admins can see all trainings (no additional WHERE clause)
+    
+    // Apply status filter
+    if (statusFilter.length > 0) {
+      const placeholders = statusFilter.map(() => '?').join(',');
+      query += ` AND t.status IN (${placeholders})`;
+      queryParams.push(...statusFilter);
+    }
+    
+    // Apply trainer filter
+    if (trainerFilter) {
+      query += ` AND EXISTS (
+        SELECT 1 FROM training_trainers tt 
+        WHERE tt.training_id = t.id AND tt.trainer_id = ?
+      )`;
+      queryParams.push(trainerFilter);
+    }
+    
+    // Apply healthcare filter
+    if (healthcareFilter) {
+      query += ` AND th.healthcare_id = ?`;
+      queryParams.push(healthcareFilter);
+    }
+    
+    // Apply device filter
+    if (deviceFilter) {
+      // Check if it's a numeric ID or a serial number string
+      if (!isNaN(deviceFilter)) {
+        query += ` AND td.device_serial_number_id = ?`;
+        queryParams.push(deviceFilter);
+      } else {
+        query += ` AND td.custom_serial_number LIKE ?`;
+        queryParams.push(`%${deviceFilter}%`);
+      }
+    }
+    
+    // Apply type filter
+    if (typeFilter) {
+      query += ` AND t.type = ?`;
+      queryParams.push(typeFilter);
+    }
+    
+    // Apply global search
+    if (searchQuery) {
+      query += ` AND (
+        t.title LIKE ? OR 
+        t.description LIKE ? OR 
+        EXISTS (
+          SELECT 1 FROM training_trainers tt
+          JOIN users u ON tt.trainer_id = u.id
+          WHERE tt.training_id = t.id 
+          AND CONCAT(u.first_name, ' ', u.last_name) LIKE ?
+        )
+      )`;
+      const searchTerm = `%${searchQuery}%`;
+      queryParams.push(searchTerm, searchTerm, searchTerm);
+    }
+    
+    query += ' ORDER BY t.created_at DESC';
+    
+    const [trainings] = await req.db.query(query, queryParams);
+    
+    // Set default header for trainings without one and parse trainer names
+    trainings.forEach(training => {
+      if (!training.header_image) {
+        training.header_image = '/images/Training Headers/Header 2.jpg';
+      }
+      // Parse trainer names into array
+      training.trainers = training.trainer_names ? training.trainer_names.split(', ') : [];
+    });
+    
+    // Fetch filter options
+    const [trainers] = await req.db.query(`
+      SELECT DISTINCT u.id, u.first_name, u.last_name
+      FROM users u
+      INNER JOIN training_trainers tt ON u.id = tt.trainer_id
+      WHERE u.role IN ('admin', 'trainer')
+      ORDER BY u.last_name, u.first_name
+    `);
+    
+    const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
+    
+    const [devices] = await req.db.query(`
+      SELECT DISTINCT d.id, d.serial_number, k.model_name
+      FROM device_serial_numbers d
+      LEFT JOIN k_laser_models k ON d.k_laser_model_id = k.id
+      INNER JOIN training_devices td ON d.id = td.device_serial_number_id
+      ORDER BY d.serial_number ASC
+    `);
+    
+    // Also get custom serial numbers
+    const [customDevices] = await req.db.query(`
+      SELECT DISTINCT custom_serial_number as serial_number
+      FROM training_devices
+      WHERE custom_serial_number IS NOT NULL
+      ORDER BY custom_serial_number ASC
+    `);
+    
+    res.render('training/list', { 
+      user: req.session, 
+      trainings,
+      selectedStatuses: statusFilter,
+      selectedTrainer: trainerFilter,
+      selectedHealthcare: healthcareFilter,
+      selectedDevice: deviceFilter,
+      selectedType: typeFilter,
+      searchQuery: searchQuery,
+      trainers,
+      healthcare,
+      devices: [...devices, ...customDevices.map(d => ({ id: d.serial_number, serial_number: d.serial_number, model_name: 'Custom' }))],
+    });
+  } catch (error) {
+    console.error('Training list error:', error);
+    res.status(500).send('Error loading trainings');
+  }
+});
+
+// Create training page (admin/trainer only)
+router.get('/create', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).send('Access denied');
+  }
+  
+  try {
+    // Fetch all necessary data for the form
+    const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
+    const [trainees] = await req.db.query('SELECT id, first_name, last_name, email, healthcare, ic_passport, trainee_id FROM trainees WHERE trainee_status = "active" ORDER BY first_name, last_name ASC');
+    const [devices] = await req.db.query(`
+      SELECT d.*, k.model_name 
+      FROM device_serial_numbers d
+      LEFT JOIN k_laser_models k ON d.k_laser_model_id = k.id
+      ORDER BY d.serial_number ASC
+    `);
+    const [kLaserModels] = await req.db.query('SELECT * FROM k_laser_models ORDER BY model_name ASC');
+    
+    // Fetch all trainers (admin and trainer roles), excluding current user
+    const [trainers] = await req.db.query(`
+      SELECT id, first_name, last_name, email 
+      FROM users 
+      WHERE role IN ('admin', 'trainer') AND id != ?
+      ORDER BY last_name, first_name ASC
+    `, [req.session.userId]);
+    
+    res.render('training/create', { 
+      user: req.session, 
+      error: null,
+      healthcare,
+      trainees,
+      devices,
+      kLaserModels,
+      trainers
+    });
+  } catch (error) {
+    console.error('Training create page error:', error);
+    res.status(500).send('Error loading training creation page');
+  }
+});
+
+// Create training POST
+router.post('/create', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).send('Access denied');
+  }
+  
+  const { 
+    title, 
+    description, 
+    type,
+    start_datetime,
+    end_datetime,
+    healthcare_ids, // Array of healthcare IDs
+    trainer_ids, // Array of trainer IDs
+    trainee_ids, // Array of trainee IDs
+    device_ids, // Array of device_serial_numbers IDs
+    custom_devices, // Array of custom serial numbers
+    save_custom_devices, // Array of booleans indicating if custom device should be saved
+    custom_device_models // Array of k_laser_model_id for custom devices
+  } = req.body;
+  
+  let connection = null;
+  
+  try {
+    // Randomly select a header image
+    const fs = require('fs');
+    const path = require('path');
+    const headersPath = path.join(__dirname, '..', 'public', 'images', 'Training Headers');
+    const headerFiles = ['Header 1.jpg', 'Header 2.jpg', 'Header 3.png', 'Header 4.png', 'Header 5.png'];
+    const availableHeaders = headerFiles.filter(file => {
+      const filePath = path.join(headersPath, file);
+      return fs.existsSync(filePath);
+    });
+    
+    let headerImage = null;
+    if (availableHeaders.length > 0) {
+      const randomHeader = availableHeaders[Math.floor(Math.random() * availableHeaders.length)];
+      headerImage = `/images/Training Headers/${randomHeader}`;
+    }
+    
+    // Convert datetime format from flatpickr (Y-m-d h:i K) to MySQL format (Y-m-d H:i:s)
+    let startDatetime = null;
+    let endDatetime = null;
+    
+    // Helper function to convert AM/PM format to MySQL datetime
+    function convertToMySQLDatetime(dateTimeStr) {
+      if (!dateTimeStr) return null;
+      
+      // Parse the date string (format: "Y-m-d h:i K" e.g., "2024-01-15 2:30 PM")
+      const parts = dateTimeStr.trim().split(' ');
+      if (parts.length < 3) return dateTimeStr + ':00'; // Fallback if format is unexpected
+      
+      const datePart = parts[0]; // "Y-m-d"
+      const timePart = parts[1]; // "h:i"
+      const ampm = parts[2].toUpperCase(); // "AM" or "PM"
+      
+      const [year, month, day] = datePart.split('-');
+      const [hours12, minutes] = timePart.split(':');
+      
+      let hours24 = parseInt(hours12, 10);
+      if (ampm === 'PM' && hours24 !== 12) {
+        hours24 += 12;
+      } else if (ampm === 'AM' && hours24 === 12) {
+        hours24 = 0;
+      }
+      
+      return `${year}-${month}-${day} ${String(hours24).padStart(2, '0')}:${minutes}:00`;
+    }
+    
+    if (start_datetime) {
+      startDatetime = convertToMySQLDatetime(start_datetime);
+    }
+    
+    if (end_datetime) {
+      endDatetime = convertToMySQLDatetime(end_datetime);
+    }
+    
+    // Validate test questions availability BEFORE creating training
+    const validation = await validateTestQuestions(req.db, type);
+    if (!validation.valid) {
+      // Re-fetch data for form
+      const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
+      const [trainees] = await req.db.query('SELECT id, first_name, last_name, email, healthcare, ic_passport, trainee_id FROM trainees WHERE trainee_status = "active" ORDER BY first_name, last_name ASC');
+      const [devices] = await req.db.query(`
+        SELECT d.*, k.model_name 
+        FROM device_serial_numbers d
+        LEFT JOIN k_laser_models k ON d.k_laser_model_id = k.id
+        ORDER BY d.serial_number ASC
+      `);
+      const [kLaserModels] = await req.db.query('SELECT * FROM k_laser_models ORDER BY model_name ASC');
+      const [trainers] = await req.db.query(`
+        SELECT id, first_name, last_name, email 
+        FROM users 
+        WHERE role IN ('admin', 'trainer') AND id != ?
+        ORDER BY last_name, first_name ASC
+      `, [req.session.userId]);
+      
+      return res.render('training/create', { 
+        user: req.session, 
+        error: `Cannot create training: ${validation.errors.join(' ')}`,
+        healthcare,
+        trainees,
+        devices,
+        kLaserModels,
+        trainers
+      });
+    }
+    
+    // Get a connection from the pool for transaction
+    const connection = await req.db.getConnection();
+    
+    try {
+      // Start transaction
+      await connection.beginTransaction();
+      
+      // Insert training
+      const [result] = await connection.query(
+        'INSERT INTO trainings (title, description, type, created_by, status, start_datetime, end_datetime, header_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [title, description, type, req.session.userId, 'in_progress', startDatetime, endDatetime, headerImage]
+      );
+      
+      const trainingId = result.insertId;
+      
+      // Insert trainer relationships (including creator)
+      // Always add the creator as a trainer
+      await connection.query(
+        'INSERT INTO training_trainers (training_id, trainer_id) VALUES (?, ?)',
+        [trainingId, req.session.userId]
+      );
+      
+      // Add additional trainers if selected
+      if (trainer_ids && Array.isArray(trainer_ids)) {
+        for (const trainerId of trainer_ids) {
+          // Skip if it's the creator (already added)
+          if (parseInt(trainerId) !== parseInt(req.session.userId)) {
+            try {
+              await connection.query(
+                'INSERT INTO training_trainers (training_id, trainer_id) VALUES (?, ?)',
+                [trainingId, trainerId]
+              );
+            } catch (error) {
+              // Ignore duplicate entry errors
+              if (error.code !== 'ER_DUP_ENTRY') {
+                console.error('Error adding trainer:', error);
+              }
+            }
+          }
+        }
+      }
+      
+      // Insert healthcare relationships
+      if (healthcare_ids && Array.isArray(healthcare_ids)) {
+        for (const healthcareId of healthcare_ids) {
+          await connection.query(
+            'INSERT INTO training_healthcare (training_id, healthcare_id) VALUES (?, ?)',
+            [trainingId, healthcareId]
+          );
+        }
+      }
+      
+      // Insert device relationships (from settings)
+      if (device_ids && Array.isArray(device_ids)) {
+        for (const deviceId of device_ids) {
+          await connection.query(
+            'INSERT INTO training_devices (training_id, device_serial_number_id) VALUES (?, ?)',
+            [trainingId, deviceId]
+          );
+        }
+      }
+      
+      // Insert custom device serial numbers
+      if (custom_devices && Array.isArray(custom_devices)) {
+        for (let i = 0; i < custom_devices.length; i++) {
+          const customSerial = custom_devices[i];
+          if (customSerial && customSerial.trim()) {
+            let deviceSerialNumberId = null;
+            
+            // If user wants to save to settings, create device_serial_number record
+            if (save_custom_devices && save_custom_devices[i] === 'true' && custom_device_models && custom_device_models[i]) {
+              try {
+                const [deviceResult] = await connection.query(
+                  'INSERT INTO device_serial_numbers (serial_number, k_laser_model_id) VALUES (?, ?)',
+                  [customSerial.trim(), custom_device_models[i]]
+                );
+                deviceSerialNumberId = deviceResult.insertId;
+              } catch (error) {
+                // If device already exists, get its ID
+                if (error.code === 'ER_DUP_ENTRY') {
+                  const [existing] = await connection.query(
+                    'SELECT id FROM device_serial_numbers WHERE serial_number = ?',
+                    [customSerial.trim()]
+                  );
+                  if (existing.length > 0) {
+                    deviceSerialNumberId = existing[0].id;
+                  }
+                } else {
+                  console.error('Error saving custom device to settings:', error);
+                }
+              }
+            }
+            
+            // Insert into training_devices
+            if (deviceSerialNumberId) {
+              await connection.query(
+                'INSERT INTO training_devices (training_id, device_serial_number_id) VALUES (?, ?)',
+                [trainingId, deviceSerialNumberId]
+              );
+            } else {
+              await connection.query(
+                'INSERT INTO training_devices (training_id, custom_serial_number) VALUES (?, ?)',
+                [trainingId, customSerial.trim()]
+              );
+            }
+          }
+        }
+      }
+      
+      // Insert trainee relationships and create enrollments
+      if (trainee_ids && Array.isArray(trainee_ids)) {
+        for (const traineeId of trainee_ids) {
+          // Insert into training_trainees
+          await connection.query(
+            'INSERT INTO training_trainees (training_id, trainee_id) VALUES (?, ?)',
+            [trainingId, traineeId]
+          );
+          
+          // Also create enrollment
+          try {
+            await connection.query(
+              'INSERT INTO enrollments (trainee_id, training_id) VALUES (?, ?)',
+              [traineeId, trainingId]
+            );
+          } catch (error) {
+            // Enrollment might already exist, ignore
+            if (error.code !== 'ER_DUP_ENTRY') {
+              console.error('Error creating enrollment:', error);
+            }
+          }
+        }
+      }
+      
+      // If this is a main training, copy all hands-on aspects from settings
+      if (type === 'main') {
+        const [aspects] = await connection.query('SELECT * FROM hands_on_aspects_settings');
+        
+        for (const aspect of aspects) {
+          await connection.query(
+            'INSERT INTO hands_on_aspects (training_id, aspect_name, description, max_score) VALUES (?, ?, ?, ?)',
+            [trainingId, aspect.aspect_name, aspect.description, aspect.max_score]
+          );
+        }
+      }
+      
+      // Create tests for the training (must succeed or transaction will rollback)
+      await createTrainingTests(connection, trainingId, type);
+      
+      // Commit transaction
+      await connection.commit();
+      
+      res.redirect(`/training/${trainingId}`);
+    } catch (error) {
+      // Rollback transaction on any error
+      await connection.rollback();
+      
+      console.error('Training creation error:', error);
+      
+      // Re-fetch data for form
+      try {
+        const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
+        const [trainees] = await req.db.query('SELECT id, first_name, last_name, email, healthcare, ic_passport, trainee_id FROM trainees WHERE trainee_status = "active" ORDER BY first_name, last_name ASC');
+        const [devices] = await req.db.query(`
+          SELECT d.*, k.model_name 
+          FROM device_serial_numbers d
+          LEFT JOIN k_laser_models k ON d.k_laser_model_id = k.id
+          ORDER BY d.serial_number ASC
+        `);
+        const [kLaserModels] = await req.db.query('SELECT * FROM k_laser_models ORDER BY model_name ASC');
+        const [trainers] = await req.db.query(`
+          SELECT id, first_name, last_name, email 
+          FROM users 
+          WHERE role IN ('admin', 'trainer') AND id != ?
+          ORDER BY last_name, first_name ASC
+        `, [req.session.userId]);
+        
+        // Show specific error message
+        const errorMessage = error.message || 'Error creating training';
+        
+        res.render('training/create', { 
+          user: req.session, 
+          error: errorMessage,
+          healthcare,
+          trainees,
+          devices,
+          kLaserModels,
+          trainers
+        });
+      } catch (renderError) {
+        console.error('Error rendering create page:', renderError);
+        res.status(500).send('Error creating training: ' + error.message);
+      }
+    } finally {
+      // Release the connection back to the pool
+      if (connection) {
+        connection.release();
+      }
+    }
+  } catch (error) {
+    // Catch any errors that occur outside the transaction (e.g., validation, header image selection, getting connection)
+    console.error('Training creation error (outer):', error);
+    
+    // Re-fetch data for form
+    try {
+      const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
+      const [trainees] = await req.db.query('SELECT id, first_name, last_name, email, healthcare, ic_passport, trainee_id FROM trainees WHERE trainee_status = "active" ORDER BY first_name, last_name ASC');
+      const [devices] = await req.db.query(`
+        SELECT d.*, k.model_name 
+        FROM device_serial_numbers d
+        LEFT JOIN k_laser_models k ON d.k_laser_model_id = k.id
+        ORDER BY d.serial_number ASC
+      `);
+      const [kLaserModels] = await req.db.query('SELECT * FROM k_laser_models ORDER BY model_name ASC');
+      const [trainers] = await req.db.query(`
+        SELECT id, first_name, last_name, email 
+        FROM users 
+        WHERE role IN ('admin', 'trainer') AND id != ?
+        ORDER BY last_name, first_name ASC
+      `, [req.session.userId]);
+      
+      res.render('training/create', { 
+        user: req.session, 
+        error: error.message || 'Error creating training',
+        healthcare,
+        trainees,
+        devices,
+        kLaserModels,
+        trainers
+      });
+    } catch (renderError) {
+      console.error('Error rendering create page:', renderError);
+      res.status(500).send('Error creating training');
+    }
+  }
+});
+
+// View training details
+router.get('/:id', async (req, res) => {
+  try {
+    const [trainings] = await req.db.query(
+      'SELECT t.*, u.first_name, u.last_name FROM trainings t LEFT JOIN users u ON t.created_by = u.id WHERE t.id = ?',
+      [req.params.id]
+    );
+    
+    if (trainings.length === 0) {
+      return res.status(404).send('Training not found');
+    }
+
+    const training = trainings[0];
+
+    // Check authorization based on user role
+    if (req.session.userRole === 'trainee') {
+      // Check if trainee is enrolled in this training
+      const [enrollments] = await req.db.query(
+        'SELECT id FROM enrollments WHERE training_id = ? AND trainee_id = ?',
+        [req.params.id, req.session.userId]
+      );
+      if (enrollments.length === 0) {
+        return res.status(403).send('You are not authorized to access this training. Please contact your administrator.');
+      }
+    } else if (req.session.userRole === 'trainer') {
+      // Check if trainer is assigned to this training
+      const [trainerAssignments] = await req.db.query(
+        'SELECT id FROM training_trainers WHERE training_id = ? AND trainer_id = ?',
+        [req.params.id, req.session.userId]
+      );
+      if (trainerAssignments.length === 0) {
+        return res.status(403).send('You are not authorized to access this training. Please contact your administrator.');
+      }
+    }
+    // Admins can access all trainings
+    
+    // Set default header if not set
+    if (!training.header_image) {
+      training.header_image = '/images/Training Headers/Header 2.jpg';
+    }
+    
+    // Get sections and materials
+    const [sections] = await req.db.query(`
+      SELECT s.*, 
+        (SELECT JSON_ARRAYAGG(JSON_OBJECT(
+          'id', m.id,
+          'title', m.title,
+          'type', m.type,
+          'file_path', m.file_path,
+          'url', m.url,
+          'uploaded_by', CONCAT(u.first_name, ' ', u.last_name)
+        ))
+        FROM training_materials m
+        LEFT JOIN users u ON m.uploaded_by = u.id
+        WHERE m.section_id = s.id
+        ORDER BY m.material_order) as materials
+      FROM training_sections s
+      WHERE s.training_id = ?
+      ORDER BY s.section_order
+    `, [req.params.id]);
+    
+    // Get all materials separately (for materials without sections)
+    // Since section_id is NOT NULL, we'll get materials from all sections
+    const [allMaterialsResult] = await req.db.query(`
+      SELECT m.*, CONCAT(u.first_name, ' ', u.last_name) as uploaded_by, m.section_id
+      FROM training_materials m
+      LEFT JOIN users u ON m.uploaded_by = u.id
+      WHERE m.section_id IN (
+        SELECT id FROM training_sections WHERE training_id = ?
+      )
+      ORDER BY m.material_order
+    `, [req.params.id]);
+    
+    const allMaterials = allMaterialsResult || [];
+    
+    // Get hands-on aspects if main training
+    let aspects = [];
+    if (training.type === 'main') {
+      [aspects] = await req.db.query(
+        'SELECT * FROM hands_on_aspects WHERE training_id = ? ORDER BY id',
+        [req.params.id]
+      );
+    }
+    
+    // Get training tests
+    const [trainingTests] = await req.db.query(
+      'SELECT * FROM training_tests WHERE training_id = ? ORDER BY test_type',
+      [req.params.id]
+    );
+    
+    // Get all trainers for this training
+    const [trainersResult] = await req.db.query(`
+      SELECT u.id, u.first_name, u.last_name, u.email, u.profile_picture
+      FROM training_trainers tt
+      JOIN users u ON tt.trainer_id = u.id
+      WHERE tt.training_id = ?
+      ORDER BY u.last_name, u.first_name
+    `, [req.params.id]);
+    
+    const trainers = trainersResult || [];
+    
+    // Keep trainer variable for backward compatibility (first trainer or creator)
+    const trainer = trainers.length > 0 ? trainers[0] : {
+      id: training.created_by,
+      first_name: training.first_name || 'Unknown',
+      last_name: training.last_name || 'Trainer',
+      email: null,
+      profile_picture: null
+    };
+    
+    // Get all enrolled trainees (People tab)
+    let enrolledTrainees = [];
+    try {
+      const [traineesResult] = await req.db.query(`
+        SELECT tr.*, e.enrolled_at, e.status as enrollment_status
+        FROM enrollments e
+        JOIN trainees tr ON e.trainee_id = tr.id
+        WHERE e.training_id = ?
+        ORDER BY tr.last_name, tr.first_name
+      `, [req.params.id]);
+      enrolledTrainees = traineesResult || [];
+    } catch (error) {
+      console.error('Error fetching enrolled trainees:', error);
+      enrolledTrainees = [];
+    }
+    
+    // Get marks/grades for all trainees (Marks tab) - only for admin/trainer
+    let marksData = [];
+    if (['admin', 'trainer'].includes(req.session.userRole)) {
+      // Get test results for all enrollments
+      const [allEnrollments] = await req.db.query(
+        'SELECT id, trainee_id, can_download_results FROM enrollments WHERE training_id = ?',
+        [req.params.id]
+      );
+      
+      for (const enrollment of allEnrollments) {
+        const [tests] = await req.db.query(
+          'SELECT * FROM test_attempts WHERE enrollment_id = ? AND status = "completed" ORDER BY test_type',
+          [enrollment.id]
+        );
+        
+        // Convert scores to numbers (MySQL DECIMAL returns as string)
+        tests.forEach(test => {
+          test.score = parseFloat(test.score) || 0;
+        });
+        
+        let handsOnScores = [];
+        if (training.type === 'main') {
+          [handsOnScores] = await req.db.query(`
+            SELECT hs.*, ha.aspect_name, ha.max_score
+            FROM hands_on_scores hs
+            JOIN hands_on_aspects ha ON hs.aspect_id = ha.id
+            WHERE hs.enrollment_id = ?
+          `, [enrollment.id]);
+        }
+        
+        const [traineeInfo] = await req.db.query(
+          'SELECT first_name, last_name, trainee_id FROM trainees WHERE id = ?',
+          [enrollment.trainee_id]
+        );
+        
+        if (traineeInfo.length > 0) {
+          marksData.push({
+            trainee_id: traineeInfo[0].trainee_id,
+            trainee_name: `${traineeInfo[0].first_name} ${traineeInfo[0].last_name}`,
+            enrollment_id: enrollment.id,
+            tests,
+            handsOnScores,
+            can_download_results: enrollment.can_download_results || false
+          });
+        }
+      }
+    }
+    
+    // Check if user is enrolled
+    let enrollment = null;
+    let traineeMarksData = null;
+    if (req.session.userRole === 'trainee') {
+      const [enrollments] = await req.db.query(`
+        SELECT e.*,
+          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') > 0 as pre_test_completed,
+          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') > 0 as post_test_completed,
+          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refreshment' AND status = 'completed') > 0 as refreshment_test_completed
+        FROM enrollments e
+        WHERE e.trainee_id = ? AND e.training_id = ?
+      `, [req.session.userId, req.params.id]);
+      enrollment = enrollments[0] || null;
+      
+      // Get marks data for trainee if scores are released
+      if (enrollment && enrollment.can_download_results) {
+        const [tests] = await req.db.query(
+          'SELECT * FROM test_attempts WHERE enrollment_id = ? AND status = "completed" ORDER BY test_type',
+          [enrollment.id]
+        );
+        
+        tests.forEach(test => {
+          test.score = parseFloat(test.score) || 0;
+        });
+        
+        let handsOnScores = [];
+        if (training.type === 'main') {
+          [handsOnScores] = await req.db.query(`
+            SELECT hs.*, ha.aspect_name, ha.max_score, ha.description
+            FROM hands_on_scores hs
+            JOIN hands_on_aspects ha ON hs.aspect_id = ha.id
+            WHERE hs.enrollment_id = ?
+          `, [enrollment.id]);
+        }
+        
+        const [finalGrades] = await req.db.query(
+          'SELECT * FROM final_grades WHERE enrollment_id = ?',
+          [enrollment.id]
+        );
+        
+        traineeMarksData = {
+          tests,
+          handsOnScores,
+          finalGrade: finalGrades.length > 0 ? finalGrades[0] : null
+        };
+      }
+    }
+    
+    // Get attendance data for Attendance tab (Admin/Trainer only)
+    let attendanceData = [];
+    if (['admin', 'trainer'].includes(req.session.userRole)) {
+      const [attendanceResult] = await req.db.query(`
+        SELECT e.*, tr.first_name, tr.last_name, tr.email, tr.trainee_id,
+          (SELECT COUNT(*) FROM attendance WHERE enrollment_id = e.id AND status = 'present') as present_count,
+          (SELECT COUNT(*) FROM attendance WHERE enrollment_id = e.id AND status = 'absent') as absent_count
+        FROM enrollments e
+        JOIN trainees tr ON e.trainee_id = tr.id
+        WHERE e.training_id = ?
+        ORDER BY tr.last_name, tr.first_name
+      `, [req.params.id]);
+      attendanceData = attendanceResult || [];
+    }
+
+    // Training Media (gallery)
+    let trainingMedia = [];
+    try {
+      const [mediaRows] = await req.db.query(
+        'SELECT id, file_path, original_name FROM training_media WHERE training_id = ? ORDER BY sort_order ASC, id ASC',
+        [req.params.id]
+      );
+      trainingMedia = mediaRows || [];
+    } catch (e) {
+      trainingMedia = [];
+    }
+    
+    // Get data for Settings tab (Admin/Trainer only)
+    let allHealthcare = [];
+    let allDevices = [];
+    let allTrainers = [];
+    let allTrainees = [];
+    let trainingHealthcare = [];
+    let trainingDevices = [];
+    
+    if (['admin', 'trainer'].includes(req.session.userRole)) {
+      // Get all healthcare centres
+      [allHealthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
+      
+      // Get current training healthcare associations
+      [trainingHealthcare] = await req.db.query(
+        'SELECT healthcare_id FROM training_healthcare WHERE training_id = ?',
+        [req.params.id]
+      );
+      
+      // Get all devices
+      [allDevices] = await req.db.query(`
+        SELECT dsn.*, klm.model_name 
+        FROM device_serial_numbers dsn
+        LEFT JOIN k_laser_models klm ON dsn.k_laser_model_id = klm.id
+        ORDER BY dsn.serial_number ASC
+      `);
+      
+      // Get current training devices
+      [trainingDevices] = await req.db.query(
+        'SELECT * FROM training_devices WHERE training_id = ?',
+        [req.params.id]
+      );
+      
+      // Get all trainers
+      [allTrainers] = await req.db.query(`
+        SELECT id, first_name, last_name, email 
+        FROM users 
+        WHERE role IN ('admin', 'trainer')
+        ORDER BY last_name, first_name
+      `);
+      
+      // Get all trainees
+      [allTrainees] = await req.db.query(`
+        SELECT id, trainee_id, first_name, last_name, email 
+        FROM trainees 
+        ORDER BY last_name, first_name
+      `);
+    }
+    
+    res.render('training/view', { 
+      user: req.session, 
+      training, 
+      trainingMedia,
+      enrollment,
+      marksData: req.session.userRole === 'trainee' && traineeMarksData ? traineeMarksData : marksData,
+      sections: sections.map(s => {
+        let materials = [];
+        try {
+          if (s.materials === null || s.materials === undefined) {
+            materials = [];
+          } else if (typeof s.materials === 'string') {
+            // Try to parse as JSON string
+            const parsed = JSON.parse(s.materials);
+            materials = Array.isArray(parsed) ? parsed : [];
+          } else if (Array.isArray(s.materials)) {
+            // Already an array
+            materials = s.materials;
+          } else {
+            // If it's an object but not an array, wrap it
+            materials = [];
+          }
+        } catch (e) {
+          console.error('Error parsing materials:', e, 'Raw value:', s.materials, 'Type:', typeof s.materials);
+          materials = [];
+        }
+        return {...s, materials};
+      }),
+      aspects,
+      trainingTests: trainingTests || [],
+      enrollment,
+      trainer,
+      trainers,
+      enrolledTrainees,
+      marksData,
+      attendanceData,
+      allHealthcare,
+      allDevices,
+      allTrainers,
+      allTrainees,
+      trainingHealthcare,
+      trainingDevices,
+      allMaterials
+    });
+  } catch (error) {
+    console.error('Training view error:', error);
+    res.status(500).send('Error loading training');
+  }
+});
+
+// Create material (can be with or without section)
+router.post('/:id/materials/create', upload.single('file'), async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+  
+  try {
+    const { title, type, section_id, url, document_url } = req.body;
+    const trainingId = req.params.id;
+    
+    // Determine file path and URL
+    let filePath = null;
+    let materialUrl = null;
+    
+    if (type === 'video' || type === 'link') {
+      materialUrl = url;
+    } else if (type === 'document') {
+      if (req.file) {
+        // Check file size (5MB max)
+        if (req.file.size > 5 * 1024 * 1024) {
+          return res.status(400).json({ success: false, error: 'File size exceeds 5MB limit' });
+        }
+        filePath = `/uploads/materials/${req.file.filename}`;
+      } else if (document_url) {
+        materialUrl = document_url;
+      } else {
+        return res.status(400).json({ success: false, error: 'Please provide either a file or a link for the document' });
+      }
+    }
+    
+    // Handle section - if no section provided, create or use "General Materials" section
+    let finalSectionId = section_id;
+    if (!finalSectionId || finalSectionId === '') {
+      // Check if "General Materials" section exists
+      const [existingGeneral] = await req.db.query(
+        'SELECT id FROM training_sections WHERE training_id = ? AND title = ?',
+        [trainingId, 'General Materials']
+      );
+      
+      if (existingGeneral.length > 0) {
+        finalSectionId = existingGeneral[0].id;
+      } else {
+        // Create "General Materials" section
+        const [newSection] = await req.db.query(
+          'INSERT INTO training_sections (training_id, title, section_order) VALUES (?, ?, 0)',
+          [trainingId, 'General Materials']
+        );
+        finalSectionId = newSection.insertId;
+      }
+    }
+    
+    // Get max order for the section
+    const [maxOrder] = await req.db.query(
+      'SELECT COALESCE(MAX(material_order), 0) as max_order FROM training_materials WHERE section_id = ?',
+      [finalSectionId]
+    );
+    
+    await req.db.query(
+      'INSERT INTO training_materials (section_id, title, type, file_path, url, material_order, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [finalSectionId, title, type, filePath, materialUrl, maxOrder[0].max_order + 1, req.session.userId]
+    );
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Material creation error:', error);
+    res.status(500).json({ success: false, error: 'Error creating material' });
+  }
+});
+
+// View material
+router.get('/:id/materials/:materialId', async (req, res) => {
+  try {
+    const [materials] = await req.db.query(`
+      SELECT m.*, s.title as section_title, s.training_id,
+             CONCAT(u.first_name, ' ', u.last_name) as uploaded_by_name
+      FROM training_materials m
+      LEFT JOIN training_sections s ON m.section_id = s.id
+      LEFT JOIN users u ON m.uploaded_by = u.id
+      WHERE m.id = ?
+    `, [req.params.materialId]);
+    
+    if (materials.length === 0) {
+      return res.status(404).send('Material not found');
+    }
+    
+    const material = materials[0];
+
+    // Get training info
+    const [trainings] = await req.db.query('SELECT * FROM trainings WHERE id = ?', [material.training_id]);
+    const training = trainings[0];
+
+    // Check authorization based on user role
+    if (req.session.userRole === 'trainee') {
+      // Check if trainee is enrolled in this training
+      const [enrollments] = await req.db.query(
+        'SELECT id FROM enrollments WHERE training_id = ? AND trainee_id = ?',
+        [material.training_id, req.session.userId]
+      );
+      if (enrollments.length === 0) {
+        return res.status(403).send('You are not authorized to access this material. Please contact your administrator.');
+      }
+    } else if (req.session.userRole === 'trainer') {
+      // Check if trainer is assigned to this training
+      const [trainerAssignments] = await req.db.query(
+        'SELECT id FROM training_trainers WHERE training_id = ? AND trainer_id = ?',
+        [material.training_id, req.session.userId]
+      );
+      if (trainerAssignments.length === 0) {
+        return res.status(403).send('You are not authorized to access this material. Please contact your administrator.');
+      }
+    }
+    // Admins can access all materials
+    
+    res.render('training/material-view', {
+      user: req.session,
+      training,
+      material
+    });
+  } catch (error) {
+    console.error('Material view error:', error);
+    res.status(500).send('Error loading material');
+  }
+});
+
+// Edit material - GET
+router.get('/:id/materials/:materialId/edit', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).send('Access denied');
+  }
+  
+  try {
+    const [materials] = await req.db.query(`
+      SELECT m.*, s.title as section_title, s.training_id
+      FROM training_materials m
+      LEFT JOIN training_sections s ON m.section_id = s.id
+      WHERE m.id = ?
+    `, [req.params.materialId]);
+    
+    if (materials.length === 0) {
+      return res.status(404).send('Material not found');
+    }
+    
+    const material = materials[0];
+    
+    // Get all sections for dropdown
+    const [sections] = await req.db.query(
+      'SELECT * FROM training_sections WHERE training_id = ? ORDER BY section_order',
+      [material.training_id]
+    );
+    
+    res.render('training/material-edit', {
+      user: req.session,
+      training: { id: material.training_id },
+      material,
+      sections
+    });
+  } catch (error) {
+    console.error('Material edit error:', error);
+    res.status(500).send('Error loading material');
+  }
+});
+
+// Edit material - POST
+router.post('/:id/materials/:materialId/edit', upload.single('file'), async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+  
+  try {
+    const { title, type, section_id, url, document_url } = req.body;
+    
+    // Get current material
+    const [materials] = await req.db.query('SELECT * FROM training_materials WHERE id = ?', [req.params.materialId]);
+    if (materials.length === 0) {
+      return res.status(404).json({ success: false, error: 'Material not found' });
+    }
+    
+    const currentMaterial = materials[0];
+    
+    // Determine file path and URL
+    let filePath = currentMaterial.file_path;
+    let materialUrl = currentMaterial.url;
+    
+    if (type === 'video' || type === 'link') {
+      materialUrl = url;
+      filePath = null;
+    } else if (type === 'document') {
+      if (req.file) {
+        // Check file size (5MB max)
+        if (req.file.size > 5 * 1024 * 1024) {
+          return res.status(400).json({ success: false, error: 'File size exceeds 5MB limit' });
+        }
+        filePath = `/uploads/materials/${req.file.filename}`;
+        materialUrl = null;
+      } else if (document_url) {
+        materialUrl = document_url;
+        filePath = null;
+      } else {
+        // Keep existing file_path if no new file or link provided
+        materialUrl = null;
+      }
+    }
+    
+    // Handle section - if no section provided, use "General Materials"
+    let finalSectionId = section_id;
+    if (!finalSectionId || finalSectionId === '') {
+      // Get training_id from current material's section
+      const [section] = await req.db.query('SELECT training_id FROM training_sections WHERE id = ?', [currentMaterial.section_id]);
+      const trainingId = section[0].training_id;
+      
+      // Check if "General Materials" section exists
+      const [existingGeneral] = await req.db.query(
+        'SELECT id FROM training_sections WHERE training_id = ? AND title = ?',
+        [trainingId, 'General Materials']
+      );
+      
+      if (existingGeneral.length > 0) {
+        finalSectionId = existingGeneral[0].id;
+      } else {
+        // Create "General Materials" section
+        const [newSection] = await req.db.query(
+          'INSERT INTO training_sections (training_id, title, section_order) VALUES (?, ?, 0)',
+          [trainingId, 'General Materials']
+        );
+        finalSectionId = newSection.insertId;
+      }
+    }
+    
+    await req.db.query(
+      'UPDATE training_materials SET section_id = ?, title = ?, type = ?, file_path = ?, url = ? WHERE id = ?',
+      [finalSectionId, title, type, filePath, materialUrl, req.params.materialId]
+    );
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Material update error:', error);
+    res.status(500).json({ success: false, error: 'Error updating material' });
+  }
+});
+
+// Delete material
+router.post('/:id/materials/:materialId/delete', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+  
+  try {
+    await req.db.query('DELETE FROM training_materials WHERE id = ?', [req.params.materialId]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Material deletion error:', error);
+    res.status(500).json({ success: false, error: 'Error deleting material' });
+  }
+});
+
+// Edit section
+router.get('/:id/sections/:sectionId/edit', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).send('Access denied');
+  }
+  
+  try {
+    const [sections] = await req.db.query('SELECT * FROM training_sections WHERE id = ?', [req.params.sectionId]);
+    if (sections.length === 0) {
+      return res.status(404).send('Section not found');
+    }
+    
+    res.render('training/section-edit', {
+      user: req.session,
+      training: { id: req.params.id },
+      section: sections[0]
+    });
+  } catch (error) {
+    console.error('Section edit error:', error);
+    res.status(500).send('Error loading section');
+  }
+});
+
+router.post('/:id/sections/:sectionId/edit', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+  
+  try {
+    const { title } = req.body;
+    await req.db.query('UPDATE training_sections SET title = ? WHERE id = ?', [title, req.params.sectionId]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Section update error:', error);
+    res.status(500).json({ success: false, error: 'Error updating section' });
+  }
+});
+
+// Delete section
+router.post('/:id/sections/:sectionId/delete', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+  
+  try {
+    // Materials will be automatically deleted due to CASCADE, but we can move them to General Materials first
+    // Check if "General Materials" section exists
+    const [generalSection] = await req.db.query(
+      'SELECT id FROM training_sections WHERE training_id = ? AND title = ?',
+      [req.params.id, 'General Materials']
+    );
+    
+    let generalSectionId = null;
+    if (generalSection.length > 0) {
+      generalSectionId = generalSection[0].id;
+    } else {
+      // Create "General Materials" section
+      const [newSection] = await req.db.query(
+        'INSERT INTO training_sections (training_id, title, section_order) VALUES (?, ?, 0)',
+        [req.params.id, 'General Materials']
+      );
+      generalSectionId = newSection.insertId;
+    }
+    
+    // Move materials to General Materials section
+    if (generalSectionId) {
+      await req.db.query(
+        'UPDATE training_materials SET section_id = ? WHERE section_id = ?',
+        [generalSectionId, req.params.sectionId]
+      );
+    }
+    
+    // Delete the section
+    await req.db.query('DELETE FROM training_sections WHERE id = ?', [req.params.sectionId]);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Section deletion error:', error);
+    res.status(500).json({ success: false, error: 'Error deleting section' });
+  }
+});
+
+// Add material to section (must come before /:id routes to avoid conflicts)
+router.post('/section/:sectionId/material', upload.single('file'), async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).send('Access denied');
+  }
+  
+  const { title, type, url } = req.body;
+  const filePath = req.file ? `/uploads/materials/${req.file.filename}` : null;
+  
+  try {
+    // Get training ID and max order
+    const [section] = await req.db.query('SELECT training_id FROM training_sections WHERE id = ?', [req.params.sectionId]);
+    const [maxOrder] = await req.db.query(
+      'SELECT COALESCE(MAX(material_order), 0) as max_order FROM training_materials WHERE section_id = ?',
+      [req.params.sectionId]
+    );
+    
+    await req.db.query(
+      'INSERT INTO training_materials (section_id, title, type, file_path, url, material_order, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [req.params.sectionId, title, type, filePath, url, maxOrder[0].max_order + 1, req.session.userId]
+    );
+    
+    res.redirect(`/training/${section[0].training_id}`);
+  } catch (error) {
+    console.error('Material upload error:', error);
+    res.status(500).send('Error uploading material');
+  }
+});
+
+// Enroll in training
+router.post('/:id/enroll', async (req, res) => {
+  if (req.session.userRole !== 'trainee') {
+    return res.status(403).send('Only trainees can enroll');
+  }
+  
+  try {
+    await req.db.query(
+      'INSERT INTO enrollments (trainee_id, training_id) VALUES (?, ?)',
+      [req.session.userId, req.params.id]
+    );
+    
+    res.redirect(`/training/${req.params.id}`);
+  } catch (error) {
+    console.error('Enrollment error:', error);
+    res.status(500).send('Error enrolling in training');
+  }
+});
+
+// Update training settings
+router.post('/:id/update', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+  
+  // Get a connection from the pool for transaction
+  const connection = await req.db.getConnection();
+  
+  try {
+    const trainingId = req.params.id;
+    const { title, status, start_datetime, end_datetime, healthcare_ids, trainer_ids, trainee_ids } = req.body;
+    
+    // Helper function to convert AM/PM format to MySQL datetime
+    function convertToMySQLDatetime(dateTimeStr) {
+      if (!dateTimeStr) return null;
+      
+      // Parse the date string (format: "Y-m-d h:i K" e.g., "2024-01-15 2:30 PM")
+      const parts = dateTimeStr.trim().split(' ');
+      if (parts.length < 3) return dateTimeStr + ':00'; // Fallback if format is unexpected
+      
+      const datePart = parts[0]; // "Y-m-d"
+      const timePart = parts[1]; // "h:i"
+      const ampm = parts[2].toUpperCase(); // "AM" or "PM"
+      
+      const [year, month, day] = datePart.split('-');
+      const [hours12, minutes] = timePart.split(':');
+      
+      let hours24 = parseInt(hours12, 10);
+      if (ampm === 'PM' && hours24 !== 12) {
+        hours24 += 12;
+      } else if (ampm === 'AM' && hours24 === 12) {
+        hours24 = 0;
+      }
+      
+      return `${year}-${month}-${day} ${String(hours24).padStart(2, '0')}:${minutes}:00`;
+    }
+    
+    let startDatetime = null;
+    let endDatetime = null;
+    
+    if (start_datetime) {
+      startDatetime = convertToMySQLDatetime(start_datetime);
+    }
+    
+    if (end_datetime) {
+      endDatetime = convertToMySQLDatetime(end_datetime);
+    }
+    
+    // Start transaction
+    await connection.beginTransaction();
+    
+    try {
+      // Update training basic info
+      await connection.query(
+        'UPDATE trainings SET title = ?, status = ?, start_datetime = ?, end_datetime = ? WHERE id = ?',
+        [title, status, startDatetime, endDatetime, trainingId]
+      );
+      
+      // Update healthcare centres
+      await connection.query('DELETE FROM training_healthcare WHERE training_id = ?', [trainingId]);
+      if (healthcare_ids) {
+        const healthcareArray = Array.isArray(healthcare_ids) ? healthcare_ids : [healthcare_ids];
+        for (const hcId of healthcareArray) {
+          await connection.query(
+            'INSERT INTO training_healthcare (training_id, healthcare_id) VALUES (?, ?)',
+            [trainingId, hcId]
+          );
+        }
+      }
+      
+      // Update devices
+      await connection.query('DELETE FROM training_devices WHERE training_id = ?', [trainingId]);
+      
+      // Handle device arrays - express.urlencoded may parse bracket notation differently
+      const deviceTypes = req.body['device_type[]'] || [];
+      const deviceIds = req.body['device_ids[]'] || [];
+      const deviceCustoms = req.body['device_customs[]'] || [];
+      
+      const deviceTypesArray = Array.isArray(deviceTypes) ? deviceTypes : [deviceTypes].filter(Boolean);
+      const deviceIdsArray = Array.isArray(deviceIds) ? deviceIds : [deviceIds].filter(Boolean);
+      const deviceCustomsArray = Array.isArray(deviceCustoms) ? deviceCustoms : [deviceCustoms].filter(Boolean);
+      
+      for (let i = 0; i < deviceTypesArray.length; i++) {
+        if (deviceTypesArray[i] === 'existing' && deviceIdsArray[i]) {
+          await connection.query(
+            'INSERT INTO training_devices (training_id, device_serial_number_id) VALUES (?, ?)',
+            [trainingId, deviceIdsArray[i]]
+          );
+        } else if (deviceTypesArray[i] === 'custom' && deviceCustomsArray[i]) {
+          await connection.query(
+            'INSERT INTO training_devices (training_id, custom_serial_number) VALUES (?, ?)',
+            [trainingId, deviceCustomsArray[i]]
+          );
+        }
+      }
+      
+      // Update trainers
+      await connection.query('DELETE FROM training_trainers WHERE training_id = ?', [trainingId]);
+      if (trainer_ids) {
+        const trainerArray = Array.isArray(trainer_ids) ? trainer_ids : [trainer_ids];
+        for (const trainerId of trainerArray) {
+          await connection.query(
+            'INSERT INTO training_trainers (training_id, trainer_id) VALUES (?, ?)',
+            [trainingId, trainerId]
+          );
+        }
+      }
+      
+      // Update trainees (enrollments)
+      // Get current enrollments
+      const [currentEnrollments] = await connection.query(
+        'SELECT trainee_id FROM enrollments WHERE training_id = ?',
+        [trainingId]
+      );
+      const currentTraineeIds = currentEnrollments.map(e => e.trainee_id);
+      
+      const traineeArray = trainee_ids ? (Array.isArray(trainee_ids) ? trainee_ids.map(String) : [String(trainee_ids)]) : [];
+      const currentTraineeIdsStr = currentTraineeIds.map(String);
+      
+      // Remove trainees not in the new list
+      for (const currentId of currentTraineeIds) {
+        if (!traineeArray.includes(String(currentId))) {
+          await connection.query(
+            'DELETE FROM enrollments WHERE training_id = ? AND trainee_id = ?',
+            [trainingId, currentId]
+          );
+        }
+      }
+      
+      // Add new trainees
+      for (const traineeId of traineeArray) {
+        if (!currentTraineeIdsStr.includes(String(traineeId))) {
+          await connection.query(
+            'INSERT INTO enrollments (trainee_id, training_id) VALUES (?, ?)',
+            [parseInt(traineeId), trainingId]
+          );
+        }
+      }
+      
+      await connection.commit();
+      res.json({ success: true });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    }
+  } catch (error) {
+    console.error('Training update error:', error);
+    res.status(500).json({ success: false, error: 'Error updating training settings' });
+  } finally {
+    // Release the connection back to the pool
+    if (connection) {
+      connection.release();
+    }
+  }
+});
+
+// Add section to training
+router.post('/:id/section', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+  
+  const { title } = req.body;
+  
+  try {
+    // Get max order
+    const [maxOrder] = await req.db.query(
+      'SELECT COALESCE(MAX(section_order), 0) as max_order FROM training_sections WHERE training_id = ?',
+      [req.params.id]
+    );
+    
+    await req.db.query(
+      'INSERT INTO training_sections (training_id, title, section_order) VALUES (?, ?, ?)',
+      [req.params.id, title, maxOrder[0].max_order + 1]
+    );
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Section creation error:', error);
+    res.status(500).json({ success: false, error: 'Error creating section' });
+  }
+});
+
+// Update training status (admin only)
+router.post('/:id/status', async (req, res) => {
+  if (req.session.userRole !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Access denied. Only admins can update training status.' });
+  }
+  
+  const { status } = req.body;
+  
+  try {
+    const validStatuses = ['in_progress', 'completed', 'canceled', 'rescheduled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ success: false, error: 'Invalid status' });
+    }
+    
+    await req.db.query(
+      'UPDATE trainings SET status = ? WHERE id = ?',
+      [status, req.params.id]
+    );
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Training status update error:', error);
+    res.status(500).json({ success: false, error: 'Error updating training status' });
+  }
+});
+
+// Lock training (admin only) - sets status to completed and locks it
+router.post('/:id/lock', async (req, res) => {
+  if (req.session.userRole !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Access denied. Only admins can lock trainings.' });
+  }
+  
+  try {
+    await req.db.query(
+      'UPDATE trainings SET status = ? WHERE id = ?',
+      ['completed', req.params.id]
+    );
+    
+    res.json({ success: true, message: 'Training locked successfully' });
+  } catch (error) {
+    console.error('Training lock error:', error);
+    res.status(500).json({ success: false, error: 'Error locking training' });
+  }
+});
+
+// Unlock training (admin only) - sets status back to in_progress
+router.post('/:id/unlock', async (req, res) => {
+  if (req.session.userRole !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Access denied. Only admins can unlock trainings.' });
+  }
+  
+  try {
+    await req.db.query(
+      'UPDATE trainings SET status = ? WHERE id = ?',
+      ['in_progress', req.params.id]
+    );
+    
+    res.json({ success: true, message: 'Training unlocked successfully' });
+  } catch (error) {
+    console.error('Training unlock error:', error);
+    res.status(500).json({ success: false, error: 'Error unlocking training' });
+  }
+});
+
+// Release scores for trainees (admin only, after training is locked)
+router.post('/:id/release-scores', async (req, res) => {
+  if (req.session.userRole !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Access denied. Only admins can release scores.' });
+  }
+  
+  try {
+    const { enrollment_ids } = req.body;
+    
+    // Verify training is locked (completed)
+    const [trainings] = await req.db.query('SELECT status FROM trainings WHERE id = ?', [req.params.id]);
+    if (trainings.length === 0) {
+      return res.status(404).json({ success: false, error: 'Training not found' });
+    }
+    
+    if (trainings[0].status !== 'completed') {
+      return res.status(400).json({ success: false, error: 'Training must be locked (completed) before releasing scores' });
+    }
+    
+    if (!enrollment_ids || !Array.isArray(enrollment_ids) || enrollment_ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'Please select at least one trainee' });
+    }
+    
+    // Update can_download_results for selected enrollments
+    const placeholders = enrollment_ids.map(() => '?').join(',');
+    await req.db.query(
+      `UPDATE enrollments SET can_download_results = TRUE WHERE id IN (${placeholders}) AND training_id = ?`,
+      [...enrollment_ids, req.params.id]
+    );
+    
+    res.json({ success: true, message: `Scores released for ${enrollment_ids.length} trainee(s)` });
+  } catch (error) {
+    console.error('Score release error:', error);
+    res.status(500).json({ success: false, error: 'Error releasing scores' });
+  }
+});
+
+// Get certificate for trainee
+router.get('/:id/certificate/:enrollmentId', async (req, res) => {
+  try {
+    const { id: trainingId, enrollmentId } = req.params;
+    
+    // Verify enrollment and check if scores are released
+    const [enrollments] = await req.db.query(`
+      SELECT e.*, t.title as training_title, t.type as training_type, tr.first_name, tr.last_name, tr.trainee_id
+      FROM enrollments e
+      JOIN trainings t ON e.training_id = t.id
+      JOIN trainees tr ON e.trainee_id = tr.id
+      WHERE e.id = ? AND e.training_id = ?
+    `, [enrollmentId, trainingId]);
+    
+    if (enrollments.length === 0) {
+      return res.status(404).send('Enrollment not found');
+    }
+    
+    const enrollment = enrollments[0];
+    
+    // Check access - trainee can only access their own, admin/trainer can access any
+    if (req.session.userRole === 'trainee' && enrollment.trainee_id !== req.session.userId) {
+      return res.status(403).send('Access denied');
+    }
+    
+    // Check if scores are released (for trainees)
+    if (req.session.userRole === 'trainee' && !enrollment.can_download_results) {
+      return res.status(403).send('Scores have not been released yet. Please contact your administrator.');
+    }
+    
+    // Get test results
+    const [testAttempts] = await req.db.query(
+      'SELECT * FROM test_attempts WHERE enrollment_id = ? AND status = "completed" ORDER BY test_type',
+      [enrollmentId]
+    );
+    
+    // Get hands-on scores if main training
+    let handsOnScores = [];
+    if (enrollment.training_type === 'main') {
+      [handsOnScores] = await req.db.query(`
+        SELECT hs.*, ha.aspect_name, ha.max_score
+        FROM hands_on_scores hs
+        JOIN hands_on_aspects ha ON hs.aspect_id = ha.id
+        WHERE hs.enrollment_id = ?
+      `, [enrollmentId]);
+    }
+    
+    // Get final grades
+    const [finalGrades] = await req.db.query(
+      'SELECT * FROM final_grades WHERE enrollment_id = ?',
+      [enrollmentId]
+    );
+    
+    const finalGrade = finalGrades.length > 0 ? finalGrades[0] : null;
+    
+    // Render certificate view
+    res.render('training/certificate', {
+      user: req.session,
+      enrollment,
+      testAttempts,
+      handsOnScores,
+      finalGrade
+    });
+  } catch (error) {
+    console.error('Certificate generation error:', error);
+    res.status(500).send('Error generating certificate');
+  }
+});
+
+// Update hands-on aspect max_score (admin only, main training only)
+router.post('/:id/aspect/:aspectId/update', async (req, res) => {
+  if (req.session.userRole !== 'admin') {
+    return res.status(403).send('Access denied. Only admins can edit aspect scores.');
+  }
+  
+  const { max_score } = req.body;
+  
+  try {
+    // Verify the training exists and is a main training
+    const [trainings] = await req.db.query('SELECT type FROM trainings WHERE id = ?', [req.params.id]);
+    if (trainings.length === 0 || trainings[0].type !== 'main') {
+      return res.status(404).send('Training not found or not a main training');
+    }
+    
+    // Verify the aspect belongs to this training
+    const [aspects] = await req.db.query(
+      'SELECT id FROM hands_on_aspects WHERE id = ? AND training_id = ?',
+      [req.params.aspectId, req.params.id]
+    );
+    
+    if (aspects.length === 0) {
+      return res.status(404).send('Aspect not found');
+    }
+    
+    await req.db.query(
+      'UPDATE hands_on_aspects SET max_score = ? WHERE id = ?',
+      [max_score || 100, req.params.aspectId]
+    );
+    
+    res.redirect(`/training/${req.params.id}`);
+  } catch (error) {
+    console.error('Aspect update error:', error);
+    res.status(500).send('Error updating aspect');
+  }
+});
+
+// Get test responses for an enrollment (admin/trainer only)
+router.get('/:id/enrollment/:enrollmentId/test-responses', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+  
+  try {
+    const { enrollmentId } = req.params;
+    
+    // Verify enrollment belongs to this training
+    const [enrollments] = await req.db.query(
+      'SELECT * FROM enrollments WHERE id = ? AND training_id = ?',
+      [enrollmentId, req.params.id]
+    );
+    
+    if (enrollments.length === 0) {
+      return res.status(404).json({ success: false, error: 'Enrollment not found' });
+    }
+    
+    // Get all completed test attempts
+    const [testAttempts] = await req.db.query(
+      'SELECT * FROM test_attempts WHERE enrollment_id = ? AND status = "completed" ORDER BY test_type',
+      [enrollmentId]
+    );
+    
+    const tests = [];
+    
+    for (const attempt of testAttempts) {
+      // Get answers with questions
+      const [answers] = await req.db.query(`
+        SELECT ta.*, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_answer
+        FROM test_answers ta
+        JOIN questions q ON ta.question_id = q.id
+        WHERE ta.attempt_id = ?
+        ORDER BY ta.id
+      `, [attempt.id]);
+      
+      tests.push({
+        test_type: attempt.test_type,
+        score: parseFloat(attempt.score) || 0,
+        completed_at: attempt.completed_at,
+        answers: answers.map(answer => ({
+          question_text: answer.question_text,
+          option_a: answer.option_a,
+          option_b: answer.option_b,
+          option_c: answer.option_c,
+          option_d: answer.option_d,
+          correct_answer: answer.correct_answer,
+          selected_answer: answer.selected_answer,
+          is_correct: answer.selected_answer === answer.correct_answer
+        }))
+      });
+    }
+    
+    res.json({ success: true, tests });
+  } catch (error) {
+    console.error('Test responses error:', error);
+    res.status(500).json({ success: false, error: 'Error loading test responses' });
+  }
+});
+
+// Test answers page for an enrollment (admin/trainer only) - clean per-test view
+router.get('/:id/enrollment/:enrollmentId/test-answers', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).send('Access denied');
+  }
+
+  try {
+    const trainingId = req.params.id;
+    const enrollmentId = req.params.enrollmentId;
+    const requestedType = String(req.query.type || '').trim();
+
+    // Verify training + enrollment
+    const [trainings] = await req.db.query('SELECT * FROM trainings WHERE id = ?', [trainingId]);
+    if (!trainings || trainings.length === 0) {
+      return res.status(404).send('Training not found');
+    }
+    const training = trainings[0];
+
+    const [enrollments] = await req.db.query(
+      'SELECT * FROM enrollments WHERE id = ? AND training_id = ?',
+      [enrollmentId, trainingId]
+    );
+    if (!enrollments || enrollments.length === 0) {
+      return res.status(404).send('Enrollment not found');
+    }
+    const enrollment = enrollments[0];
+
+    const [trainees] = await req.db.query(
+      'SELECT first_name, last_name, trainee_id FROM trainees WHERE id = ?',
+      [enrollment.trainee_id]
+    );
+    const traineeName = trainees.length > 0 ? `${trainees[0].first_name} ${trainees[0].last_name}` : 'Trainee';
+    const traineePublicId = trainees.length > 0 ? (trainees[0].trainee_id || 'N/A') : 'N/A';
+
+    // Available completed test types
+    const [attempts] = await req.db.query(
+      'SELECT id, test_type, score, completed_at FROM test_attempts WHERE enrollment_id = ? AND status = "completed" ORDER BY completed_at DESC',
+      [enrollmentId]
+    );
+
+    const typeLabels = {
+      pre_test: 'Pre-Test',
+      post_test: 'Post-Test',
+      certificate_enrolment: 'Certificate Enrolment',
+      refreshment: 'Refreshment Test'
+    };
+
+    const availableTypes = Array.from(new Set((attempts || []).map(a => a.test_type))).filter(Boolean);
+    const selectedType = availableTypes.includes(requestedType) ? requestedType : (availableTypes[0] || requestedType || 'pre_test');
+
+    // Pick the latest completed attempt for selected type
+    const attemptRow = (attempts || []).find(a => a.test_type === selectedType) || null;
+    let attempt = null;
+    let answers = [];
+    let correctCount = 0;
+
+    if (attemptRow) {
+      const [attemptFull] = await req.db.query('SELECT * FROM test_attempts WHERE id = ?', [attemptRow.id]);
+      attempt = attemptFull && attemptFull.length > 0 ? attemptFull[0] : null;
+      if (attempt) attempt.score = parseFloat(attempt.score) || 0;
+
+      const [rows] = await req.db.query(`
+        SELECT ta.*, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_answer
+        FROM test_answers ta
+        JOIN questions q ON ta.question_id = q.id
+        WHERE ta.attempt_id = ?
+        ORDER BY ta.id
+      `, [attemptRow.id]);
+
+      answers = rows || [];
+      correctCount = answers.reduce((sum, a) => sum + ((a.selected_answer === a.correct_answer) ? 1 : 0), 0);
+    }
+
+    res.render('training/test-answers', {
+      user: req.session,
+      training,
+      enrollmentId,
+      traineeName,
+      traineePublicId,
+      availableTypes: availableTypes.length > 0 ? availableTypes : ['pre_test', 'post_test', 'certificate_enrolment', 'refreshment'],
+      selectedType,
+      typeLabels,
+      attempt,
+      answers,
+      correctCount
+    });
+  } catch (error) {
+    console.error('Test answers page error:', error);
+    res.status(500).send('Error loading test answers');
+  }
+});
+
+// Get hands-on aspects and scores for an enrollment (admin/trainer only)
+router.get('/:id/enrollment/:enrollmentId/hands-on', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+  
+  try {
+    const { enrollmentId } = req.params;
+    
+    // Verify enrollment belongs to this training
+    const [enrollments] = await req.db.query(
+      'SELECT * FROM enrollments WHERE id = ? AND training_id = ?',
+      [enrollmentId, req.params.id]
+    );
+    
+    if (enrollments.length === 0) {
+      return res.status(404).json({ success: false, error: 'Enrollment not found' });
+    }
+    
+    // Verify training is main type
+    const [trainings] = await req.db.query('SELECT type FROM trainings WHERE id = ?', [req.params.id]);
+    if (trainings.length === 0 || trainings[0].type !== 'main') {
+      return res.status(400).json({ success: false, error: 'Hands-on evaluation only available for main trainings' });
+    }
+    
+    // Get hands-on aspects
+    const [aspects] = await req.db.query(
+      'SELECT * FROM hands_on_aspects WHERE training_id = ? ORDER BY id',
+      [req.params.id]
+    );
+    
+    // Get existing scores
+    const [scores] = await req.db.query(
+      'SELECT * FROM hands_on_scores WHERE enrollment_id = ?',
+      [enrollmentId]
+    );
+    
+    res.json({ success: true, aspects, scores });
+  } catch (error) {
+    console.error('Hands-on data error:', error);
+    res.status(500).json({ success: false, error: 'Error loading hands-on data' });
+  }
+});
+
+// Save hands-on scores (admin/trainer only)
+router.post('/:id/enrollment/:enrollmentId/hands-on/save', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+  
+  try {
+    const { enrollmentId } = req.params;
+    const { scores } = req.body;
+    
+    // Verify enrollment belongs to this training
+    const [enrollments] = await req.db.query(
+      'SELECT * FROM enrollments WHERE id = ? AND training_id = ?',
+      [enrollmentId, req.params.id]
+    );
+    
+    if (enrollments.length === 0) {
+      return res.status(404).json({ success: false, error: 'Enrollment not found' });
+    }
+    
+    // Verify training is main type
+    const [trainings] = await req.db.query('SELECT type FROM trainings WHERE id = ?', [req.params.id]);
+    if (trainings.length === 0 || trainings[0].type !== 'main') {
+      return res.status(400).json({ success: false, error: 'Hands-on evaluation only available for main trainings' });
+    }
+    
+    // Save each score
+    for (const scoreData of scores) {
+      await req.db.query(
+        `INSERT INTO hands_on_scores (enrollment_id, aspect_id, score, evaluated_by, comments) 
+         VALUES (?, ?, ?, ?, ?) 
+         ON DUPLICATE KEY UPDATE score = ?, evaluated_by = ?, comments = ?, evaluated_at = NOW()`,
+        [
+          enrollmentId,
+          scoreData.aspect_id,
+          scoreData.score,
+          req.session.userId,
+          scoreData.comments || '',
+          scoreData.score,
+          req.session.userId,
+          scoreData.comments || ''
+        ]
+      );
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Save hands-on scores error:', error);
+    res.status(500).json({ success: false, error: 'Error saving hands-on scores' });
+  }
+});
+
+module.exports = router;

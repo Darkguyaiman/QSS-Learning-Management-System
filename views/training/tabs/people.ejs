@@ -1,0 +1,65 @@
+<!-- People Tab -->
+<div id="people-tab" class="tab-content">
+  <!-- Trainers Section -->
+  <div class="people-section">
+    <h2 class="people-section-title">Trainers</h2>
+    <div class="people-section-divider"></div>
+    <div class="people-grid">
+      <% if (typeof trainers !== 'undefined' && trainers.length > 0) { %>
+        <% trainers.forEach(t => { %>
+          <div class="person-card">
+            <div class="person-avatar">
+              <% if (t.profile_picture) { %>
+                <img src="<%= t.profile_picture %>" alt="<%= t.first_name %>">
+              <% } else { %>
+                <%= t.first_name.charAt(0) %><%= t.last_name.charAt(0) %>
+              <% } %>
+            </div>
+            <div class="person-info">
+              <h3 class="person-name"><%= t.first_name %> <%= t.last_name %></h3>
+              <p class="person-role">Trainer</p>
+            </div>
+          </div>
+        <% }); %>
+      <% } else { %>
+        <div class="person-card">
+          <div class="person-avatar">
+            <% if (trainer.profile_picture) { %>
+              <img src="<%= trainer.profile_picture %>" alt="<%= trainer.first_name %>">
+            <% } else { %>
+              <%= trainer.first_name.charAt(0) %><%= trainer.last_name.charAt(0) %>
+            <% } %>
+          </div>
+          <div class="person-info">
+            <h3 class="person-name"><%= trainer.first_name %> <%= trainer.last_name %></h3>
+            <p class="person-role">Trainer</p>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+  
+  <!-- Trainees Section -->
+  <div class="people-section">
+    <h2 class="people-section-title">Trainees</h2>
+    <div class="people-section-divider"></div>
+    <div class="people-grid">
+      <% enrolledTrainees.forEach(trainee => { %>
+        <div class="person-card">
+          <div class="person-avatar">
+            <% if (trainee.profile_picture) { %>
+              <img src="<%= trainee.profile_picture %>" alt="<%= trainee.first_name %>">
+            <% } else { %>
+              <%= trainee.first_name.charAt(0) %><%= trainee.last_name.charAt(0) %>
+            <% } %>
+          </div>
+          <div class="person-info">
+            <h3 class="person-name"><%= trainee.first_name %> <%= trainee.last_name %></h3>
+            <p class="person-role">Trainee</p>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+</div>
+

@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Results - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="<%= ['admin', 'trainer'].includes(user.userRole) ? 'has-sidebar' : 'has-navbar' %>">
+  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+    <%- include('../partials/sidebar', { user }) %>
+  <% } else { %>
+    <%- include('../partials/navbar', { user }) %>
+  <% } %>
+  
+  <main class="main-content">
+    <div class="container">
+      <div class="dashboard-header">
+        <h1>Training Results</h1>
+        <a href="/dashboard" class="btn btn-outline">Back to Dashboard</a>
+      </div>
+      
+      <div class="training-card" style="margin-bottom: var(--spacing-xl);">
+        <h2><%= enrollment.title %></h2>
+        <span class="badge badge-<%= enrollment.type %>"><%= enrollment.type %></span>
+        <p class="text-muted" style="margin-top: var(--spacing-md);">
+          Trainee: <%= enrollment.first_name %> <%= enrollment.last_name %> (<%= enrollment.trainee_id %>)
+        </p>
+      </div>
+      
+      <!-- Test Results -->
+      <div class="dashboard-section">
+        <h2>Test Results</h2>
+        
+        <% if (tests.length === 0) { %>
+          <div class="empty-state">
+            <p>No test results available yet.</p>
+          </div>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Test Type</th>
+                  <th>Score</th>
+                  <th>Questions</th>
+                  <th>Completed</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% tests.forEach(test => { %>
+                  <tr>
+                    <td>
+                      <span class="badge badge-<%= test.test_type === 'pre_test' || test.test_type === 'post_test' ? 'main' : 'refreshment' %>">
+                        <%= test.test_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %>
+                      </span>
+                    </td>
+                    <td>
+                      <strong style="color: <%= test.score >= 70 ? 'var(--color-success)' : 'var(--color-error)' %>;">
+                        <%= test.score.toFixed(1) %>%
+                      </strong>
+                    </td>
+                    <td><%= test.total_questions %></td>
+                    <td><%= new Date(test.completed_at).toLocaleDateString() %></td>
+                    <td>
+                      <a href="/tests/results/<%= test.id %>" class="btn btn-sm btn-secondary">View Details</a>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
+      
+      <!-- Hands-On Scores (Main Training Only) -->
+      <% if (enrollment.type === 'main' && handsOnScores.length > 0) { %>
+        <div class="dashboard-section">
+          <h2>Hands-On Assessment Scores</h2>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Aspect</th>
+                  <th>Description</th>
+                  <th>Score</th>
+                  <th>Max Score</th>
+                  <th>Evaluated By</th>
+                  <th>Comments</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% handsOnScores.forEach(score => { %>
+                  <tr>
+                    <td><strong><%= score.aspect_name %></strong></td>
+                    <td><%= score.description || 'No description' %></td>
+                    <td><strong><%= score.score %></strong></td>
+                    <td><%= score.max_score %></td>
+                    <td><%= score.first_name %> <%= score.last_name %></td>
+                    <td><%= score.comments || 'No comments' %></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      <% } %>
+      
+      <!-- Final Grades (if released) -->
+      <% if (gradesReleased && finalGrades) { %>
+        <div class="dashboard-section">
+          <h2>Final Grades</h2>
+          <div class="stats-grid">
+            <% if (finalGrades.training_grade !== null) { %>
+              <div class="stat-card">
+                <h3><%= finalGrades.training_grade.toFixed(1) %>%</h3>
+                <p>Training Grade (40% from <%= enrollment.type === 'main' ? 'Post-Test' : 'Refreshment' %>)</p>
+              </div>
+            <% } %>
+            <% if (finalGrades.endorsement_grade !== null) { %>
+              <div class="stat-card">
+                <h3><%= finalGrades.endorsement_grade.toFixed(1) %>%</h3>
+                <p>Endorsement Test Grade</p>
+              </div>
+            <% } %>
+            <% if (finalGrades.objective_understanding_percentage !== null) { %>
+              <div class="stat-card">
+                <h3><%= finalGrades.objective_understanding_percentage.toFixed(1) %>%</h3>
+                <p>Objective Understanding</p>
+              </div>
+            <% } %>
+            <% if (finalGrades.hands_on_grade !== null) { %>
+              <div class="stat-card">
+                <h3><%= finalGrades.hands_on_grade.toFixed(1) %>%</h3>
+                <p>Hands-On Grade</p>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
+      
+      <!-- Objective Understanding Breakdown -->
+      <% if (gradesReleased && objectiveScores && objectiveScores.length > 0) { %>
+        <div class="dashboard-section">
+          <h2>Objective Understanding Breakdown</h2>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Objective</th>
+                  <th>Questions Answered</th>
+                  <th>Questions Correct</th>
+                  <th>Understanding Percentage</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% objectiveScores.forEach(score => { %>
+                  <tr>
+                    <td><strong><%= score.objective_name %></strong></td>
+                    <td><%= score.questions_answered %></td>
+                    <td><%= score.questions_correct %></td>
+                    <td>
+                      <strong style="color: <%= score.understanding_percentage >= 70 ? 'var(--color-success)' : 'var(--color-error)' %>;">
+                        <%= score.understanding_percentage.toFixed(1) %>%
+                      </strong>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      <% } %>
+      
+      <!-- Attendance Summary -->
+      <% if (attendance && attendance.total_days > 0) { %>
+        <div class="dashboard-section">
+          <h2>Attendance Summary</h2>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <h3><%= attendance.total_days %></h3>
+              <p>Total Days</p>
+            </div>
+            <div class="stat-card">
+              <h3 style="color: var(--color-success);"><%= attendance.present_days %></h3>
+              <p>Present</p>
+            </div>
+            <div class="stat-card">
+              <h3 style="color: var(--color-error);"><%= attendance.absent_days %></h3>
+              <p>Absent</p>
+            </div>
+            <div class="stat-card">
+              <h3 style="color: var(--color-orange);"><%= attendance.late_days %></h3>
+              <p>Late</p>
+            </div>
+          </div>
+        </div>
+      <% } %>
+      
+      <!-- Download Results (if allowed) -->
+      <% if (enrollment.can_download_results && user.userRole === 'trainee') { %>
+        <div style="text-align: center; margin-top: var(--spacing-xl);">
+          <a href="/results/download/<%= enrollment.id %>" class="btn btn-primary">Download Results (PDF)</a>
+        </div>
+      <% } %>
+      
+      <!-- Admin/Trainer Actions -->
+      <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+        <div style="text-align: center; margin-top: var(--spacing-xl); display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+          <% if (!gradesReleased) { %>
+            <button onclick="calculateGrades(<%= enrollment.id %>)" class="btn btn-secondary">Calculate Grades</button>
+            <button onclick="releaseGrades(<%= enrollment.id %>)" class="btn btn-primary">Release Grades</button>
+          <% } else { %>
+            <span class="badge badge-success" style="padding: 0.75rem 1.5rem; font-size: 1rem;">Grades Released</span>
+          <% } %>
+          <% if (!enrollment.can_download_results) { %>
+            <button onclick="allowDownload(<%= enrollment.id %>)" class="btn btn-outline">Allow Trainee to Download Results</button>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
+  </main>
+  
+  <script>
+    async function allowDownload(enrollmentId) {
+      try {
+        const response = await fetch(`/results/allow-download/${enrollmentId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          alert('Trainee can now download their results.');
+          location.reload();
+        } else {
+          alert('Error allowing download.');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error allowing download.');
+      }
+    }
+    
+    async function calculateGrades(enrollmentId) {
+      try {
+        const response = await fetch(`/results/calculate-grades/${enrollmentId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          alert('Grades calculated successfully.');
+          location.reload();
+        } else {
+          alert('Error calculating grades: ' + (data.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error calculating grades.');
+      }
+    }
+    
+    async function releaseGrades(enrollmentId) {
+      if (!confirm('Are you sure you want to release grades? Trainees will be able to see their final grades.')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/results/release-grades/${enrollmentId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          alert('Grades released successfully.');
+          location.reload();
+        } else {
+          alert('Error releasing grades: ' + (data.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error releasing grades.');
+      }
+    }
+  </script>
+  <script src="/js/main.js"></script>
+</body>
+</html>
+
+
+

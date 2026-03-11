@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Take Test - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <%- include('../partials/navbar', { user }) %>
+  
+  <main class="main-content">
+    <div class="container">
+      <div class="dashboard-header">
+        <h1><%= enrollment.title %> - <%= testType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %></h1>
+      </div>
+      
+      <div class="auth-card" style="max-width: 900px; margin: 0 auto;">
+        <form action="/tests/submit/<%= attemptId %>" method="POST" id="testForm">
+          <% questions.forEach((question, index) => { %>
+            <div class="training-card" style="margin-bottom: var(--spacing-xl);">
+              <h3 style="margin-bottom: var(--spacing-md);">
+                Question <%= index + 1 %> of <%= questions.length %>
+              </h3>
+              <p style="font-size: 1.1rem; margin-bottom: var(--spacing-lg);"><%= question.question_text %></p>
+              
+              <div class="form-group" style="margin-bottom: 0;">
+                <label style="display: flex; align-items: center; padding: var(--spacing-sm); cursor: pointer; border-radius: var(--border-radius); transition: background-color 0.2s;" 
+                       onmouseover="this.style.backgroundColor='var(--color-gray-light)'" 
+                       onmouseout="this.style.backgroundColor='transparent'">
+                  <input type="radio" name="<%= question.id %>" value="A" required style="margin-right: var(--spacing-sm);">
+                  <span><strong>A:</strong> <%= question.option_a %></span>
+                </label>
+                
+                <label style="display: flex; align-items: center; padding: var(--spacing-sm); cursor: pointer; border-radius: var(--border-radius); transition: background-color 0.2s;" 
+                       onmouseover="this.style.backgroundColor='var(--color-gray-light)'" 
+                       onmouseout="this.style.backgroundColor='transparent'">
+                  <input type="radio" name="<%= question.id %>" value="B" required style="margin-right: var(--spacing-sm);">
+                  <span><strong>B:</strong> <%= question.option_b %></span>
+                </label>
+                
+                <label style="display: flex; align-items: center; padding: var(--spacing-sm); cursor: pointer; border-radius: var(--border-radius); transition: background-color 0.2s;" 
+                       onmouseover="this.style.backgroundColor='var(--color-gray-light)'" 
+                       onmouseout="this.style.backgroundColor='transparent'">
+                  <input type="radio" name="<%= question.id %>" value="C" required style="margin-right: var(--spacing-sm);">
+                  <span><strong>C:</strong> <%= question.option_c %></span>
+                </label>
+                
+                <label style="display: flex; align-items: center; padding: var(--spacing-sm); cursor: pointer; border-radius: var(--border-radius); transition: background-color 0.2s;" 
+                       onmouseover="this.style.backgroundColor='var(--color-gray-light)'" 
+                       onmouseout="this.style.backgroundColor='transparent'">
+                  <input type="radio" name="<%= question.id %>" value="D" required style="margin-right: var(--spacing-sm);">
+                  <span><strong>D:</strong> <%= question.option_d %></span>
+                </label>
+              </div>
+            </div>
+          <% }); %>
+          
+          <div style="text-align: center; margin-top: var(--spacing-2xl); padding-top: var(--spacing-xl); border-top: 2px solid var(--color-gray-light);">
+            <button type="submit" class="btn btn-primary btn-lg" style="padding: var(--spacing-md) var(--spacing-xl); font-size: 1.1rem;" onclick="return confirm('Are you sure you want to submit? You cannot change your answers after submission.');">
+              Submit Test
+            </button>
+            <p class="text-muted" style="margin-top: var(--spacing-md);">Please review all answers before submitting.</p>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+  
+  <script>
+    // Prevent accidental navigation
+    window.addEventListener('beforeunload', function (e) {
+      e.preventDefault();
+      e.returnValue = '';
+    });
+    
+    // Remove warning when form is submitted
+    document.getElementById('testForm').addEventListener('submit', function() {
+      window.removeEventListener('beforeunload', arguments.callee);
+    });
+  </script>
+</body>
+</html>
+
+
+

@@ -1,0 +1,127 @@
+<!-- Create Material Modal -->
+<% if (['admin', 'trainer'].includes(user.userRole)) { %>
+  <div id="createMaterialModal" class="modal-overlay">
+    <div class="modal-content fullscreen">
+      <div class="modal-header">
+        <h2>Create Material</h2>
+        <button class="modal-close" onclick="closeCreateMaterialModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="modal-body">
+        <form id="createMaterialForm" method="POST" enctype="multipart/form-data">
+          <input type="hidden" name="training_id" value="<%= training.id %>">
+          
+          <!-- Material Type Tabs -->
+          <div class="material-type-tabs">
+            <button type="button" class="material-type-tab active" onclick="switchMaterialType('video')">
+              <i class="fas fa-video"></i> Video
+            </button>
+            <button type="button" class="material-type-tab" onclick="switchMaterialType('document')">
+              <i class="fas fa-file-alt"></i> Document
+            </button>
+            <button type="button" class="material-type-tab" onclick="switchMaterialType('link')">
+              <i class="fas fa-link"></i> Link
+            </button>
+          </div>
+          
+          <!-- Title Field (Common) -->
+          <div class="form-group">
+            <label for="material-title">
+              <i class="fas fa-heading"></i>
+              Material Title *
+            </label>
+            <input type="text" id="material-title" name="title" class="form-input" required placeholder="Enter material title">
+          </div>
+          
+          <!-- Section Selection (Optional) -->
+          <div class="form-group">
+            <label for="material-section">
+              <i class="fas fa-folder"></i>
+              Section (Optional)
+            </label>
+            <select id="material-section" name="section_id" class="form-select">
+              <option value="">No Section (General Materials)</option>
+              <% if (sections.length > 0) { %>
+                <% sections.forEach(section => { %>
+                  <option value="<%= section.id %>"><%= section.title %></option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
+          
+          <!-- Video Type Content -->
+          <div id="video-content" class="material-type-content active">
+            <div class="form-group">
+              <label for="video-url">
+                <i class="fas fa-link"></i>
+                Video URL *
+              </label>
+              <input type="url" id="video-url" name="url" class="form-input" placeholder="https://www.youtube.com/watch?v=... or any video link">
+              <small style="color: #5F6368; font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+                Paste YouTube link or any video URL
+              </small>
+            </div>
+          </div>
+          
+          <!-- Document Type Content -->
+          <div id="document-content" class="material-type-content">
+            <div class="form-group">
+              <label>
+                <i class="fas fa-upload"></i>
+                Upload Document (Max 5MB) OR Link
+              </label>
+              <div class="file-upload-area" onclick="document.getElementById('document-file').click()" id="file-upload-area">
+                <div class="file-upload-icon">
+                  <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <div style="font-weight: 500; color: #202124;">Click to upload or drag and drop</div>
+                <div class="file-upload-text">PDF, DOC, DOCX, PPT, PPTX (Max 5MB)</div>
+                <input type="file" id="document-file" name="file" accept=".pdf,.doc,.docx,.ppt,.pptx" onchange="handleFileSelect(this)">
+              </div>
+              <div id="file-selected-display" style="display: none;" class="file-selected">
+                <i class="fas fa-file" style="color: #1967D2;"></i>
+                <span class="file-selected-name" id="file-name"></span>
+                <span class="file-selected-size" id="file-size"></span>
+                <button type="button" class="btn btn-sm" onclick="clearFileSelection()" style="background: #EF4444; color: white; border: none; padding: 0.25rem 0.5rem;">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div class="form-group" style="margin-top: 1rem;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                <input type="checkbox" id="use-document-link" onchange="toggleDocumentLink()" style="width: auto;">
+                <span>Or attach a link to document</span>
+              </label>
+              <input type="url" id="document-link-url" name="document_url" class="form-input" placeholder="https://..." style="display: none;">
+            </div>
+          </div>
+          
+          <!-- Link Type Content -->
+          <div id="link-content" class="material-type-content">
+            <div class="form-group">
+              <label for="link-url">
+                <i class="fas fa-link"></i>
+                Link URL *
+              </label>
+              <input type="url" id="link-url" name="url" class="form-input" placeholder="https://...">
+              <small style="color: #5F6368; font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+                Enter any link URL
+              </small>
+            </div>
+          </div>
+          
+          <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 2rem; padding-top: 1.5rem; border-top: 2px solid #E8EAED;">
+            <button type="button" class="btn btn-secondary" onclick="closeCreateMaterialModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save"></i> Create Material
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+<% } %>
+

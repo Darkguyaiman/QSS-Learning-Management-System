@@ -1,0 +1,191 @@
+<!-- Hands-On Aspects Tab (Main Training, Admin Only) -->
+<% if (training.type === 'main' && user.userRole === 'admin') { %>
+  <div id="aspects-tab" class="tab-content">
+    <% if (aspects.length === 0) { %>
+      <div class="empty-state">
+        <p>No hands-on aspects defined for this training.</p>
+      </div>
+    <% } else { %>
+      <div class="section-card">
+        <div class="aspects-info">
+          <i class="fas fa-info-circle"></i>
+          <span>Aspects are configured when the training is created. Only the max score can be edited here.</span>
+        </div>
+        
+        <div class="table-wrapper">
+        <table class="marks-table">
+          <thead>
+            <tr>
+              <th>Aspect Name</th>
+              <th>Description</th>
+              <th>Max Score</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% aspects.forEach(aspect => { %>
+              <tr>
+                  <td data-label="Aspect Name"><strong><%= aspect.aspect_name %></strong></td>
+                  <td data-label="Description"><%= aspect.description || 'No description' %></td>
+                  <td data-label="Max Score" id="max-score-<%= aspect.id %>" class="score-cell"><strong><%= aspect.max_score %></strong></td>
+                  <td data-label="Actions">
+                  <button class="btn-icon-edit" 
+                          data-aspect-id="<%= aspect.id %>"
+                          data-aspect-name="<%= aspect.aspect_name %>"
+                          data-max-score="<%= aspect.max_score %>"
+                          onclick="editAspectScore(this.dataset.aspectId, this.dataset.aspectName, parseInt(this.dataset.maxScore))"
+                          title="Edit Score">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+        </div>
+      </div>
+    <% } %>
+  </div>
+
+  <style>
+    .aspects-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem;
+      background: #F8F9FA;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      color: #5F6368;
+      font-size: 0.9375rem;
+    }
+
+    .aspects-info i {
+      color: #1967D2;
+      font-size: 1rem;
+    }
+
+    .score-cell {
+      font-size: 1.125rem;
+      color: #573FD7;
+    }
+
+    .btn-icon-edit {
+      width: 36px;
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #F8F9FA;
+      border: 1px solid #E8EAED;
+      border-radius: 6px;
+      color: #5F6368;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-icon-edit:hover {
+      background: #E8EAED;
+      border-color: #DADCE0;
+      color: #573FD7;
+    }
+
+    .btn-icon-edit i {
+      font-size: 0.875rem;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Mobile: turn the table into stacked cards */
+    @media (max-width: 768px) {
+      .aspects-info {
+        flex-wrap: wrap;
+        line-height: 1.4;
+      }
+
+      .marks-table thead {
+        display: none;
+      }
+
+      .marks-table,
+      .marks-table tbody,
+      .marks-table tr,
+      .marks-table td {
+        display: block;
+        width: 100%;
+      }
+
+      .marks-table tbody tr {
+        background: white;
+        border: 1px solid #E8EAED;
+        border-radius: 12px;
+        margin: 0.75rem 0;
+        padding: 0.85rem 0.95rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      }
+
+      .marks-table td {
+        padding: 0.65rem 0;
+        border-bottom: 1px dashed #E8EAED;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .marks-table td:last-child {
+        border-bottom: none;
+        padding-bottom: 0.25rem;
+      }
+
+      .marks-table td::before {
+        content: attr(data-label);
+        font-size: 0.75rem;
+        font-weight: 800;
+        color: #5F6368;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        flex: 0 0 auto;
+        padding-top: 0.15rem;
+      }
+
+      .marks-table td[data-label="Description"] {
+        align-items: flex-start;
+      }
+
+      .marks-table td[data-label="Description"] > * {
+        max-width: 62%;
+        word-break: break-word;
+      }
+
+      .marks-table td[data-label="Actions"] {
+        align-items: center;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .marks-table td {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.35rem;
+      }
+
+      .marks-table td::before {
+        padding-top: 0;
+      }
+
+      .marks-table td[data-label="Description"] > * {
+        max-width: 100%;
+      }
+
+      .btn-icon-edit {
+        width: 100%;
+        height: 44px;
+        justify-content: center;
+      }
+    }
+  </style>
+<% } %>

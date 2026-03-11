@@ -1,0 +1,1861 @@
+<!-- Attendance Tab (Admin/Trainer Only) -->
+<% if (['admin', 'trainer'].includes(user.userRole)) { %>
+  <div id="attendance-tab" class="tab-content" data-training-id="<%= typeof training !== 'undefined' ? training.id : '' %>">
+    <!-- Sub-tabs for Attendance -->
+    <div class="attendance-sub-tabs">
+      <button class="attendance-sub-tab active" onclick="switchAttendanceSubTab('summary', this)">
+        <i class="fas fa-chart-bar"></i> Summary
+      </button>
+      <button class="attendance-sub-tab" onclick="switchAttendanceSubTab('add', this)">
+        <i class="fas fa-plus-circle"></i> Add New
+      </button>
+      <button class="attendance-sub-tab" onclick="switchAttendanceSubTab('update', this)">
+        <i class="fas fa-edit"></i> Update
+      </button>
+      <button class="attendance-sub-tab" onclick="switchAttendanceSubTab('report', this)">
+        <i class="fas fa-file-pdf"></i> Report
+      </button>
+    </div>
+
+    <!-- Summary Sub-tab -->
+    <div id="attendance-summary" class="attendance-sub-content active">
+      <% if (typeof attendanceData === 'undefined' || attendanceData.length === 0) { %>
+        <div class="empty-state">
+          <i class="fas fa-users" style="font-size: 3rem; color: #DADCE0; margin-bottom: 1rem;"></i>
+          <p>No trainees enrolled in this training yet.</p>
+        </div>
+      <% } else { %>
+        <!-- Summary Statistics Cards -->
+        <div class="attendance-stats-grid">
+          <div class="stat-card stat-card-total">
+            <div class="stat-icon">
+              <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-content">
+              <div class="stat-label">Total Trainees</div>
+              <div class="stat-value"><%= attendanceData.length %></div>
+            </div>
+          </div>
+          
+          <% 
+            const totalPresent = attendanceData.reduce((sum, e) => sum + (e.present_count || 0), 0);
+            const totalAbsent = attendanceData.reduce((sum, e) => sum + (e.absent_count || 0), 0);
+            const totalSessions = totalPresent + totalAbsent;
+            const attendanceRate = totalSessions > 0 ? ((totalPresent / totalSessions) * 100).toFixed(1) : 0;
+          %>
+          
+          <div class="stat-card stat-card-present">
+            <div class="stat-icon">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-content">
+              <div class="stat-label">Total Present</div>
+              <div class="stat-value"><%= totalPresent %></div>
+            </div>
+          </div>
+          
+          <div class="stat-card stat-card-absent">
+            <div class="stat-icon">
+              <i class="fas fa-times-circle"></i>
+            </div>
+            <div class="stat-content">
+              <div class="stat-label">Total Absent</div>
+              <div class="stat-value"><%= totalAbsent %></div>
+            </div>
+          </div>
+          
+          <div class="stat-card stat-card-rate">
+            <div class="stat-icon">
+              <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="stat-content">
+              <div class="stat-label">Attendance Rate</div>
+              <div class="stat-value"><%= attendanceRate %>%</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trainees Table -->
+        <div class="attendance-summary-table-container">
+          <div class="table-header">
+            <h3>Trainee Attendance Summary</h3>
+          </div>
+          <div class="table-wrapper">
+            <table class="attendance-summary-table">
+              <thead>
+                <tr>
+                  <th>Trainee</th>
+                  <th>Trainee ID</th>
+                  <th>Email</th>
+                  <th class="text-center">Present</th>
+                  <th class="text-center">Absent</th>
+                  <th class="text-center">Rate</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% attendanceData.forEach(enrollment => { 
+                  const present = enrollment.present_count || 0;
+                  const absent = enrollment.absent_count || 0;
+                  const total = present + absent;
+                  const rate = total > 0 ? ((present / total) * 100).toFixed(1) : 0;
+                %>
+                  <tr>
+                    <td data-label="Trainee">
+                      <div class="trainee-cell">
+                        <div class="trainee-avatar-small">
+                          <% if (enrollment.profile_picture) { %>
+                            <img src="<%= enrollment.profile_picture %>" alt="<%= enrollment.first_name %>">
+                          <% } else { %>
+                            <%= enrollment.first_name.charAt(0) %><%= enrollment.last_name.charAt(0) %>
+                          <% } %>
+                        </div>
+                        <div class="trainee-name">
+                          <strong><%= enrollment.first_name %> <%= enrollment.last_name %></strong>
+                        </div>
+                      </div>
+                    </td>
+                    <td data-label="Trainee ID">
+                      <span class="trainee-id-cell"><%= enrollment.trainee_id %></span>
+                    </td>
+                    <td data-label="Email">
+                      <span class="trainee-email-cell"><%= enrollment.email %></span>
+                    </td>
+                    <td class="text-center" data-label="Present">
+                      <span class="badge badge-present">
+                        <i class="fas fa-check"></i> <%= present %>
+                      </span>
+                    </td>
+                    <td class="text-center" data-label="Absent">
+                      <span class="badge badge-absent">
+                        <i class="fas fa-times"></i> <%= absent %>
+                      </span>
+                    </td>
+                    <td class="text-center" data-label="Rate">
+                      <div class="rate-cell">
+                        <span class="rate-value <%= rate >= 80 ? 'rate-high' : rate >= 60 ? 'rate-medium' : 'rate-low' %>">
+                          <%= rate %>%
+                        </span>
+                        <div class="rate-bar">
+                          <div class="rate-fill" data-rate="<%= rate %>" style="width: 0%"></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="text-center" data-label="Actions">
+                      <a href="/attendance/trainee/<%= enrollment.id %>" class="btn-view-details-table">
+                        <i class="fas fa-eye"></i> View Details
+                      </a>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      <% } %>
+    </div>
+
+    <!-- Add New Attendance Sub-tab -->
+    <div id="attendance-add" class="attendance-sub-content">
+      <% if (typeof attendanceData === 'undefined' || attendanceData.length === 0) { %>
+        <div class="empty-state">
+          <p>No trainees enrolled in this training yet.</p>
+        </div>
+      <% } else { %>
+        <div class="attendance-form-container">
+          <form id="add-attendance-form" class="attendance-form">
+            <div class="form-row">
+              <div class="form-group form-group-inline">
+                <label for="attendance-date">Date <span class="required">*</span></label>
+                <input type="text" id="attendance-date" name="date" class="form-input date-picker" required>
+              </div>
+              
+              <div class="form-group form-group-inline">
+                <label for="attendance-time">Time <span class="required">*</span></label>
+                <input type="text" id="attendance-time" name="time" class="form-input time-picker" required>
+              </div>
+              
+              <div class="form-group form-group-inline">
+                <label for="attendance-duration">Duration (hours) <span class="required">*</span></label>
+                <input type="number" id="attendance-duration" name="duration" class="form-input" step="0.5" min="0.5" max="24" required placeholder="e.g., 2.5">
+              </div>
+            </div>
+
+            <div class="trainees-attendance-list">
+              <div class="list-header">
+                <h3>Mark Attendance</h3>
+                <div class="bulk-actions">
+                  <button type="button" class="btn-bulk-action btn-select-all" onclick="selectAllAttendance('add')">
+                    <i class="fas fa-check-double"></i> Select All Present
+                  </button>
+                  <button type="button" class="btn-bulk-action btn-deselect-all" onclick="selectAllAttendance('add', 'absent')">
+                    <i class="fas fa-times"></i> Select All Absent
+                  </button>
+                </div>
+              </div>
+              <% attendanceData.forEach(enrollment => { %>
+                <div class="trainee-attendance-item">
+                  <div class="trainee-info">
+                    <strong><%= enrollment.first_name %> <%= enrollment.last_name %></strong>
+                    <span class="trainee-id"><%= enrollment.trainee_id %></span>
+                  </div>
+                  <div class="attendance-controls">
+                    <div class="status-radio-group">
+                      <label class="status-radio present">
+                        <input type="radio" name="status_<%= enrollment.id %>" value="present" checked>
+                        <span>Present</span>
+                      </label>
+                      <label class="status-radio absent">
+                        <input type="radio" name="status_<%= enrollment.id %>" value="absent">
+                        <span>Absent</span>
+                      </label>
+                    </div>
+                    <input type="text" 
+                           name="notes_<%= enrollment.id %>" 
+                           class="notes-input" 
+                           placeholder="Notes (optional)"
+                           data-enrollment-id="<%= enrollment.id %>">
+                  </div>
+                </div>
+              <% }); %>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Save Attendance
+              </button>
+              <button type="reset" class="btn btn-secondary">
+                <i class="fas fa-redo"></i> Reset
+              </button>
+            </div>
+          </form>
+        </div>
+      <% } %>
+    </div>
+
+    <!-- Update Attendance Sub-tab -->
+    <div id="attendance-update" class="attendance-sub-content">
+      <div class="attendance-update-container">
+        <div class="form-group">
+          <label for="update-session-select">Select Session <span class="required">*</span></label>
+          <div class="select-wrapper">
+            <select id="update-session-select" class="form-input session-select" required>
+              <option value="">-- Select a session --</option>
+              <!-- Sessions will be loaded dynamically -->
+            </select>
+            <i class="fas fa-chevron-down select-arrow"></i>
+          </div>
+        </div>
+
+        <div id="update-attendance-form-container" style="display: none;">
+          <form id="update-attendance-form" class="attendance-form">
+            <input type="hidden" id="update-attendance-id" name="attendance_id">
+            <input type="hidden" id="update-attendance-date" name="date">
+            <input type="hidden" id="update-attendance-time" name="time">
+            
+            <div class="form-row">
+              <div class="form-group form-group-inline">
+                <label>Date</label>
+                <input type="text" id="update-display-date" class="form-input" readonly>
+              </div>
+              
+              <div class="form-group form-group-inline">
+                <label for="update-time">Time <span class="required">*</span></label>
+                <input type="text" id="update-time" name="time" class="form-input time-picker" required>
+              </div>
+              
+              <div class="form-group form-group-inline">
+                <label for="update-duration">Duration (hours) <span class="required">*</span></label>
+                <input type="number" id="update-duration" name="duration" class="form-input" step="0.5" min="0.5" max="24" required>
+              </div>
+            </div>
+
+            <div class="trainees-attendance-list">
+              <div class="list-header">
+                <h3>Update Attendance</h3>
+                <div class="bulk-actions">
+                  <button type="button" class="btn-bulk-action btn-select-all" onclick="selectAllAttendance('update')">
+                    <i class="fas fa-check-double"></i> Select All Present
+                  </button>
+                  <button type="button" class="btn-bulk-action btn-deselect-all" onclick="selectAllAttendance('update', 'absent')">
+                    <i class="fas fa-times"></i> Select All Absent
+                  </button>
+                </div>
+              </div>
+              <div id="update-trainees-list">
+                <!-- Trainees will be loaded dynamically -->
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Update Attendance
+              </button>
+              <button type="button" class="btn btn-danger" onclick="cancelUpdate()">
+                <i class="fas fa-times"></i> Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <%- include('./attendance-report') %>
+  </div>
+
+  <style>
+    .attendance-sub-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid #E8EAED;
+      flex-wrap: wrap;
+    }
+
+    .attendance-sub-tab {
+      padding: 0.75rem 1.5rem;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      font-size: 0.9375rem;
+      font-weight: 500;
+      color: #5F6368;
+      transition: all 0.2s;
+      position: relative;
+      bottom: -2px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .attendance-sub-tabs {
+        gap: 0.25rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 0.25rem;
+        flex-wrap: nowrap;
+      }
+
+      .attendance-sub-tab {
+        padding: 0.65rem 1rem;
+        white-space: nowrap;
+        flex: 0 0 auto;
+      }
+    }
+
+    .attendance-sub-tab:hover {
+      color: #573FD7;
+    }
+
+    .attendance-sub-tab.active {
+      color: #573FD7;
+      border-bottom-color: #573FD7;
+    }
+
+    .attendance-sub-content {
+      display: none;
+    }
+
+    .attendance-sub-content.active {
+      display: block;
+    }
+
+    .attendance-form-container,
+    .attendance-update-container {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 2rem;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .form-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group-inline {
+      margin-bottom: 0;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #202124;
+      font-size: 0.9375rem;
+    }
+
+    .form-group label .required {
+      color: #D93025;
+      margin-left: 2px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      border: 2px solid #E8EAED;
+      border-radius: 8px;
+      font-size: 0.9375rem;
+      transition: all 0.2s;
+      background: white;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #573FD7;
+      box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.1);
+    }
+
+    .form-input[readonly] {
+      background: #F8F9FA;
+      cursor: not-allowed;
+    }
+
+    .select-wrapper {
+      position: relative;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(87, 63, 215, 0.06) 0%, rgba(17, 53, 139, 0.05) 60%, rgba(228, 143, 36, 0.05) 100%);
+      border: 2px solid #E8EAED;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+
+    .select-wrapper:focus-within {
+      border-color: #573FD7;
+      box-shadow: 0 0 0 4px rgba(87, 63, 215, 0.12), 0 12px 28px rgba(87, 63, 215, 0.12);
+    }
+
+    .select-wrapper .select-arrow {
+      position: absolute;
+      right: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      color: #573FD7;
+      font-size: 0.95rem;
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(87, 63, 215, 0.12);
+      box-shadow: 0 8px 18px rgba(87, 63, 215, 0.14);
+    }
+
+    .session-select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      padding-right: 3.5rem;
+      cursor: pointer;
+      min-height: 48px;
+      font-size: 16px; /* prevents iOS zoom */
+      line-height: 1.2;
+      background: transparent;
+      border: none !important;
+      box-shadow: none !important;
+      padding-left: 1rem;
+      padding-top: 0.95rem;
+      padding-bottom: 0.95rem;
+      border-radius: 12px;
+    }
+
+    .session-select option {
+      padding: 0.5rem;
+    }
+
+    /* Mobile select: replace native <select> dropdown (long options) with a modal picker */
+    .qss-mobile-select-proxy {
+      display: none;
+      width: 100%;
+      min-height: 48px;
+      padding: 0.95rem 3.75rem 0.95rem 1rem;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      font-size: 16px;
+      line-height: 1.2;
+      color: #202124;
+      font-weight: 700;
+      border-radius: 12px;
+    }
+
+    .qss-mobile-select-proxy .qss-mobile-select-value {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .qss-mobile-select-proxy .qss-mobile-select-hint {
+      display: block;
+      margin-top: 0.2rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #5F6368;
+    }
+
+    @media (max-width: 768px) {
+      .qss-mobile-select-proxy {
+        display: block;
+      }
+      /* Keep the real select for form/value logic, but hide its native UI on mobile */
+      .select-wrapper .session-select {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        pointer-events: none;
+        height: 100%;
+      }
+    }
+
+    .trainees-attendance-list {
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 2px solid #E8EAED;
+    }
+
+    .list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .list-header h3 {
+      margin: 0;
+      color: #202124;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .bulk-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-bulk-action {
+      padding: 0.5rem 1rem;
+      border: 2px solid #E8EAED;
+      border-radius: 6px;
+      background: white;
+      color: #5F6368;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-bulk-action:hover {
+      border-color: #573FD7;
+      color: #573FD7;
+      background: rgba(87, 63, 215, 0.05);
+    }
+
+    .btn-select-all:hover {
+      border-color: #137333;
+      color: #137333;
+      background: rgba(19, 115, 51, 0.05);
+    }
+
+    .btn-deselect-all:hover {
+      border-color: #D93025;
+      color: #D93025;
+      background: rgba(217, 48, 37, 0.05);
+    }
+
+    .trainee-attendance-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem;
+      border: 2px solid #E8EAED;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      background: white;
+      transition: all 0.2s;
+    }
+
+    .trainee-attendance-item:hover {
+      border-color: #DADCE0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .trainee-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .trainee-info strong {
+      color: #202124;
+    }
+
+    .trainee-id {
+      font-size: 0.875rem;
+      color: #5F6368;
+    }
+
+    .attendance-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .status-radio-group {
+      display: flex;
+      gap: 0.75rem;
+      background: rgba(87, 63, 215, 0.06);
+      padding: 0.35rem;
+      border-radius: 8px;
+      border: 1px solid #E8EAED;
+    }
+
+    .status-radio {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      padding: 0; /* padding handled by inner span */
+      border-radius: 6px;
+      transition: all 0.2s;
+      position: relative;
+      flex: 1 1 0;
+      user-select: none;
+    }
+
+    .status-radio.present {
+      color: #137333;
+    }
+
+    .status-radio.absent {
+      color: #D93025;
+    }
+
+    .status-radio input[type="radio"] {
+      margin: 0;
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .status-radio span {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.65rem 1rem;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: #5F6368;
+      border-radius: 7px;
+      border: 1px solid transparent;
+      transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .status-radio:hover span {
+      background: rgba(87, 63, 215, 0.06);
+      color: #573FD7;
+    }
+
+    .status-radio.present input[type="radio"]:checked + span {
+      background: rgba(19, 115, 51, 0.12);
+      border-color: rgba(19, 115, 51, 0.25);
+      color: #137333;
+      box-shadow: 0 10px 20px rgba(19, 115, 51, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .status-radio.absent input[type="radio"]:checked + span {
+      background: rgba(217, 48, 37, 0.10);
+      border-color: rgba(217, 48, 37, 0.22);
+      color: #D93025;
+      box-shadow: 0 10px 20px rgba(217, 48, 37, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .status-radio input[type="radio"]:focus-visible + span {
+      outline: 3px solid rgba(87, 63, 215, 0.35);
+      outline-offset: 2px;
+    }
+
+    .notes-input {
+      padding: 0.625rem 0.875rem;
+      border: 2px solid #E8EAED;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      min-width: 220px;
+      transition: all 0.2s;
+    }
+
+    .notes-input:focus {
+      outline: none;
+      border-color: #573FD7;
+      box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.1);
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 2px solid #E8EAED;
+    }
+
+    .form-actions .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .form-actions .btn-primary {
+      background: #573FD7;
+      color: white;
+      border: none;
+    }
+
+    .form-actions .btn-primary:hover {
+      background: #4A35C4;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(87, 63, 215, 0.3);
+    }
+
+    .form-actions .btn-secondary {
+      background: white;
+      color: #5F6368;
+      border: 2px solid #E8EAED;
+    }
+
+    .form-actions .btn-secondary:hover {
+      background: #F8F9FA;
+      border-color: #DADCE0;
+    }
+
+    .form-actions .btn-danger {
+      background: white;
+      color: #D93025;
+      border: 2px solid #FCE8E6;
+    }
+
+    .form-actions .btn-danger:hover {
+      background: #FCE8E6;
+      border-color: #D93025;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #5F6368;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .empty-state p {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    /* Summary Tab Styles */
+    .attendance-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+
+    .stat-card-total {
+      border-left: 4px solid #573FD7;
+    }
+
+    .stat-card-present {
+      border-left: 4px solid #137333;
+    }
+
+    .stat-card-absent {
+      border-left: 4px solid #D93025;
+    }
+
+    .stat-card-rate {
+      border-left: 4px solid #1967D2;
+    }
+
+    .stat-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .stat-card-total .stat-icon {
+      background: rgba(87, 63, 215, 0.1);
+      color: #573FD7;
+    }
+
+    .stat-card-present .stat-icon {
+      background: rgba(19, 115, 51, 0.1);
+      color: #137333;
+    }
+
+    .stat-card-absent .stat-icon {
+      background: rgba(217, 48, 37, 0.1);
+      color: #D93025;
+    }
+
+    .stat-card-rate .stat-icon {
+      background: rgba(25, 103, 210, 0.1);
+      color: #1967D2;
+    }
+
+    .stat-content {
+      flex: 1;
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: #5F6368;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: #202124;
+    }
+
+    .attendance-summary-table-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .table-header {
+      padding: 1.5rem;
+      border-bottom: 2px solid #E8EAED;
+      background: #F8F9FA;
+    }
+
+    .table-header h3 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #202124;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
+    .attendance-summary-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .attendance-summary-table thead {
+      background: #F8F9FA;
+    }
+
+    .attendance-summary-table th {
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: #5F6368;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #E8EAED;
+    }
+
+    .attendance-summary-table th.text-center {
+      text-align: center;
+    }
+
+    .attendance-summary-table tbody tr {
+      border-bottom: 1px solid #E8EAED;
+      transition: background-color 0.2s ease;
+    }
+
+    .attendance-summary-table tbody tr:hover {
+      background-color: #F8F9FA;
+    }
+
+    .attendance-summary-table tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    .attendance-summary-table td {
+      padding: 1rem;
+      vertical-align: middle;
+    }
+
+    .attendance-summary-table td.text-center {
+      text-align: center;
+    }
+
+    .trainee-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .trainee-avatar-small {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #573FD7 0%, #8B7AE8 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: white;
+      flex-shrink: 0;
+      box-shadow: 0 2px 4px rgba(87, 63, 215, 0.2);
+    }
+
+    .trainee-avatar-small img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .trainee-name {
+      color: #202124;
+    }
+
+    .trainee-name strong {
+      font-weight: 600;
+    }
+
+    .trainee-id-cell {
+      color: #5F6368;
+      font-size: 0.9375rem;
+      font-family: 'Courier New', monospace;
+    }
+
+    .trainee-email-cell {
+      color: #5F6368;
+      font-size: 0.9375rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.375rem 0.75rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    .badge-present {
+      background: rgba(19, 115, 51, 0.1);
+      color: #137333;
+    }
+
+    .badge-absent {
+      background: rgba(217, 48, 37, 0.1);
+      color: #D93025;
+    }
+
+    .badge i {
+      font-size: 0.75rem;
+    }
+
+    .rate-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      min-width: 80px;
+    }
+
+    .rate-value {
+      font-weight: 600;
+      font-size: 0.9375rem;
+    }
+
+    .rate-high {
+      color: #137333;
+    }
+
+    .rate-medium {
+      color: #F9AB00;
+    }
+
+    .rate-low {
+      color: #D93025;
+    }
+
+    .rate-bar {
+      width: 100%;
+      height: 6px;
+      background: #E8EAED;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .rate-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #137333 0%, #34A853 100%);
+      transition: width 0.3s ease;
+      border-radius: 3px;
+    }
+
+    .btn-view-details-table {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: #573FD7;
+      color: white;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .btn-view-details-table:hover {
+      background: #4A35C4;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(87, 63, 215, 0.3);
+    }
+
+    .btn-view-details-table i {
+      font-size: 0.75rem;
+    }
+
+    @media (max-width: 768px) {
+      .attendance-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      /* Summary table -> mobile card layout (no horizontal scrolling) */
+      .table-wrapper {
+        overflow: visible;
+      }
+
+      .attendance-summary-table thead {
+        display: none;
+      }
+
+      .attendance-summary-table,
+      .attendance-summary-table tbody,
+      .attendance-summary-table tr,
+      .attendance-summary-table td {
+        display: block;
+        width: 100%;
+      }
+
+      .attendance-summary-table tbody tr {
+        background: white;
+        border: 1px solid #E8EAED;
+        border-radius: 12px;
+        margin: 0.75rem 0.75rem;
+        padding: 0.75rem 0.85rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      }
+
+      .attendance-summary-table tbody tr:hover {
+        background: white;
+      }
+
+      .attendance-summary-table td {
+        padding: 0.65rem 0;
+        border-bottom: 1px dashed #E8EAED;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .attendance-summary-table td:last-child {
+        border-bottom: none;
+        padding-bottom: 0.25rem;
+      }
+
+      .attendance-summary-table td::before {
+        content: attr(data-label);
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #5F6368;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        flex: 0 0 auto;
+      }
+
+      /* Long email addresses: allow wrapping instead of pushing layout */
+      .attendance-summary-table td[data-label="Email"] {
+        align-items: flex-start;
+      }
+      .attendance-summary-table td[data-label="Email"] .trainee-email-cell {
+        max-width: 62%;
+        text-align: right;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+
+      .attendance-summary-table td.text-center {
+        text-align: right;
+      }
+
+      /* Trainee cell layout inside the card */
+      .attendance-summary-table td[data-label="Trainee"] {
+        align-items: flex-start;
+      }
+      .attendance-summary-table td[data-label="Trainee"]::before {
+        padding-top: 0.25rem;
+      }
+      .attendance-summary-table td[data-label="Trainee"] .trainee-cell {
+        justify-content: flex-start;
+      }
+
+      /* Make the Add/Update trainee rows truly responsive */
+      .trainee-attendance-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.9rem;
+      }
+
+      .attendance-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+      }
+
+      .status-radio-group {
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: nowrap;
+      }
+
+      .status-radio {
+        flex: 1 1 0;
+        justify-content: center;
+        padding: 0;
+      }
+
+      .notes-input {
+        min-width: 0;
+        width: 100%;
+      }
+
+      /* Mobile-friendly dropdowns (Update + Report) */
+      .select-wrapper .select-arrow {
+        right: 0.65rem;
+        width: 42px;
+        height: 42px;
+        font-size: 1.05rem;
+      }
+
+      .session-select {
+        padding-right: 3.9rem;
+        min-height: 56px;
+        font-size: 16px;
+      }
+
+      /* Reduce “grey band” feeling by tightening bottom spacing on mobile */
+      .attendance-form-container,
+      .attendance-update-container {
+        margin-bottom: 1rem;
+      }
+
+      .form-actions {
+        flex-direction: column;
+      }
+      .form-actions .btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .attendance-form-container,
+      .attendance-update-container {
+        padding: 1.25rem;
+      }
+
+      .trainee-attendance-item {
+        padding: 1rem;
+      }
+
+      .attendance-stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Prevent horizontal scrolling on very small screens (320px and below) */
+    @media (max-width: 320px) {
+      .table-wrapper {
+        overflow-x: visible !important;
+      }
+
+      .attendance-summary-table-container {
+        margin: 0 -1rem;
+        border-radius: 0;
+      }
+
+      .attendance-summary-table tbody tr {
+        margin: 0.5rem 0;
+        border-radius: 8px;
+      }
+
+      .attendance-summary-table td {
+        padding: 0.5rem 0.75rem;
+      }
+
+      .attendance-stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+
+      .stat-card {
+        padding: 1rem;
+      }
+
+      .stat-value {
+        font-size: 1.5rem;
+      }
+    }
+
+    /* Ultra-small screens (e.g., 320px): make Present/Absent controls comfortable */
+    @media (max-width: 360px) {
+      .status-radio-group {
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.5rem;
+      }
+
+      .status-radio span {
+        padding: 0.6rem 0.85rem;
+        font-size: 0.9rem;
+      }
+
+      .bulk-actions {
+        flex-direction: column;
+        width: 100%;
+      }
+      .btn-bulk-action {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+
+  <script>
+    function getAttendanceTrainingId() {
+      const el = document.getElementById('attendance-tab');
+      const raw = el?.dataset?.trainingId;
+      const n = raw ? parseInt(raw, 10) : NaN;
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function switchAttendanceSubTab(tabName, clickedButton) {
+      // Hide all sub-tabs
+      document.querySelectorAll('.attendance-sub-content').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      // Remove active class from all buttons
+      document.querySelectorAll('.attendance-sub-tab').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      
+      // Show selected sub-tab
+      document.getElementById('attendance-' + tabName).classList.add('active');
+      
+      // Add active class to clicked button
+      if (clickedButton && clickedButton.classList) {
+        clickedButton.classList.add('active');
+      }
+      
+      // Initialize date/time pickers if needed
+      if (tabName === 'add') {
+        initializeAddAttendancePickers();
+      } else if (tabName === 'update') {
+        loadSessions();
+      } else if (tabName === 'report') {
+        if (typeof loadReportSessions === 'function') {
+          loadReportSessions();
+        }
+      }
+    }
+
+    function initializeAddAttendancePickers() {
+      // Initialize date picker
+      const dateInput = document.getElementById('attendance-date');
+      if (dateInput && !dateInput._flatpickr) {
+        flatpickr(dateInput, {
+          dateFormat: 'Y-m-d',
+          allowInput: true
+        });
+      }
+
+      // Initialize time picker
+      const timeInput = document.getElementById('attendance-time');
+      if (timeInput && !timeInput._flatpickr) {
+        flatpickr(timeInput, {
+          enableTime: true,
+          noCalendar: true,
+          dateFormat: 'H:i',
+          time_24hr: false,
+          allowInput: true,
+          minuteIncrement: 1
+        });
+      }
+    }
+
+    function initializeUpdatePickers() {
+      const timeInput = document.getElementById('update-time');
+      if (timeInput && !timeInput._flatpickr) {
+        flatpickr(timeInput, {
+          enableTime: true,
+          noCalendar: true,
+          dateFormat: 'H:i',
+          time_24hr: false,
+          allowInput: true,
+          minuteIncrement: 1
+        });
+      }
+    }
+
+    // Handle add attendance form submission
+    document.addEventListener('DOMContentLoaded', function() {
+      function isMobileSelectMode() {
+        return window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+      }
+
+      function attachMobileSelectModal(selectId, title) {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        if (!select.classList.contains('session-select')) return;
+
+        const wrapper = select.closest('.select-wrapper');
+        if (!wrapper) return;
+
+        // Create proxy button once
+        let proxy = wrapper.querySelector(`.qss-mobile-select-proxy[data-for="${selectId}"]`);
+        if (!proxy) {
+          proxy = document.createElement('button');
+          proxy.type = 'button';
+          proxy.className = 'qss-mobile-select-proxy';
+          proxy.dataset.for = selectId;
+          proxy.innerHTML = `
+            <span class="qss-mobile-select-value"></span>
+            <span class="qss-mobile-select-hint">Tap to choose</span>
+          `;
+          wrapper.appendChild(proxy);
+
+          proxy.addEventListener('click', () => {
+            if (!isMobileSelectMode()) return;
+            if (typeof window.qssShowSelectModal !== 'function') return;
+
+            const opts = Array.from(select.options || [])
+              .filter(o => o && o.value) // skip placeholder
+              .map(o => ({ value: o.value, label: o.textContent || o.label || o.value }));
+
+            if (opts.length === 0) {
+              qssShowWarning('No sessions available yet.');
+              return;
+            }
+
+            window.qssShowSelectModal({
+              title: title || 'Select Session',
+              options: opts,
+              selectedValue: select.value || '',
+              onPick: (val) => {
+                select.value = val;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+              }
+            });
+          });
+        }
+
+        function updateProxyText() {
+          const valueEl = proxy.querySelector('.qss-mobile-select-value');
+          const hintEl = proxy.querySelector('.qss-mobile-select-hint');
+          const selected = select.options && select.selectedIndex >= 0 ? select.options[select.selectedIndex] : null;
+          const label = selected && selected.value ? (selected.textContent || selected.label || selected.value) : '-- Select a session --';
+          if (valueEl) valueEl.textContent = label;
+          if (hintEl) hintEl.textContent = (selected && selected.value) ? 'Tap to change' : 'Tap to choose';
+        }
+
+        // Keep proxy in sync
+        updateProxyText();
+        select.addEventListener('change', updateProxyText);
+        const mo = new MutationObserver(updateProxyText);
+        mo.observe(select, { childList: true, subtree: true });
+
+        // Also update on resize breakpoint changes
+        window.addEventListener('resize', updateProxyText);
+      }
+
+      // Initialize rate bar widths (avoid EJS inside inline style)
+      document.querySelectorAll('#attendance-tab .rate-fill[data-rate]').forEach(el => {
+        const raw = el.getAttribute('data-rate');
+        const rate = raw ? parseFloat(raw) : 0;
+        const safe = Number.isFinite(rate) ? Math.max(0, Math.min(100, rate)) : 0;
+        el.style.width = `${safe}%`;
+      });
+
+      // Mobile session pickers (Update + Report)
+      attachMobileSelectModal('update-session-select', 'Select Session (Update)');
+      attachMobileSelectModal('report-session-select', 'Select Session (Report)');
+
+      const addForm = document.getElementById('add-attendance-form');
+      if (addForm) {
+        addForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          
+          const formData = new FormData(addForm);
+          const date = formData.get('date');
+          const time = formData.get('time');
+          const duration = parseFloat(formData.get('duration'));
+          
+          // Collect attendance for all trainees
+          const attendanceRecords = [];
+          const enrollmentIds = Array.from(document.querySelectorAll('[name^="status_"]')).map(input => {
+            const match = input.name.match(/status_(\d+)/);
+            return match ? parseInt(match[1]) : null;
+          }).filter(id => id !== null);
+          
+          enrollmentIds.forEach(enrollmentId => {
+            const status = formData.get(`status_${enrollmentId}`);
+            const notes = formData.get(`notes_${enrollmentId}`) || '';
+            
+            attendanceRecords.push({
+              enrollment_id: enrollmentId,
+              date: date,
+              time: time,
+              duration: duration,
+              status: status,
+              notes: notes
+            });
+          });
+          
+          try {
+            const trainingId = getAttendanceTrainingId();
+            const response = await fetch('/attendance/mark-bulk', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                training_id: trainingId,
+                records: attendanceRecords
+              })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+              qssShowMessage({
+                type: 'success',
+                title: 'Success',
+                message: 'Attendance marked successfully!',
+                onClose: () => window.location.reload()
+              });
+              addForm.reset();
+            } else {
+              qssShowError('Error: ' + (result.error || 'Failed to mark attendance'));
+            }
+          } catch (error) {
+            console.error('Error:', error);
+            qssShowError('Error marking attendance. Please try again.');
+          }
+        });
+      }
+
+      // Handle session selection for update
+      const sessionSelect = document.getElementById('update-session-select');
+      if (sessionSelect) {
+        sessionSelect.addEventListener('change', function() {
+          const sessionId = this.value;
+          if (sessionId) {
+            loadSessionDetails(sessionId);
+          } else {
+            document.getElementById('update-attendance-form-container').style.display = 'none';
+          }
+        });
+      }
+
+      // Handle update attendance form submission
+      const updateForm = document.getElementById('update-attendance-form');
+      if (updateForm) {
+        updateForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          
+          const formData = new FormData(updateForm);
+          const attendanceId = formData.get('attendance_id');
+          const date = formData.get('date');
+          
+          // Get time from flatpickr instance if available, otherwise from form input value
+          let time = formData.get('time');
+          const timeInput = document.getElementById('update-time');
+          
+          // Try to get time from flatpickr first
+          if (timeInput && timeInput._flatpickr) {
+            const selectedDate = timeInput._flatpickr.selectedDates[0];
+            if (selectedDate) {
+              // Format as HH:mm (24-hour format)
+              const hours = String(selectedDate.getHours()).padStart(2, '0');
+              const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
+              time = `${hours}:${minutes}`;
+            } else {
+              // If no selected date, use the input value directly
+              time = timeInput.value || time;
+            }
+          } else {
+            // Fallback to input value if flatpickr not initialized
+            time = timeInput ? (timeInput.value || time) : time;
+          }
+          
+          // Ensure time is in HH:mm format (remove seconds if present)
+          if (time && time.split(':').length === 3) {
+            time = time.substring(0, 5);
+          }
+          
+          // Validate time format
+          if (!time || !time.match(/^\d{1,2}:\d{2}$/)) {
+            qssShowWarning('Please enter a valid time');
+            return;
+          }
+          
+          const duration = parseFloat(formData.get('duration'));
+          
+          // Collect updated attendance for all trainees
+          const attendanceRecords = [];
+          const enrollmentIds = Array.from(document.querySelectorAll('#update-trainees-list [name^="status_"]')).map(input => {
+            const match = input.name.match(/status_(\d+)/);
+            return match ? parseInt(match[1]) : null;
+          }).filter(id => id !== null);
+          
+          enrollmentIds.forEach(enrollmentId => {
+            const status = formData.get(`status_${enrollmentId}`);
+            const notes = formData.get(`notes_${enrollmentId}`) || '';
+            
+            attendanceRecords.push({
+              enrollment_id: enrollmentId,
+              date: date,
+              time: time,
+              duration: duration,
+              status: status,
+              notes: notes
+            });
+          });
+          
+          try {
+            const trainingId = getAttendanceTrainingId();
+            const response = await fetch('/attendance/update-bulk', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                training_id: trainingId,
+                date: date,
+                records: attendanceRecords
+              })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+              qssShowMessage({
+                type: 'success',
+                title: 'Success',
+                message: 'Attendance updated successfully!',
+                onClose: () => window.location.reload()
+              });
+              cancelUpdate();
+            } else {
+              qssShowError('Error: ' + (result.error || 'Failed to update attendance'));
+            }
+          } catch (error) {
+            console.error('Error:', error);
+            qssShowError('Error updating attendance. Please try again.');
+          }
+        });
+      }
+    });
+
+    async function loadSessions() {
+      const trainingId = getAttendanceTrainingId();
+      if (!trainingId) return;
+      
+      try {
+        const response = await fetch(`/attendance/sessions/${trainingId}`);
+        const sessions = await response.json();
+        
+        const select = document.getElementById('update-session-select');
+        if (select) {
+          select.innerHTML = '<option value="">-- Select a session --</option>';
+          
+          sessions.forEach(session => {
+            const option = document.createElement('option');
+            
+            // Parse date - handle both date string and ISO datetime formats
+            let dateStr = session.date;
+            if (dateStr.includes('T')) {
+              // If it's an ISO datetime, extract just the date part
+              dateStr = dateStr.split('T')[0];
+            }
+            
+            // Format date nicely
+            const dateObj = new Date(dateStr + 'T00:00:00');
+            let formattedDate = 'Invalid Date';
+            if (!isNaN(dateObj.getTime())) {
+              formattedDate = dateObj.toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+              });
+            } else {
+              // Fallback: try parsing the date string directly
+              const parts = dateStr.split('-');
+              if (parts.length === 3) {
+                const year = parts[0];
+                const month = parseInt(parts[1]) - 1;
+                const day = parts[2];
+                const fallbackDate = new Date(year, month, day);
+                if (!isNaN(fallbackDate.getTime())) {
+                  formattedDate = fallbackDate.toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  });
+                }
+              }
+            }
+            
+            // Format time nicely - handle both HH:mm and HH:mm:ss formats
+            let formattedTime = 'N/A';
+            if (session.time) {
+              let timeStr = session.time;
+              // Remove seconds if present (HH:mm:ss -> HH:mm)
+              if (timeStr.split(':').length === 3) {
+                timeStr = timeStr.substring(0, 5);
+              }
+              const [hours, minutes] = timeStr.split(':');
+              const hour24 = parseInt(hours);
+              const hour12 = hour24 % 12 || 12;
+              const ampm = hour24 >= 12 ? 'PM' : 'AM';
+              formattedTime = `${hour12}:${minutes} ${ampm}`;
+            }
+            
+            // Format duration nicely - remove trailing zeros
+            let formattedDuration = 'N/A';
+            if (session.duration) {
+              const duration = parseFloat(session.duration);
+              const durationRounded = Math.round(duration * 100) / 100; // Round to 2 decimal places
+              formattedDuration = `${durationRounded} ${durationRounded == 1 ? 'hour' : 'hours'}`;
+            }
+            
+            option.value = session.id;
+            option.textContent = `${formattedDate} • ${formattedTime} • ${formattedDuration}`;
+            option.dataset.date = dateStr; // Store clean date string
+            option.dataset.time = session.time || '';
+            option.dataset.duration = session.duration || '';
+            select.appendChild(option);
+          });
+        }
+      } catch (error) {
+        console.error('Error loading sessions:', error);
+      }
+    }
+
+    // Select All/Deselect All functionality
+    function selectAllAttendance(formType, status = 'present') {
+      let container;
+      
+      if (formType === 'add') {
+        container = document.getElementById('add-attendance-form');
+      } else if (formType === 'update') {
+        container = document.getElementById('update-trainees-list');
+      }
+      
+      if (!container) return;
+      
+      // Find all radio buttons with the specified status value
+      const radioButtons = container.querySelectorAll(`input[type="radio"][value="${status}"]`);
+      
+      radioButtons.forEach(radio => {
+        radio.checked = true;
+        // Trigger change event to update any visual feedback
+        const changeEvent = new Event('change', { bubbles: true });
+        radio.dispatchEvent(changeEvent);
+      });
+      
+      // Visual feedback
+      const statusText = status === 'present' ? 'Present' : 'Absent';
+      console.log(`Selected all ${statusText} for ${radioButtons.length} trainees`);
+    }
+
+    async function loadSessionDetails(sessionId) {
+      const trainingId = getAttendanceTrainingId();
+      const select = document.getElementById('update-session-select');
+      const selectedOption = select.options[select.selectedIndex];
+      
+      if (!selectedOption || !selectedOption.value) return;
+      
+      const date = selectedOption.dataset.date;
+      const time = selectedOption.dataset.time;
+      const duration = selectedOption.dataset.duration;
+      
+      try {
+        const response = await fetch(`/attendance/session-details/${trainingId}?date=${date}`);
+        const data = await response.json();
+        
+      // Populate form
+      document.getElementById('update-attendance-id').value = sessionId;
+      
+      // Clean date - extract just the date part if it's an ISO datetime
+      let cleanDate = date;
+      if (date && date.includes('T')) {
+        cleanDate = date.split('T')[0];
+      }
+      document.getElementById('update-attendance-date').value = cleanDate;
+      
+      // Format date nicely for display
+      const dateObj = new Date(cleanDate + 'T00:00:00');
+      let formattedDate = cleanDate;
+      if (!isNaN(dateObj.getTime())) {
+        formattedDate = dateObj.toLocaleDateString('en-US', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+      }
+      document.getElementById('update-display-date').value = formattedDate;
+      
+      // Clean time - remove seconds if present (HH:mm:ss -> HH:mm)
+      let cleanTime = time;
+      if (time && time.split(':').length === 3) {
+        cleanTime = time.substring(0, 5);
+      }
+      
+      // Set the time value and update flatpickr if it exists
+      const timeInput = document.getElementById('update-time');
+      if (timeInput) {
+        timeInput.value = cleanTime || '';
+        // If flatpickr is already initialized, set the date
+        if (timeInput._flatpickr && cleanTime) {
+          // Parse the time and set it in flatpickr
+          const [hours, minutes] = cleanTime.split(':');
+          const today = new Date();
+          today.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+          timeInput._flatpickr.setDate(today, false);
+        }
+      }
+      
+      // Clean duration - remove unnecessary decimals
+      let cleanDuration = duration;
+      if (duration) {
+        cleanDuration = parseFloat(duration);
+      }
+      document.getElementById('update-duration').value = cleanDuration || '';
+      
+        // Populate trainees list
+        const traineesList = document.getElementById('update-trainees-list');
+        traineesList.innerHTML = '';
+        
+        data.records.forEach(record => {
+          const item = document.createElement('div');
+          item.className = 'trainee-attendance-item';
+          item.innerHTML = `
+            <div class="trainee-info">
+              <strong>${record.first_name} ${record.last_name}</strong>
+              <span class="trainee-id">${record.trainee_id}</span>
+            </div>
+            <div class="attendance-controls">
+              <div class="status-radio-group">
+                <label class="status-radio present">
+                  <input type="radio" name="status_${record.enrollment_id}" value="present" ${record.status === 'present' ? 'checked' : ''}>
+                  <span>Present</span>
+                </label>
+                <label class="status-radio absent">
+                  <input type="radio" name="status_${record.enrollment_id}" value="absent" ${record.status === 'absent' ? 'checked' : ''}>
+                  <span>Absent</span>
+                </label>
+              </div>
+              <input type="text" 
+                     name="notes_${record.enrollment_id}" 
+                     class="notes-input" 
+                     placeholder="Notes (optional)"
+                     value="${record.notes || ''}"
+                     data-enrollment-id="${record.enrollment_id}">
+            </div>
+          `;
+          traineesList.appendChild(item);
+        });
+        
+        document.getElementById('update-attendance-form-container').style.display = 'block';
+        initializeUpdatePickers();
+      } catch (error) {
+        console.error('Error loading session details:', error);
+      qssShowError('Error loading session details. Please try again.');
+      }
+    }
+
+    function cancelUpdate() {
+      document.getElementById('update-session-select').value = '';
+      document.getElementById('update-attendance-form-container').style.display = 'none';
+      document.getElementById('update-attendance-form').reset();
+    }
+  </script>
+<% } %>

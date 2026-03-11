@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>All Trainings - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .training-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    
+    .classroom-card {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+      transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    
+    .classroom-card:hover {
+      box-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+      transform: translateY(-2px);
+    }
+    
+    .classroom-header {
+      height: 120px;
+      background-size: cover;
+      background-position: center;
+      background-color: #573FD7;
+      position: relative;
+    }
+    
+    .classroom-body {
+      padding: 1rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .classroom-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #202124;
+      margin: 0 0 0.5rem 0;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
+    .classroom-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+      flex-wrap: wrap;
+    }
+    
+    .classroom-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 16px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: capitalize;
+    }
+    
+    .badge-main {
+      background: #E8F0FE;
+      color: #1967D2;
+    }
+    
+    .badge-refreshment {
+      background: #FEF7E0;
+      color: #F9AB00;
+    }
+    
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 16px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    
+    .status-in-progress {
+      background: #E3F2FD;
+      color: #1976D2;
+    }
+    
+    .status-completed {
+      background: #E8F5E9;
+      color: #388E3C;
+    }
+    
+    .status-canceled {
+      background: #FFEBEE;
+      color: #D32F2F;
+    }
+    
+    .status-rescheduled {
+      background: #FFF3E0;
+      color: #F57C00;
+    }
+    
+    .classroom-info {
+      color: #5F6368;
+      font-size: 0.875rem;
+      margin-top: auto;
+      padding-top: 0.75rem;
+      border-top: 1px solid #E8EAED;
+    }
+    
+    .classroom-info-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    .classroom-info-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    .classroom-info-item i {
+      width: 16px;
+      color: #5F6368;
+    }
+    
+    @media (max-width: 768px) {
+      .training-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+    }
+  </style>
+</head>
+<body class="<%= ['admin', 'trainer'].includes(user.userRole) ? 'has-sidebar' : 'has-navbar' %>">
+  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+    <%- include('../partials/sidebar', { user }) %>
+  <% } else { %>
+    <%- include('../partials/navbar', { user }) %>
+  <% } %>
+  
+  <main class="main-content">
+    <div class="container">
+      <div class="dashboard-header">
+        <h1><i class="fas fa-graduation-cap" style="color:#573FD7;"></i> All Trainings</h1>
+        <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+          <a href="/training/create" class="btn btn-primary">Create New Training</a>
+        <% } %>
+      </div>
+
+      <% if (trainings.length === 0) { %>
+        <div class="empty-state">
+          <p>No trainings available yet.</p>
+          <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+            <a href="/training/create" class="btn btn-primary">Create First Training</a>
+          <% } %>
+        </div>
+      <% } else { %>
+        <div class="training-grid">
+          <% trainings.forEach(training => { %>
+            <a href="/training/<%= training.id %>" class="classroom-card" style="text-decoration: none; color: inherit;">
+              <div class="classroom-header" style="background-image: url('<%= training.header_image || '/images/Training Headers/Header 2.jpg' %>');"></div>
+              <div class="classroom-body">
+                <h3 class="classroom-title"><%= training.title %></h3>
+                <div class="classroom-meta">
+                  <span class="classroom-badge badge-<%= training.type %>">
+                    <%= training.type === 'main' ? 'Main Training' : 'Refreshment' %>
+                  </span>
+                  <% 
+                    const statusLabels = {
+                      'in_progress': 'In Progress',
+                      'completed': 'Completed',
+                      'canceled': 'Canceled',
+                      'rescheduled': 'Rescheduled'
+                    };
+                    const statusClass = `status-${training.status.replace('_', '-')}`;
+                  %>
+                  <span class="status-badge <%= statusClass %>">
+                    <%= statusLabels[training.status] || training.status %>
+                  </span>
+                </div>
+                <div class="classroom-info">
+                  <div class="classroom-info-item">
+                    <i class="fas fa-user"></i>
+                    <span>
+                      <% if (training.trainers && training.trainers.length > 0) { %>
+                        <%= training.trainers.join(', ') %>
+                      <% } else { %>
+                        <%= training.first_name || 'Unknown' %> <%= training.last_name || 'Trainer' %>
+                      <% } %>
+                    </span>
+                  </div>
+                  <div class="classroom-info-item">
+                    <i class="fas fa-users"></i>
+                    <span><%= training.enrolled_count || 0 %> enrolled</span>
+                  </div>
+                  <% if (training.start_datetime) { %>
+                    <div class="classroom-info-item">
+                      <i class="fas fa-calendar"></i>
+                      <span><%= new Date(training.start_datetime).toLocaleDateString() %></span>
+                    </div>
+                  <% } %>
+                </div>
+              </div>
+            </a>
+          <% }); %>
+        </div>
+      <% } %>
+    </div>
+  </main>
+  
+  <script src="/js/main.js"></script>
+</body>
+</html>

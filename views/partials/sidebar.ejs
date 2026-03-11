@@ -1,0 +1,269 @@
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<!-- Mobile Menu Toggle Button -->
+<button class="sidebar-toggle-mobile" id="sidebarToggleMobile" aria-label="Toggle menu">
+  <i class="fas fa-bars"></i>
+</button>
+
+<!-- Sidebar Overlay (Mobile Only) -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="/dashboard" class="sidebar-brand">
+      <img src="/QSS.ico" alt="QSS Logo" class="sidebar-logo">
+      <span>LMS</span>
+    </a>
+    <button class="sidebar-close-mobile" id="sidebarCloseMobile" aria-label="Close menu">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+  
+  <nav class="sidebar-nav">
+    <a href="/dashboard" class="sidebar-link">
+      <i class="fas fa-home sidebar-icon"></i>
+      <span>Dashboard</span>
+    </a>
+    
+    <a href="/training" class="sidebar-link">
+      <i class="fas fa-book sidebar-icon"></i>
+      <span>Trainings</span>
+    </a>
+    
+    <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+      <a href="/trainees" class="sidebar-link">
+        <i class="fas fa-users sidebar-icon"></i>
+        <span>Trainees</span>
+      </a>
+      
+      <a href="/questions" class="sidebar-link">
+        <i class="fas fa-file-alt sidebar-icon"></i>
+        <span>Question Bank</span>
+      </a>
+      
+      <div class="sidebar-menu-item">
+        <div class="sidebar-link sidebar-menu-toggle" onclick="toggleSettingsMenu(event)">
+          <i class="fas fa-cog sidebar-icon"></i>
+          <span>Settings</span>
+          <i class="fas fa-chevron-down sidebar-chevron" id="settings-chevron"></i>
+        </div>
+        <div class="sidebar-submenu" id="settings-submenu">
+          <a href="/settings/objectives" class="sidebar-sublink">
+            <i class="fas fa-bullseye sidebar-icon"></i>
+            <span>Objectives</span>
+          </a>
+          <a href="/settings/healthcare" class="sidebar-sublink">
+            <i class="fas fa-hospital sidebar-icon"></i>
+            <span>Healthcare</span>
+          </a>
+          <a href="/settings/areas" class="sidebar-sublink">
+            <i class="fas fa-user-md sidebar-icon"></i>
+            <span>Areas of Specialization</span>
+          </a>
+          <a href="/settings/models" class="sidebar-sublink">
+            <i class="fas fa-microchip sidebar-icon"></i>
+            <span>K-Laser Models</span>
+          </a>
+          <a href="/settings/devices" class="sidebar-sublink">
+            <i class="fas fa-server sidebar-icon"></i>
+            <span>Device Serial Numbers</span>
+          </a>
+          <a href="/settings/hands-on-aspects" class="sidebar-sublink">
+            <i class="fas fa-hand-paper sidebar-icon"></i>
+            <span>Hands-On Aspects</span>
+          </a>
+          <% if (user.userRole === 'admin') { %>
+            <a href="/settings/users" class="sidebar-sublink">
+              <i class="fas fa-id-badge sidebar-icon"></i>
+              <span>Users</span>
+            </a>
+          <% } %>
+        </div>
+      </div>
+    <% } %>
+  </nav>
+  
+  <div class="sidebar-footer">
+    <a href="/profile" class="sidebar-user">
+      <% if (user.userProfile) { %>
+        <img src="<%= user.userProfile %>" alt="Profile" class="sidebar-profile-picture">
+      <% } else { %>
+        <div class="sidebar-profile-placeholder"><%= user.userName.charAt(0) %></div>
+      <% } %>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name"><%= user.userName %></div>
+        <div class="sidebar-user-role"><%= user.userRole.charAt(0).toUpperCase() + user.userRole.slice(1) %></div>
+      </div>
+    </a>
+    <a href="/logout" class="sidebar-menu-link">
+      <i class="fas fa-right-from-bracket sidebar-icon"></i>
+      <span>Logout</span>
+    </a>
+  </div>
+</aside>
+
+<script>
+  function toggleSettingsMenu(event) {
+    // Prevent event from bubbling up and closing sidebar on mobile
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    
+    const menuItem = document.querySelector('.sidebar-menu-item');
+    const submenu = document.getElementById('settings-submenu');
+    
+    if (!menuItem || !submenu) return;
+    
+    const isActive = menuItem.classList.contains('active');
+    
+    // Add animating class to enable transitions
+    submenu.classList.add('animating');
+    
+    if (isActive) {
+      menuItem.classList.remove('active');
+      submenu.style.maxHeight = '0';
+      localStorage.setItem('settingsMenuExpanded', 'false');
+      
+      // Remove animating class after animation completes
+      setTimeout(() => {
+        submenu.classList.remove('animating');
+      }, 500);
+    } else {
+      menuItem.classList.add('active');
+      submenu.style.maxHeight = submenu.scrollHeight + 'px';
+      localStorage.setItem('settingsMenuExpanded', 'true');
+      
+      // Remove animating class after animation completes
+      setTimeout(() => {
+        submenu.classList.remove('animating');
+      }, 500);
+    }
+  }
+  
+  // Initialize settings menu state on page load - uses global localStorage state
+  document.addEventListener('DOMContentLoaded', function() {
+    const menuItem = document.querySelector('.sidebar-menu-item');
+    const submenu = document.getElementById('settings-submenu');
+    const currentPath = window.location.pathname;
+    
+    if (!menuItem || !submenu) return;
+    
+    // Check if we're on a settings page
+    const isSettingsPage = currentPath.startsWith('/settings');
+    
+    // Get saved state from localStorage (global state)
+    const savedState = localStorage.getItem('settingsMenuExpanded');
+    
+    // Use saved state if it exists, otherwise default to expanded on settings pages
+    let shouldExpand = false;
+    
+    if (savedState !== null) {
+      // Use saved preference (global state)
+      shouldExpand = savedState === 'true';
+    } else {
+      // First time - expand if on settings page
+      shouldExpand = isSettingsPage;
+      if (isSettingsPage) {
+        localStorage.setItem('settingsMenuExpanded', 'true');
+      }
+    }
+    
+    // Set state without animation (no animating class)
+    if (shouldExpand) {
+      menuItem.classList.add('active');
+      // Set height immediately without transition
+      submenu.style.maxHeight = submenu.scrollHeight + 'px';
+    } else {
+      menuItem.classList.remove('active');
+      submenu.style.maxHeight = '0';
+    }
+    
+    // Highlight active submenu item if on settings page
+    if (isSettingsPage) {
+      const activeLink = document.querySelector(`.sidebar-sublink[href="${currentPath}"]`);
+      if (activeLink) {
+        activeLink.classList.add('active');
+      }
+    }
+  });
+
+  // Mobile sidebar toggle functionality
+  function initMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggleMobile');
+    const sidebarClose = document.getElementById('sidebarCloseMobile');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    
+    if (!sidebar || !sidebarToggle) return;
+    
+    function openSidebar() {
+      sidebar.classList.add('mobile-open');
+      if (sidebarOverlay) {
+        sidebarOverlay.classList.add('active');
+      }
+      document.body.style.overflow = 'hidden';
+    }
+    
+    function closeSidebar() {
+      sidebar.classList.remove('mobile-open');
+      if (sidebarOverlay) {
+        sidebarOverlay.classList.remove('active');
+      }
+      document.body.style.overflow = '';
+    }
+    
+    if (sidebarToggle) {
+      sidebarToggle.addEventListener('click', openSidebar);
+    }
+    
+    if (sidebarClose) {
+      sidebarClose.addEventListener('click', closeSidebar);
+    }
+    
+    if (sidebarOverlay) {
+      sidebarOverlay.addEventListener('click', closeSidebar);
+    }
+    
+    // Close sidebar when clicking on a link (mobile only)
+    // Exclude settings toggle from closing sidebar
+    const sidebarLinks = sidebar.querySelectorAll('.sidebar-link:not(.sidebar-menu-toggle), .sidebar-sublink');
+    sidebarLinks.forEach(link => {
+      link.addEventListener('click', function(e) {
+        if (window.innerWidth <= 768 && !link.classList.contains('sidebar-menu-toggle')) {
+          closeSidebar();
+        }
+      });
+    });
+    
+    // Prevent settings toggle from closing sidebar
+    const settingsToggle = sidebar.querySelector('.sidebar-menu-toggle');
+    if (settingsToggle) {
+      settingsToggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    }
+  }
+  
+  // Initialize mobile sidebar on page load
+  document.addEventListener('DOMContentLoaded', initMobileSidebar);
+  
+  // Handle window resize - close sidebar if switching to desktop
+  let resizeTimer;
+  window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+      const sidebar = document.getElementById('sidebar');
+      const sidebarOverlay = document.getElementById('sidebarOverlay');
+      
+      if (window.innerWidth > 768 && sidebar && sidebar.classList.contains('mobile-open')) {
+        sidebar.classList.remove('mobile-open');
+        if (sidebarOverlay) {
+          sidebarOverlay.classList.remove('active');
+        }
+        document.body.style.overflow = '';
+      }
+    }, 250);
+  });
+</script>
+

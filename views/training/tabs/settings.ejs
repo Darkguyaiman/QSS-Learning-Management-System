@@ -1,0 +1,363 @@
+<!-- Settings Tab (Admin/Trainer Only) -->
+<% if (['admin', 'trainer'].includes(user.userRole)) { %>
+  <div id="settings-tab" class="tab-content">
+    <div class="form-card">
+      <form id="settings-form" action="/training/<%= training.id %>/update" method="POST">
+        <div class="form-section">
+          <div class="section-title">
+            <i class="fas fa-info-circle"></i>
+            Training Information
+          </div>
+          
+          <div class="form-group">
+            <label for="settings-title">
+              <i class="fas fa-heading"></i>
+              Training Name *
+            </label>
+            <input type="text" id="settings-title" name="title" value="<%= training.title %>" class="form-input" required <%= training.status === 'completed' ? 'disabled' : '' %>>
+          </div>
+          
+          <div class="form-group">
+            <label for="settings-status">
+              <i class="fas fa-tasks"></i>
+              Status *
+            </label>
+            <select id="settings-status" name="status" class="form-select" required <%= training.status === 'completed' ? 'disabled' : '' %>>
+              <option value="in_progress" <%= training.status === 'in_progress' ? 'selected' : '' %>>In Progress</option>
+              <option value="completed" <%= training.status === 'completed' ? 'selected' : '' %>>Completed</option>
+              <option value="canceled" <%= training.status === 'canceled' ? 'selected' : '' %>>Canceled</option>
+              <option value="rescheduled" <%= training.status === 'rescheduled' ? 'selected' : '' %>>Rescheduled</option>
+            </select>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="settings-start">
+                <i class="fas fa-play-circle"></i>
+                Start Date & Time
+              </label>
+              <input type="text" id="settings-start" name="start_datetime" value="<%= training.start_datetime ? new Date(training.start_datetime).toISOString().slice(0, 16) : '' %>" class="form-input datetime-picker" placeholder="Select start date and time">
+            </div>
+            
+            <div class="form-group">
+              <label for="settings-end">
+                <i class="fas fa-stop-circle"></i>
+                End Date & Time
+              </label>
+              <input type="text" id="settings-end" name="end_datetime" value="<%= training.end_datetime ? new Date(training.end_datetime).toISOString().slice(0, 16) : '' %>" class="form-input datetime-picker" placeholder="Select end date and time">
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <div class="section-title">
+            <i class="fas fa-hospital"></i>
+            Participating Healthcare Centres
+          </div>
+          
+          <div class="form-group">
+            <label>
+              <i class="fas fa-building"></i>
+              Select Healthcare Centres
+            </label>
+            <div class="multiselect-container">
+              <input type="text" class="multiselect-search" placeholder="Search healthcare centres..." id="settings-healthcare-search">
+              <div class="multiselect-options" id="settings-healthcare-options">
+                <% if (typeof allHealthcare !== 'undefined' && allHealthcare) { %>
+                  <% allHealthcare.forEach(hc => { %>
+                    <% const isSelected = typeof trainingHealthcare !== 'undefined' && trainingHealthcare.some(th => th.healthcare_id === hc.id); %>
+                    <label class="multiselect-option">
+                      <input type="checkbox" name="healthcare_ids[]" value="<%= hc.id %>" <%= isSelected ? 'checked' : '' %>>
+                      <span><%= hc.name %></span>
+                    </label>
+                  <% }); %>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <div class="section-title">
+            <i class="fas fa-server"></i>
+            Device Serial Numbers
+          </div>
+          
+          <div class="form-group">
+            <label>
+              <i class="fas fa-microchip"></i>
+              Select Devices
+            </label>
+            <div class="multiselect-container">
+              <input type="text" class="multiselect-search" placeholder="Search devices by serial number or model..." id="settings-device-search">
+              <div class="multiselect-options" id="settings-device-options">
+                <% if (typeof allDevices !== 'undefined' && allDevices) { %>
+                  <% allDevices.forEach(device => { %>
+                    <% const isSelected = typeof trainingDevices !== 'undefined' && trainingDevices.some(td => td.device_serial_number_id === device.id); %>
+                    <label class="multiselect-option">
+                      <input type="checkbox" name="device_ids[]" value="<%= device.id %>" <%= isSelected ? 'checked' : '' %>>
+                      <span><%= device.serial_number %> <% if (device.model_name) { %>(<%= device.model_name %>)<% } %></span>
+                    </label>
+                  <% }); %>
+                <% } %>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-group" id="settings-custom-devices-container">
+            <label>
+              <i class="fas fa-plus-circle"></i>
+              Add Custom Serial Numbers
+            </label>
+            <div id="settings-custom-devices-list">
+              <% if (typeof trainingDevices !== 'undefined' && trainingDevices.length > 0) { %>
+                <% trainingDevices.forEach((device, index) => { %>
+                  <% if (device.custom_serial_number) { %>
+                    <div class="custom-device-item">
+                      <div>
+                        <input type="text" name="device_customs[]" class="form-input" placeholder="Enter serial number" value="<%= device.custom_serial_number %>" required style="margin-bottom: 0.75rem;">
+                      </div>
+                      <button type="button" class="btn btn-sm" onclick="removeCustomDeviceRow(this)" style="background: #EF4444; color: white; border: none; padding: 0.5rem 0.75rem; align-self: flex-start;">
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </div>
+                  <% } %>
+                <% }); %>
+              <% } %>
+            </div>
+            <button type="button" class="btn btn-primary btn-lg" onclick="addSettingsCustomDevice()" style="margin-top: 0.75rem; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.875rem 1.5rem; font-weight: 600; box-shadow: 0 2px 8px rgba(87, 63, 215, 0.2); transition: all 0.3s ease;">
+              <i class="fas fa-plus-circle"></i> Add New Custom Device
+            </button>
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <div class="section-title">
+            <i class="fas fa-chalkboard-teacher"></i>
+            Trainers
+          </div>
+          
+          <div class="form-group">
+            <label>
+              <i class="fas fa-user-tie"></i>
+              Select Trainers
+            </label>
+            <div class="multiselect-container">
+              <input type="text" class="multiselect-search" placeholder="Search trainers by name or email..." id="settings-trainer-search">
+              <div class="multiselect-options" id="settings-trainer-options">
+                <% if (typeof allTrainers !== 'undefined' && allTrainers) { %>
+                  <% allTrainers.forEach(t => { %>
+                    <% const isSelected = typeof trainers !== 'undefined' && trainers.some(tr => tr.id === t.id); %>
+                    <label class="multiselect-option trainer-option">
+                      <input type="checkbox" name="trainer_ids[]" value="<%= t.id %>" <%= isSelected ? 'checked' : '' %>>
+                      <div class="trainer-option-content">
+                        <div class="trainer-name">
+                          <i class="fas fa-user"></i>
+                          <span><%= t.first_name %> <%= t.last_name %></span>
+                        </div>
+                        <div class="trainer-email">
+                          <i class="fas fa-envelope"></i>
+                          <span><%= t.email %></span>
+                        </div>
+                      </div>
+                    </label>
+                  <% }); %>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <div class="section-title">
+            <i class="fas fa-users"></i>
+            Trainees
+          </div>
+          
+          <div class="form-group">
+            <label>
+              <i class="fas fa-user-graduate"></i>
+              Select Trainees
+            </label>
+            <div class="multiselect-container" id="settings-trainee-container">
+              <input type="text" class="multiselect-search" placeholder="Search by name, email, healthcare, IC/Passport, or Trainee ID..." id="settings-trainee-search">
+              <div class="multiselect-options" id="settings-trainee-options">
+                <% if (typeof allTrainees !== 'undefined' && allTrainees) { %>
+                  <% allTrainees.forEach(t => { %>
+                    <% const isSelected = typeof enrolledTrainees !== 'undefined' && enrolledTrainees.some(tr => tr.id === t.id); %>
+                    <label class="multiselect-option trainee-option" data-search-text="<%= (t.healthcare || '') + ' ' + t.first_name + ' ' + t.last_name + ' ' + t.email + ' ' + (t.ic_passport || '') + ' ' + (t.trainee_id || '') %>">
+                      <input type="checkbox" name="trainee_ids[]" value="<%= t.id %>" <%= isSelected ? 'checked' : '' %>>
+                      <div class="trainee-option-content">
+                        <% if (t.healthcare) { %>
+                          <div class="trainee-info-row">
+                            <i class="fas fa-hospital" style="color: var(--color-orange);"></i>
+                            <span>Healthcare: <%= t.healthcare %></span>
+                          </div>
+                        <% } %>
+                        <div class="trainee-info-row">
+                          <i class="fas fa-user" style="color: var(--color-purple);"></i>
+                          <span class="trainee-name-bold"><%= t.first_name %> <%= t.last_name %></span>
+                        </div>
+                        <div class="trainee-info-row">
+                          <i class="fas fa-id-card" style="color: #1967D2;"></i>
+                          <span>ID: <%= t.trainee_id || 'N/A' %></span>
+                        </div>
+                        <div class="trainee-info-row">
+                          <i class="fas fa-passport" style="color: #1967D2;"></i>
+                          <span>IC/Passport: <%= t.ic_passport || 'N/A' %></span>
+                        </div>
+                      </div>
+                    </label>
+                  <% }); %>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary btn-lg btn-block" <%= training.status === 'completed' ? 'disabled title="Training is locked. Cannot make changes."' : '' %>>
+            <i class="fas fa-save"></i>
+            Save Changes
+          </button>
+          <button type="button" class="btn btn-outline btn-lg btn-block" onclick="document.getElementById('settings-form').reset();" <%= training.status === 'completed' ? 'disabled' : '' %>>
+            <i class="fas fa-undo"></i>
+            Reset
+          </button>
+        </div>
+        
+        <% if (user.userRole === 'admin') { %>
+          <div class="form-section" style="margin-top: 2rem; padding-top: 2rem; border-top: 2px solid #E8EAED;">
+            <div class="section-title" style="color: <%= training.status === 'completed' ? '#34A853' : '#EA4335' %>;">
+              <i class="fas fa-<%= training.status === 'completed' ? 'lock' : 'unlock' %>"></i>
+              Training Lock Status
+            </div>
+            <p style="color: #5F6368; margin-bottom: 1rem;">
+              <% if (training.status === 'completed') { %>
+                This training is <strong>locked</strong>. No changes can be made. Only viewing is allowed.
+              <% } else { %>
+                This training is <strong>unlocked</strong>. You can make changes. Lock it to prevent further modifications.
+              <% } %>
+            </p>
+            <% if (training.status !== 'completed') { %>
+              <button type="button" class="btn btn-danger btn-lg" onclick="lockTraining()" id="lock-training-btn">
+                <i class="fas fa-lock"></i>
+                Lock Training
+              </button>
+              <p style="color: #5F6368; font-size: 0.875rem; margin-top: 0.5rem;">
+                <i class="fas fa-info-circle"></i> Once locked, the training becomes read-only. You can unlock it later if needed.
+              </p>
+            <% } else { %>
+              <div style="padding: 1rem; background: #E6F4EA; border-radius: 8px; color: #137333; margin-bottom: 1rem;">
+                <i class="fas fa-check-circle"></i> Training is locked and read-only.
+              </div>
+              <button type="button" class="btn btn-success btn-lg" onclick="unlockTraining()" id="unlock-training-btn">
+                <i class="fas fa-unlock"></i>
+                Unlock Training
+              </button>
+              <p style="color: #5F6368; font-size: 0.875rem; margin-top: 0.5rem;">
+                <i class="fas fa-info-circle"></i> Unlocking will allow modifications to the training again.
+              </p>
+            <% } %>
+          </div>
+        <% } %>
+      </form>
+    </div>
+  </div>
+<% } %>
+
+<% if (['admin', 'trainer'].includes(user.userRole)) { %>
+  <style>
+    /* Settings tab: ultra-small screen fixes (flatpickr mobile inputs can overflow) */
+    #settings-tab .form-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      #settings-tab .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 360px) {
+      #settings-tab .form-card {
+        padding: 1.25rem;
+      }
+
+      #settings-tab .form-row > * ,
+      #settings-tab .form-group {
+        min-width: 0;
+      }
+
+      #settings-tab .flatpickr-wrapper {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+      }
+
+      #settings-tab .form-input,
+      #settings-tab .form-select,
+      #settings-tab input.datetime-picker,
+      #settings-tab input.flatpickr-input,
+      #settings-tab input.flatpickr-mobile {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        font-size: 14px;
+        padding: 0.75rem 0.85rem;
+      }
+
+      #settings-tab label {
+        word-break: break-word;
+      }
+    }
+  </style>
+
+  <script>
+    // Initialize datetime pickers for settings tab
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize start date/time picker
+      const startPicker = document.getElementById('settings-start');
+      if (startPicker) {
+        flatpickr(startPicker, {
+          enableTime: true,
+          dateFormat: 'Y-m-d H:i',
+          time_24hr: false,
+          allowInput: true,
+          minuteIncrement: 1,
+          clickOpens: true,
+          closeOnSelect: false,
+          onClose: function() {
+            // Close when clicking outside
+            setTimeout(() => {
+              this.close();
+            }, 100);
+          }
+        });
+      }
+
+      // Initialize end date/time picker
+      const endPicker = document.getElementById('settings-end');
+      if (endPicker) {
+        flatpickr(endPicker, {
+          enableTime: true,
+          dateFormat: 'Y-m-d H:i',
+          time_24hr: false,
+          allowInput: true,
+          minuteIncrement: 1,
+          clickOpens: true,
+          closeOnSelect: false,
+          onClose: function() {
+            // Close when clicking outside
+            setTimeout(() => {
+              this.close();
+            }, 100);
+          }
+        });
+      }
+    });
+  </script>
+<% } %>
+

@@ -1,0 +1,312 @@
+<!-- Stream Tab -->
+<div id="stream-tab" class="tab-content active">
+  <div class="classroom-header-banner" style="background-image: url('<%= training.header_image || '/images/Training Headers/Header 2.jpg' %>');">
+    <div class="classroom-header-content">
+      <div class="classroom-title-section">
+        <div>
+          <h1 class="classroom-title"><%= training.title %></h1>
+          <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap;">
+            <span style="background: rgba(255,255,255,0.2); padding: 0.25rem 0.75rem; border-radius: 16px; font-size: 0.75rem;">
+              <%= training.type === 'main' ? 'Main Training' : 'Refreshment' %>
+            </span>
+          </div>
+        </div>
+      </div>
+      <p style="margin: 0.5rem 0 0 0; color: rgba(255,255,255,0.9); font-size: 0.875rem;"><%= training.description %></p>
+    </div>
+  </div>
+  
+  <!-- Trainers Section (Only in Stream Tab) -->
+  <div class="trainers-section" style="background: white; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.12);">
+    <h3 style="margin: 0 0 1rem 0; font-size: 0.875rem; font-weight: 500; color: #5F6368; text-transform: uppercase; letter-spacing: 0.5px;">
+      <%= typeof trainers !== 'undefined' && trainers.length > 1 ? 'Trainers' : 'Trainer' %>
+    </h3>
+    <div style="display: flex; flex-wrap: wrap; gap: 1rem;">
+      <% if (typeof trainers !== 'undefined' && trainers.length > 0) { %>
+        <% trainers.forEach(t => { %>
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div class="trainer-avatar" style="width: 40px; height: 40px;">
+              <% if (t.profile_picture) { %>
+                <img src="<%= t.profile_picture %>" alt="<%= t.first_name %>">
+              <% } else { %>
+                <%= t.first_name.charAt(0) %><%= t.last_name.charAt(0) %>
+              <% } %>
+            </div>
+            <div>
+              <div style="font-weight: 500; color: #202124; font-size: 0.875rem;">
+                <%= t.first_name %> <%= t.last_name %>
+              </div>
+            </div>
+          </div>
+        <% }); %>
+      <% } else { %>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <div class="trainer-avatar" style="width: 40px; height: 40px;">
+            <% if (trainer.profile_picture) { %>
+              <img src="<%= trainer.profile_picture %>" alt="<%= trainer.first_name %>">
+            <% } else { %>
+              <%= trainer.first_name.charAt(0) %><%= trainer.last_name.charAt(0) %>
+            <% } %>
+          </div>
+          <div>
+            <div style="font-weight: 500; color: #202124; font-size: 0.875rem;">
+              <%= trainer.first_name %> <%= trainer.last_name %>
+            </div>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Training Media Gallery -->
+  <% if (typeof trainingMedia !== 'undefined' && trainingMedia && trainingMedia.length > 0) { %>
+    <div class="section-card" style="margin-bottom: 1.5rem;">
+      <h3 class="section-title" style="display:flex; align-items:center; justify-content:space-between; gap: 1rem;">
+        <span><i class="fas fa-images" style="margin-right: 0.5rem;"></i>Training Media</span>
+        <span style="font-size: 0.85rem; font-weight: 600; color:#5F6368;"><%= trainingMedia.length %> photo(s)</span>
+      </h3>
+
+      <div class="training-media-grid">
+        <% trainingMedia.forEach(m => { %>
+          <a class="training-media-item" href="<%= m.file_path %>" target="_blank" rel="noopener">
+            <img src="<%= m.file_path %>" alt="<%= m.original_name || 'Training media' %>">
+          </a>
+        <% }); %>
+      </div>
+    </div>
+
+    <style>
+      .training-media-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 0.75rem;
+      }
+      .training-media-item {
+        display: block;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #E8EAED;
+        background: #F8F9FA;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      }
+      .training-media-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px rgba(87, 63, 215, 0.12);
+        border-color: rgba(87, 63, 215, 0.35);
+      }
+      .training-media-item img {
+        width: 100%;
+        height: 140px;
+        object-fit: cover;
+        display: block;
+      }
+      @media (max-width: 360px) {
+        .training-media-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .training-media-item img {
+          height: 120px;
+        }
+      }
+    </style>
+  <% } %>
+
+  <style>
+    /* Stream tab button styling */
+    #stream-tab .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.875rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      border: 2px solid #E8EAED;
+      background: white;
+      color: #5F6368;
+      cursor: pointer;
+    }
+
+    #stream-tab .btn:hover {
+      border-color: #573FD7;
+      color: #573FD7;
+      background: rgba(87, 63, 215, 0.05);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(87, 63, 215, 0.15);
+    }
+
+    #stream-tab .btn-secondary {
+      border-color: #E8EAED;
+      background: white;
+      color: #5F6368;
+    }
+
+    #stream-tab .btn-secondary:hover {
+      border-color: #573FD7;
+      color: #573FD7;
+      background: rgba(87, 63, 215, 0.05);
+    }
+
+    #stream-tab .btn-sm {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.8125rem;
+    }
+
+    /* Mobile improvements for stream tab buttons */
+    @media (max-width: 768px) {
+      #stream-tab .material-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+      }
+
+      #stream-tab .material-item > div[onclick] {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+
+      #stream-tab .btn {
+        flex: 1 1 auto;
+        min-width: 120px;
+        justify-content: center;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+      }
+
+      #stream-tab .btn-sm {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        min-width: 110px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      #stream-tab .material-item > div[onclick] {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      #stream-tab .btn,
+      #stream-tab .btn-sm {
+        width: 100%;
+        min-width: unset;
+        justify-content: center;
+      }
+    }
+  </style>
+
+  <!-- Materials Section -->
+  <div class="materials-section">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <h2 style="margin: 0; font-size: 1.25rem; font-weight: 400; color: #202124;">Training Materials</h2>
+    </div>
+    
+    <!-- Materials in "General Materials" section -->
+    <% 
+      let generalMaterialsSectionStream = null;
+      let materialsWithoutSectionStream = [];
+      if (sections.length > 0) {
+        generalMaterialsSectionStream = sections.find(s => s.title === 'General Materials');
+      }
+      if (generalMaterialsSectionStream && generalMaterialsSectionStream.materials && generalMaterialsSectionStream.materials.length > 0) {
+        materialsWithoutSectionStream = generalMaterialsSectionStream.materials;
+      }
+    %>
+    <% if (materialsWithoutSectionStream.length > 0) { %>
+      <div class="section-card">
+        <h3 class="section-title">General Materials</h3>
+        <% materialsWithoutSectionStream.forEach(material => { %>
+          <div class="material-item">
+            <a href="/training/<%= training.id %>/materials/<%= material.id %>" class="material-item-link">
+              <div class="material-icon <%= material.type %>">
+                <% if (material.type === 'document') { %>
+                  <i class="fas fa-file-alt"></i>
+                <% } else if (material.type === 'video') { %>
+                  <i class="fas fa-video"></i>
+                <% } else if (material.type === 'link') { %>
+                  <i class="fas fa-link"></i>
+                <% } else { %>
+                  <i class="fas fa-file"></i>
+                <% } %>
+              </div>
+              <div class="material-info">
+                <h4><%= material.title %></h4>
+                <p>Uploaded by <%= material.uploaded_by %></p>
+              </div>
+            </a>
+            <div style="display: flex; gap: 0.5rem; align-items: center;" onclick="event.stopPropagation();">
+              <% if (material.file_path) { %>
+                <a href="<%= material.file_path %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
+                  <i class="fas fa-download"></i> Download
+                </a>
+              <% } %>
+              <% if (material.url) { %>
+                <a href="<%= material.url %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
+                  <i class="fas fa-external-link-alt"></i> Open
+                </a>
+              <% } %>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+    
+    <!-- Materials organized by sections -->
+    <% 
+      const sectionsToShowStream = sections.filter(s => s.title !== 'General Materials');
+    %>
+    <% if (sectionsToShowStream.length > 0) { %>
+      <% sectionsToShowStream.forEach(section => { %>
+        <div class="section-card">
+          <h3 class="section-title"><%= section.title %></h3>
+          
+          <% if (section.materials && section.materials.length > 0) { %>
+            <% section.materials.forEach(material => { %>
+              <div class="material-item">
+                <a href="/training/<%= training.id %>/materials/<%= material.id %>" class="material-item-link">
+                  <div class="material-icon <%= material.type %>">
+                    <% if (material.type === 'document') { %>
+                      <i class="fas fa-file-alt"></i>
+                    <% } else if (material.type === 'video') { %>
+                      <i class="fas fa-video"></i>
+                    <% } else if (material.type === 'link') { %>
+                      <i class="fas fa-link"></i>
+                    <% } else { %>
+                      <i class="fas fa-file"></i>
+                    <% } %>
+                  </div>
+                  <div class="material-info">
+                    <h4><%= material.title %></h4>
+                    <p>Uploaded by <%= material.uploaded_by %></p>
+                  </div>
+                </a>
+            <div style="display: flex; gap: 0.5rem; align-items: center;" onclick="event.stopPropagation();">
+              <% if (material.file_path) { %>
+                <a href="<%= material.file_path %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
+                  <i class="fas fa-download"></i> Download
+                </a>
+              <% } %>
+              <% if (material.url) { %>
+                <a href="<%= material.url %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
+                  <i class="fas fa-external-link-alt"></i> Open
+                </a>
+              <% } %>
+            </div>
+              </div>
+            <% }); %>
+          <% } %>
+        </div>
+      <% }); %>
+    <% } %>
+    
+    <% if (sections.length === 0 && materialsWithoutSectionStream.length === 0) { %>
+      <div class="empty-state">
+        <p>No materials added yet.</p>
+      </div>
+    <% } %>
+  </div>
+</div>
+

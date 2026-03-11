@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Section - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .edit-section-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .edit-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid #E8EAED;
+    }
+    
+    .edit-section-header h1 {
+      margin: 0;
+      font-size: 1.75rem;
+      font-weight: 500;
+      color: #202124;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .edit-section-header h1 i {
+      color: #573FD7;
+    }
+    
+    .form-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+      border-radius: 20px;
+      padding: 2.5rem;
+      box-shadow: 0 20px 60px rgba(87, 63, 215, 0.15);
+      border: 1px solid rgba(87, 63, 215, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .form-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #573FD7 0%, #11358B 50%, #E48F24 100%);
+    }
+    
+    .form-section {
+      margin-bottom: 2rem;
+    }
+    
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #573FD7;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid rgba(87, 63, 215, 0.1);
+    }
+    
+    .section-title i {
+      font-size: 1.2rem;
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: #2A2A2A;
+      margin-bottom: 0.75rem;
+      font-size: 0.95rem;
+    }
+    
+    .form-group label i {
+      color: #573FD7;
+      font-size: 0.9rem;
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 0.875rem 1.25rem;
+      border: 2px solid #E5E7EB;
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: #ffffff;
+      font-family: inherit;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: #573FD7;
+      box-shadow: 0 0 0 4px rgba(87, 63, 215, 0.1);
+      transform: translateY(-1px);
+    }
+    
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 2px solid rgba(87, 63, 215, 0.1);
+    }
+    
+    .btn-lg {
+      padding: 0.875rem 1.5rem;
+      font-size: 1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      justify-content: center;
+      flex: 1;
+    }
+    
+    /* Custom Scrollbar */
+    .form-card::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    .form-card::-webkit-scrollbar-track {
+      background: #F8F9FA;
+      border-radius: 4px;
+    }
+    
+    .form-card::-webkit-scrollbar-thumb {
+      background: #E48F24;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    
+    .form-card::-webkit-scrollbar-thumb:hover {
+      background: #D17F1F;
+    }
+    
+    /* Firefox Scrollbar */
+    .form-card {
+      scrollbar-width: thin;
+      scrollbar-color: #E48F24 #F8F9FA;
+    }
+    
+    .section-info {
+      background: #E8F0FE;
+      border-left: 4px solid #1967D2;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .section-info i {
+      color: #1967D2;
+      font-size: 1.25rem;
+    }
+    
+    .section-info-text {
+      flex: 1;
+    }
+    
+    .section-info-title {
+      font-weight: 600;
+      color: #202124;
+      font-size: 0.9375rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    .section-info-desc {
+      color: #5F6368;
+      font-size: 0.875rem;
+    }
+    
+    @media (max-width: 768px) {
+      .edit-section-container {
+        padding: 1rem;
+      }
+      
+      .form-card {
+        padding: 1.5rem;
+        border-radius: 12px;
+      }
+      
+      .form-actions {
+        flex-direction: column;
+      }
+      
+      .edit-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+    }
+  </style>
+</head>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
+  
+  <main class="main-content">
+    <div class="edit-section-container">
+      <div class="edit-section-header">
+        <h1>
+          <i class="fas fa-folder-open"></i>
+          Edit Section
+        </h1>
+        <a href="/training/<%= training.id %>?tab=coursework" class="btn btn-outline">
+          <i class="fas fa-arrow-left"></i> Back
+        </a>
+      </div>
+      
+      <div class="form-card">
+        <div class="section-info">
+          <i class="fas fa-info-circle"></i>
+          <div class="section-info-text">
+            <div class="section-info-title">Section Information</div>
+            <div class="section-info-desc">Update the section title. Materials in this section will remain unchanged.</div>
+          </div>
+        </div>
+        
+        <form id="editSectionForm" action="/training/<%= training.id %>/sections/<%= section.id %>/edit" method="POST">
+          <div class="form-group">
+            <label for="section-title">
+              <i class="fas fa-heading"></i>
+              Section Title *
+            </label>
+            <input type="text" id="section-title" name="title" value="<%= section.title %>" class="form-input" required placeholder="Enter section title">
+          </div>
+          
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary btn-lg" onclick="window.location.href='/training/<%= training.id %>?tab=coursework'">
+              <i class="fas fa-times"></i> Cancel
+            </button>
+            <button type="submit" class="btn btn-primary btn-lg">
+              <i class="fas fa-save"></i> Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+  
+  <script src="/js/main.js"></script>
+  <script>
+    // Form submission handler
+    document.getElementById('editSectionForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const form = this;
+      const formData = new URLSearchParams();
+      formData.append('title', document.getElementById('section-title').value);
+      
+      fetch(form.action, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString()
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          qssShowMessage({
+            type: 'success',
+            title: 'Success',
+            message: 'Section updated successfully!',
+            onClose: () => {
+          window.location.href = '/training/<%= training.id %>?tab=coursework';
+            }
+          });
+        } else {
+          qssShowError('Error updating section: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        // Try regular form submission as fallback
+        form.submit();
+      });
+    });
+  </script>
+</body>
+</html>

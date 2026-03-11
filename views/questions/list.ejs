@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Question Bank - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="/js/tw-components.js"></script>
+  <style>
+    .filter-section {
+      background: var(--color-white);
+      border-radius: var(--border-radius-lg);
+      box-shadow: var(--shadow);
+      padding: var(--spacing-xl);
+      margin-bottom: var(--spacing-xl);
+      border: 1px solid var(--color-gray-light);
+    }
+    
+    .filter-header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-lg);
+      padding-bottom: var(--spacing-md);
+      border-bottom: 2px solid var(--color-gray-light);
+    }
+    
+    .filter-header i {
+      color: var(--color-purple);
+      font-size: 1.25rem;
+    }
+    
+    .filter-header h2 {
+      font-size: 1.25rem;
+      color: var(--color-dark);
+      margin: 0;
+      font-weight: 600;
+    }
+    
+    .question-count {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      padding: var(--spacing-xs) var(--spacing-md);
+      background: linear-gradient(135deg, rgba(87, 63, 215, 0.1) 0%, rgba(17, 53, 139, 0.1) 100%);
+      border-radius: var(--border-radius);
+      border: 1px solid rgba(87, 63, 215, 0.2);
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--color-purple);
+    }
+    
+    .question-count i {
+      color: var(--color-purple);
+      font-size: 0.875rem;
+    }
+    
+    .question-count #visibleCount {
+      color: var(--color-blue);
+      font-weight: 700;
+    }
+    
+    .question-count #totalCount {
+      color: var(--color-dark);
+      font-weight: 600;
+    }
+    
+    .filter-controls {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: var(--spacing-md);
+      align-items: end;
+    }
+    
+    .search-group {
+      position: relative;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm) 2.75rem;
+      border: 2px solid var(--color-gray-light);
+      border-radius: var(--border-radius);
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+    
+    .search-input:focus {
+      outline: none;
+      border-color: var(--color-purple);
+      box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.1);
+    }
+    
+    .search-icon {
+      position: absolute;
+      left: var(--spacing-md);
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--color-gray);
+      pointer-events: none;
+    }
+    
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+    
+    .filter-group label {
+      font-weight: 600;
+      color: var(--color-dark);
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+    }
+    
+    .filter-group label i {
+      color: var(--color-purple);
+      font-size: 0.875rem;
+    }
+    
+    .filter-select {
+      width: 100%;
+      padding: var(--spacing-sm) var(--spacing-md);
+      border: 2px solid var(--color-gray-light);
+      border-radius: var(--border-radius);
+      font-size: 1rem;
+      background: var(--color-white);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .filter-select:focus {
+      outline: none;
+      border-color: var(--color-purple);
+      box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.1);
+    }
+    
+    .questions-container {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-lg);
+    }
+    
+    .question-card {
+      background: var(--color-white);
+      border-radius: var(--border-radius-lg);
+      box-shadow: var(--shadow);
+      padding: var(--spacing-xl);
+      border: 1px solid var(--color-gray-light);
+      transition: all 0.3s ease;
+    }
+    
+    .question-card.hidden {
+      display: none;
+    }
+    
+    .question-card:hover {
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-2px);
+    }
+    
+    .question-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: var(--spacing-lg);
+      padding-bottom: var(--spacing-md);
+      border-bottom: 2px solid var(--color-gray-light);
+    }
+    
+    .question-text {
+      flex: 1;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--color-dark);
+      line-height: 1.6;
+      margin-right: var(--spacing-md);
+    }
+    
+    .question-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--spacing-sm);
+      align-items: center;
+    }
+    
+    .question-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--border-radius);
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    
+    .badge-objective {
+      background: rgba(87, 63, 215, 0.1);
+      color: var(--color-purple);
+      border: 1px solid rgba(87, 63, 215, 0.2);
+    }
+    
+    .badge-test-type {
+      background: rgba(17, 53, 139, 0.1);
+      color: var(--color-blue);
+      border: 1px solid rgba(17, 53, 139, 0.2);
+    }
+    
+    .badge-test-type.refreshment {
+      background: rgba(228, 143, 36, 0.1);
+      color: var(--color-orange);
+      border: 1px solid rgba(228, 143, 36, 0.2);
+    }
+    
+    .badge-test-type.certificate_enrolment {
+      background: rgba(139, 69, 19, 0.1);
+      color: #8B4513;
+      border: 1px solid rgba(139, 69, 19, 0.2);
+    }
+    
+    .badge-creator {
+      background: var(--color-gray-light);
+      color: var(--color-gray);
+      border: 1px solid var(--color-gray-light);
+    }
+    
+    .options-section {
+      margin: var(--spacing-lg) 0;
+    }
+    
+    .options-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--color-gray);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: var(--spacing-md);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+    }
+    
+    .options-title i {
+      color: var(--color-purple);
+    }
+    
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--spacing-sm);
+    }
+    
+    .option-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--color-gray-light);
+      border-radius: var(--border-radius);
+      border: 2px solid transparent;
+      transition: all 0.2s ease;
+    }
+    
+    .option-item.correct {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: var(--color-success);
+    }
+    
+    .option-label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      font-weight: 700;
+      font-size: 0.875rem;
+      flex-shrink: 0;
+      background: var(--color-purple);
+      color: var(--color-white);
+    }
+    
+    .option-item.correct .option-label {
+      background: var(--color-success);
+    }
+    
+    .option-text {
+      flex: 1;
+      color: var(--color-dark);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    
+    .option-item.correct .option-text {
+      color: var(--color-dark);
+      font-weight: 600;
+    }
+    
+    .correct-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      color: var(--color-success);
+      font-weight: 600;
+      font-size: 0.875rem;
+      margin-left: var(--spacing-xs);
+    }
+    
+    .question-actions {
+      display: flex;
+      gap: var(--spacing-sm);
+      margin-top: var(--spacing-lg);
+      padding-top: var(--spacing-md);
+      border-top: 1px solid var(--color-gray-light);
+    }
+    
+    .btn-icon {
+      padding: var(--spacing-md);
+      border-radius: var(--border-radius);
+      font-size: 1rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      height: 44px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    
+    .btn-icon i {
+      font-size: 1rem;
+    }
+    
+    .btn-icon-secondary {
+      background-color: var(--color-blue);
+      color: var(--color-white);
+    }
+    
+    .btn-icon-secondary:hover {
+      background-color: var(--color-purple);
+    }
+    
+    .btn-icon-danger {
+      background-color: var(--color-error);
+      color: var(--color-white);
+    }
+    
+    .btn-icon-danger:hover {
+      background-color: #DC2626;
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+    
+    .no-results {
+      text-align: center;
+      padding: var(--spacing-2xl);
+      background: var(--color-white);
+      border-radius: var(--border-radius-lg);
+      box-shadow: var(--shadow);
+    }
+    
+    .no-results i {
+      font-size: 3rem;
+      color: var(--color-gray);
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .no-results p {
+      color: var(--color-gray);
+      font-size: 1.1rem;
+    }
+    
+    /* Tablet styles */
+    @media (max-width: 1024px) {
+      .filter-section {
+        padding: var(--spacing-lg);
+      }
+      
+      .filter-controls {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-md);
+      }
+      
+      .options-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    /* Mobile styles */
+    @media (max-width: 768px) {
+      .main-content .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+      
+      .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 1rem;
+        padding: 1.5rem 1rem !important;
+      }
+      
+      .dashboard-header h1 {
+        font-size: 1.5rem;
+      }
+      
+      .dashboard-header .btn {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .filter-section {
+        padding: var(--spacing-md);
+        margin-bottom: var(--spacing-lg);
+        border-radius: var(--border-radius);
+      }
+      
+      .filter-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-md);
+        padding-bottom: var(--spacing-sm);
+        margin-bottom: var(--spacing-md);
+      }
+      
+      .filter-header h2 {
+        font-size: 1.125rem;
+      }
+      
+      .question-count {
+        width: 100%;
+        justify-content: center;
+        padding: var(--spacing-xs) var(--spacing-sm);
+        font-size: 0.875rem;
+      }
+      
+      .filter-controls {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+      }
+      
+      .filter-group {
+        width: 100%;
+      }
+      
+      .search-input,
+      .filter-select {
+        font-size: 16px; /* Prevents zoom on iOS */
+        padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm) 2.5rem;
+      }
+      
+      .search-icon {
+        left: var(--spacing-sm);
+      }
+      
+      .questions-container {
+        gap: var(--spacing-md);
+      }
+      
+      .question-card {
+        padding: var(--spacing-md);
+        border-radius: var(--border-radius);
+      }
+      
+      .question-header {
+        flex-direction: column;
+        gap: var(--spacing-md);
+        margin-bottom: var(--spacing-md);
+        padding-bottom: var(--spacing-sm);
+      }
+      
+      .question-text {
+        margin-right: 0;
+        font-size: 1rem;
+        line-height: 1.5;
+        width: 100%;
+      }
+      
+      .question-meta {
+        width: 100%;
+        flex-wrap: wrap;
+        gap: var(--spacing-xs);
+        justify-content: flex-start;
+      }
+      
+      .question-badge {
+        font-size: 0.8125rem;
+        padding: var(--spacing-xs) var(--spacing-sm);
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      
+      .question-badge i {
+        font-size: 0.75rem;
+      }
+      
+      .options-section {
+        margin: var(--spacing-md) 0;
+      }
+      
+      .options-title {
+        font-size: 0.875rem;
+        margin-bottom: var(--spacing-sm);
+      }
+      
+      .options-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-sm);
+      }
+      
+      .option-item {
+        padding: var(--spacing-sm);
+        flex-direction: row;
+        align-items: center;
+      }
+      
+      .option-label {
+        width: 24px;
+        height: 24px;
+        font-size: 0.8125rem;
+      }
+      
+      .option-text {
+        font-size: 0.9rem;
+      }
+      
+      .correct-indicator {
+        font-size: 0.8125rem;
+        margin-left: var(--spacing-xs);
+      }
+      
+      .question-actions {
+        flex-direction: row;
+        gap: var(--spacing-sm);
+        margin-top: var(--spacing-md);
+        padding-top: var(--spacing-sm);
+      }
+      
+      .btn-icon {
+        min-width: 44px;
+        height: 44px;
+        padding: var(--spacing-sm);
+      }
+      
+      .no-results {
+        padding: var(--spacing-xl) var(--spacing-md);
+      }
+      
+      .no-results i {
+        font-size: 2.5rem;
+      }
+      
+      .no-results p {
+        font-size: 1rem;
+      }
+    }
+    
+    /* Small mobile devices */
+    @media (max-width: 480px) {
+      .dashboard-header {
+        padding: 1rem !important;
+      }
+      
+      .dashboard-header h1 {
+        font-size: 1.25rem;
+      }
+      
+      .filter-section {
+        padding: var(--spacing-sm);
+        margin-bottom: var(--spacing-md);
+      }
+      
+      .filter-header h2 {
+        font-size: 1rem;
+      }
+      
+      .filter-header i {
+        font-size: 1rem;
+      }
+      
+      .question-count {
+        font-size: 0.8125rem;
+        padding: 0.5rem var(--spacing-sm);
+      }
+      
+      .search-input,
+      .filter-select {
+        padding: 0.75rem var(--spacing-sm) 0.75rem 2.25rem;
+        font-size: 16px;
+      }
+      
+      .search-icon {
+        left: var(--spacing-xs);
+        font-size: 0.875rem;
+      }
+      
+      .filter-group label {
+        font-size: 0.8125rem;
+      }
+      
+      .question-card {
+        padding: var(--spacing-sm);
+      }
+      
+      .question-text {
+        font-size: 0.9375rem;
+      }
+      
+      .question-badge {
+        font-size: 0.75rem;
+        padding: 0.375rem var(--spacing-xs);
+      }
+      
+      .options-title {
+        font-size: 0.8125rem;
+      }
+      
+      .option-item {
+        padding: var(--spacing-xs) var(--spacing-sm);
+      }
+      
+      .option-label {
+        width: 22px;
+        height: 22px;
+        font-size: 0.75rem;
+      }
+      
+      .option-text {
+        font-size: 0.875rem;
+      }
+      
+      .correct-indicator {
+        font-size: 0.75rem;
+      }
+      
+      .btn-icon {
+        min-width: 40px;
+        height: 40px;
+        font-size: 0.875rem;
+      }
+      
+      .no-results {
+        padding: var(--spacing-lg) var(--spacing-sm);
+      }
+      
+      .no-results i {
+        font-size: 2rem;
+      }
+      
+      .no-results p {
+        font-size: 0.9375rem;
+      }
+      
+      .empty-state {
+        padding: var(--spacing-xl) var(--spacing-md);
+        text-align: center;
+      }
+      
+      .empty-state .btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
+  
+  <main class="main-content">
+    <div class="container">
+      <div class="dashboard-header">
+        <h1><i class="fas fa-file-alt" style="color:#573FD7;"></i> Question Bank</h1>
+        <a href="/questions/create" class="btn btn-primary btn-lg">
+          <i class="fas fa-plus-circle"></i>
+          Add New Question
+        </a>
+      </div>
+      
+      <% if (questions.length === 0) { %>
+        <div class="empty-state">
+          <p>No questions found. Create your first question to get started.</p>
+          <a href="/questions/create" class="btn btn-primary btn-lg">
+            <i class="fas fa-plus-circle"></i>
+            Create Question
+          </a>
+        </div>
+      <% } else { %>
+        <!-- Filter Section -->
+        <div class="filter-section">
+          <div class="filter-header">
+            <div style="display: flex; align-items: center; gap: var(--spacing-md); flex: 1;">
+              <i class="fas fa-filter"></i>
+              <h2 style="margin: 0;">Search & Filter</h2>
+            </div>
+            <div class="question-count" id="questionCount">
+              <i class="fas fa-list"></i>
+              <span id="visibleCount"><%= questions.length %></span> out of <span id="totalCount"><%= questions.length %></span> questions
+            </div>
+          </div>
+          <div class="filter-controls">
+            <div class="search-group">
+              <i class="fas fa-search search-icon"></i>
+              <input type="text" id="searchInput" class="search-input" placeholder="Search by question text or answer options...">
+            </div>
+            
+            <div class="filter-group">
+              <label>
+                <i class="fas fa-bullseye"></i>
+                Objective
+              </label>
+              <div id="objectiveFilterDropdown"></div>
+              <!-- Hidden native select kept for data only (not displayed) -->
+              <select id="objectiveFilter" style="display:none;">
+                <option value="">All Objectives</option>
+                <% objectives.forEach(objective => { %>
+                  <option value="<%= objective.id %>"><%= objective.name %></option>
+                <% }); %>
+              </select>
+            </div>
+            
+            <div class="filter-group">
+              <label>
+                <i class="fas fa-clipboard-check"></i>
+                Test Type
+              </label>
+              <div id="testTypeFilterDropdown"></div>
+            </div>
+            
+            <div class="filter-group">
+              <label>
+                <i class="fas fa-user"></i>
+                Creator
+              </label>
+              <div id="creatorFilterDropdown"></div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="questions-container">
+          <% questions.forEach(question => { %>
+            <div class="question-card" 
+                 data-question="<%= question.question_text.toLowerCase() %>"
+                 data-option-a="<%= question.option_a.toLowerCase() %>"
+                 data-option-b="<%= question.option_b.toLowerCase() %>"
+                 data-option-c="<%= (question.option_c || '').toLowerCase() %>"
+                 data-option-d="<%= (question.option_d || '').toLowerCase() %>"
+                 data-objective-id="<%= question.objective_id || '' %>"
+                 data-test-type="<%= question.test_type %>"
+                 data-creator-id="<%= question.creator_id || '' %>">
+              <div class="question-header">
+                <div class="question-text">
+                  <%= question.question_text %>
+                </div>
+                <div class="question-meta">
+                  <% if (question.objective_name) { %>
+                    <span class="question-badge badge-objective">
+                      <i class="fas fa-bullseye"></i>
+                      <%= question.objective_name %>
+                    </span>
+                  <% } %>
+                  <span class="question-badge badge-test-type <%= question.test_type === 'refreshment' ? 'refreshment' : question.test_type === 'certificate_enrolment' ? 'certificate_enrolment' : '' %>">
+                    <i class="fas fa-clipboard-check"></i>
+                    <%= question.test_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) %>
+                  </span>
+                  <span class="question-badge badge-creator">
+                    <i class="fas fa-user"></i>
+                    <%= question.first_name %> <%= question.last_name %>
+                  </span>
+                </div>
+              </div>
+              
+              <div class="options-section">
+                <div class="options-title">
+                  <i class="fas fa-list-ul"></i>
+                  Answer Options
+                </div>
+                <div class="options-grid">
+                  <div class="option-item <%= question.correct_answer === 'A' ? 'correct' : '' %>">
+                    <span class="option-label">A</span>
+                    <span class="option-text">
+                      <%= question.option_a %>
+                      <% if (question.correct_answer === 'A') { %>
+                        <span class="correct-indicator">
+                          <i class="fas fa-check-circle"></i>
+                          Correct
+                        </span>
+                      <% } %>
+                    </span>
+                  </div>
+                  
+                  <div class="option-item <%= question.correct_answer === 'B' ? 'correct' : '' %>">
+                    <span class="option-label">B</span>
+                    <span class="option-text">
+                      <%= question.option_b %>
+                      <% if (question.correct_answer === 'B') { %>
+                        <span class="correct-indicator">
+                          <i class="fas fa-check-circle"></i>
+                          Correct
+                        </span>
+                      <% } %>
+                    </span>
+                  </div>
+                  
+                  <% if (question.option_c) { %>
+                  <div class="option-item <%= question.correct_answer === 'C' ? 'correct' : '' %>">
+                    <span class="option-label">C</span>
+                    <span class="option-text">
+                      <%= question.option_c %>
+                      <% if (question.correct_answer === 'C') { %>
+                        <span class="correct-indicator">
+                          <i class="fas fa-check-circle"></i>
+                          Correct
+                        </span>
+                      <% } %>
+                    </span>
+                  </div>
+                  <% } %>
+                  
+                  <% if (question.option_d) { %>
+                  <div class="option-item <%= question.correct_answer === 'D' ? 'correct' : '' %>">
+                    <span class="option-label">D</span>
+                    <span class="option-text">
+                      <%= question.option_d %>
+                      <% if (question.correct_answer === 'D') { %>
+                        <span class="correct-indicator">
+                          <i class="fas fa-check-circle"></i>
+                          Correct
+                        </span>
+                      <% } %>
+                    </span>
+                  </div>
+                  <% } %>
+                </div>
+              </div>
+              
+              <div class="question-actions">
+                <a href="/questions/<%= question.id %>/edit" class="btn-icon btn-icon-secondary" title="Edit">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <form action="/questions/<%= question.id %>/delete" method="POST" style="display: inline;" class="question-delete-form">
+                  <button type="button" class="btn-icon btn-icon-danger delete-question-btn" title="Delete">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+        
+        <div class="no-results hidden" id="noResults">
+          <i class="fas fa-search"></i>
+          <p>No questions match your search criteria.</p>
+        </div>
+      <% } %>
+    </div>
+  </main>
+  
+  <script src="/js/main.js"></script>
+  <script>
+    (function() {
+      // ---- Filter state ----
+      var activeObjective = '';
+      var activeTestType  = '';
+      var activeCreator   = '';
+
+      // ---- Build Objective dropdown ----
+      var objectiveItems = [{ label: 'All Objectives', value: '' }];
+      document.querySelectorAll('#objectiveFilter option').forEach(function(opt) {
+        objectiveItems.push({ label: opt.textContent.trim(), value: opt.value });
+      });
+      new TailwindDropdown('objectiveFilterDropdown', {
+        items: objectiveItems,
+        placeholder: 'All Objectives',
+        multiSelect: false,
+        initialValue: '',
+        onChange: function(val) { activeObjective = val || ''; filterQuestions(); }
+      });
+
+      // ---- Build Test Type dropdown ----
+      new TailwindDropdown('testTypeFilterDropdown', {
+        items: [
+          { label: 'All Types',              value: '' },
+          { label: 'Pre-Test',               value: 'pre_test' },
+          { label: 'Post-Test',              value: 'post_test' },
+          { label: 'Refreshment',            value: 'refreshment' },
+          { label: 'Certificate Enrolment',  value: 'certificate_enrolment' }
+        ],
+        placeholder: 'All Types',
+        multiSelect: false,
+        initialValue: '',
+        onChange: function(val) { activeTestType = val || ''; filterQuestions(); }
+      });
+
+      // ---- Build Creator dropdown ----
+      <%
+        var creatorItems = [{ label: 'All Creators', value: '' }];
+        creators.forEach(function(c) {
+          creatorItems.push({ label: c.first_name + ' ' + c.last_name, value: String(c.id) });
+        });
+      %>
+      new TailwindDropdown('creatorFilterDropdown', {
+        items: <%- JSON.stringify(creatorItems) %>,
+        placeholder: 'All Creators',
+        multiSelect: false,
+        initialValue: '',
+        onChange: function(val) { activeCreator = val || ''; filterQuestions(); }
+      });
+
+      // ---- Delete confirmation with TailwindModal ----
+      document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.delete-question-btn');
+        if (!btn) return;
+        e.preventDefault();
+        var form = btn.closest('.question-delete-form');
+        if (!form) return;
+        TailwindModal.confirm(
+          'Delete Question',
+          'Are you sure you want to delete this question? This action cannot be undone.',
+          'Delete',
+          'Cancel',
+          true
+        ).then(function(confirmed) {
+          if (confirmed) form.submit();
+        });
+      });
+
+      // ---- Filter logic ----
+      const searchInput   = document.getElementById('searchInput');
+      const questionCards = document.querySelectorAll('.question-card');
+      const noResults     = document.getElementById('noResults');
+
+      function filterQuestions() {
+        var searchTerm = (searchInput ? searchInput.value : '').toLowerCase().trim();
+        var visibleCount = 0;
+        var totalCount   = questionCards.length;
+
+        questionCards.forEach(function(card) {
+          var questionText = card.dataset.question  || '';
+          var optionA      = card.dataset.optionA   || '';
+          var optionB      = card.dataset.optionB   || '';
+          var optionC      = card.dataset.optionC   || '';
+          var optionD      = card.dataset.optionD   || '';
+          var objectiveId  = card.dataset.objectiveId || '';
+          var testType     = card.dataset.testType  || '';
+          var creatorId    = card.dataset.creatorId || '';
+
+          var matchesSearch = !searchTerm ||
+            questionText.includes(searchTerm) ||
+            optionA.includes(searchTerm) ||
+            optionB.includes(searchTerm) ||
+            optionC.includes(searchTerm) ||
+            optionD.includes(searchTerm);
+
+          var matchesObjective = !activeObjective || objectiveId === activeObjective;
+          var matchesTestType  = !activeTestType  || testType    === activeTestType;
+          var matchesCreator   = !activeCreator   || creatorId   === activeCreator;
+
+          if (matchesSearch && matchesObjective && matchesTestType && matchesCreator) {
+            card.classList.remove('hidden');
+            visibleCount++;
+          } else {
+            card.classList.add('hidden');
+          }
+        });
+
+        var visibleCountEl = document.getElementById('visibleCount');
+        if (visibleCountEl) visibleCountEl.textContent = visibleCount;
+
+        if (noResults) {
+          if (visibleCount === 0 && totalCount > 0) {
+            noResults.classList.remove('hidden');
+          } else {
+            noResults.classList.add('hidden');
+          }
+        }
+      }
+
+      if (searchInput) searchInput.addEventListener('input', filterQuestions);
+    })();
+  </script>
+</body>
+</html>

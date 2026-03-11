@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= training.title %> - Test Answers</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: #202124;
+    }
+
+    .page-subtitle {
+      margin-top: 0.25rem;
+      color: #5F6368;
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+
+    .test-tabs {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin: 1rem 0 1.25rem 0;
+    }
+
+    .test-tab {
+      border: 1px solid #E8EAED;
+      background: white;
+      color: #5F6368;
+      padding: 0.65rem 0.9rem;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+    }
+
+    .test-tab:hover {
+      border-color: rgba(87, 63, 215, 0.35);
+      color: #573FD7;
+      box-shadow: 0 10px 22px rgba(87, 63, 215, 0.10);
+      transform: translateY(-1px);
+    }
+
+    .test-tab.active {
+      border-color: rgba(87, 63, 215, 0.55);
+      background: rgba(87, 63, 215, 0.08);
+      color: #573FD7;
+    }
+
+    .summary-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .summary-pill {
+      background: white;
+      border: 1px solid #E8EAED;
+      border-radius: 999px;
+      padding: 0.45rem 0.75rem;
+      font-size: 0.85rem;
+      color: #202124;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .pill-good { color: #137333; }
+    .pill-bad { color: #D93025; }
+
+    .qa-card {
+      background: white;
+      border: 1px solid #E8EAED;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .qa-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .qa-header > div:first-child {
+      min-width: 0;
+    }
+
+    .qa-number {
+      font-weight: 600;
+      color: #573FD7;
+      font-size: 0.9rem;
+    }
+
+    .qa-question {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #202124;
+      margin: 0.25rem 0 0 0;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .qa-status {
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 0.35rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid;
+      white-space: nowrap;
+    }
+
+    .qa-status.correct {
+      color: #137333;
+      background: rgba(19, 115, 51, 0.10);
+      border-color: rgba(19, 115, 51, 0.25);
+    }
+    .qa-status.wrong {
+      color: #D93025;
+      background: rgba(217, 48, 37, 0.10);
+      border-color: rgba(217, 48, 37, 0.22);
+    }
+
+    .choices {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 0.9rem;
+    }
+
+    .choice {
+      border: 1px solid #E8EAED;
+      border-radius: 12px;
+      padding: 0.85rem 0.9rem;
+      background: #fff;
+    }
+
+    .choice-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .choice-key {
+      font-weight: 600;
+      color: #202124;
+    }
+
+    .choice-tag {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .tag-selected {
+      background: rgba(87, 63, 215, 0.10);
+      color: #573FD7;
+      border-color: rgba(87, 63, 215, 0.25);
+    }
+    .tag-correct {
+      background: rgba(19, 115, 51, 0.10);
+      color: #137333;
+      border-color: rgba(19, 115, 51, 0.25);
+    }
+
+    .choice-text {
+      color: #202124;
+      font-size: 0.92rem;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    @media (max-width: 768px) {
+      .choices {
+        grid-template-columns: 1fr;
+      }
+      .qa-card {
+        padding: 1rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .qa-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .qa-status {
+        align-self: flex-start;
+      }
+    }
+  </style>
+</head>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
+
+  <main class="main-content">
+    <div class="container">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Test Answers</h1>
+          <div class="page-subtitle">
+            <strong><%= traineeName %></strong> (<%= traineePublicId %>) • <strong><%= training.title %></strong>
+          </div>
+        </div>
+        <a href="/training/<%= training.id %>?tab=marks" class="btn btn-outline">
+          <i class="fas fa-arrow-left"></i> Back to Marks
+        </a>
+      </div>
+
+      <div class="test-tabs">
+        <% availableTypes.forEach(t => { %>
+          <a class="test-tab <%= selectedType === t ? 'active' : '' %>" href="/training/<%= training.id %>/enrollment/<%= enrollmentId %>/test-answers?type=<%= t %>">
+            <i class="fas fa-clipboard-list"></i>
+            <span><%= typeLabels[t] %></span>
+          </a>
+        <% }); %>
+      </div>
+
+      <% if (!attempt) { %>
+        <div class="empty-state">
+          <p>No completed attempt found for this test.</p>
+        </div>
+      <% } else { %>
+        <div class="summary-row">
+          <div class="summary-pill">
+            <i class="fas fa-calendar"></i>
+            Completed: <%= attempt.completed_at ? new Date(attempt.completed_at).toLocaleString() : 'N/A' %>
+          </div>
+          <div class="summary-pill">
+            <i class="fas fa-list-ol"></i>
+            Questions: <%= answers.length %>
+          </div>
+          <div class="summary-pill <%= attempt.score >= 50 ? 'pill-good' : 'pill-bad' %>">
+            <i class="fas fa-percent"></i>
+            Score: <%= attempt.score %>%
+          </div>
+          <div class="summary-pill <%= correctCount >= Math.ceil(answers.length * 0.5) ? 'pill-good' : 'pill-bad' %>">
+            <i class="fas fa-check-circle"></i>
+            Correct: <%= correctCount %>/<%= answers.length %>
+          </div>
+        </div>
+
+        <% answers.forEach((a, idx) => { %>
+          <div class="qa-card">
+            <div class="qa-header">
+              <div>
+                <div class="qa-number">Question <%= idx + 1 %></div>
+                <div class="qa-question"><%= a.question_text %></div>
+              </div>
+              <div class="qa-status <%= a.selected_answer === a.correct_answer ? 'correct' : 'wrong' %>">
+                <%= a.selected_answer === a.correct_answer ? 'Correct' : 'Incorrect' %>
+              </div>
+            </div>
+
+            <div class="choices">
+              <% ['A','B','C','D'].forEach(letter => { %>
+                <% const opt = a['option_' + letter.toLowerCase()]; %>
+                <% if (opt) { %>
+                  <div class="choice">
+                    <div class="choice-header">
+                      <div class="choice-key"><%= letter %></div>
+                      <div style="display:flex; gap: 0.35rem; flex-wrap: wrap; justify-content:flex-end;">
+                        <% if (a.selected_answer === letter) { %>
+                          <span class="choice-tag tag-selected">Selected</span>
+                        <% } %>
+                        <% if (a.correct_answer === letter) { %>
+                          <span class="choice-tag tag-correct">Correct</span>
+                        <% } %>
+                      </div>
+                    </div>
+                    <div class="choice-text"><%= opt %></div>
+                  </div>
+                <% } %>
+              <% }); %>
+            </div>
+          </div>
+        <% }); %>
+      <% } %>
+    </div>
+  </main>
+
+  <script src="/js/main.js"></script>
+</body>
+</html>
+
+

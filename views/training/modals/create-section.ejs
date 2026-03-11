@@ -1,0 +1,33 @@
+<!-- Create Section Modal -->
+<% if (['admin', 'trainer'].includes(user.userRole)) { %>
+  <div id="createSectionModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Create Section</h2>
+        <button class="modal-close" onclick="closeCreateSectionModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <form id="createSectionForm" method="POST">
+        <input type="hidden" name="training_id" value="<%= training.id %>">
+        
+        <div class="form-group">
+          <label for="section-title-input">
+            <i class="fas fa-heading"></i>
+            Section Title *
+          </label>
+          <input type="text" id="section-title-input" name="title" class="form-input" required placeholder="Enter section title">
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 2rem; padding-top: 1.5rem; border-top: 2px solid #E8EAED;">
+          <button type="button" class="btn btn-secondary" onclick="closeCreateSectionModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Create Section
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+<% } %>
+

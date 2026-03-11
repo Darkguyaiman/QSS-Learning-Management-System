@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= isAdmin ? 'Admin' : 'Trainer' %> Dashboard - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Enhanced Dashboard Styles */
+    .dashboard-header {
+      background: linear-gradient(135deg, #573FD7 0%, #11358B 100%);
+      color: white;
+      padding: 2rem;
+      border-radius: 16px;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(87, 63, 215, 0.3);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 2rem;
+    }
+    
+    .dashboard-header-content {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+    
+    .dashboard-header h1 {
+      color: white;
+      margin: 0 0 0.5rem 0;
+      font-size: 2rem;
+      font-weight: 700;
+    }
+    
+    .dashboard-header .welcome-message {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 1rem;
+      font-weight: 400;
+      margin: 0;
+    }
+    
+    .dashboard-header .welcome-message .user-name {
+      font-weight: 600;
+      color: white;
+    }
+    
+    .dashboard-header .btn-primary {
+      background: white;
+      color: #573FD7;
+      border: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      align-self: flex-start;
+      white-space: nowrap;
+    }
+    
+    .dashboard-header .btn-primary:hover {
+      background: #f0f0f0;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    
+    .dashboard-section {
+      background: white;
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border: 1px solid #E8EAED;
+    }
+    
+    .dashboard-section h2 {
+      color: #202124;
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 3px solid #573FD7;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .dashboard-section h2::before {
+      content: '';
+      width: 4px;
+      height: 24px;
+      background: linear-gradient(135deg, #573FD7 0%, #11358B 100%);
+      border-radius: 2px;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+      background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      border: 1px solid #E8EAED;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #573FD7 0%, #11358B 100%);
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(87, 63, 215, 0.15);
+      border-color: #573FD7;
+    }
+    
+    .stat-card h3 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #573FD7;
+      margin: 0.5rem 0;
+      background: linear-gradient(135deg, #573FD7 0%, #11358B 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .stat-card p {
+      color: #5F6368;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .trainer-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      text-align: center;
+      transition: all 0.3s ease;
+      border: 1px solid #E8EAED;
+    }
+    
+    .trainer-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(87, 63, 215, 0.15);
+      border-color: #573FD7;
+    }
+    
+    .trainer-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+      background: linear-gradient(135deg, #573FD7 0%, #11358B 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 2rem;
+      font-weight: 600;
+      overflow: hidden;
+    }
+    
+    .trainer-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .trainer-name {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #202124;
+      margin-bottom: 0.5rem;
+    }
+    
+    .trainer-role {
+      font-size: 0.875rem;
+      color: #5F6368;
+      margin-bottom: 1rem;
+      text-transform: capitalize;
+    }
+    
+    .trainer-stats {
+      display: flex;
+      justify-content: space-around;
+      gap: 1rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #E8EAED;
+    }
+    
+    .trainer-stat {
+      flex: 1;
+    }
+    
+    .trainer-stat-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #573FD7;
+    }
+    
+    .trainer-stat-label {
+      font-size: 0.75rem;
+      color: #5F6368;
+      margin-top: 0.25rem;
+    }
+    
+    .trainers-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+    
+    /* Status badges with colors */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.375rem 0.75rem;
+      border-radius: 16px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    
+    .status-in-progress {
+      background: #E3F2FD;
+      color: #1976D2;
+    }
+    
+    .status-completed {
+      background: #E8F5E9;
+      color: #388E3C;
+    }
+    
+    .status-canceled {
+      background: #FFEBEE;
+      color: #D32F2F;
+    }
+    
+    .status-rescheduled {
+      background: #FFF3E0;
+      color: #F57C00;
+    }
+    
+    /* Chip styles for healthcare and devices */
+    .chip-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      background: #F3F4F6;
+      color: #374151;
+      white-space: nowrap;
+    }
+    
+    .chip-healthcare {
+      background: #E0F2FE;
+      color: #0369A1;
+    }
+    
+    .chip-device {
+      background: #FEF3C7;
+      color: #92400E;
+    }
+    
+    /* Responsive styles */
+    @media (max-width: 1200px) {
+      .stats-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+      }
+      
+      .trainers-grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+      
+      .trainers-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 1rem;
+      }
+      
+      .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+    .data-table {
+      font-size: 0.875rem;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    .data-table th {
+      background: linear-gradient(135deg, #573FD7 0%, #11358B 100%);
+      color: white;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.5px;
+      padding: 1rem 0.75rem;
+      border: none;
+    }
+    
+    .data-table th:first-child {
+      border-top-left-radius: 8px;
+    }
+    
+    .data-table th:last-child {
+      border-top-right-radius: 8px;
+    }
+    
+    .data-table td {
+      padding: 1rem 0.75rem !important;
+      border-bottom: 1px solid #E8EAED;
+    }
+    
+    .data-table tbody tr {
+      transition: background-color 0.2s ease;
+    }
+    
+    .data-table tbody tr:hover {
+      background-color: #f8f9fa;
+    }
+    
+    .data-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+      
+      .chip-container {
+        gap: 0.25rem;
+      }
+      
+      .chip {
+        font-size: 0.625rem;
+        padding: 0.2rem 0.5rem;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .stats-grid {
+        grid-template-columns: 1fr !important;
+        gap: 1rem;
+      }
+      
+      .stat-card {
+        padding: 1.25rem 1rem;
+      }
+      
+      .stat-card h3 {
+        font-size: 2rem;
+      }
+      
+      .stat-card p {
+        font-size: 0.75rem;
+      }
+      
+      .trainers-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+      
+      .trainer-card {
+        padding: 1.25rem;
+      }
+      
+      .trainer-avatar {
+        width: 60px;
+        height: 60px;
+        font-size: 1.5rem;
+      }
+      
+      .trainer-name {
+        font-size: 1rem;
+      }
+      
+      .trainer-stat-value {
+        font-size: 1.25rem;
+      }
+      
+      .dashboard-header {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 1rem;
+        padding: 1.5rem !important;
+      }
+      
+      .dashboard-header-content {
+        width: 100%;
+      }
+      
+      .dashboard-header h1 {
+        font-size: 1.5rem;
+      }
+      
+      .dashboard-header .welcome-message {
+        font-size: 0.9375rem;
+        margin-bottom: 0;
+      }
+      
+      .dashboard-header .btn-primary {
+        width: 100%;
+        text-align: center;
+        padding: 0.75rem 1rem;
+        align-self: stretch;
+      }
+      
+      .action-cards {
+        grid-template-columns: 1fr !important;
+        gap: 1rem;
+      }
+      
+      .dashboard-section {
+        padding: 1.25rem !important;
+        margin-bottom: 1.5rem;
+        border-radius: 12px;
+      }
+      
+      .dashboard-section h2 {
+        font-size: 1.125rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+      }
+      
+      .dashboard-section h2 i {
+        font-size: 1rem;
+      }
+      
+      .table-card {
+        padding: 1rem;
+      }
+      
+      .table-card-header {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: flex-start;
+      }
+      
+      .table-card-title {
+        font-size: 1rem;
+      }
+      
+      .table-card-label {
+        font-size: 0.625rem;
+      }
+      
+      .table-card-value {
+        font-size: 0.8125rem;
+      }
+      
+      .chip {
+        font-size: 0.625rem;
+        padding: 0.2rem 0.5rem;
+      }
+      
+      .status-badge {
+        font-size: 0.625rem;
+        padding: 0.25rem 0.5rem;
+      }
+    }
+    
+    @media (max-width: 375px) {
+      .container {
+        padding: 0.75rem;
+      }
+      
+      .dashboard-header {
+        padding: 1.25rem !important;
+        border-radius: 12px;
+        gap: 0.75rem;
+      }
+      
+      .dashboard-header h1 {
+        font-size: 1.25rem;
+        line-height: 1.3;
+        margin-bottom: 0.375rem;
+      }
+      
+      .dashboard-header .welcome-message {
+        font-size: 0.875rem;
+        margin-bottom: 0;
+      }
+      
+      .dashboard-header .welcome-message .user-name {
+        font-weight: 500;
+      }
+      
+      .dashboard-section {
+        padding: 1rem !important;
+        border-radius: 12px;
+      }
+      
+      .dashboard-section h2 {
+        font-size: 1rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      
+      .dashboard-section h2::before {
+        height: 20px;
+      }
+      
+      .stats-grid {
+        gap: 0.75rem;
+      }
+      
+      .stat-card {
+        padding: 1rem 0.75rem;
+      }
+      
+      .stat-card h3 {
+        font-size: 1.75rem;
+      }
+      
+      .stat-card p {
+        font-size: 0.6875rem;
+      }
+      
+      .trainer-card {
+        padding: 1rem;
+      }
+      
+      .trainer-avatar {
+        width: 50px;
+        height: 50px;
+        font-size: 1.25rem;
+        margin-bottom: 0.75rem;
+      }
+      
+      .trainer-name {
+        font-size: 0.9375rem;
+      }
+      
+      .trainer-role {
+        font-size: 0.75rem;
+      }
+      
+      .trainer-stat-value {
+        font-size: 1.125rem;
+      }
+      
+      .trainer-stat-label {
+        font-size: 0.625rem;
+      }
+      
+      .table-card {
+        padding: 0.875rem;
+        margin-bottom: 0.75rem;
+      }
+      
+      .table-card-header {
+        margin-bottom: 0.875rem;
+        padding-bottom: 0.75rem;
+      }
+      
+      .table-card-title {
+        font-size: 0.9375rem;
+        line-height: 1.4;
+      }
+      
+      .table-card-row {
+        gap: 0.25rem;
+        margin-bottom: 0.5rem;
+      }
+      
+      .table-card-label {
+        font-size: 0.5625rem;
+        letter-spacing: 0.3px;
+      }
+      
+      .table-card-value {
+        font-size: 0.75rem;
+        line-height: 1.5;
+      }
+      
+      .chip-container {
+        gap: 0.375rem;
+      }
+      
+      .chip {
+        font-size: 0.5625rem;
+        padding: 0.15rem 0.4rem;
+        border-radius: 8px;
+      }
+      
+      .status-badge {
+        font-size: 0.5625rem;
+        padding: 0.2rem 0.4rem;
+        border-radius: 12px;
+      }
+      
+      .badge {
+        font-size: 0.625rem;
+        padding: 0.25rem 0.5rem;
+      }
+      
+      .btn {
+        font-size: 0.8125rem;
+        padding: 0.5rem 0.75rem;
+      }
+      
+      .btn-sm {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.625rem;
+      }
+      
+      .quick-actions h2 {
+        font-size: 1rem;
+      }
+      
+      .action-card {
+        padding: 1rem;
+      }
+      
+      .action-card h3 {
+        font-size: 1rem;
+      }
+      
+      .action-card p {
+        font-size: 0.8125rem;
+      }
+      
+      /* Recent Trainings header adjustments */
+      .recent-trainings-header h3 {
+        font-size: 1rem !important;
+      }
+      
+      .recent-trainings-header h3 i {
+        font-size: 0.875rem;
+        margin-right: 0.375rem;
+      }
+      
+      .recent-trainings-subtitle {
+        font-size: 0.75rem !important;
+      }
+      
+      /* Better spacing for very small screens */
+      .table-card-grid {
+        gap: 0.75rem;
+      }
+      
+      .table-card-body {
+        gap: 0.625rem;
+      }
+    }
+    
+    /* Responsive for action cards */
+    @media (max-width: 768px) {
+      .action-cards {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+      }
+    }
+    
+    /* Table card styles for mobile/tablet */
+    .table-card {
+      display: none;
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border: 1px solid #E8EAED;
+      transition: all 0.3s ease;
+    }
+    
+    .table-card:hover {
+      box-shadow: 0 4px 16px rgba(87, 63, 215, 0.1);
+      border-color: #573FD7;
+    }
+    
+    .table-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1.25rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #E8EAED;
+    }
+    
+    .table-card-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #202124;
+      margin: 0;
+      flex: 1;
+    }
+    
+    .table-card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    
+    .table-card-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    
+    .table-card-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #5F6368;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .table-card-value {
+      font-size: 0.875rem;
+      color: #202124;
+      word-break: break-word;
+    }
+    
+    .table-card-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+    
+    /* Hide tables on mobile/tablet, show cards */
+    @media (max-width: 1024px) {
+      .data-table {
+        display: none;
+      }
+      
+      .table-card {
+        display: block;
+      }
+      
+      .table-responsive {
+        overflow: visible;
+      }
+    }
+    
+    /* Show tables on desktop, hide cards */
+    @media (min-width: 1025px) {
+      .table-card {
+        display: none;
+      }
+      
+      .data-table {
+        display: table;
+      }
+    }
+  </style>
+</head>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
+  
+  <main class="main-content">
+    <div class="container">
+      <div class="dashboard-header">
+        <div class="dashboard-header-content">
+          <h1>
+            <%= isAdmin ? 'Admin Dashboard' : 'Dashboard' %>
+          </h1>
+          <p class="welcome-message">
+            Welcome back, <span class="user-name"><%= user.userName %></span>!
+          </p>
+        </div>
+        <a href="/training/create" class="btn btn-primary">Create Training</a>
+      </div>
+      
+      <!-- Quick Actions -->
+      <div class="quick-actions dashboard-section" style="margin-bottom: 2rem;">
+        <h2><i class="fas fa-bolt" style="color: #573FD7;"></i> Quick Actions</h2>
+        <div class="action-cards">
+          <a href="/training" class="action-card">
+            <div class="card-image">
+              <img src="/images/Dashboard Images/Trainings.webp" alt="Trainings">
+            </div>
+            <div class="card-content">
+              <h3>Manage Trainings</h3>
+              <p>View and manage all training programs</p>
+            </div>
+          </a>
+          
+          <a href="/trainees" class="action-card">
+            <div class="card-image">
+              <img src="/images/Dashboard Images/Trainees.webp" alt="Trainees">
+            </div>
+            <div class="card-content">
+              <h3>Trainees</h3>
+              <p>View and manage all trainees</p>
+            </div>
+          </a>
+          
+          <a href="/questions" class="action-card">
+            <div class="card-image">
+              <img src="/images/Dashboard Images/Questions.webp" alt="Questions">
+            </div>
+            <div class="card-content">
+              <h3>Questions</h3>
+              <p>Manage training questions and answers</p>
+            </div>
+          </a>
+        </div>
+      </div>
+      
+      <!-- Trainings Section -->
+      <section class="dashboard-section">
+        <h2><i class="fas fa-graduation-cap" style="color: #573FD7;"></i> Trainings</h2>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <h3><%= trainingStats.total %></h3>
+            <p>Total Trainings</p>
+          </div>
+          <div class="stat-card">
+            <h3><%= trainingStats.in_progress %></h3>
+            <p>In Progress</p>
+          </div>
+          <div class="stat-card">
+            <h3><%= trainingStats.completed %></h3>
+            <p>Completed</p>
+          </div>
+          <div class="stat-card">
+            <h3><%= trainingStats.canceled %></h3>
+            <p>Canceled</p>
+          </div>
+          <div class="stat-card">
+            <h3><%= trainingStats.rescheduled %></h3>
+            <p>Rescheduled</p>
+          </div>
+        </div>
+        
+        <div class="recent-trainings-header" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+          <h3 style="margin: 0; color: #202124; font-size: 1.25rem; font-weight: 600;">
+            <i class="fas fa-clock" style="color: #573FD7; margin-right: 0.5rem;"></i>
+            Recent Trainings
+          </h3>
+          <span class="recent-trainings-subtitle" style="color: #5F6368; font-size: 0.875rem;">
+            Showing latest 10 trainings
+          </span>
+        </div>
+        
+        <div class="table-responsive">
+          <!-- Desktop Table View -->
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Training Title</th>
+                <th>Training Type</th>
+                <th>Start Date & Time</th>
+                <th>End Date & Time</th>
+                <th>Participating Healthcare Centres</th>
+                <th>Device Serial Numbers</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (recentTrainings.length === 0) { %>
+                <tr>
+                  <td colspan="7" style="text-align: center; padding: 2rem; color: #5F6368;">
+                    No trainings found
+                  </td>
+                </tr>
+              <% } else { %>
+                <% recentTrainings.forEach(training => { %>
+                  <tr>
+                    <td><strong><%= training.title %></strong></td>
+                    <td>
+                      <span class="badge badge-<%= training.type %>">
+                        <%= training.type === 'main' ? 'Main' : 'Refreshment' %>
+                      </span>
+                    </td>
+                    <td>
+                      <%= training.start_datetime 
+                        ? new Date(training.start_datetime).toLocaleString('en-US', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })
+                        : '-' %>
+                    </td>
+                    <td>
+                      <%= training.end_datetime 
+                        ? new Date(training.end_datetime).toLocaleString('en-US', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })
+                        : '-' %>
+                    </td>
+                    <td>
+                      <% if (training.healthcare_centres) { %>
+                        <div class="chip-container">
+                          <% training.healthcare_centres.split(', ').forEach(hc => { %>
+                            <span class="chip chip-healthcare"><%= hc %></span>
+                          <% }); %>
+                        </div>
+                      <% } else { %>
+                        <span style="color: #9CA3AF;">-</span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <% if (training.device_serial_numbers) { %>
+                        <div class="chip-container">
+                          <% training.device_serial_numbers.split(', ').forEach(device => { %>
+                            <span class="chip chip-device"><%= device %></span>
+                          <% }); %>
+                        </div>
+                      <% } else { %>
+                        <span style="color: #9CA3AF;">-</span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <% 
+                        const statusLabels = {
+                          'in_progress': 'In Progress',
+                          'completed': 'Completed',
+                          'canceled': 'Canceled',
+                          'rescheduled': 'Rescheduled'
+                        };
+                        const statusClass = `status-${training.status.replace('_', '-')}`;
+                      %>
+                      <span class="status-badge <%= statusClass %>">
+                        <%= statusLabels[training.status] || training.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %>
+                      </span>
+                    </td>
+                  </tr>
+                <% }); %>
+              <% } %>
+            </tbody>
+          </table>
+          
+          <!-- Mobile/Tablet Card View -->
+          <div class="table-card-grid">
+            <% if (recentTrainings.length === 0) { %>
+              <div class="table-card" style="text-align: center; padding: 2rem; color: #5F6368;">
+                No trainings found
+              </div>
+            <% } else { %>
+              <% recentTrainings.forEach(training => { %>
+                <% 
+                  const statusLabels = {
+                    'in_progress': 'In Progress',
+                    'completed': 'Completed',
+                    'canceled': 'Canceled',
+                    'rescheduled': 'Rescheduled'
+                  };
+                  const statusClass = `status-${training.status.replace('_', '-')}`;
+                %>
+                <div class="table-card">
+                  <div class="table-card-header">
+                    <h3 class="table-card-title"><%= training.title %></h3>
+                    <span class="status-badge <%= statusClass %>">
+                      <%= statusLabels[training.status] || training.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %>
+                    </span>
+                  </div>
+                  <div class="table-card-body">
+                    <div class="table-card-row">
+                      <div class="table-card-label">Training Type</div>
+                      <div class="table-card-value">
+                        <span class="badge badge-<%= training.type %>">
+                          <%= training.type === 'main' ? 'Main' : 'Refreshment' %>
+                        </span>
+                      </div>
+                    </div>
+                    <div class="table-card-row">
+                      <div class="table-card-label">Start Date & Time</div>
+                      <div class="table-card-value">
+                        <%= training.start_datetime 
+                          ? new Date(training.start_datetime).toLocaleString('en-US', { 
+                              year: 'numeric', 
+                              month: 'short', 
+                              day: 'numeric', 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })
+                          : '-' %>
+                      </div>
+                    </div>
+                    <div class="table-card-row">
+                      <div class="table-card-label">End Date & Time</div>
+                      <div class="table-card-value">
+                        <%= training.end_datetime 
+                          ? new Date(training.end_datetime).toLocaleString('en-US', { 
+                              year: 'numeric', 
+                              month: 'short', 
+                              day: 'numeric', 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })
+                          : '-' %>
+                      </div>
+                    </div>
+                    <div class="table-card-row">
+                      <div class="table-card-label">Participating Healthcare Centres</div>
+                      <div class="table-card-value">
+                        <% if (training.healthcare_centres) { %>
+                          <div class="chip-container">
+                            <% training.healthcare_centres.split(', ').forEach(hc => { %>
+                              <span class="chip chip-healthcare"><%= hc %></span>
+                            <% }); %>
+                          </div>
+                        <% } else { %>
+                          <span style="color: #9CA3AF;">-</span>
+                        <% } %>
+                      </div>
+                    </div>
+                    <div class="table-card-row">
+                      <div class="table-card-label">Device Serial Numbers</div>
+                      <div class="table-card-value">
+                        <% if (training.device_serial_numbers) { %>
+                          <div class="chip-container">
+                            <% training.device_serial_numbers.split(', ').forEach(device => { %>
+                              <span class="chip chip-device"><%= device %></span>
+                            <% }); %>
+                          </div>
+                        <% } else { %>
+                          <span style="color: #9CA3AF;">-</span>
+                        <% } %>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              <% }); %>
+            <% } %>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Trainees Section -->
+      <section class="dashboard-section">
+        <h2><i class="fas fa-users" style="color: #573FD7;"></i> Trainees</h2>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <h3><%= traineeStats.total %></h3>
+            <p>Total Trainees</p>
+          </div>
+          <div class="stat-card">
+            <h3><%= traineeStats.active %></h3>
+            <p>Active</p>
+          </div>
+          <div class="stat-card">
+            <h3><%= traineeStats.inactive %></h3>
+            <p>Inactive</p>
+          </div>
+          <div class="stat-card">
+            <h3><%= traineeStats.suspended %></h3>
+            <p>Suspended</p>
+          </div>
+          <div class="stat-card">
+            <h3><%= traineeStats.registered %></h3>
+            <p>Registered</p>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Trainers Section -->
+      <section class="dashboard-section">
+        <h2><i class="fas fa-chalkboard-teacher" style="color: #573FD7;"></i> Trainers</h2>
+        <div class="trainers-grid">
+          <% if (trainers.length === 0) { %>
+            <p style="color: #5F6368;">No trainers found</p>
+          <% } else { %>
+            <% trainers.forEach(trainer => { %>
+              <div class="trainer-card">
+                <div class="trainer-avatar">
+                  <% if (trainer.profile_picture) { %>
+                    <img src="<%= trainer.profile_picture.startsWith('/') ? trainer.profile_picture : '/uploads/profiles/' + trainer.profile_picture %>" alt="<%= trainer.first_name %> <%= trainer.last_name %>">
+                  <% } else { %>
+                    <%= trainer.first_name.charAt(0).toUpperCase() %><%= trainer.last_name.charAt(0).toUpperCase() %>
+                  <% } %>
+                </div>
+                <div class="trainer-name"><%= trainer.first_name %> <%= trainer.last_name %></div>
+                <div class="trainer-role"><%= trainer.role %></div>
+                <div class="trainer-stats">
+                  <div class="trainer-stat">
+                    <div class="trainer-stat-value"><%= trainer.completed_trainings || 0 %></div>
+                    <div class="trainer-stat-label">Completed</div>
+                  </div>
+                  <div class="trainer-stat">
+                    <div class="trainer-stat-value"><%= trainer.in_progress_trainings || 0 %></div>
+                    <div class="trainer-stat-label">In Progress</div>
+                  </div>
+                </div>
+              </div>
+            <% }); %>
+          <% } %>
+        </div>
+      </section>
+      
+      <!-- Recent Registrations Section -->
+      <section class="dashboard-section">
+        <h2><i class="fas fa-user-plus" style="color: #573FD7;"></i> Recent Registrations</h2>
+        <div class="table-responsive">
+          <!-- Desktop Table View -->
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>IC/Passport</th>
+                <th>Healthcare</th>
+                <th>Email</th>
+                <th>Phone Number</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (recentRegistrations.length === 0) { %>
+                <tr>
+                  <td colspan="6" style="text-align: center; padding: 2rem; color: #5F6368;">
+                    No recent registrations
+                  </td>
+                </tr>
+              <% } else { %>
+                <% recentRegistrations.forEach(trainee => { %>
+                  <tr>
+                    <td><%= trainee.first_name %> <%= trainee.last_name %></td>
+                    <td><%= trainee.ic_passport %></td>
+                    <td><%= trainee.healthcare || '-' %></td>
+                    <td><%= trainee.email %></td>
+                    <td><%= trainee.handphone_number || '-' %></td>
+                    <td>
+                      <a href="/trainees/<%= trainee.id %>/edit" class="btn btn-sm btn-secondary">
+                        <i class="fas fa-edit"></i> Edit Trainee
+                      </a>
+                    </td>
+                  </tr>
+                <% }); %>
+              <% } %>
+            </tbody>
+          </table>
+          
+          <!-- Mobile/Tablet Card View -->
+          <div class="table-card-grid">
+            <% if (recentRegistrations.length === 0) { %>
+              <div class="table-card" style="text-align: center; padding: 2rem; color: #5F6368;">
+                No recent registrations
+              </div>
+            <% } else { %>
+              <% recentRegistrations.forEach(trainee => { %>
+                <div class="table-card">
+                  <div class="table-card-header">
+                    <h3 class="table-card-title"><%= trainee.first_name %> <%= trainee.last_name %></h3>
+                  </div>
+                  <div class="table-card-body">
+                    <div class="table-card-row">
+                      <div class="table-card-label">IC/Passport</div>
+                      <div class="table-card-value"><%= trainee.ic_passport %></div>
+                    </div>
+                    <div class="table-card-row">
+                      <div class="table-card-label">Healthcare</div>
+                      <div class="table-card-value"><%= trainee.healthcare || '-' %></div>
+                    </div>
+                    <div class="table-card-row">
+                      <div class="table-card-label">Email</div>
+                      <div class="table-card-value">
+                        <a href="mailto:<%= trainee.email %>" style="color: #573FD7; text-decoration: none;">
+                          <%= trainee.email %>
+                        </a>
+                      </div>
+                    </div>
+                    <div class="table-card-row">
+                      <div class="table-card-label">Phone Number</div>
+                      <div class="table-card-value">
+                        <% if (trainee.handphone_number) { %>
+                          <a href="tel:<%= trainee.handphone_number %>" style="color: #573FD7; text-decoration: none;">
+                            <%= trainee.handphone_number %>
+                          </a>
+                        <% } else { %>
+                          <span style="color: #9CA3AF;">-</span>
+                        <% } %>
+                      </div>
+                    </div>
+                    <div class="table-card-row" style="margin-top: 0.5rem; padding-top: 0.75rem; border-top: 1px solid #E8EAED;">
+                      <a href="/trainees/<%= trainee.id %>/edit" class="btn btn-sm btn-secondary" style="width: 100%; text-align: center; justify-content: center;">
+                        <i class="fas fa-edit"></i> Edit Trainee
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              <% }); %>
+            <% } %>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+  
+  <script src="/js/main.js"></script>
+</body>
+</html>

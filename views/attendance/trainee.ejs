@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance - <%= enrollment.first_name %> <%= enrollment.last_name %> - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .attendance-date-group {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+    
+    .date-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid #E8EAED;
+    }
+    
+    .date-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #202124;
+    }
+    
+    .status-badge {
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-weight: 500;
+      font-size: 0.875rem;
+    }
+    
+    .status-present {
+      background: #E6F4EA;
+      color: #137333;
+    }
+    
+    .status-absent {
+      background: #FCE8E6;
+      color: #D93025;
+    }
+    
+    .status-late {
+      background: #FEF3C7;
+      color: #D97706;
+    }
+    
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 2rem;
+    }
+    
+    .pagination-btn {
+      padding: 0.5rem 1rem;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      background: white;
+      color: #202124;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .pagination-btn:hover:not(:disabled):not(.disabled) {
+      border-color: #573FD7;
+      color: #573FD7;
+    }
+    
+    .pagination-btn:disabled,
+    .pagination-btn.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .pagination-info {
+      padding: 0.5rem 1rem;
+      color: #5F6368;
+      font-size: 0.875rem;
+    }
+    
+    .notes-section {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #E8EAED;
+    }
+    
+    .notes-label {
+      font-size: 0.875rem;
+      color: #5F6368;
+      margin-bottom: 0.25rem;
+    }
+    
+    .notes-content {
+      color: #202124;
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body class="<%= ['admin', 'trainer'].includes(user.userRole) ? 'has-sidebar' : 'has-navbar' %>">
+  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+    <%- include('../partials/sidebar', { user }) %>
+  <% } else { %>
+    <%- include('../partials/navbar', { user }) %>
+  <% } %>
+  
+  <main class="main-content">
+    <div class="container">
+      <div class="dashboard-header">
+        <h1>Attendance Record</h1>
+        <div style="display: flex; gap: var(--spacing-md);">
+          <a href="/training/<%= enrollment.training_id %>" class="btn btn-outline">Back to Training</a>
+        </div>
+      </div>
+      
+      <div class="training-card" style="margin-bottom: var(--spacing-xl);">
+        <h2><%= enrollment.title %></h2>
+        <p class="text-muted">
+          Trainee: <%= enrollment.first_name %> <%= enrollment.last_name %> (<%= enrollment.trainee_id %>)
+        </p>
+      </div>
+      
+      <div class="dashboard-section">
+        <h2>Attendance History</h2>
+        
+        <% if (typeof attendanceByDate !== 'undefined' && attendanceByDate.length > 0) { %>
+          <% attendanceByDate.forEach(dateGroup => { %>
+            <div class="attendance-date-group">
+              <div class="date-header">
+                <div class="date-title">
+                  <i class="fas fa-calendar"></i> <%= new Date(dateGroup.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %>
+                </div>
+                <span class="status-badge status-<%= dateGroup.status %>">
+                  <%= dateGroup.status.charAt(0).toUpperCase() + dateGroup.status.slice(1) %>
+                </span>
+              </div>
+              
+              <div>
+                <div style="display: flex; gap: 1rem; margin-bottom: 0.75rem; font-size: 0.875rem; color: #5F6368;">
+                  <span><i class="fas fa-user"></i> Marked by: <%= dateGroup.marked_by_first %> <%= dateGroup.marked_by_last %></span>
+                  <% if (dateGroup.time) { %>
+                    <span><i class="fas fa-clock"></i> Time: <%= dateGroup.time %></span>
+                  <% } %>
+                </div>
+                
+                <% if (dateGroup.notes) { %>
+                  <div class="notes-section">
+                    <div class="notes-label"><i class="fas fa-sticky-note"></i> Notes:</div>
+                    <div class="notes-content"><%= dateGroup.notes %></div>
+                  </div>
+                <% } %>
+              </div>
+            </div>
+          <% }); %>
+          
+          <!-- Pagination -->
+          <% if (typeof totalPages !== 'undefined' && totalPages > 1) { %>
+            <div class="pagination">
+              <% if (currentPage > 1) { %>
+                <a href="?page=<%= currentPage - 1 %>" class="pagination-btn">
+                  <i class="fas fa-chevron-left"></i> Previous
+                </a>
+              <% } else { %>
+                <span class="pagination-btn disabled">
+                  <i class="fas fa-chevron-left"></i> Previous
+                </span>
+              <% } %>
+              
+              <span class="pagination-info">Page <%= currentPage %> of <%= totalPages %></span>
+              
+              <% if (currentPage < totalPages) { %>
+                <a href="?page=<%= currentPage + 1 %>" class="pagination-btn">
+                  Next <i class="fas fa-chevron-right"></i>
+                </a>
+              <% } else { %>
+                <span class="pagination-btn disabled">
+                  Next <i class="fas fa-chevron-right"></i>
+                </span>
+              <% } %>
+            </div>
+          <% } %>
+        <% } else { %>
+          <div class="empty-state">
+            <p>No attendance records yet.</p>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </main>
+  
+  <script src="/js/main.js"></script>
+</body>
+</html>

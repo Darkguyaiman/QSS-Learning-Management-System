@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Question - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .form-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    .form-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+      border-radius: 20px;
+      padding: 2.5rem;
+      box-shadow: 0 20px 60px rgba(87, 63, 215, 0.15);
+      border: 1px solid rgba(87, 63, 215, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .form-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #573FD7 0%, #11358B 50%, #E48F24 100%);
+    }
+    
+    .form-section {
+      margin-bottom: 2rem;
+    }
+    
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #573FD7;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid rgba(87, 63, 215, 0.1);
+    }
+    
+    .section-title i {
+      font-size: 1.2rem;
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: #2A2A2A;
+      margin-bottom: 0.75rem;
+      font-size: 0.95rem;
+    }
+    
+    .form-group label i {
+      color: #573FD7;
+      font-size: 0.9rem;
+    }
+    
+    .form-input,
+    .form-select,
+    textarea.form-input {
+      width: 100%;
+      padding: 0.875rem 1.25rem;
+      border: 2px solid #E5E7EB;
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: #ffffff;
+      font-family: inherit;
+    }
+    
+    .form-input:focus,
+    .form-select:focus,
+    textarea.form-input:focus {
+      outline: none;
+      border-color: #573FD7;
+      box-shadow: 0 0 0 4px rgba(87, 63, 215, 0.1);
+      transform: translateY(-1px);
+    }
+    
+    textarea.form-input {
+      resize: vertical;
+      min-height: 120px;
+      line-height: 1.6;
+    }
+    
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .option-card {
+      background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
+      border: 2px solid #E5E7EB;
+      border-radius: 12px;
+      padding: 1rem;
+      transition: all 0.3s ease;
+    }
+    
+    .option-card:focus-within {
+      border-color: #573FD7;
+      box-shadow: 0 4px 12px rgba(87, 63, 215, 0.15);
+      transform: translateY(-2px);
+    }
+    
+    .option-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: #573FD7;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+    
+    .option-label span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background: linear-gradient(135deg, #573FD7 0%, #11358B 100%);
+      color: white;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    
+    .form-actions {
+      display: flex;
+      gap: var(--spacing-md);
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 2px solid rgba(87, 63, 215, 0.1);
+    }
+    
+    .btn-lg {
+      padding: var(--spacing-md) var(--spacing-xl);
+      font-size: 1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      justify-content: center;
+    }
+    
+    .btn-lg i {
+      font-size: 0.875rem;
+    }
+    
+    .alert-error {
+      background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+      border: 2px solid #EF4444;
+      color: #991B1B;
+      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .alert-error i {
+      font-size: 1.25rem;
+    }
+    
+    .btn-sm {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    /* Tablet styles */
+    @media (max-width: 1024px) {
+      .form-card {
+        padding: 2rem;
+      }
+      
+      .options-grid {
+        gap: 1rem;
+      }
+    }
+    
+    /* Mobile styles */
+    @media (max-width: 768px) {
+      .main-content .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+      
+      .form-container {
+        max-width: 100%;
+        padding: 0;
+      }
+      
+      .form-card {
+        padding: 1.25rem;
+        border-radius: 12px;
+        margin: 0;
+        box-shadow: 0 10px 30px rgba(87, 63, 215, 0.1);
+      }
+      
+      .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 1rem;
+        padding: 1.5rem 1rem !important;
+      }
+      
+      .dashboard-header h1 {
+        font-size: 1.5rem;
+      }
+      
+      .dashboard-header .btn {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .form-section {
+        margin-bottom: 1.5rem;
+      }
+      
+      .section-title {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+      }
+      
+      .form-group {
+        margin-bottom: 1.25rem;
+      }
+      
+      .form-group:last-child {
+        margin-bottom: 0;
+      }
+      
+      .form-group label {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+      }
+      
+      .options-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+      
+      .option-card {
+        padding: 0.875rem;
+      }
+      
+      .option-label {
+        font-size: 0.875rem;
+      }
+      
+      .form-row {
+        grid-template-columns: 1fr !important;
+        gap: 0;
+      }
+      
+      /* Option buttons container */
+      .options-section + div,
+      .options-grid + div {
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+      }
+      
+      .options-section + div .btn,
+      .options-grid + div .btn {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .form-actions {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+      }
+      
+      .form-actions .btn {
+        width: 100%;
+        justify-content: center;
+        min-height: 48px;
+      }
+      
+      .form-input,
+      .form-select,
+      textarea.form-input {
+        font-size: 16px; /* Prevents zoom on iOS */
+        padding: 0.875rem 1rem;
+        border-radius: 10px;
+      }
+      
+      textarea.form-input {
+        min-height: 100px;
+      }
+      
+      .alert-error {
+        padding: 0.875rem 1rem;
+        font-size: 0.875rem;
+      }
+    }
+    
+    /* Small mobile devices */
+    @media (max-width: 480px) {
+      .form-card {
+        padding: 1rem;
+        border-radius: 10px;
+      }
+      
+      .dashboard-header {
+        padding: 1rem !important;
+      }
+      
+      .dashboard-header h1 {
+        font-size: 1.25rem;
+      }
+      
+      .section-title {
+        font-size: 0.9375rem;
+      }
+      
+      .section-title i {
+        font-size: 1rem;
+      }
+      
+      .form-group label {
+        font-size: 0.875rem;
+      }
+      
+      .form-input,
+      .form-select,
+      textarea.form-input {
+        padding: 0.75rem 0.875rem;
+        font-size: 16px;
+      }
+      
+      textarea.form-input {
+        min-height: 90px;
+      }
+      
+      .option-card {
+        padding: 0.75rem;
+      }
+      
+      .option-label {
+        font-size: 0.8125rem;
+      }
+      
+      .option-label span {
+        width: 20px;
+        height: 20px;
+        font-size: 0.7rem;
+      }
+      
+      .form-actions .btn {
+        padding: 0.75rem 1.25rem;
+        font-size: 0.9375rem;
+      }
+      
+      .form-actions .btn i {
+        font-size: 0.8125rem;
+      }
+      
+      .btn-sm {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+      }
+    }
+  </style>
+</head>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
+  
+  <main class="main-content">
+    <div class="container">
+      <div class="dashboard-header">
+        <h1>Edit Question</h1>
+        <a href="/questions" class="btn btn-outline">Back</a>
+      </div>
+      
+      <div class="form-container">
+        <% if (error) { %>
+          <div class="alert-error">
+            <i class="fas fa-exclamation-circle"></i>
+            <span><%= error %></span>
+          </div>
+        <% } %>
+        
+        <div class="form-card">
+          <form action="/questions/<%= question.id %>/edit" method="POST">
+            <div class="form-section">
+              <div class="section-title">
+                <i class="fas fa-question-circle"></i>
+                Question Details
+              </div>
+              
+              <div class="form-group">
+                <label for="questionText">
+                  <i class="fas fa-file-alt"></i>
+                  Question *
+                </label>
+                <textarea id="questionText" name="questionText" class="form-input" rows="4" required><%= question.question_text %></textarea>
+              </div>
+              
+              <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+                <div class="form-group">
+                  <label for="testType">
+                    <i class="fas fa-clipboard-check"></i>
+                    Test Type *
+                  </label>
+                  <select id="testType" name="testType" class="form-select" required>
+                    <option value="pre_test" <%= question.test_type === 'pre_test' ? 'selected' : '' %>>Pre-Test</option>
+                    <option value="post_test" <%= question.test_type === 'post_test' ? 'selected' : '' %>>Post-Test</option>
+                    <option value="refreshment" <%= question.test_type === 'refreshment' ? 'selected' : '' %>>Refreshment Test</option>
+                    <option value="certificate_enrolment" <%= question.test_type === 'certificate_enrolment' ? 'selected' : '' %>>Certificate Enrolment Test</option>
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label for="objectiveId">
+                    <i class="fas fa-bullseye"></i>
+                    Objective *
+                  </label>
+                  <select id="objectiveId" name="objectiveId" class="form-select" required>
+                    <option value="">Select objective</option>
+                    <% objectives.forEach(objective => { %>
+                      <option value="<%= objective.id %>" <%= question.objective_id == objective.id ? 'selected' : '' %>><%= objective.name %></option>
+                    <% }); %>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-title">
+                <i class="fas fa-list-ul"></i>
+                Answer Options
+              </div>
+              
+              <div class="options-grid">
+                <div class="option-card">
+                  <label class="option-label" for="optionA">
+                    <span>A</span>
+                    Option A *
+                  </label>
+                  <input type="text" id="optionA" name="optionA" class="form-input" value="<%= question.option_a %>" required>
+                </div>
+                
+                <div class="option-card">
+                  <label class="option-label" for="optionB">
+                    <span>B</span>
+                    Option B *
+                  </label>
+                  <input type="text" id="optionB" name="optionB" class="form-input" value="<%= question.option_b %>" required>
+                </div>
+                
+                <div class="option-card" id="optionCContainer">
+                  <label class="option-label" for="optionC">
+                    <span>C</span>
+                    Option C
+                  </label>
+                  <input type="text" id="optionC" name="optionC" class="form-input" value="<%= question.option_c || '' %>" placeholder="Enter option C (optional)">
+                </div>
+                
+                <div class="option-card" id="optionDContainer">
+                  <label class="option-label" for="optionD">
+                    <span>D</span>
+                    Option D
+                  </label>
+                  <input type="text" id="optionD" name="optionD" class="form-input" value="<%= question.option_d || '' %>" placeholder="Enter option D (optional)">
+                </div>
+              </div>
+              
+              <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button type="button" id="addOptionC" class="btn btn-outline btn-sm" style="display: none;">
+                  <i class="fas fa-plus"></i> Add Option C
+                </button>
+                <button type="button" id="addOptionD" class="btn btn-outline btn-sm" style="display: none;">
+                  <i class="fas fa-plus"></i> Add Option D
+                </button>
+                <button type="button" id="removeOptionC" class="btn btn-outline btn-sm" style="display: none;">
+                  <i class="fas fa-times"></i> Remove Option C
+                </button>
+                <button type="button" id="removeOptionD" class="btn btn-outline btn-sm" style="display: none;">
+                  <i class="fas fa-times"></i> Remove Option D
+                </button>
+              </div>
+              
+              <div class="form-group">
+                <label for="correctAnswer">
+                  <i class="fas fa-check-circle"></i>
+                  Correct Answer *
+                </label>
+                <select id="correctAnswer" name="correctAnswer" class="form-select" required>
+                  <option value="A" <%= question.correct_answer === 'A' ? 'selected' : '' %>>Option A</option>
+                  <option value="B" <%= question.correct_answer === 'B' ? 'selected' : '' %>>Option B</option>
+                  <option value="C" id="correctAnswerC" <%= question.correct_answer === 'C' ? 'selected' : '' %> style="display: none;">Option C</option>
+                  <option value="D" id="correctAnswerD" <%= question.correct_answer === 'D' ? 'selected' : '' %> style="display: none;">Option D</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary btn-lg btn-block">
+                <i class="fas fa-save"></i>
+                Update Question
+              </button>
+              <a href="/questions" class="btn btn-outline btn-lg btn-block">
+                <i class="fas fa-times"></i>
+                Cancel
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <script src="/js/main.js"></script>
+  <script>
+    // Wait for DOM to be fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+      // Dynamic option management
+      const optionCContainer = document.getElementById('optionCContainer');
+      const optionDContainer = document.getElementById('optionDContainer');
+      const optionCInput = document.getElementById('optionC');
+      const optionDInput = document.getElementById('optionD');
+      const addOptionC = document.getElementById('addOptionC');
+      const addOptionD = document.getElementById('addOptionD');
+      const removeOptionC = document.getElementById('removeOptionC');
+      const removeOptionD = document.getElementById('removeOptionD');
+      const correctAnswerSelect = document.getElementById('correctAnswer');
+      const correctAnswerC = document.getElementById('correctAnswerC');
+      const correctAnswerD = document.getElementById('correctAnswerD');
+      
+      // Initialize based on existing data
+      const hasOptionC = optionCInput && optionCInput.value.trim() !== '';
+      const hasOptionD = optionDInput && optionDInput.value.trim() !== '';
+      
+      if (hasOptionC && optionCContainer) {
+        optionCContainer.style.display = 'block';
+        if (addOptionC) addOptionC.style.display = 'none';
+        if (removeOptionC) removeOptionC.style.display = 'inline-flex';
+        if (correctAnswerC) correctAnswerC.style.display = 'block';
+      } else {
+        if (optionCContainer) optionCContainer.style.display = 'none';
+        if (addOptionC) addOptionC.style.display = 'inline-flex';
+        if (removeOptionC) removeOptionC.style.display = 'none';
+        if (correctAnswerC) correctAnswerC.style.display = 'none';
+      }
+      
+      if (hasOptionD && optionDContainer) {
+        optionDContainer.style.display = 'block';
+        if (addOptionD) addOptionD.style.display = 'none';
+        if (removeOptionD) removeOptionD.style.display = 'inline-flex';
+        if (correctAnswerD) correctAnswerD.style.display = 'block';
+      } else {
+        if (optionDContainer) optionDContainer.style.display = 'none';
+        if (addOptionD) addOptionD.style.display = 'inline-flex';
+        if (removeOptionD) removeOptionD.style.display = 'none';
+        if (correctAnswerD) correctAnswerD.style.display = 'none';
+      }
+      
+      function updateCorrectAnswerOptions() {
+        const hasC = optionCContainer && optionCContainer.style.display !== 'none' && optionCInput && optionCInput.value.trim() !== '';
+        const hasD = optionDContainer && optionDContainer.style.display !== 'none' && optionDInput && optionDInput.value.trim() !== '';
+        
+        if (correctAnswerC) {
+          correctAnswerC.style.display = hasC ? 'block' : 'none';
+        }
+        if (correctAnswerD) {
+          correctAnswerD.style.display = hasD ? 'block' : 'none';
+        }
+        
+        // If current selection is C or D but option is removed, reset to A
+        if (correctAnswerSelect && correctAnswerSelect.value === 'C' && !hasC) {
+          correctAnswerSelect.value = 'A';
+        }
+        if (correctAnswerSelect && correctAnswerSelect.value === 'D' && !hasD) {
+          correctAnswerSelect.value = 'A';
+        }
+      }
+      
+      // Add Option C
+      if (addOptionC) {
+        addOptionC.addEventListener('click', function() {
+          if (optionCContainer) optionCContainer.style.display = 'block';
+          if (addOptionC) addOptionC.style.display = 'none';
+          if (removeOptionC) removeOptionC.style.display = 'inline-flex';
+          if (optionCInput) optionCInput.focus();
+          updateCorrectAnswerOptions();
+        });
+      }
+      
+      // Remove Option C
+      if (removeOptionC) {
+        removeOptionC.addEventListener('click', function() {
+          if (optionCContainer) optionCContainer.style.display = 'none';
+          if (addOptionC) addOptionC.style.display = 'inline-flex';
+          if (removeOptionC) removeOptionC.style.display = 'none';
+          if (optionCInput) optionCInput.value = '';
+          updateCorrectAnswerOptions();
+        });
+      }
+      
+      // Add Option D
+      if (addOptionD) {
+        addOptionD.addEventListener('click', function() {
+          if (optionDContainer) optionDContainer.style.display = 'block';
+          if (addOptionD) addOptionD.style.display = 'none';
+          if (removeOptionD) removeOptionD.style.display = 'inline-flex';
+          if (optionDInput) optionDInput.focus();
+          updateCorrectAnswerOptions();
+        });
+      }
+      
+      // Remove Option D
+      if (removeOptionD) {
+        removeOptionD.addEventListener('click', function() {
+          if (optionDContainer) optionDContainer.style.display = 'none';
+          if (addOptionD) addOptionD.style.display = 'inline-flex';
+          if (removeOptionD) removeOptionD.style.display = 'none';
+          if (optionDInput) optionDInput.value = '';
+          updateCorrectAnswerOptions();
+        });
+      }
+      
+      // Update correct answer options when option inputs change
+      if (optionCInput) {
+        optionCInput.addEventListener('input', updateCorrectAnswerOptions);
+      }
+      if (optionDInput) {
+        optionDInput.addEventListener('input', updateCorrectAnswerOptions);
+      }
+    });
+  </script>
+</body>
+</html>

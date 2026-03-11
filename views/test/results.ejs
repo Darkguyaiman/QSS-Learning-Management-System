@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Results - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <%- include('../partials/navbar', { user }) %>
+  
+  <main class="main-content">
+    <div class="container">
+      <div class="dashboard-header">
+        <h1>Test Results</h1>
+        <a href="/dashboard" class="btn btn-outline">Back to Dashboard</a>
+      </div>
+      
+      <div class="auth-card" style="max-width: 900px; margin: 0 auto; margin-bottom: var(--spacing-xl);">
+        <h2 style="margin-bottom: var(--spacing-md);"><%= attempt.training_title %></h2>
+        <p class="text-muted" style="margin-bottom: var(--spacing-lg);">
+          Test Type: <%= attempt.test_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %>
+        </p>
+        
+        <div style="text-align: center; padding: var(--spacing-xl); background: <%= typeof passed !== 'undefined' && passed ? 'var(--color-success-light)' : 'var(--color-error-light)' %>; border-radius: var(--border-radius-lg); margin-bottom: var(--spacing-lg); border: 2px solid <%= typeof passed !== 'undefined' && passed ? 'var(--color-success)' : 'var(--color-error)' %>;">
+          <h3 style="font-size: 3rem; color: <%= typeof passed !== 'undefined' && passed ? 'var(--color-success)' : 'var(--color-error)' %>; margin-bottom: var(--spacing-sm);">
+            <%= attempt.score.toFixed(1) %>%
+          </h3>
+          <p style="font-size: 1.5rem; color: var(--color-dark); font-weight: 600; margin-bottom: var(--spacing-sm);">
+            <% if (typeof passed !== 'undefined' && passed) { %>
+              <span style="color: var(--color-success);">✓ PASSED</span>
+            <% } else { %>
+              <span style="color: var(--color-error);">✗ FAILED</span>
+            <% } %>
+          </p>
+          <p style="font-size: 1.2rem; color: var(--color-dark);">
+            <% 
+              const correctCount = answers.filter(a => a.is_correct).length;
+            %>
+            <%= correctCount %> out of <%= attempt.total_questions %> correct
+          </p>
+          <p class="text-muted">
+            Completed: <%= new Date(attempt.completed_at).toLocaleString() %>
+          </p>
+          <% if (typeof canRetake !== 'undefined' && canRetake) { %>
+            <div style="margin-top: var(--spacing-lg);">
+              <a href="/tests/start/<%= enrollmentId %>/<%= testType %>" class="btn btn-primary" style="font-size: 1.1rem; padding: 0.75rem 2rem;">
+                <i class="fas fa-redo"></i> Retake Test
+              </a>
+            </div>
+          <% } %>
+        </div>
+      </div>
+      
+      <div class="auth-card" style="max-width: 900px; margin: 0 auto;">
+        <h2 style="margin-bottom: var(--spacing-lg);">Question Review</h2>
+        
+        <% answers.forEach((answer, index) => { %>
+          <div class="training-card" style="margin-bottom: var(--spacing-lg); border-left: 4px solid <%= answer.is_correct ? 'var(--color-success)' : 'var(--color-error)' %>;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--spacing-md);">
+              <h3 style="margin: 0;">Question <%= index + 1 %></h3>
+              <% if (answer.is_correct) { %>
+                <span style="background: var(--color-success); color: white; padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--border-radius); font-size: 0.875rem; font-weight: 600;">Correct</span>
+              <% } else { %>
+                <span style="background: var(--color-error); color: white; padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--border-radius); font-size: 0.875rem; font-weight: 600;">Incorrect</span>
+              <% } %>
+            </div>
+            
+            <p style="font-size: 1.1rem; margin-bottom: var(--spacing-lg);"><%= answer.question_text %></p>
+            
+            <div style="margin-bottom: var(--spacing-md);">
+              <p><strong>Your Answer:</strong> 
+                <span style="color: <%= answer.is_correct ? 'var(--color-success)' : 'var(--color-error)' %>;">
+                  <%= answer.selected_answer %> - 
+                  <% if (answer.selected_answer === 'A') { %><%= answer.option_a %>
+                  <% } else if (answer.selected_answer === 'B') { %><%= answer.option_b %>
+                  <% } else if (answer.selected_answer === 'C') { %><%= answer.option_c %>
+                  <% } else { %><%= answer.option_d %><% } %>
+                </span>
+              </p>
+              
+              <% if (!answer.is_correct && typeof passed !== 'undefined' && passed) { %>
+                <p><strong>Correct Answer:</strong> 
+                  <span style="color: var(--color-success);">
+                    <%= answer.correct_answer %> - 
+                    <% if (answer.correct_answer === 'A') { %><%= answer.option_a %>
+                    <% } else if (answer.correct_answer === 'B') { %><%= answer.option_b %>
+                    <% } else if (answer.correct_answer === 'C') { %><%= answer.option_c %>
+                    <% } else { %><%= answer.option_d %><% } %>
+                  </span>
+                </p>
+              <% } else if (!answer.is_correct && (typeof passed === 'undefined' || !passed)) { %>
+                <p style="color: var(--color-error); font-style: italic;">
+                  <i class="fas fa-lock"></i> Correct answers will be shown after you pass the test.
+                </p>
+              <% } %>
+            </div>
+            
+            <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+              <span style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-gray-light); border-radius: var(--border-radius); font-size: 0.875rem;">
+                A: <%= answer.option_a %>
+              </span>
+              <span style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-gray-light); border-radius: var(--border-radius); font-size: 0.875rem;">
+                B: <%= answer.option_b %>
+              </span>
+              <span style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-gray-light); border-radius: var(--border-radius); font-size: 0.875rem;">
+                C: <%= answer.option_c %>
+              </span>
+              <span style="padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-gray-light); border-radius: var(--border-radius); font-size: 0.875rem;">
+                D: <%= answer.option_d %>
+              </span>
+            </div>
+          </div>
+        <% }); %>
+        
+        <div style="text-align: center; margin-top: var(--spacing-xl); padding-top: var(--spacing-xl); border-top: 2px solid var(--color-gray-light);">
+          <a href="/dashboard" class="btn btn-primary">Back to Dashboard</a>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+

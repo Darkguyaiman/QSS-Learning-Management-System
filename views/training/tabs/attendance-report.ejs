@@ -1,0 +1,324 @@
+<!-- Attendance Report Sub-tab -->
+<div id="attendance-report" class="attendance-sub-content">
+  <div class="attendance-update-container">
+    <div class="form-group">
+      <label for="report-session-select">Select Session <span class="required">*</span></label>
+      <div class="select-wrapper">
+        <select id="report-session-select" class="form-input session-select" required>
+          <option value="">-- Select a session --</option>
+        </select>
+        <i class="fas fa-chevron-down select-arrow"></i>
+      </div>
+    </div>
+
+    <div id="report-preview" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
+        <div>
+          <div style="font-weight:600; color:#202124; font-size: 1.1rem;">Attendance Report Preview</div>
+          <div id="report-session-meta" style="color:#5F6368; margin-top: 0.25rem;"></div>
+        </div>
+        <button type="button" id="btn-generate-report" class="btn btn-primary">
+          <i class="fas fa-file-pdf"></i> Generate PDF
+        </button>
+      </div>
+
+      <div class="attendance-summary-table-container" style="margin-top: 1rem;">
+        <div class="table-wrapper">
+          <table class="attendance-summary-table" id="report-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">#</th>
+                <th>Trainee</th>
+                <th>Trainee ID</th>
+                <th class="text-center" style="width: 120px;">Status</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="report-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- jsPDF (UMD) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+  function getAttendanceTrainingIdForReport() {
+    const el = document.getElementById('attendance-tab');
+    const raw = el?.dataset?.trainingId;
+    const n = raw ? parseInt(raw, 10) : NaN;
+    return Number.isFinite(n) ? n : null;
+  }
+
+  async function loadReportSessions() {
+    const trainingId = getAttendanceTrainingIdForReport();
+    if (!trainingId) return;
+    
+    try {
+      const response = await fetch(`/attendance/sessions/${trainingId}`);
+      const sessions = await response.json();
+      
+      const select = document.getElementById('report-session-select');
+      if (!select) return;
+      
+      select.innerHTML = '<option value="">-- Select a session --</option>';
+      sessions.forEach(session => {
+        let dateStr = session.date;
+        if (dateStr && dateStr.includes('T')) dateStr = dateStr.split('T')[0];
+        
+        const option = document.createElement('option');
+        option.value = session.id;
+        option.dataset.date = dateStr || '';
+        option.dataset.time = session.time || '';
+        option.dataset.duration = session.duration || '';
+        
+        // Friendly label (re-use the same formatting logic used in update dropdown)
+        const dateObj = dateStr ? new Date(dateStr + 'T00:00:00') : null;
+        let formattedDate = dateStr || 'N/A';
+        if (dateObj && !isNaN(dateObj.getTime())) {
+          formattedDate = dateObj.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+        }
+        
+        let formattedTime = 'N/A';
+        if (session.time) {
+          let timeStr = session.time;
+          if (timeStr.split(':').length === 3) timeStr = timeStr.substring(0, 5);
+          const [hours, minutes] = timeStr.split(':');
+          const hour24 = parseInt(hours);
+          const hour12 = hour24 % 12 || 12;
+          const ampm = hour24 >= 12 ? 'PM' : 'AM';
+          formattedTime = `${hour12}:${minutes} ${ampm}`;
+        }
+        
+        let formattedDuration = 'N/A';
+        if (session.duration) {
+          const d = parseFloat(session.duration);
+          const d2 = Math.round(d * 100) / 100;
+          formattedDuration = `${d2} ${d2 == 1 ? 'hour' : 'hours'}`;
+        }
+        
+        option.textContent = `${formattedDate} • ${formattedTime} • ${formattedDuration}`;
+        select.appendChild(option);
+      });
+    } catch (error) {
+      console.error('Error loading report sessions:', error);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const reportSelect = document.getElementById('report-session-select');
+    if (reportSelect) {
+      reportSelect.addEventListener('change', async function() {
+        const selectedOption = reportSelect.options[reportSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) {
+          document.getElementById('report-preview').style.display = 'none';
+          return;
+        }
+        
+        const trainingId = getAttendanceTrainingIdForReport();
+        const date = selectedOption.dataset.date;
+        const time = selectedOption.dataset.time || '';
+        const duration = selectedOption.dataset.duration || '';
+        
+        try {
+          const response = await fetch(`/attendance/session-details/${trainingId}?date=${encodeURIComponent(date)}`);
+          const data = await response.json();
+          
+          const meta = document.getElementById('report-session-meta');
+          if (meta) {
+            meta.textContent = `Date: ${date || 'N/A'} • Time: ${time ? time.substring(0, 5) : 'N/A'} • Duration: ${duration || 'N/A'} hour(s)`;
+          }
+          
+          const tbody = document.getElementById('report-table-body');
+          tbody.innerHTML = '';
+          (data.records || []).forEach((r, idx) => {
+            const tr = document.createElement('tr');
+            const status = (r.status || '').toLowerCase();
+            const statusBadge =
+              status === 'present' ? `<span class="badge badge-present"><i class="fas fa-check"></i> Present</span>` :
+              status === 'absent' ? `<span class="badge badge-absent"><i class="fas fa-times"></i> Absent</span>` :
+              `<span class="badge" style="background: rgba(249,171,0,0.12); color:#B06000;"><i class="fas fa-clock"></i> ${status || 'N/A'}</span>`;
+            
+            const fullName = (((r.first_name || '') + ' ' + (r.last_name || '')).trim());
+            
+            tr.innerHTML = `
+              <td data-label="#">${idx + 1}</td>
+              <td data-label="Trainee"><strong>${escapeHtml(fullName)}</strong></td>
+              <td data-label="Trainee ID"><span class="trainee-id-cell">${escapeHtml(r.trainee_id || '')}</span></td>
+              <td class="text-center" data-label="Status">${statusBadge}</td>
+              <td data-label="Notes">${escapeHtml(r.notes || '')}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+          
+          document.getElementById('report-preview').style.display = 'block';
+          
+          const btn = document.getElementById('btn-generate-report');
+          if (btn) {
+            btn.onclick = () => generateAttendancePdfReport({
+              trainingTitle: <%- JSON.stringify(typeof training !== 'undefined' ? training.title : '') %>,
+              sessionDate: date,
+              sessionTime: time ? time.substring(0, 5) : '',
+              sessionDuration: duration,
+              records: data.records || [],
+              generatedByName: <%- JSON.stringify(user.userName || '') %>,
+              generatedByPosition: <%- JSON.stringify(user.userPosition || '') %>
+            });
+          }
+        } catch (error) {
+          console.error('Error loading report session details:', error);
+          qssShowError('Error loading attendance session for report. Please try again.');
+        }
+      });
+    }
+  });
+
+  function escapeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function generateAttendancePdfReport({ trainingTitle, sessionDate, sessionTime, sessionDuration, records, generatedByName, generatedByPosition }) {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      qssShowError('jsPDF failed to load. Please refresh the page and try again.');
+      return;
+    }
+    
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 40;
+    
+    let y = margin;
+    
+    // Header
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('Attendance Report', margin, y);
+    y += 18;
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text(`Training: ${trainingTitle || '-'}`, margin, y);
+    y += 14;
+    doc.text(`Session Date: ${sessionDate || '-'}   Time: ${sessionTime || '-'}   Duration: ${sessionDuration || '-'} hour(s)`, margin, y);
+    y += 14;
+    
+    const generatedLine = generatedByPosition ? `${generatedByName} (${generatedByPosition})` : generatedByName;
+    doc.text(`Generated by: ${generatedLine || '-'}`, margin, y);
+    y += 16;
+    
+    // Summary
+    const presentCount = records.filter(r => (r.status || '').toLowerCase() === 'present').length;
+    const absentCount = records.filter(r => (r.status || '').toLowerCase() === 'absent').length;
+    const total = records.length;
+    doc.text(`Summary: Total ${total}   Present ${presentCount}   Absent ${absentCount}`, margin, y);
+    y += 18;
+    
+    // Table
+    const colNo = margin;
+    const colName = margin + 35;
+    const colId = margin + 250;
+    const colStatus = margin + 340;
+    const colNotes = margin + 430;
+    const rowHeight = 16;
+    
+    function drawTableHeader() {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('#', colNo, y);
+      doc.text('Trainee', colName, y);
+      doc.text('Trainee ID', colId, y);
+      doc.text('Status', colStatus, y);
+      doc.text('Notes', colNotes, y);
+      y += 10;
+      doc.setDrawColor(200);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 10;
+      doc.setFont('helvetica', 'normal');
+    }
+    
+    function ensureSpace(needed) {
+      const reservedForSignatures = 140;
+      if (y + needed > pageHeight - reservedForSignatures) {
+        doc.addPage();
+        y = margin;
+        drawTableHeader();
+      }
+    }
+    
+    drawTableHeader();
+    
+    doc.setFontSize(10);
+    records.forEach((r, idx) => {
+      const name = `${r.first_name || ''} ${r.last_name || ''}`.trim();
+      const traineeId = r.trainee_id || '';
+      const status = (r.status || '').toUpperCase();
+      const notes = (r.notes || '').toString();
+      
+      const notesLines = doc.splitTextToSize(notes, pageWidth - margin - colNotes);
+      const linesNeeded = Math.max(1, notesLines.length);
+      const blockHeight = linesNeeded * rowHeight;
+      
+      ensureSpace(blockHeight + 6);
+      
+      doc.text(String(idx + 1), colNo, y);
+      doc.text(doc.splitTextToSize(name, colId - colName - 10), colName, y);
+      doc.text(String(traineeId), colId, y);
+      doc.text(status || '-', colStatus, y);
+      doc.text(notesLines.length ? notesLines : [''], colNotes, y);
+      
+      y += blockHeight;
+      y += 6;
+      doc.setDrawColor(240);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 10;
+    });
+    
+    // Signatures (bottom)
+    ensureSpace(150);
+    y = Math.max(y, pageHeight - 130);
+    
+    const mid = (pageWidth) / 2;
+    const leftX = margin;
+    const rightX = mid + 10;
+    const lineW = mid - margin - 20;
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Generated by (Trainer)', leftX, y);
+    doc.text('Confirmed by', rightX, y);
+    y += 18;
+    
+    doc.setDrawColor(0);
+    doc.line(leftX, y, leftX + lineW, y);
+    doc.line(rightX, y, rightX + lineW, y);
+    y += 14;
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text('Signature', leftX, y);
+    doc.text('Signature', rightX, y);
+    y += 20;
+    
+    doc.line(leftX, y, leftX + lineW, y);
+    doc.line(rightX, y, rightX + lineW, y);
+    y += 14;
+    doc.text('Name (print)', leftX, y);
+    doc.text('Name (print)', rightX, y);
+    
+    const safeDate = (sessionDate || 'session').replaceAll('/', '-');
+    doc.save(`Attendance_Report_${safeDate}.pdf`);
+  }
+</script>
+
+

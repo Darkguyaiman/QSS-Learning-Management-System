@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= material.title %> - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .material-view-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .material-view-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid #E8EAED;
+    }
+    
+    .material-view-header h1 {
+      margin: 0;
+      font-size: 1.75rem;
+      font-weight: 400;
+      color: #202124;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .material-view-header h1 i {
+      color: #573FD7;
+      font-size: 1.5rem;
+    }
+    
+    .section-card {
+      background: white;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+    
+    .material-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid #E8EAED;
+    }
+    
+    .material-info-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: #5F6368;
+      font-size: 0.875rem;
+    }
+    
+    .material-info-item i {
+      color: #573FD7;
+      width: 20px;
+      text-align: center;
+    }
+    
+    .material-preview-section {
+      margin-top: 1.5rem;
+    }
+    
+    .video-container {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%; /* 16:9 aspect ratio */
+      height: 0;
+      overflow: hidden;
+      border-radius: 8px;
+      background: #000;
+      margin-bottom: 1rem;
+    }
+    
+    .video-container iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    
+    .preview-card {
+      background: #F8F9FA;
+      border-radius: 8px;
+      padding: 3rem 2rem;
+      text-align: center;
+      border: 1px solid #E8EAED;
+    }
+    
+    .preview-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    
+    .preview-icon.video {
+      color: #D93025;
+    }
+    
+    .preview-icon.document {
+      color: #1967D2;
+    }
+    
+    .preview-icon.link {
+      color: #137333;
+    }
+    
+    .preview-card h3 {
+      margin: 0 0 0.5rem 0;
+      color: #202124;
+      font-size: 1.125rem;
+      font-weight: 500;
+    }
+    
+    .preview-card p {
+      margin: 0 0 1.5rem 0;
+      color: #5F6368;
+      font-size: 0.875rem;
+    }
+    
+    .btn-group {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
+    @media (max-width: 768px) {
+      .material-view-container {
+        padding: 1rem;
+      }
+      
+      .material-content-card {
+        padding: 1.5rem;
+      }
+      
+      .material-view-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+      
+      .material-info {
+        flex-direction: column;
+        gap: 1rem;
+      }
+      
+      .btn-group {
+        flex-direction: column;
+      }
+      
+      .btn-group .btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body class="<%= ['admin', 'trainer'].includes(user.userRole) ? 'has-sidebar' : 'has-navbar' %>">
+  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+    <%- include('../partials/sidebar', { user }) %>
+  <% } else { %>
+    <%- include('../partials/navbar', { user }) %>
+  <% } %>
+  
+  <main class="main-content">
+    <div class="material-view-container">
+      <div class="material-view-header">
+        <h1>
+          <% if (material.type === 'video') { %>
+            <i class="fas fa-video"></i>
+          <% } else if (material.type === 'document') { %>
+            <i class="fas fa-file-alt"></i>
+          <% } else { %>
+            <i class="fas fa-link"></i>
+          <% } %>
+          <%= material.title %>
+        </h1>
+        <a href="/training/<%= training.id %>?tab=coursework" class="btn btn-outline">
+          <i class="fas fa-arrow-left"></i> Back to Coursework
+        </a>
+      </div>
+      
+      <div class="section-card">
+        <div class="material-info">
+          <% if (material.uploaded_by_name) { %>
+            <div class="material-info-item">
+              <i class="fas fa-user"></i>
+              <span><%= material.uploaded_by_name %></span>
+            </div>
+          <% } %>
+          <% if (material.section_title) { %>
+            <div class="material-info-item">
+              <i class="fas fa-folder"></i>
+              <span><%= material.section_title %></span>
+            </div>
+          <% } %>
+        </div>
+        
+        <!-- Material Preview Section -->
+        <div class="material-preview-section">
+          <!-- Video Content -->
+          <% if (material.type === 'video') { %>
+            <% 
+              let videoEmbedUrl = null;
+              let isYouTube = false;
+              let isVimeo = false;
+              
+              if (material.url) {
+                // Check if YouTube
+                const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+                const youtubeMatch = material.url.match(youtubeRegex);
+                
+                // Check if Vimeo
+                const vimeoRegex = /(?:vimeo\.com\/)(\d+)/;
+                const vimeoMatch = material.url.match(vimeoRegex);
+                
+                if (youtubeMatch) {
+                  videoEmbedUrl = `https://www.youtube.com/embed/${youtubeMatch[1]}`;
+                  isYouTube = true;
+                } else if (vimeoMatch) {
+                  videoEmbedUrl = `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+                  isVimeo = true;
+                }
+              }
+            %>
+            
+            <% if (videoEmbedUrl) { %>
+              <div class="video-container">
+                <iframe 
+                  src="<%= videoEmbedUrl %>" 
+                  frameborder="0" 
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                  allowfullscreen>
+                </iframe>
+              </div>
+            <% } else { %>
+              <div class="preview-card">
+                <div class="preview-icon video">
+                  <i class="fas fa-video"></i>
+                </div>
+                <h3>Video Link</h3>
+                <p>This video cannot be embedded. Please open the link to view it.</p>
+                <div class="btn-group">
+                  <a href="<%= material.url %>" target="_blank" class="btn btn-primary">
+                    <i class="fas fa-external-link-alt"></i> Open Video Link
+                  </a>
+                </div>
+              </div>
+            <% } %>
+          <% } %>
+          
+          <!-- Document Content -->
+          <% if (material.type === 'document') { %>
+            <div class="preview-card">
+              <div class="preview-icon document">
+                <i class="fas fa-file-alt"></i>
+              </div>
+              <h3>Document</h3>
+              <% if (material.file_path) { %>
+                <p>Click the button below to download or view the document.</p>
+                <div class="btn-group">
+                  <a href="<%= material.file_path %>" target="_blank" class="btn btn-primary">
+                    <i class="fas fa-download"></i> Download Document
+                  </a>
+                  <a href="<%= material.file_path %>" target="_blank" class="btn btn-secondary">
+                    <i class="fas fa-external-link-alt"></i> Open in New Tab
+                  </a>
+                </div>
+              <% } else if (material.url) { %>
+                <p>This document is available via a link. Click below to open it.</p>
+                <div class="btn-group">
+                  <a href="<%= material.url %>" target="_blank" class="btn btn-primary">
+                    <i class="fas fa-external-link-alt"></i> Open Document Link
+                  </a>
+                </div>
+              <% } else { %>
+                <p>No document file or link available.</p>
+              <% } %>
+            </div>
+          <% } %>
+          
+          <!-- Link Content -->
+          <% if (material.type === 'link') { %>
+            <div class="preview-card">
+              <div class="preview-icon link">
+                <i class="fas fa-link"></i>
+              </div>
+              <h3>External Link</h3>
+              <p>Click the button below to open this link in a new tab.</p>
+              <div class="btn-group">
+                <a href="<%= material.url %>" target="_blank" class="btn btn-primary">
+                  <i class="fas fa-external-link-alt"></i> Open Link
+                </a>
+              </div>
+            </div>
+          <% } %>
+        </div>
+      </div>
+      
+      <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+        <div class="section-card">
+          <div class="btn-group">
+            <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="btn btn-outline">
+              <i class="fas fa-edit"></i> Edit Material
+            </a>
+            <a href="/training/<%= training.id %>?tab=coursework" class="btn btn-secondary">
+              <i class="fas fa-arrow-left"></i> Back to Coursework
+            </a>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </main>
+  
+  <script src="/js/main.js"></script>
+</body>
+</html>

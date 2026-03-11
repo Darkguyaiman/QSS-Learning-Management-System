@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Question - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .form-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    .form-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+      border-radius: 20px;
+      padding: 2.5rem;
+      box-shadow: 0 20px 60px rgba(87, 63, 215, 0.15);
+      border: 1px solid rgba(87, 63, 215, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .form-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #573FD7 0%, #11358B 50%, #E48F24 100%);
+    }
+    
+    .form-section {
+      margin-bottom: 2rem;
+    }
+    
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #573FD7;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid rgba(87, 63, 215, 0.1);
+    }
+    
+    .section-title i {
+      font-size: 1.2rem;
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: #2A2A2A;
+      margin-bottom: 0.75rem;
+      font-size: 0.95rem;
+    }
+    
+    .form-group label i {
+      color: #573FD7;
+      font-size: 0.9rem;
+    }
+    
+    .form-input,
+    .form-select,
+    textarea.form-input {
+      width: 100%;
+      padding: 0.875rem 1.25rem;
+      border: 2px solid #E5E7EB;
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: #ffffff;
+      font-family: inherit;
+    }
+    
+    .form-input:focus,
+    .form-select:focus,
+    textarea.form-input:focus {
+      outline: none;
+      border-color: #573FD7;
+      box-shadow: 0 0 0 4px rgba(87, 63, 215, 0.1);
+      transform: translateY(-1px);
+    }
+    
+    textarea.form-input {
+      resize: vertical;
+      min-height: 120px;
+      line-height: 1.6;
+    }
+    
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .option-card {
+      background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
+      border: 2px solid #E5E7EB;
+      border-radius: 12px;
+      padding: 1rem;
+      transition: all 0.3s ease;
+    }
+    
+    .option-card:focus-within {
+      border-color: #573FD7;
+      box-shadow: 0 4px 12px rgba(87, 63, 215, 0.15);
+      transform: translateY(-2px);
+    }
+    
+    .option-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: #573FD7;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+    
+    .option-label span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background: linear-gradient(135deg, #573FD7 0%, #11358B 100%);
+      color: white;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    
+    .form-actions {
+      display: flex;
+      gap: var(--spacing-md);
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 2px solid rgba(87, 63, 215, 0.1);
+    }
+    
+    .btn-lg {
+      padding: var(--spacing-md) var(--spacing-xl);
+      font-size: 1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      justify-content: center;
+    }
+    
+    .btn-lg i {
+      font-size: 0.875rem;
+    }
+    
+    .btn-excel {
+      background-color: #217346;
+      color: var(--color-white);
+    }
+    
+    .btn-excel:hover {
+      background-color: #1a5a36;
+    }
+    
+    .btn-sm {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .btn-success {
+      background-color: var(--color-success);
+      color: var(--color-white);
+    }
+    
+    .btn-success:hover {
+      background-color: #059669;
+    }
+    
+    .template-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .template-modal.active {
+      display: flex;
+    }
+    
+    .template-modal-content {
+      background: var(--color-white);
+      border-radius: var(--border-radius-lg);
+      padding: var(--spacing-2xl);
+      max-width: 700px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .template-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-lg);
+      padding-bottom: var(--spacing-md);
+      border-bottom: 2px solid var(--color-gray-light);
+    }
+    
+    .template-modal-header h2 {
+      margin: 0;
+      color: var(--color-dark);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+    
+    .template-modal-header h2 i {
+      color: #217346;
+    }
+    
+    .rules-section {
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .rules-section h3 {
+      color: var(--color-purple);
+      margin-bottom: var(--spacing-sm);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+    }
+    
+    .rules-section ul {
+      margin: 0;
+      padding-left: var(--spacing-lg);
+      color: var(--color-dark);
+    }
+    
+    .rules-section li {
+      margin-bottom: var(--spacing-xs);
+      line-height: 1.6;
+    }
+    
+    .rules-section .do {
+      color: var(--color-success);
+    }
+    
+    .rules-section .dont {
+      color: var(--color-error);
+    }
+    
+    .column-guide {
+      background: var(--color-gray-light);
+      border-radius: var(--border-radius);
+      padding: var(--spacing-md);
+      margin: var(--spacing-md) 0;
+      font-family: monospace;
+      font-size: 0.9rem;
+    }
+    
+    .column-guide table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .column-guide td {
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-bottom: 1px solid var(--color-gray-light);
+    }
+    
+    .column-guide td:first-child {
+      font-weight: 600;
+      color: var(--color-purple);
+    }
+    
+    .bulk-upload-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .bulk-upload-modal.active {
+      display: flex;
+    }
+    
+    .bulk-upload-content {
+      background: var(--color-white);
+      border-radius: var(--border-radius-lg);
+      padding: var(--spacing-2xl);
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .bulk-upload-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-lg);
+      padding-bottom: var(--spacing-md);
+      border-bottom: 2px solid var(--color-gray-light);
+    }
+    
+    .bulk-upload-header h2 {
+      margin: 0;
+      color: var(--color-dark);
+    }
+    
+    .close-modal {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--color-gray);
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .close-modal:hover {
+      color: var(--color-dark);
+    }
+    
+    .validation-errors {
+      background: #FEE2E2;
+      border: 2px solid var(--color-error);
+      border-radius: var(--border-radius);
+      padding: var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .validation-errors h3 {
+      color: var(--color-error);
+      margin-bottom: var(--spacing-sm);
+      font-size: 1rem;
+    }
+    
+    .validation-errors ul {
+      margin: 0;
+      padding-left: var(--spacing-lg);
+      color: #991B1B;
+    }
+    
+    .validation-errors li {
+      margin-bottom: var(--spacing-xs);
+    }
+    
+    .validation-success {
+      background: #D1FAE5;
+      border: 2px solid var(--color-success);
+      border-radius: var(--border-radius);
+      padding: var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
+      color: #065F46;
+    }
+    
+    .alert-error {
+      background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+      border: 2px solid #EF4444;
+      color: #991B1B;
+      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .alert-error i {
+      font-size: 1.25rem;
+    }
+    
+    /* Tablet styles */
+    @media (max-width: 1024px) {
+      .form-card {
+        padding: 2rem;
+      }
+      
+      .options-grid {
+        gap: 1rem;
+      }
+      
+      .template-modal-content,
+      .bulk-upload-content {
+        padding: var(--spacing-xl);
+        max-width: 90%;
+      }
+    }
+    
+    /* Mobile styles */
+    @media (max-width: 768px) {
+      .main-content .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+      
+      .form-container {
+        max-width: 100%;
+        padding: 0;
+      }
+      
+      .form-card {
+        padding: 1.25rem;
+        border-radius: 12px;
+        margin: 0;
+        box-shadow: 0 10px 30px rgba(87, 63, 215, 0.1);
+      }
+      
+      .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 1rem;
+        padding: 1.5rem 1rem !important;
+      }
+      
+      .dashboard-header h1 {
+        font-size: 1.5rem;
+      }
+      
+      .dashboard-header > div {
+        width: 100%;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      
+      .dashboard-header .btn {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .form-section {
+        margin-bottom: 1.5rem;
+      }
+      
+      .section-title {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+      }
+      
+      .form-group {
+        margin-bottom: 1.25rem;
+      }
+      
+      .form-group:last-child {
+        margin-bottom: 0;
+      }
+      
+      .form-group label {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+      }
+      
+      .options-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+      
+      .option-card {
+        padding: 0.875rem;
+      }
+      
+      .option-label {
+        font-size: 0.875rem;
+      }
+      
+      .form-row {
+        grid-template-columns: 1fr !important;
+        gap: 0;
+      }
+      
+      /* Option buttons container */
+      .options-section + div,
+      .options-grid + div {
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+      }
+      
+      .options-section + div .btn,
+      .options-grid + div .btn {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .form-actions {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+      }
+      
+      .form-actions .btn {
+        width: 100%;
+        justify-content: center;
+        min-height: 48px;
+      }
+      
+      .form-input,
+      .form-select,
+      textarea.form-input {
+        font-size: 16px; /* Prevents zoom on iOS */
+        padding: 0.875rem 1rem;
+        border-radius: 10px;
+      }
+      
+      textarea.form-input {
+        min-height: 100px;
+      }
+      
+      .alert-error {
+        padding: 0.875rem 1rem;
+        font-size: 0.875rem;
+      }
+      
+      /* Modal responsiveness */
+      .template-modal-content,
+      .bulk-upload-content {
+        padding: var(--spacing-lg);
+        max-width: 95%;
+        max-height: 90vh;
+        margin: 1rem;
+      }
+      
+      .template-modal-header,
+      .bulk-upload-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+      }
+      
+      .template-modal-header h2,
+      .bulk-upload-header h2 {
+        font-size: 1.125rem;
+      }
+      
+      .close-modal {
+        align-self: flex-end;
+      }
+      
+      .rules-section {
+        margin-bottom: var(--spacing-md);
+      }
+      
+      .rules-section h3 {
+        font-size: 0.9375rem;
+      }
+      
+      .rules-section ul {
+        font-size: 0.875rem;
+        padding-left: var(--spacing-md);
+      }
+      
+      .column-guide {
+        padding: var(--spacing-sm);
+        font-size: 0.8125rem;
+        overflow-x: auto;
+      }
+      
+      .validation-errors,
+      .validation-success {
+        padding: var(--spacing-sm);
+        font-size: 0.875rem;
+      }
+      
+      .validation-errors h3 {
+        font-size: 0.9375rem;
+      }
+      
+      .validation-errors ul {
+        font-size: 0.8125rem;
+      }
+    }
+    
+    /* Small mobile devices */
+    @media (max-width: 480px) {
+      .form-card {
+        padding: 1rem;
+        border-radius: 10px;
+      }
+      
+      .dashboard-header {
+        padding: 1rem !important;
+      }
+      
+      .dashboard-header h1 {
+        font-size: 1.25rem;
+      }
+      
+      .section-title {
+        font-size: 0.9375rem;
+      }
+      
+      .section-title i {
+        font-size: 1rem;
+      }
+      
+      .form-group label {
+        font-size: 0.875rem;
+      }
+      
+      .form-input,
+      .form-select,
+      textarea.form-input {
+        padding: 0.75rem 0.875rem;
+        font-size: 16px;
+      }
+      
+      textarea.form-input {
+        min-height: 90px;
+      }
+      
+      .option-card {
+        padding: 0.75rem;
+      }
+      
+      .option-label {
+        font-size: 0.8125rem;
+      }
+      
+      .option-label span {
+        width: 20px;
+        height: 20px;
+        font-size: 0.7rem;
+      }
+      
+      .form-actions .btn {
+        padding: 0.75rem 1.25rem;
+        font-size: 0.9375rem;
+      }
+      
+      .form-actions .btn i {
+        font-size: 0.8125rem;
+      }
+      
+      .btn-sm {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+      }
+      
+      .template-modal-content,
+      .bulk-upload-content {
+        padding: var(--spacing-md);
+        max-width: 98%;
+        margin: 0.5rem;
+      }
+      
+      .template-modal-header h2,
+      .bulk-upload-header h2 {
+        font-size: 1rem;
+      }
+      
+      .rules-section h3 {
+        font-size: 0.875rem;
+      }
+      
+      .rules-section ul {
+        font-size: 0.8125rem;
+      }
+      
+      .column-guide {
+        font-size: 0.75rem;
+      }
+      
+      .column-guide td {
+        padding: var(--spacing-xs);
+        font-size: 0.75rem;
+      }
+    }
+  </style>
+</head>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
+  
+  <main class="main-content">
+    <div class="container">
+      <div class="dashboard-header">
+        <h1>Create New Question</h1>
+        <div style="display: flex; gap: var(--spacing-md); align-items: center;">
+          <button type="button" id="downloadTemplateBtn" class="btn btn-excel btn-lg">
+            <i class="fas fa-file-excel"></i>
+            Download Template
+          </button>
+          <button type="button" id="uploadBulkBtn" class="btn btn-excel btn-lg">
+            <i class="fas fa-upload"></i>
+            Upload Bulk Questions
+          </button>
+          <a href="/questions" class="btn btn-outline">Back</a>
+        </div>
+      </div>
+      
+      <!-- Hidden file input for bulk upload -->
+      <input type="file" id="bulkUploadInput" accept=".xlsx,.xls" style="display: none;">
+      
+      <!-- Store objectives for frontend validation -->
+      <script type="text/javascript">
+        window.availableObjectives = [];
+        <% objectives.forEach(function(obj) { %>
+        window.availableObjectives.push('<%= obj.name.replace(/'/g, "\\'") %>');
+        <% }); %>
+      </script>
+      
+      <div class="form-container">
+        <% if (error) { %>
+          <div class="alert-error">
+            <i class="fas fa-exclamation-circle"></i>
+            <span><%= error %></span>
+          </div>
+        <% } %>
+        
+        <div class="form-card">
+          <form action="/questions/create" method="POST">
+            <div class="form-section">
+              <div class="section-title">
+                <i class="fas fa-question-circle"></i>
+                Question Details
+              </div>
+              
+              <div class="form-group">
+                <label for="questionText">
+                  <i class="fas fa-file-alt"></i>
+                  Question *
+                </label>
+                <textarea id="questionText" name="questionText" class="form-input" rows="4" required placeholder="Enter your question here..."></textarea>
+              </div>
+              
+              <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+                <div class="form-group">
+                  <label for="testType">
+                    <i class="fas fa-clipboard-check"></i>
+                    Test Type *
+                  </label>
+                  <select id="testType" name="testType" class="form-select" required>
+                    <option value="">Select test type</option>
+                    <option value="pre_test">Pre-Test</option>
+                    <option value="post_test">Post-Test</option>
+                    <option value="refreshment">Refreshment Test</option>
+                    <option value="certificate_enrolment">Certificate Enrolment Test</option>
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label for="objectiveId">
+                    <i class="fas fa-bullseye"></i>
+                    Objective *
+                  </label>
+                  <select id="objectiveId" name="objectiveId" class="form-select" required>
+                    <option value="">Select objective</option>
+                    <% objectives.forEach(objective => { %>
+                      <option value="<%= objective.id %>"><%= objective.name %></option>
+                    <% }); %>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-title">
+                <i class="fas fa-list-ul"></i>
+                Answer Options
+              </div>
+              
+              <div class="options-grid">
+                <div class="option-card">
+                  <label class="option-label" for="optionA">
+                    <span>A</span>
+                    Option A *
+                  </label>
+                  <input type="text" id="optionA" name="optionA" class="form-input" required placeholder="Enter option A">
+                </div>
+                
+                <div class="option-card">
+                  <label class="option-label" for="optionB">
+                    <span>B</span>
+                    Option B *
+                  </label>
+                  <input type="text" id="optionB" name="optionB" class="form-input" required placeholder="Enter option B">
+                </div>
+                
+                <div class="option-card" id="optionCContainer">
+                  <label class="option-label" for="optionC">
+                    <span>C</span>
+                    Option C
+                  </label>
+                  <input type="text" id="optionC" name="optionC" class="form-input" placeholder="Enter option C (optional)">
+                </div>
+                
+                <div class="option-card" id="optionDContainer">
+                  <label class="option-label" for="optionD">
+                    <span>D</span>
+                    Option D
+                  </label>
+                  <input type="text" id="optionD" name="optionD" class="form-input" placeholder="Enter option D (optional)">
+                </div>
+              </div>
+              
+              <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button type="button" id="addOptionC" class="btn btn-outline btn-sm" style="display: none;">
+                  <i class="fas fa-plus"></i> Add Option C
+                </button>
+                <button type="button" id="addOptionD" class="btn btn-outline btn-sm" style="display: none;">
+                  <i class="fas fa-plus"></i> Add Option D
+                </button>
+                <button type="button" id="removeOptionC" class="btn btn-outline btn-sm" style="display: none;">
+                  <i class="fas fa-times"></i> Remove Option C
+                </button>
+                <button type="button" id="removeOptionD" class="btn btn-outline btn-sm" style="display: none;">
+                  <i class="fas fa-times"></i> Remove Option D
+                </button>
+              </div>
+              
+              <div class="form-group">
+                <label for="correctAnswer">
+                  <i class="fas fa-check-circle"></i>
+                  Correct Answer *
+                </label>
+                <select id="correctAnswer" name="correctAnswer" class="form-select" required>
+                  <option value="">Select correct answer</option>
+                  <option value="A">Option A</option>
+                  <option value="B">Option B</option>
+                  <option value="C" id="correctAnswerC" style="display: none;">Option C</option>
+                  <option value="D" id="correctAnswerD" style="display: none;">Option D</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary btn-lg btn-block">
+                <i class="fas fa-plus-circle"></i>
+                Create Question
+              </button>
+              <a href="/questions" class="btn btn-outline btn-lg btn-block">
+                <i class="fas fa-times"></i>
+                Cancel
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="/js/main.js"></script>
+  <script>
+      // Wait for DOM to be fully loaded
+      document.addEventListener('DOMContentLoaded', function() {
+      // Dynamic option management
+      const optionCContainer = document.getElementById('optionCContainer');
+      const optionDContainer = document.getElementById('optionDContainer');
+      const optionCInput = document.getElementById('optionC');
+      const optionDInput = document.getElementById('optionD');
+      const addOptionC = document.getElementById('addOptionC');
+      const addOptionD = document.getElementById('addOptionD');
+      const removeOptionC = document.getElementById('removeOptionC');
+      const removeOptionD = document.getElementById('removeOptionD');
+      const correctAnswerSelect = document.getElementById('correctAnswer');
+      const correctAnswerC = document.getElementById('correctAnswerC');
+      const correctAnswerD = document.getElementById('correctAnswerD');
+      
+      // Initialize: Hide option C and D by default
+      if (optionCContainer) optionCContainer.style.display = 'none';
+      if (optionDContainer) optionDContainer.style.display = 'none';
+      if (addOptionC) addOptionC.style.display = 'inline-flex';
+      if (addOptionD) addOptionD.style.display = 'inline-flex';
+      if (removeOptionC) removeOptionC.style.display = 'none';
+      if (removeOptionD) removeOptionD.style.display = 'none';
+      
+      function updateCorrectAnswerOptions() {
+        const hasC = optionCContainer && optionCContainer.style.display !== 'none' && optionCInput && optionCInput.value.trim() !== '';
+        const hasD = optionDContainer && optionDContainer.style.display !== 'none' && optionDInput && optionDInput.value.trim() !== '';
+        
+        if (correctAnswerC) {
+          correctAnswerC.style.display = hasC ? 'block' : 'none';
+        }
+        if (correctAnswerD) {
+          correctAnswerD.style.display = hasD ? 'block' : 'none';
+        }
+        
+        // If current selection is C or D but option is removed, reset to empty
+        if (correctAnswerSelect && correctAnswerSelect.value === 'C' && !hasC) {
+          correctAnswerSelect.value = '';
+        }
+        if (correctAnswerSelect && correctAnswerSelect.value === 'D' && !hasD) {
+          correctAnswerSelect.value = '';
+        }
+      }
+      
+      // Add Option C
+      if (addOptionC) {
+        addOptionC.addEventListener('click', function() {
+          if (optionCContainer) optionCContainer.style.display = 'block';
+          if (addOptionC) addOptionC.style.display = 'none';
+          if (removeOptionC) removeOptionC.style.display = 'inline-flex';
+          if (optionCInput) optionCInput.focus();
+          updateCorrectAnswerOptions();
+        });
+      }
+      
+      // Remove Option C
+      if (removeOptionC) {
+        removeOptionC.addEventListener('click', function() {
+          if (optionCContainer) optionCContainer.style.display = 'none';
+          if (addOptionC) addOptionC.style.display = 'inline-flex';
+          if (removeOptionC) removeOptionC.style.display = 'none';
+          if (optionCInput) optionCInput.value = '';
+          updateCorrectAnswerOptions();
+        });
+      }
+      
+      // Add Option D
+      if (addOptionD) {
+        addOptionD.addEventListener('click', function() {
+          if (optionDContainer) optionDContainer.style.display = 'block';
+          if (addOptionD) addOptionD.style.display = 'none';
+          if (removeOptionD) removeOptionD.style.display = 'inline-flex';
+          if (optionDInput) optionDInput.focus();
+          updateCorrectAnswerOptions();
+        });
+      }
+      
+      // Remove Option D
+      if (removeOptionD) {
+        removeOptionD.addEventListener('click', function() {
+          if (optionDContainer) optionDContainer.style.display = 'none';
+          if (addOptionD) addOptionD.style.display = 'inline-flex';
+          if (removeOptionD) removeOptionD.style.display = 'none';
+          if (optionDInput) optionDInput.value = '';
+          updateCorrectAnswerOptions();
+        });
+      }
+      
+      // Update correct answer options when option inputs change
+      if (optionCInput) {
+        optionCInput.addEventListener('input', updateCorrectAnswerOptions);
+      }
+      if (optionDInput) {
+        optionDInput.addEventListener('input', updateCorrectAnswerOptions);
+      }
+      
+      // Bulk upload functionality
+      const uploadBulkBtn = document.getElementById('uploadBulkBtn');
+      if (uploadBulkBtn) {
+        uploadBulkBtn.addEventListener('click', function() {
+          const bulkUploadInput = document.getElementById('bulkUploadInput');
+          if (bulkUploadInput) {
+            bulkUploadInput.click();
+          }
+        });
+      }
+      
+      const bulkUploadInput = document.getElementById('bulkUploadInput');
+      if (bulkUploadInput) {
+        bulkUploadInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      // Show modal
+      const modal = document.getElementById('bulkUploadModal');
+      modal.classList.add('active');
+      
+      // Reset modal content
+      const errorsDiv = document.getElementById('validationErrors');
+      const successDiv = document.getElementById('validationSuccess');
+      const uploadBtn = document.getElementById('uploadBtn');
+      
+      if (errorsDiv) {
+        errorsDiv.innerHTML = '';
+        errorsDiv.style.display = 'none';
+      }
+      if (successDiv) {
+        successDiv.style.display = 'none';
+      }
+      if (uploadBtn) {
+        uploadBtn.disabled = true;
+      }
+      
+      // Read Excel file
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          // Use header: 1 to get array of arrays, and defval: '' for empty cells
+          // Also use raw: false to get formatted values
+          // Parse Excel with proper handling of empty cells
+          // Use sheet_to_json with header: 1 to get array of arrays
+          // The defval option ensures empty cells become empty strings
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { 
+            header: 1, 
+            defval: '',
+            raw: false,
+            blankrows: false
+          });
+          
+          // Ensure all rows have at least 8 columns (A through H)
+          // Pad rows that are shorter than expected - this fixes the issue where
+          // empty cells cause array indices to not match column positions
+          for (let i = 0; i < jsonData.length; i++) {
+            if (!Array.isArray(jsonData[i])) {
+              jsonData[i] = [];
+            }
+            while (jsonData[i].length < 8) {
+              jsonData[i].push('');
+            }
+          }
+          
+          // Debug: Log first few rows to console
+          console.log('Parsed Excel data (first 3 rows):', jsonData.slice(0, 3));
+          console.log('Sheet range:', firstSheet['!ref']);
+          
+          // Validate data
+          const validation = validateBulkData(jsonData);
+          
+          if (validation.errors.length > 0) {
+            // Show errors
+            if (errorsDiv) {
+              errorsDiv.style.display = 'block';
+              let errorsHtml = '<h3><i class="fas fa-exclamation-triangle"></i> Validation Errors</h3><ul>';
+              validation.errors.forEach(error => {
+                errorsHtml += `<li>${error}</li>`;
+              });
+              errorsHtml += '</ul>';
+              errorsDiv.innerHTML = errorsHtml;
+            }
+            if (uploadBtn) {
+              uploadBtn.disabled = true;
+            }
+          } else {
+            // Show success
+            if (successDiv) {
+              successDiv.style.display = 'block';
+              successDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${validation.validCount} questions validated successfully. Ready to upload!`;
+            }
+            if (uploadBtn) {
+              uploadBtn.disabled = false;
+              uploadBtn.dataset.validData = JSON.stringify(validation.validData);
+            }
+          }
+        } catch (error) {
+          if (errorsDiv) {
+            errorsDiv.style.display = 'block';
+            errorsDiv.innerHTML = `<h3><i class="fas fa-exclamation-triangle"></i> Error</h3><ul><li>Failed to read Excel file: ${error.message}</li></ul>`;
+          }
+          if (uploadBtn) {
+            uploadBtn.disabled = true;
+          }
+        }
+      };
+      reader.readAsArrayBuffer(file);
+      });
+      }
+      
+      // Validation function
+      function validateBulkData(data) {
+        const errors = [];
+        const validData = [];
+        const availableObjectives = window.availableObjectives || [];
+        
+        // Skip header row (row 0) and start from row 1 (index 1)
+        for (let i = 1; i < data.length; i++) {
+          const row = data[i];
+          const rowNum = i + 2; // Excel row number (accounting for header row)
+          
+          // Check if row is empty
+          if (!row || !Array.isArray(row) || row.every(cell => cell === null || cell === undefined || cell === '' || (typeof cell === 'string' && cell.trim() === ''))) {
+            continue; // Skip empty rows
+          }
+          
+          // Helper function to safely get cell value
+          function getCellValue(index) {
+            if (!row || !Array.isArray(row) || index >= row.length) return '';
+            const value = row[index];
+            if (value === null || value === undefined || value === '') return '';
+            // Handle numbers and other types
+            const strValue = String(value).trim();
+            return strValue;
+          }
+          
+          // Excel columns: A=Question, B=Test Type, C=Objective, D=Option A, E=Option B, F=Option C, G=Option D, H=Correct Answer
+          const question = getCellValue(0);
+          const testType = getCellValue(1).toLowerCase();
+          const objective = getCellValue(2);
+          const optionA = getCellValue(3);
+          const optionB = getCellValue(4);
+          const optionC = getCellValue(5);
+          const optionD = getCellValue(6);
+          const correctAnswer = getCellValue(7).toUpperCase();
+          
+          // Debug logging for first row with issues (only log once)
+          if (i === 1 && (!optionA || !optionB)) {
+            console.log('Row data:', row);
+            console.log('Row length:', row.length);
+            console.log('Parsed values:', { question, testType, objective, optionA, optionB, optionC, optionD, correctAnswer });
+          }
+          
+          // Validate required fields
+          if (!question) {
+            errors.push(`Row ${rowNum}: Question is required`);
+            continue;
+          }
+          
+          if (!testType || !['pre_test', 'post_test', 'refreshment', 'certificate_enrolment'].includes(testType)) {
+            errors.push(`Row ${rowNum}: Test Type must be one of: pre_test, post_test, refreshment, certificate_enrolment`);
+            continue;
+          }
+          
+          if (!objective) {
+            errors.push(`Row ${rowNum}: Objective is required`);
+            continue;
+          }
+          
+          // Validate objective exists in system
+          const objectiveExists = availableObjectives.some(obj => 
+            obj.toLowerCase() === objective.toLowerCase()
+          );
+          if (!objectiveExists) {
+            errors.push(`Row ${rowNum}: Objective "${objective}" not found in system. Available objectives: ${availableObjectives.join(', ')}`);
+            continue;
+          }
+          
+          // Validate options A and B (required)
+          // Check if the values are actually empty or just whitespace
+          const optionAEmpty = !optionA || optionA === '' || (typeof optionA === 'string' && optionA.trim() === '');
+          const optionBEmpty = !optionB || optionB === '' || (typeof optionB === 'string' && optionB.trim() === '');
+          
+          if (optionAEmpty) {
+            // Enhanced error message with debugging info
+            const debugInfo = `Row ${rowNum}: Option A is required (Column D). `;
+            const valueInfo = `Value: "${optionA}" (type: ${typeof optionA}, length: ${optionA ? String(optionA).length : 0})`;
+            const rowInfo = `Row array length: ${row.length}, Row[3]: ${row[3]}`;
+            errors.push(debugInfo + valueInfo + '. ' + rowInfo);
+            continue;
+          }
+          
+          if (optionBEmpty) {
+            // Enhanced error message with debugging info
+            const debugInfo = `Row ${rowNum}: Option B is required (Column E). `;
+            const valueInfo = `Value: "${optionB}" (type: ${typeof optionB}, length: ${optionB ? String(optionB).length : 0})`;
+            const rowInfo = `Row array length: ${row.length}, Row[4]: ${row[4]}`;
+            errors.push(debugInfo + valueInfo + '. ' + rowInfo);
+            continue;
+          }
+          
+          // Determine available options (C and D are optional)
+          const hasOptionC = optionC && optionC.trim() !== '';
+          const hasOptionD = optionD && optionD.trim() !== '';
+          const availableOptions = ['A', 'B'];
+          if (hasOptionC) availableOptions.push('C');
+          if (hasOptionD) availableOptions.push('D');
+          
+          if (!correctAnswer || !availableOptions.includes(correctAnswer)) {
+            errors.push(`Row ${rowNum}: Correct Answer must be one of: ${availableOptions.join(', ')}`);
+            continue;
+          }
+          
+          // Check for duplicate options
+          const options = [optionA.trim(), optionB.trim()];
+          if (hasOptionC) options.push(optionC.trim());
+          if (hasOptionD) options.push(optionD.trim());
+          const uniqueOptions = [...new Set(options.map(o => o.toLowerCase()))];
+          if (uniqueOptions.length !== options.length) {
+            errors.push(`Row ${rowNum}: Options must be unique (duplicate options found)`);
+            continue;
+          }
+          
+          // All validations passed
+          validData.push({
+            question_text: question,
+            test_type: testType,
+            objective_name: objective,
+            option_a: optionA,
+            option_b: optionB,
+            option_c: hasOptionC ? optionC : null,
+            option_d: hasOptionD ? optionD : null,
+            correct_answer: correctAnswer
+          });
+        }
+        
+        return {
+          errors,
+          validData,
+          validCount: validData.length
+        };
+      }
+      
+      // Set up modal event listeners
+      // Close modal handlers for bulk upload modal
+      const closeModal = document.getElementById('closeModal');
+      if (closeModal) {
+        closeModal.addEventListener('click', function() {
+          const bulkModal = document.getElementById('bulkUploadModal');
+          if (bulkModal) {
+            bulkModal.classList.remove('active');
+          }
+          const bulkInput = document.getElementById('bulkUploadInput');
+          if (bulkInput) {
+            bulkInput.value = '';
+          }
+        });
+      }
+      
+      const closeModal2 = document.getElementById('closeModal2');
+      if (closeModal2) {
+        closeModal2.addEventListener('click', function() {
+          const bulkModal = document.getElementById('bulkUploadModal');
+          if (bulkModal) {
+            bulkModal.classList.remove('active');
+          }
+          const bulkInput = document.getElementById('bulkUploadInput');
+          if (bulkInput) {
+            bulkInput.value = '';
+          }
+        });
+      }
+      
+      // Download template button - show modal first
+      const downloadTemplateBtn = document.getElementById('downloadTemplateBtn');
+      if (downloadTemplateBtn) {
+        downloadTemplateBtn.addEventListener('click', function() {
+          const templateModal = document.getElementById('templateModal');
+          if (templateModal) {
+            templateModal.classList.add('active');
+          }
+        });
+      }
+      
+      // Close template modal
+      const closeTemplateModal = document.getElementById('closeTemplateModal');
+      if (closeTemplateModal) {
+        closeTemplateModal.addEventListener('click', function() {
+          const templateModal = document.getElementById('templateModal');
+          if (templateModal) {
+            templateModal.classList.remove('active');
+          }
+        });
+      }
+      
+      const closeTemplateModal2 = document.getElementById('closeTemplateModal2');
+      if (closeTemplateModal2) {
+        closeTemplateModal2.addEventListener('click', function() {
+          const templateModal = document.getElementById('templateModal');
+          if (templateModal) {
+            templateModal.classList.remove('active');
+          }
+        });
+      }
+      
+      // Download template after showing modal
+      const proceedDownloadBtn = document.getElementById('proceedDownloadBtn');
+      if (proceedDownloadBtn) {
+        proceedDownloadBtn.addEventListener('click', function() {
+          window.location.href = '/questions/bulk/template';
+          const templateModal = document.getElementById('templateModal');
+          if (templateModal) {
+            templateModal.classList.remove('active');
+          }
+        });
+      }
+      
+      // Upload validated data
+      const uploadBtn = document.getElementById('uploadBtn');
+      if (uploadBtn) {
+        uploadBtn.addEventListener('click', function() {
+        const validData = JSON.parse(this.dataset.validData || '[]');
+        if (validData.length === 0) {
+          alert('No valid data to upload');
+          return;
+        }
+        
+        // Show loading
+        this.disabled = true;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+        
+        // Send to server
+        fetch('/questions/bulk/upload', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ questions: validData })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert(`Successfully uploaded ${data.inserted} questions!`);
+            window.location.href = '/questions';
+          } else {
+            alert('Upload failed: ' + (data.error || 'Unknown error'));
+            const errorsDiv = document.getElementById('validationErrors');
+            if (errorsDiv) {
+              errorsDiv.style.display = 'block';
+              let errorsHtml = '<h3><i class="fas fa-exclamation-triangle"></i> Upload Errors</h3><ul>';
+              if (data.errors && data.errors.length > 0) {
+                data.errors.forEach(error => {
+                  errorsHtml += `<li>${error}</li>`;
+                });
+              } else {
+                errorsHtml += `<li>${data.error || 'Unknown error'}</li>`;
+              }
+              errorsHtml += '</ul>';
+              errorsDiv.innerHTML = errorsHtml;
+            }
+            this.disabled = false;
+            this.innerHTML = '<i class="fas fa-upload"></i> Upload Questions';
+          }
+        })
+        .catch(error => {
+          alert('Upload failed: ' + error.message);
+          this.disabled = false;
+          this.innerHTML = '<i class="fas fa-upload"></i> Upload Questions';
+        });
+      });
+      }
+    });
+  </script>
+  
+  <!-- Bulk Upload Modal -->
+  <div id="bulkUploadModal" class="bulk-upload-modal">
+    <div class="bulk-upload-content">
+      <div class="bulk-upload-header">
+        <h2><i class="fas fa-upload"></i> Bulk Upload Questions</h2>
+        <button id="closeModal" class="close-modal" type="button">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div id="validationErrors" class="validation-errors" style="display: none;"></div>
+      <div id="validationSuccess" class="validation-success" style="display: none;"></div>
+      
+      <div style="display: flex; gap: var(--spacing-md); justify-content: flex-end; margin-top: var(--spacing-lg);">
+        <button type="button" class="btn btn-outline" id="closeModal2">Cancel</button>
+        <button type="button" class="btn btn-success btn-lg" id="uploadBtn" disabled>
+          <i class="fas fa-upload"></i>
+          Upload Questions
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Template Download Modal -->
+  <div id="templateModal" class="template-modal">
+    <div class="template-modal-content">
+      <div class="template-modal-header">
+        <h2>
+          <i class="fas fa-file-excel"></i>
+          Bulk Upload Template Guide
+        </h2>
+        <button id="closeTemplateModal" class="close-modal" type="button">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="rules-section">
+        <h3><i class="fas fa-table"></i> Column Structure</h3>
+        <div class="column-guide">
+          <table>
+            <tr><td>Column A</td><td>Question Text (Required)</td></tr>
+            <tr><td>Column B</td><td>Test Type: pre_test, post_test, refreshment, or certificate_enrolment (Required)</td></tr>
+            <tr><td>Column C</td><td>Objective Name (Must exist in system) (Required)</td></tr>
+            <tr><td>Column D</td><td>Option A (Required)</td></tr>
+            <tr><td>Column E</td><td>Option B (Required)</td></tr>
+            <tr><td>Column F</td><td>Option C (Optional - leave empty for 2-option questions)</td></tr>
+            <tr><td>Column G</td><td>Option D (Optional - leave empty for 2-3 option questions)</td></tr>
+            <tr><td>Column H</td><td>Correct Answer: A, B, C, or D (must match available options)</td></tr>
+          </table>
+        </div>
+      </div>
+      
+      <div class="rules-section">
+        <h3><i class="fas fa-check-circle do"></i> Do's</h3>
+        <ul>
+          <li>Start entering data from Row 2 (Row 1 is the header)</li>
+          <li>Use exact test type values: <strong>pre_test</strong>, <strong>post_test</strong>, <strong>refreshment</strong>, or <strong>certificate_enrolment</strong></li>
+          <li>Use objective names that exist in the system (case-insensitive)</li>
+          <li>Options A and B are required; Options C and D are optional</li>
+          <li>Questions can have 2, 3, or 4 options</li>
+          <li>Ensure all options are unique (no duplicates)</li>
+          <li>Correct answer must match available options (e.g., if only A and B exist, answer must be A or B)</li>
+          <li>Fill all required fields for each question</li>
+          <li>Leave empty rows if you want to skip them</li>
+        </ul>
+      </div>
+      
+      <div class="rules-section">
+        <h3><i class="fas fa-times-circle dont"></i> Don'ts</h3>
+        <ul>
+          <li>Don't use objective names that don't exist in the system</li>
+          <li>Don't leave required fields empty</li>
+          <li>Don't use duplicate options within the same question</li>
+          <li>Don't use C or D as correct answer if those options are empty</li>
+          <li>Don't use invalid test types (must be exactly: pre_test, post_test, refreshment, or certificate_enrolment)</li>
+          <li>Don't use invalid correct answer values (must be A, B, C, or D)</li>
+          <li>Don't create duplicate questions (same question, same options, same type, same correct answer)</li>
+          <li>Don't modify the header row (Row 1)</li>
+        </ul>
+      </div>
+      
+      <div class="rules-section">
+        <h3><i class="fas fa-info-circle"></i> Validation Process</h3>
+        <ul>
+          <li><strong>Frontend Validation:</strong> Checks file structure, required fields, and basic rules before upload</li>
+          <li><strong>Backend Validation:</strong> Performs thorough checks including duplicate detection and database validation</li>
+          <li><strong>Batch Insertion:</strong> Questions are inserted in batches of 10 for optimal performance</li>
+          <li><strong>Error Reporting:</strong> Detailed error messages will show exactly what needs to be fixed</li>
+        </ul>
+      </div>
+      
+      <div style="display: flex; gap: var(--spacing-md); justify-content: flex-end; margin-top: var(--spacing-xl); padding-top: var(--spacing-lg); border-top: 2px solid var(--color-gray-light);">
+        <button type="button" class="btn btn-outline" id="closeTemplateModal2">Cancel</button>
+        <button type="button" class="btn btn-excel btn-lg" id="proceedDownloadBtn">
+          <i class="fas fa-download"></i>
+          Download Template
+        </button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

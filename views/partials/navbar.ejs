@@ -1,0 +1,75 @@
+<nav class="navbar">
+  <div class="navbar-container">
+    <div class="navbar-brand">
+      <a href="/dashboard" style="display: flex; align-items: center; gap: 1rem;">
+        <img src="/qsslogo.svg" alt="QSS Logo" style="height: 30px; width: auto; object-fit: contain;">
+        <div style="height: 24px; width: 1px; background-color: var(--color-gray, #6B7280); opacity: 0.5;"></div>
+        <img src="/K-Laser.png" alt="K-Laser Logo" style="height: 30px; width: auto; object-fit: contain;">
+      </a>
+    </div>
+    
+    <div class="navbar-menu">
+      <a href="/dashboard" class="nav-link">
+        <i class="fas fa-tachometer-alt"></i>
+        <span>Dashboard</span>
+      </a>
+      <a href="/training" class="nav-link">
+        <i class="fas fa-graduation-cap"></i>
+        <span>Trainings</span>
+      </a>
+
+      <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+        <a href="/questions" class="nav-link">
+          <i class="fas fa-question-circle"></i>
+          <span>Questions</span>
+        </a>
+      <% } %>
+
+      <a href="/profile" class="nav-link">
+        <% if (user.userProfile) { %>
+          <img src="<%= user.userProfile %>" alt="Profile" class="profile-picture-small">
+        <% } else { %>
+          <div class="profile-placeholder-small"><%= user.userName.charAt(0) %></div>
+        <% } %>
+        <span>Profile</span>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // Add active class to current navigation item
+    document.addEventListener('DOMContentLoaded', function() {
+      const currentPath = window.location.pathname;
+      const navLinks = document.querySelectorAll('.navbar-menu .nav-link');
+
+      navLinks.forEach(link => {
+        const href = link.getAttribute('href');
+
+        // Check if current path matches the link href
+        if (href === currentPath) {
+          link.classList.add('active');
+        }
+
+        // Special case for dashboard (root path)
+        if (href === '/dashboard' && (currentPath === '/' || currentPath === '/dashboard')) {
+          link.classList.add('active');
+        }
+
+        // Special case for training routes (any path starting with /training)
+        if (href === '/training' && currentPath.startsWith('/training')) {
+          link.classList.add('active');
+        }
+
+        // Special case for questions routes (any path starting with /questions)
+        if (href === '/questions' && currentPath.startsWith('/questions')) {
+          link.classList.add('active');
+        }
+
+        // Special case for profile routes (any path starting with /profile)
+        if (href === '/profile' && currentPath.startsWith('/profile')) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+</nav>

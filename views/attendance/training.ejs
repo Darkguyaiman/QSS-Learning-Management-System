@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance - <%= training.title %> - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <style>
+    .attendance-form-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+      border-radius: 20px;
+      padding: 2.5rem;
+      box-shadow: 0 20px 60px rgba(87, 63, 215, 0.15);
+      border: 1px solid rgba(87, 63, 215, 0.1);
+      margin-bottom: 2rem;
+    }
+    
+    .form-section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #573FD7;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid rgba(87, 63, 215, 0.1);
+    }
+    
+    .trainee-attendance-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: white;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      border: 1px solid #E5E7EB;
+      transition: all 0.2s;
+    }
+    
+    .trainee-attendance-row:hover {
+      border-color: #573FD7;
+      box-shadow: 0 2px 8px rgba(87, 63, 215, 0.1);
+    }
+    
+    .trainee-info {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .trainee-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #E8F0FE;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      color: #1967D2;
+      flex-shrink: 0;
+    }
+    
+    .trainee-avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    
+    .trainee-details {
+      flex: 1;
+    }
+    
+    .trainee-name {
+      font-weight: 500;
+      color: #202124;
+      margin-bottom: 0.25rem;
+    }
+    
+    .trainee-id {
+      font-size: 0.875rem;
+      color: #5F6368;
+    }
+    
+    .attendance-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    
+    .status-checkbox-group {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    
+    .status-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: 2px solid #E5E7EB;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: white;
+    }
+    
+    .status-checkbox:hover {
+      border-color: #573FD7;
+    }
+    
+    .status-checkbox input[type="radio"] {
+      margin: 0;
+      cursor: pointer;
+      accent-color: #573FD7;
+    }
+    
+    .status-checkbox.present input[type="radio"]:checked ~ span {
+      color: #137333;
+      font-weight: 600;
+    }
+    
+    .status-checkbox.absent input[type="radio"]:checked ~ span {
+      color: #D93025;
+      font-weight: 600;
+    }
+    
+    .status-checkbox input[type="radio"]:checked {
+      border-color: #573FD7;
+    }
+    
+    .status-checkbox.present:has(input[type="radio"]:checked) {
+      border-color: #137333;
+      background: #E6F4EA;
+    }
+    
+    .status-checkbox.absent:has(input[type="radio"]:checked) {
+      border-color: #D93025;
+      background: #FCE8E6;
+    }
+    
+    .notes-input {
+      flex: 1;
+      min-width: 200px;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-family: inherit;
+    }
+    
+    .notes-input:focus {
+      outline: none;
+      border-color: #573FD7;
+      box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.1);
+    }
+    
+    .attendance-history-section {
+      margin-top: 2rem;
+    }
+    
+    .date-group {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+    
+    .date-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid #E8EAED;
+    }
+    
+    .date-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #202124;
+    }
+    
+    .date-stats {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.875rem;
+    }
+    
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .stat-present {
+      color: #137333;
+      font-weight: 500;
+    }
+    
+    .stat-absent {
+      color: #D93025;
+      font-weight: 500;
+    }
+    
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 2rem;
+    }
+    
+    .pagination-btn {
+      padding: 0.5rem 1rem;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      background: white;
+      color: #202124;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .pagination-btn:hover:not(:disabled) {
+      border-color: #573FD7;
+      color: #573FD7;
+    }
+    
+    .pagination-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .pagination-info {
+      padding: 0.5rem 1rem;
+      color: #5F6368;
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
+  
+  <main class="main-content">
+    <div class="container">
+      <div class="dashboard-header">
+        <h1>Attendance - <%= training.title %></h1>
+        <a href="/training/<%= training.id %>" class="btn btn-outline">Back to Training</a>
+      </div>
+      
+      <% if (enrollments.length === 0) { %>
+        <div class="empty-state">
+          <p>No trainees enrolled in this training yet.</p>
+        </div>
+      <% } else { %>
+        <!-- Mark Attendance Form -->
+        <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+          <div class="attendance-form-card">
+            <h2 style="margin: 0 0 1.5rem 0; color: #202124; font-weight: 500;">Mark Attendance</h2>
+            
+            <form id="bulkAttendanceForm">
+              <div class="form-section-title">
+                <i class="fas fa-calendar-alt"></i>
+                Select Date & Time
+              </div>
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
+                <div>
+                  <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #2A2A2A;">
+                    <i class="fas fa-calendar"></i> Date *
+                  </label>
+                  <input type="text" id="attendance-date" name="date" class="form-input date-picker" required placeholder="Select date">
+                </div>
+                <div>
+                  <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #2A2A2A;">
+                    <i class="fas fa-clock"></i> Time (Optional)
+                  </label>
+                  <input type="text" id="attendance-time" name="time" class="form-input time-picker" placeholder="Select time">
+                </div>
+              </div>
+              
+              <div class="form-section-title">
+                <i class="fas fa-users"></i>
+                Trainees (<%= enrollments.length %>)
+              </div>
+              
+              <div id="trainees-list">
+                <% enrollments.forEach((enrollment, index) => { %>
+                  <div class="trainee-attendance-row" data-enrollment-id="<%= enrollment.id %>">
+                    <div class="trainee-info">
+                      <div class="trainee-avatar">
+                        <% if (enrollment.profile_picture) { %>
+                          <img src="<%= enrollment.profile_picture %>" alt="<%= enrollment.first_name %>">
+                        <% } else { %>
+                          <%= enrollment.first_name.charAt(0) %><%= enrollment.last_name.charAt(0) %>
+                        <% } %>
+                      </div>
+                      <div class="trainee-details">
+                        <div class="trainee-name"><%= enrollment.first_name %> <%= enrollment.last_name %></div>
+                        <div class="trainee-id">ID: <%= enrollment.trainee_id %></div>
+                      </div>
+                    </div>
+                    
+                    <div class="attendance-controls">
+                      <div class="status-checkbox-group">
+                        <label class="status-checkbox present">
+                          <input type="radio" name="status_<%= enrollment.id %>" value="present" checked>
+                          <span>Present</span>
+                        </label>
+                        <label class="status-checkbox absent">
+                          <input type="radio" name="status_<%= enrollment.id %>" value="absent">
+                          <span>Absent</span>
+                        </label>
+                      </div>
+                      
+                      <input type="text" 
+                             name="notes_<%= enrollment.id %>" 
+                             class="notes-input" 
+                             placeholder="Notes (optional)"
+                             data-enrollment-id="<%= enrollment.id %>">
+                    </div>
+                  </div>
+                <% }); %>
+              </div>
+              
+              <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem; padding-top: 1.5rem; border-top: 2px solid rgba(87, 63, 215, 0.1);">
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('bulkAttendanceForm').reset();">
+                  <i class="fas fa-undo"></i> Reset
+                </button>
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-save"></i> Mark Attendance
+                </button>
+              </div>
+            </form>
+          </div>
+        <% } %>
+        
+        <!-- Attendance History -->
+        <div class="attendance-history-section">
+          <h2 style="margin: 0 0 1.5rem 0; color: #202124; font-weight: 500;">Attendance History</h2>
+          
+          <% if (typeof attendanceByDate !== 'undefined' && attendanceByDate.length > 0) { %>
+            <% attendanceByDate.forEach(dateGroup => { %>
+              <div class="date-group">
+                <div class="date-header">
+                  <div class="date-title">
+                    <i class="fas fa-calendar"></i> <%= new Date(dateGroup.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %>
+                  </div>
+                  <div class="date-stats">
+                    <div class="stat-item stat-present">
+                      <i class="fas fa-check-circle"></i>
+                      <span><%= dateGroup.present_count || 0 %> Present</span>
+                    </div>
+                    <div class="stat-item stat-absent">
+                      <i class="fas fa-times-circle"></i>
+                      <span><%= dateGroup.absent_count || 0 %> Absent</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Trainee</th>
+                        <th>Status</th>
+                        <th>Time</th>
+                        <th>Notes</th>
+                        <th>Marked By</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% dateGroup.records.forEach(record => { %>
+                        <% 
+                          // Extract time from notes if available
+                          let timeDisplay = '';
+                          let notesDisplay = record.notes || '';
+                          if (record.notes && record.notes.includes('Time:')) {
+                            const lines = record.notes.split('\n');
+                            const timeLine = lines.find(line => line.trim().startsWith('Time:'));
+                            if (timeLine) {
+                              timeDisplay = timeLine.replace('Time:', '').trim();
+                              notesDisplay = lines.filter(line => !line.trim().startsWith('Time:')).join('\n').trim() || '-';
+                            }
+                          }
+                        %>
+                        <tr>
+                          <td><strong><%= record.first_name %> <%= record.last_name %></strong><br><span style="color: #5F6368; font-size: 0.75rem;"><%= record.trainee_id %></span></td>
+                          <td>
+                            <span class="badge" style="background-color: <%= record.status === 'present' ? '#137333' : '#D93025' %>; color: white;">
+                              <%= record.status.charAt(0).toUpperCase() + record.status.slice(1) %>
+                            </span>
+                          </td>
+                          <td><%= timeDisplay || '-' %></td>
+                          <td><%= notesDisplay %></td>
+                          <td><%= record.marked_by_first %> <%= record.marked_by_last %></td>
+                        </tr>
+                      <% }); %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            <% }); %>
+            
+            <!-- Pagination -->
+            <% if (typeof totalPages !== 'undefined' && totalPages > 1) { %>
+              <div class="pagination">
+                <button class="pagination-btn" onclick="changePage(<%= currentPage - 1 %>)" <%= currentPage === 1 ? 'disabled' : '' %>>
+                  <i class="fas fa-chevron-left"></i> Previous
+                </button>
+                <span class="pagination-info">Page <%= currentPage %> of <%= totalPages %></span>
+                <button class="pagination-btn" onclick="changePage(<%= currentPage + 1 %>)" <%= currentPage === totalPages ? 'disabled' : '' %>>
+                  Next <i class="fas fa-chevron-right"></i>
+                </button>
+              </div>
+            <% } %>
+          <% } else { %>
+            <div class="empty-state">
+              <p>No attendance records yet.</p>
+              <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+                <p class="text-muted">Use the form above to mark attendance.</p>
+              <% } %>
+            </div>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
+  </main>
+  
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="/js/main.js"></script>
+  <script>
+    // Initialize date picker
+    flatpickr('#attendance-date', {
+      dateFormat: 'Y-m-d',
+      defaultDate: new Date(),
+      allowInput: true
+    });
+    
+    // Initialize time picker
+    flatpickr('#attendance-time', {
+      enableTime: true,
+      noCalendar: true,
+      dateFormat: 'h:i K',
+      time_24hr: false,
+      allowInput: true
+    });
+    
+    <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+    // Bulk attendance form submission
+    document.getElementById('bulkAttendanceForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const date = document.getElementById('attendance-date').value;
+      const time = document.getElementById('attendance-time').value;
+      
+      if (!date) {
+        alert('Please select a date');
+        return;
+      }
+      
+      const attendanceData = [];
+      const traineeRows = document.querySelectorAll('.trainee-attendance-row');
+      
+      traineeRows.forEach(row => {
+        const enrollmentId = row.getAttribute('data-enrollment-id');
+        const statusRadio = row.querySelector(`input[name="status_${enrollmentId}"]:checked`);
+        const notesInput = row.querySelector(`input[name="notes_${enrollmentId}"]`);
+        
+        if (statusRadio) {
+          attendanceData.push({
+            enrollmentId: enrollmentId,
+            date: date, // Date only (YYYY-MM-DD format)
+            status: statusRadio.value,
+            notes: notesInput ? notesInput.value.trim() : '',
+            time: time || '' // Optional time
+          });
+        }
+      });
+      
+      if (attendanceData.length === 0) {
+        alert('Please mark attendance for at least one trainee');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/attendance/mark-bulk', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ attendance: attendanceData })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          alert(`Attendance marked successfully for ${attendanceData.length} trainee(s)!`);
+          location.reload();
+        } else {
+          alert('Error marking attendance: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error marking attendance.');
+      }
+    });
+    
+    function changePage(page) {
+      const url = new URL(window.location);
+      url.searchParams.set('page', page);
+      window.location.href = url.toString();
+    }
+    <% } %>
+  </script>
+</body>
+</html>

@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trainees - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Trainee Card Styles for Mobile/Tablet */
+    .trainee-card {
+      display: none;
+      background: white;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border: 1px solid #E8EAED;
+      transition: all 0.3s ease;
+    }
+    
+    .trainee-card:hover {
+      box-shadow: 0 4px 16px rgba(87, 63, 215, 0.1);
+      border-color: #573FD7;
+      transform: translateY(-2px);
+    }
+    
+    .trainee-card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #E8EAED;
+    }
+    
+    .trainee-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #573FD7 0%, #11358B 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 1.125rem;
+      flex-shrink: 0;
+    }
+    
+    .trainee-card-title {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .trainee-card-name {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #202124;
+      margin: 0;
+      word-break: break-word;
+      line-height: 1.3;
+    }
+    
+    .trainee-card-id {
+      font-size: 0.875rem;
+      color: #5F6368;
+      font-weight: 500;
+    }
+    
+    .trainee-card-header .badge {
+      flex-shrink: 0;
+      align-self: flex-start;
+      margin-top: 0;
+    }
+    
+    /* Status Badge Colors */
+    .badge-success {
+      background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+      color: white;
+      border: none;
+      box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+    }
+    
+    .badge-warning {
+      background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+      color: white;
+      border: none;
+      box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+    }
+    
+    .badge-danger {
+      background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+      color: white;
+      border: none;
+      box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+    }
+    
+    .badge-info {
+      background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+      color: white;
+      border: none;
+      box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+    }
+    
+    /* Ensure badges maintain color on hover */
+    .trainee-card .badge:hover {
+      opacity: 0.9;
+      transform: scale(1.05);
+      transition: all 0.2s ease;
+    }
+    
+    .trainee-card-header-top {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex: 1;
+      min-width: 0;
+    }
+    
+    @media (min-width: 768px) {
+      .trainee-card-header-top {
+        flex: 1;
+      }
+    }
+    
+    .trainee-card-id-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    
+    /* Hide badge in id-row on desktop/tablet, show in header */
+    @media (min-width: 768px) {
+      .mobile-badge {
+        display: none;
+      }
+      
+      .desktop-badge {
+        display: inline-flex;
+      }
+    }
+    
+    /* Show badge in id-row on mobile, hide in header */
+    @media (max-width: 767px) {
+      .desktop-badge {
+        display: none;
+      }
+      
+      .mobile-badge {
+        display: inline-flex;
+      }
+    }
+    
+    .trainee-card-body {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+    
+    .trainee-card-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    
+    .trainee-card-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #5F6368;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .trainee-card-label i {
+      width: 16px;
+      color: #573FD7;
+    }
+    
+    .trainee-card-value {
+      font-size: 0.875rem;
+      color: #202124;
+      word-break: break-word;
+    }
+    
+    .trainee-card-actions {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #E8EAED;
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .trainee-card-actions .btn {
+      flex: 1;
+      justify-content: center;
+    }
+    
+    /* Two column grid for tablets */
+    @media (min-width: 768px) and (max-width: 1024px) {
+      .trainee-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+      }
+      
+      .trainee-card {
+        margin-bottom: 0;
+      }
+    }
+    
+    /* Single column for mobile */
+    @media (max-width: 767px) {
+      .trainee-cards-grid {
+        display: block;
+      }
+      
+      .trainee-card {
+        padding: 1rem;
+      }
+      
+      .trainee-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+      }
+      
+      .trainee-card-header-top {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        width: 100%;
+      }
+      
+      .trainee-card-title {
+        flex: 1;
+        min-width: 0;
+      }
+      
+      .trainee-card-name {
+        font-size: 1.0625rem;
+        line-height: 1.4;
+        margin-bottom: 0.375rem;
+      }
+      
+      .trainee-card-id-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      
+      .trainee-card-id {
+        font-size: 0.8125rem;
+        color: #5F6368;
+      }
+      
+      .trainee-card-header .badge {
+        margin: 0;
+        padding: 0.25rem 0.625rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: capitalize;
+        white-space: nowrap;
+      }
+      
+      .trainee-avatar {
+        width: 48px;
+        height: 48px;
+        font-size: 1rem;
+        flex-shrink: 0;
+      }
+    }
+    
+    /* Hide table on mobile/tablet, show cards */
+    @media (max-width: 1024px) {
+      .data-table {
+        display: none;
+      }
+      
+      .trainee-card {
+        display: block;
+      }
+      
+      .table-responsive {
+        overflow: visible;
+      }
+    }
+    
+    /* Show table on desktop, hide cards */
+    @media (min-width: 1025px) {
+      .trainee-card {
+        display: none;
+      }
+      
+      .data-table {
+        display: table;
+      }
+    }
+    
+    /* Responsive filter section */
+    @media (max-width: 768px) {
+      .filter-section {
+        padding: 1rem !important;
+      }
+      
+      .filter-section > div:first-child {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+      }
+      
+      .filter-section > div:first-child button {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      #search-form {
+        flex-direction: column;
+      }
+      
+      #search-form input {
+        width: 100% !important;
+        min-width: 100% !important;
+      }
+      
+      #search-form button,
+      #search-form a {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .filter-chips {
+        gap: 0.5rem !important;
+      }
+      
+      .filter-chip {
+        font-size: 0.8125rem !important;
+        padding: 0.4rem 0.75rem !important;
+      }
+      
+      .healthcare-select {
+        max-width: 100% !important;
+      }
+    }
+    
+    /* Hide button text on very small screens, show only icons */
+    @media (max-width: 480px) {
+      .search-btn-text,
+      .clear-btn-text {
+        display: none;
+      }
+      
+      #search-form button,
+      #search-form a {
+        padding: 0.625rem;
+        min-width: 44px;
+      }
+    }
+    
+    /* Responsive header */
+    @media (max-width: 768px) {
+      .dashboard-header {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 1rem;
+      }
+      
+      .dashboard-header h1 {
+        font-size: 1.5rem;
+      }
+      
+      .dashboard-header .btn-primary {
+        width: 100%;
+        text-align: center;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
+  
+  <main class="main-content">
+    <div class="container">
+      <div class="dashboard-header">
+        <h1><i class="fas fa-users" style="color:#573FD7;"></i> Trainees</h1>
+        <a href="/trainees/create" class="btn btn-primary">
+          <i class="fas fa-user-plus"></i> Create New Trainee
+        </a>
+      </div>
+      
+      <!-- Search and Filter Section -->
+      <div class="filter-section" style="margin-bottom: 2rem; padding: 1.25rem; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.12);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <label style="font-weight: 600; color: #202124; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas fa-filter"></i> Search & Filters
+          </label>
+          <button onclick="toggleFilters()" class="btn btn-sm btn-outline" style="display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas fa-chevron-down" id="filter-toggle-icon"></i>
+            <span id="filter-toggle-text">Show Filters</span>
+          </button>
+        </div>
+        
+        <div id="filters-content" style="display: none;">
+          <!-- Global Search -->
+          <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #202124;">
+              <i class="fas fa-search"></i> Global Search
+            </label>
+            <form id="search-form" onsubmit="handleSearch(event); return false;" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <input type="text" 
+                     id="global-search" 
+                     name="search" 
+                     value="<%= typeof searchQuery !== 'undefined' && searchQuery ? searchQuery : '' %>"
+                     placeholder="Search by name, trainee ID, email, IC/Passport, phone, healthcare, or designation..." 
+                     class="form-input"
+                     style="flex: 1; min-width: 200px; padding: 0.625rem 0.875rem; border: 1px solid #DADCE0; border-radius: 4px; font-size: 0.875rem;">
+              <button type="submit" class="btn btn-primary" style="white-space: nowrap;">
+                <i class="fas fa-search"></i> <span class="search-btn-text">Search</span>
+              </button>
+              <% if (typeof searchQuery !== 'undefined' && searchQuery) { %>
+                <a href="/trainees" class="btn btn-outline" style="white-space: nowrap;">
+                  <i class="fas fa-times"></i> <span class="clear-btn-text">Clear</span>
+                </a>
+              <% } %>
+            </form>
+            <small style="color: #5F6368; font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+              Press Enter or click Search to filter results
+            </small>
+          </div>
+          
+          <!-- Status Filter -->
+          <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; margin-bottom: 0.75rem; font-weight: 500; color: #202124;">
+              Status
+            </label>
+            <div class="filter-chips" style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+              <% 
+                const statuses = [
+                  { value: 'active', label: 'Active', color: '#388E3C' },
+                  { value: 'inactive', label: 'Inactive', color: '#F9AB00' },
+                  { value: 'suspended', label: 'Suspended', color: '#D32F2F' },
+                  { value: 'registered', label: 'Registered', color: '#1976D2' }
+                ];
+                const currentSelectedStatuses = typeof selectedStatuses !== 'undefined' ? selectedStatuses : [];
+              %>
+              <% statuses.forEach(status => { %>
+                <% const isSelected = currentSelectedStatuses.includes(status.value); %>
+                <a href="#" 
+                   class="filter-chip <%= isSelected ? 'active' : '' %>" 
+                   data-status="<%= status.value %>"
+                   onclick="return updateFilter(event, 'status', '<%= status.value %>');"
+                   style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: 20px; text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: all 0.2s; border: 2px solid <%= isSelected ? status.color : '#E5E7EB' %>; background: <%= isSelected ? status.color + '15' : '#FFFFFF' %>; color: <%= isSelected ? status.color : '#6B7280' %>;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background: <%= status.color %>;"></span>
+                  <%= status.label %>
+                </a>
+              <% }); %>
+            </div>
+          </div>
+          
+          <!-- Healthcare Filter -->
+          <div style="margin-bottom: 1.5rem;">
+            <label for="healthcare-filter" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #202124; font-size: 0.875rem;">
+              Healthcare Centre
+            </label>
+            <select id="healthcare-filter" onchange="applyFilters()" style="width: 100%; max-width: 400px; padding: 0.625rem 0.875rem; border: 1px solid #DADCE0; border-radius: 4px; font-size: 0.875rem; background: white; color: #202124; transition: border-color 0.2s;" class="healthcare-select">
+              <option value="">All Healthcare Centres</option>
+              <% if (typeof healthcare !== 'undefined' && healthcare) { %>
+                <% healthcare.forEach(hc => { %>
+                  <option value="<%= hc.name %>" <%= typeof selectedHealthcare !== 'undefined' && selectedHealthcare == hc.name ? 'selected' : '' %>>
+                    <%= hc.name %>
+                  </option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
+          
+          <!-- Clear Filters Button -->
+          <% 
+            const hasFilters = (typeof selectedStatuses !== 'undefined' && selectedStatuses.length > 0) ||
+                               (typeof selectedHealthcare !== 'undefined' && selectedHealthcare) ||
+                               (typeof searchQuery !== 'undefined' && searchQuery);
+          %>
+          <% if (hasFilters) { %>
+            <div style="margin-top: 1rem;">
+              <a href="/trainees" class="btn btn-outline">
+                <i class="fas fa-times-circle"></i> Clear All Filters
+              </a>
+            </div>
+          <% } %>
+        </div>
+      </div>
+      
+      <% if (trainees.length === 0) { %>
+        <div class="empty-state">
+          <% 
+            const hasFilters = (typeof selectedStatuses !== 'undefined' && selectedStatuses.length > 0) ||
+                               (typeof selectedHealthcare !== 'undefined' && selectedHealthcare) ||
+                               (typeof searchQuery !== 'undefined' && searchQuery);
+          %>
+          <% if (hasFilters) { %>
+            <p>No trainees found matching your filters.</p>
+            <a href="/trainees" class="btn btn-primary">Clear All Filters</a>
+          <% } else { %>
+            <p>No trainees found in the database.</p>
+            <a href="/trainees/create" class="btn btn-primary">Create First Trainee</a>
+          <% } %>
+        </div>
+      <% } else { %>
+        <!-- Desktop Table View -->
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Trainee ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>IC/Passport</th>
+                <th>Handphone</th>
+                <th>Healthcare</th>
+                <th>Designation</th>
+                <th>Area of Specialization</th>
+                <th>Serial Number</th>
+                <th>Status</th>
+                <th>Completed Trainings</th>
+                <th>First Training</th>
+                <th>Latest Training</th>
+                <th>Recertification Date</th>
+                <th>Registered</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% trainees.forEach(trainee => { %>
+                <tr>
+                  <td><strong><%= trainee.trainee_id %></strong></td>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #573FD7 0%, #11358B 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.75rem; flex-shrink: 0;">
+                          <%= trainee.first_name.charAt(0).toUpperCase() %><%= trainee.last_name.charAt(0).toUpperCase() %>
+                      </div>
+                      <span><%= trainee.first_name %> <%= trainee.last_name %></span>
+                    </div>
+                  </td>
+                  <td><%= trainee.email %></td>
+                  <td><%= trainee.ic_passport %></td>
+                  <td><%= trainee.handphone_number || '-' %></td>
+                  <td><%= trainee.healthcare || '-' %></td>
+                  <td><%= trainee.designation || '-' %></td>
+                  <td><%= trainee.area_of_specialization || '-' %></td>
+                  <td><%= trainee.serial_number || '-' %></td>
+                  <td>
+                    <span class="badge badge-<%= trainee.trainee_status === 'active' ? 'success' : trainee.trainee_status === 'inactive' ? 'warning' : trainee.trainee_status === 'registered' ? 'info' : 'danger' %>">
+                      <%= trainee.trainee_status %>
+                    </span>
+                  </td>
+                  <td><%= trainee.number_of_completed_trainings || 0 %></td>
+                  <td><%= trainee.first_training ? new Date(trainee.first_training).toLocaleDateString() : '-' %></td>
+                  <td><%= trainee.latest_training ? new Date(trainee.latest_training).toLocaleDateString() : '-' %></td>
+                  <td><%= trainee.recertification_date ? new Date(trainee.recertification_date).toLocaleDateString() : '-' %></td>
+                  <td><%= new Date(trainee.created_at).toLocaleDateString() %></td>
+                  <td>
+                    <a href="/trainees/<%= trainee.id %>/edit" class="btn btn-sm btn-secondary" title="Edit Trainee">
+                      <i class="fas fa-edit"></i> Edit
+                    </a>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Mobile/Tablet Card View -->
+        <div class="trainee-cards-grid">
+          <% trainees.forEach(trainee => { %>
+            <div class="trainee-card">
+              <div class="trainee-card-header">
+                <div class="trainee-card-header-top">
+                  <div class="trainee-avatar">
+                    <%= trainee.first_name.charAt(0).toUpperCase() %><%= trainee.last_name.charAt(0).toUpperCase() %>
+                  </div>
+                  <div class="trainee-card-title">
+                    <h3 class="trainee-card-name"><%= trainee.first_name %> <%= trainee.last_name %></h3>
+                    <div class="trainee-card-id-row">
+                      <div class="trainee-card-id">ID: <%= trainee.trainee_id %></div>
+                      <span class="badge badge-<%= trainee.trainee_status === 'active' ? 'success' : trainee.trainee_status === 'inactive' ? 'warning' : trainee.trainee_status === 'registered' ? 'info' : 'danger' %> mobile-badge">
+                        <%= trainee.trainee_status %>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <span class="badge badge-<%= trainee.trainee_status === 'active' ? 'success' : trainee.trainee_status === 'inactive' ? 'warning' : trainee.trainee_status === 'registered' ? 'info' : 'danger' %> desktop-badge">
+                  <%= trainee.trainee_status %>
+                </span>
+              </div>
+              
+              <div class="trainee-card-body">
+                <div class="trainee-card-row">
+                  <div class="trainee-card-label">
+                    <i class="fas fa-envelope"></i> Email
+                  </div>
+                  <div class="trainee-card-value"><%= trainee.email %></div>
+                </div>
+                
+                <div class="trainee-card-row">
+                  <div class="trainee-card-label">
+                    <i class="fas fa-id-card"></i> IC/Passport
+                  </div>
+                  <div class="trainee-card-value"><%= trainee.ic_passport %></div>
+                </div>
+                
+                <% if (trainee.handphone_number) { %>
+                <div class="trainee-card-row">
+                  <div class="trainee-card-label">
+                    <i class="fas fa-phone"></i> Handphone
+                  </div>
+                  <div class="trainee-card-value"><%= trainee.handphone_number %></div>
+                </div>
+                <% } %>
+                
+                <% if (trainee.healthcare) { %>
+                <div class="trainee-card-row">
+                  <div class="trainee-card-label">
+                    <i class="fas fa-hospital"></i> Healthcare
+                  </div>
+                  <div class="trainee-card-value"><%= trainee.healthcare %></div>
+                </div>
+                <% } %>
+                
+                <% if (trainee.designation) { %>
+                <div class="trainee-card-row">
+                  <div class="trainee-card-label">
+                    <i class="fas fa-briefcase"></i> Designation
+                  </div>
+                  <div class="trainee-card-value"><%= trainee.designation %></div>
+                </div>
+                <% } %>
+                
+                <% if (trainee.area_of_specialization) { %>
+                <div class="trainee-card-row">
+                  <div class="trainee-card-label">
+                    <i class="fas fa-stethoscope"></i> Area of Specialization
+                  </div>
+                  <div class="trainee-card-value"><%= trainee.area_of_specialization %></div>
+                </div>
+                <% } %>
+                
+                <% if (trainee.serial_number) { %>
+                <div class="trainee-card-row">
+                  <div class="trainee-card-label">
+                    <i class="fas fa-hashtag"></i> Serial Number
+                  </div>
+                  <div class="trainee-card-value"><%= trainee.serial_number %></div>
+                </div>
+                <% } %>
+                
+                <div class="trainee-card-row">
+                  <div class="trainee-card-label">
+                    <i class="fas fa-graduation-cap"></i> Completed Trainings
+                  </div>
+                  <div class="trainee-card-value"><%= trainee.number_of_completed_trainings || 0 %></div>
+                </div>
+                
+                <% if (trainee.first_training) { %>
+                <div class="trainee-card-row">
+                  <div class="trainee-card-label">
+                    <i class="fas fa-calendar-alt"></i> First Training
+                  </div>
+                  <div class="trainee-card-value"><%= new Date(trainee.first_training).toLocaleDateString() %></div>
+                </div>
+                <% } %>
+                
+                <% if (trainee.latest_training) { %>
+                <div class="trainee-card-row">
+                  <div class="trainee-card-label">
+                    <i class="fas fa-calendar-check"></i> Latest Training
+                  </div>
+                  <div class="trainee-card-value"><%= new Date(trainee.latest_training).toLocaleDateString() %></div>
+                </div>
+                <% } %>
+                
+                <% if (trainee.recertification_date) { %>
+                <div class="trainee-card-row">
+                  <div class="trainee-card-label">
+                    <i class="fas fa-certificate"></i> Recertification Date
+                  </div>
+                  <div class="trainee-card-value"><%= new Date(trainee.recertification_date).toLocaleDateString() %></div>
+                </div>
+                <% } %>
+                
+                <div class="trainee-card-row">
+                  <div class="trainee-card-label">
+                    <i class="fas fa-user-plus"></i> Registered
+                  </div>
+                  <div class="trainee-card-value"><%= new Date(trainee.created_at).toLocaleDateString() %></div>
+                </div>
+              </div>
+              
+              <div class="trainee-card-actions">
+                <a href="/trainees/<%= trainee.id %>/edit" class="btn btn-secondary">
+                  <i class="fas fa-edit"></i> Edit Trainee
+                </a>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+        
+        <div style="margin-top: var(--spacing-lg); padding: var(--spacing-md); background: var(--color-white); border-radius: var(--border-radius); box-shadow: var(--shadow); text-align: center;">
+          <p style="margin: 0; color: var(--color-gray); font-size: 0.9rem;">
+            <i class="fas fa-info-circle"></i> Total trainees: <strong><%= trainees.length %></strong>
+          </p>
+        </div>
+      <% } %>
+    </div>
+  </main>
+  
+  <script src="/js/main.js"></script>
+  <script>
+    // Toggle filters visibility
+    function toggleFilters() {
+      const content = document.getElementById('filters-content');
+      const icon = document.getElementById('filter-toggle-icon');
+      const text = document.getElementById('filter-toggle-text');
+      
+      const isCurrentlyHidden = content.style.display === 'none' || content.style.display === '';
+      
+      if (isCurrentlyHidden) {
+        content.style.display = 'block';
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+        text.textContent = 'Hide Filters';
+        localStorage.setItem('traineeFiltersExpanded', 'true');
+      } else {
+        content.style.display = 'none';
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+        text.textContent = 'Show Filters';
+        localStorage.setItem('traineeFiltersExpanded', 'false');
+      }
+    }
+    
+    // Check if filters should be shown by default
+    document.addEventListener('DOMContentLoaded', function() {
+      const content = document.getElementById('filters-content');
+      const icon = document.getElementById('filter-toggle-icon');
+      const text = document.getElementById('filter-toggle-text');
+      
+      <% 
+        const hasActiveFilters = (typeof selectedStatuses !== 'undefined' && selectedStatuses.length > 0) ||
+                                 (typeof selectedHealthcare !== 'undefined' && selectedHealthcare) ||
+                                 (typeof searchQuery !== 'undefined' && searchQuery);
+      %>
+      
+      // Check localStorage for saved state
+      const savedState = localStorage.getItem('traineeFiltersExpanded');
+      
+      // Determine if filters should be shown
+      let shouldShow = false;
+      
+      if (savedState !== null) {
+        // Use saved preference
+        shouldShow = savedState === 'true';
+      } else {
+        // First time - show if filters are active
+        shouldShow = <%= hasActiveFilters ? 'true' : 'false' %>;
+        if (shouldShow) {
+          localStorage.setItem('traineeFiltersExpanded', 'true');
+        }
+      }
+      
+      // Apply state
+      if (shouldShow) {
+        content.style.display = 'block';
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+        text.textContent = 'Hide Filters';
+      } else {
+        content.style.display = 'none';
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+        text.textContent = 'Show Filters';
+      }
+    });
+    
+    // Handle search form submission
+    function handleSearch(event) {
+      event.preventDefault();
+      applyFilters();
+    }
+    
+    // Apply all filters
+    function applyFilters() {
+      const url = new URL(window.location.href);
+      
+      // Get all filter values
+      const search = document.getElementById('global-search').value.trim();
+      const healthcare = document.getElementById('healthcare-filter').value;
+      
+      // Get existing status filters
+      const statuses = url.searchParams.getAll('status');
+      
+      // Clear all params
+      url.search = '';
+      
+      // Add status filters back
+      statuses.forEach(s => url.searchParams.append('status', s));
+      
+      // Add new filters
+      if (search) url.searchParams.set('search', search);
+      if (healthcare) url.searchParams.set('healthcare', healthcare);
+      
+      window.location.href = url.toString();
+    }
+    
+    // Update status filter (for chips)
+    function updateFilter(event, filterType, value) {
+      event.preventDefault();
+      const url = new URL(window.location.href);
+      const currentValues = url.searchParams.getAll(filterType);
+      
+      if (currentValues.includes(value)) {
+        // Remove filter
+        const newValues = currentValues.filter(v => v !== value);
+        url.searchParams.delete(filterType);
+        newValues.forEach(v => url.searchParams.append(filterType, v));
+      } else {
+        // Add filter
+        url.searchParams.append(filterType, value);
+      }
+      
+      // Preserve other filters
+      const search = document.getElementById('global-search')?.value.trim();
+      const healthcare = document.getElementById('healthcare-filter')?.value;
+      
+      if (search) url.searchParams.set('search', search);
+      if (healthcare) url.searchParams.set('healthcare', healthcare);
+      
+      window.location.href = url.toString();
+    }
+  </script>
+</body>
+</html>
+
+

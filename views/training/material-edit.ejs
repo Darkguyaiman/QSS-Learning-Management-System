@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Material - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .edit-material-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .edit-material-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid #E8EAED;
+    }
+    
+    .edit-material-header h1 {
+      margin: 0;
+      font-size: 1.75rem;
+      font-weight: 500;
+      color: #202124;
+    }
+    
+    .form-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+      border-radius: 20px;
+      padding: 2.5rem;
+      box-shadow: 0 20px 60px rgba(87, 63, 215, 0.15);
+      border: 1px solid rgba(87, 63, 215, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .form-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #573FD7 0%, #11358B 50%, #E48F24 100%);
+    }
+    
+    .form-section {
+      margin-bottom: 2rem;
+    }
+    
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #573FD7;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid rgba(87, 63, 215, 0.1);
+    }
+    
+    .section-title i {
+      font-size: 1.2rem;
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: #2A2A2A;
+      margin-bottom: 0.75rem;
+      font-size: 0.95rem;
+    }
+    
+    .form-group label i {
+      color: #573FD7;
+      font-size: 0.9rem;
+    }
+    
+    .form-input,
+    .form-select {
+      width: 100%;
+      padding: 0.875rem 1.25rem;
+      border: 2px solid #E5E7EB;
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: #ffffff;
+      font-family: inherit;
+    }
+    
+    .form-input:focus,
+    .form-select:focus {
+      outline: none;
+      border-color: #573FD7;
+      box-shadow: 0 0 0 4px rgba(87, 63, 215, 0.1);
+      transform: translateY(-1px);
+    }
+    
+    .material-type-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid #E8EAED;
+    }
+    
+    .material-type-tab {
+      padding: 0.75rem 1.5rem;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      font-size: 0.9375rem;
+      font-weight: 500;
+      color: #5F6368;
+      transition: all 0.2s;
+      position: relative;
+      bottom: -2px;
+    }
+    
+    .material-type-tab:hover {
+      color: #573FD7;
+    }
+    
+    .material-type-tab.active {
+      color: #573FD7;
+      border-bottom-color: #573FD7;
+    }
+    
+    .material-type-content {
+      display: none;
+    }
+    
+    .material-type-content.active {
+      display: block;
+    }
+    
+    .file-upload-area {
+      border: 2px dashed #DADCE0;
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      transition: all 0.3s;
+      cursor: pointer;
+      background: #FAFAFA;
+    }
+    
+    .file-upload-area:hover {
+      border-color: #573FD7;
+      background: #F8F9FF;
+    }
+    
+    .file-upload-area.dragover {
+      border-color: #573FD7;
+      background: #F0F4FF;
+    }
+    
+    .file-upload-area input[type="file"] {
+      display: none;
+    }
+    
+    .file-upload-icon {
+      font-size: 3rem;
+      color: #5F6368;
+      margin-bottom: 0.5rem;
+    }
+    
+    .file-upload-text {
+      color: #5F6368;
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+    }
+    
+    .file-selected {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: #E8F0FE;
+      border-radius: 8px;
+      margin-top: 1rem;
+    }
+    
+    .file-selected-name {
+      flex: 1;
+      font-size: 0.875rem;
+      color: #202124;
+    }
+    
+    .file-selected-size {
+      font-size: 0.75rem;
+      color: #5F6368;
+    }
+    
+    .current-file {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: #E6F4EA;
+      border-radius: 8px;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .current-file i {
+      color: #137333;
+    }
+    
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 2px solid rgba(87, 63, 215, 0.1);
+    }
+    
+    .btn-lg {
+      padding: 0.875rem 1.5rem;
+      font-size: 1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    
+    /* Custom Scrollbar */
+    .modal-body::-webkit-scrollbar,
+    .form-card::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    .modal-body::-webkit-scrollbar-track,
+    .form-card::-webkit-scrollbar-track {
+      background: #F8F9FA;
+      border-radius: 4px;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb,
+    .form-card::-webkit-scrollbar-thumb {
+      background: #E48F24;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb:hover,
+    .form-card::-webkit-scrollbar-thumb:hover {
+      background: #D17F1F;
+    }
+    
+    /* Firefox Scrollbar */
+    .modal-body,
+    .form-card {
+      scrollbar-width: thin;
+      scrollbar-color: #E48F24 #F8F9FA;
+    }
+    
+    @media (max-width: 768px) {
+      .edit-material-container {
+        padding: 1rem;
+      }
+      
+      .form-card {
+        padding: 1.5rem;
+        border-radius: 12px;
+      }
+      
+      .form-actions {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
+  
+  <main class="main-content">
+    <div class="edit-material-container">
+      <div class="edit-material-header">
+        <h1><i class="fas fa-edit"></i> Edit Material</h1>
+        <a href="/training/<%= training.id %>?tab=coursework" class="btn btn-outline">
+          <i class="fas fa-times"></i> Cancel
+        </a>
+      </div>
+      
+      <div class="form-card">
+        <form id="editMaterialForm" action="/training/<%= training.id %>/materials/<%= material.id %>/edit" method="POST" enctype="multipart/form-data">
+          <input type="hidden" name="training_id" value="<%= training.id %>">
+          
+          <!-- Material Type Tabs -->
+          <div class="material-type-tabs">
+            <button type="button" class="material-type-tab <%= material.type === 'video' ? 'active' : '' %>" onclick="switchMaterialType('video', this)">
+              <i class="fas fa-video"></i> Video
+            </button>
+            <button type="button" class="material-type-tab <%= material.type === 'document' ? 'active' : '' %>" onclick="switchMaterialType('document', this)">
+              <i class="fas fa-file-alt"></i> Document
+            </button>
+            <button type="button" class="material-type-tab <%= material.type === 'link' ? 'active' : '' %>" onclick="switchMaterialType('link', this)">
+              <i class="fas fa-link"></i> Link
+            </button>
+          </div>
+          
+          <!-- Title Field (Common) -->
+          <div class="form-group">
+            <label for="material-title">
+              <i class="fas fa-heading"></i>
+              Material Title *
+            </label>
+            <input type="text" id="material-title" name="title" class="form-input" required placeholder="Enter material title" value="<%= material.title %>">
+          </div>
+          
+          <!-- Section Selection -->
+          <div class="form-group">
+            <label for="material-section">
+              <i class="fas fa-folder"></i>
+              Section
+            </label>
+            <select id="material-section" name="section_id" class="form-select">
+              <option value="">No Section (General Materials)</option>
+              <% if (sections.length > 0) { %>
+                <% sections.forEach(section => { %>
+                  <option value="<%= section.id %>" <%= material.section_id == section.id ? 'selected' : '' %>><%= section.title %></option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
+          
+          <!-- Video Type Content -->
+          <div id="video-content" class="material-type-content <%= material.type === 'video' ? 'active' : '' %>">
+            <div class="form-group">
+              <label for="video-url">
+                <i class="fas fa-link"></i>
+                Video URL *
+              </label>
+              <input type="url" id="video-url" name="url" class="form-input" placeholder="https://www.youtube.com/watch?v=... or any video link" value="<%= material.url || '' %>">
+              <small style="color: #5F6368; font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+                Paste YouTube link or any video URL
+              </small>
+            </div>
+          </div>
+          
+          <!-- Document Type Content -->
+          <div id="document-content" class="material-type-content <%= material.type === 'document' ? 'active' : '' %>">
+            <% if (material.file_path) { %>
+              <div class="current-file">
+                <i class="fas fa-file-alt"></i>
+                <span class="file-selected-name">Current file: <%= material.file_path.split('/').pop() %></span>
+                <a href="<%= material.file_path %>" target="_blank" class="btn btn-sm btn-secondary">
+                  <i class="fas fa-download"></i> Download
+                </a>
+              </div>
+            <% } %>
+            
+            <div class="form-group">
+              <label>
+                <i class="fas fa-upload"></i>
+                Upload New Document (Max 5MB) OR Link
+              </label>
+              <div class="file-upload-area" onclick="document.getElementById('document-file').click()" id="file-upload-area">
+                <div class="file-upload-icon">
+                  <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <div style="font-weight: 500; color: #202124;">Click to upload or drag and drop</div>
+                <div class="file-upload-text">PDF, DOC, DOCX, PPT, PPTX (Max 5MB)</div>
+                <input type="file" id="document-file" name="file" accept=".pdf,.doc,.docx,.ppt,.pptx" onchange="handleFileSelect(this)">
+              </div>
+              <div id="file-selected-display" style="display: none;" class="file-selected">
+                <i class="fas fa-file" style="color: #1967D2;"></i>
+                <span class="file-selected-name" id="file-name"></span>
+                <span class="file-selected-size" id="file-size"></span>
+                <button type="button" class="btn btn-sm" onclick="clearFileSelection()" style="background: #EF4444; color: white; border: none; padding: 0.25rem 0.5rem;">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div class="form-group" style="margin-top: 1rem;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                <input type="checkbox" id="use-document-link" onchange="toggleDocumentLink()" style="width: auto;" <%= material.url && !material.file_path ? 'checked' : '' %>>
+                <span>Or attach a link to document</span>
+              </label>
+              <input type="url" id="document-link-url" name="document_url" class="form-input" placeholder="https://..." value="<%= material.url && !material.file_path ? material.url : '' %>" style="display: <%= material.url && !material.file_path ? 'block' : 'none' %>;">
+            </div>
+          </div>
+          
+          <!-- Link Type Content -->
+          <div id="link-content" class="material-type-content <%= material.type === 'link' ? 'active' : '' %>">
+            <div class="form-group">
+              <label for="link-url">
+                <i class="fas fa-link"></i>
+                Link URL *
+              </label>
+              <input type="url" id="link-url" name="url" class="form-input" placeholder="https://..." value="<%= material.url || '' %>">
+              <small style="color: #5F6368; font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+                Enter any link URL
+              </small>
+            </div>
+          </div>
+          
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary btn-lg" onclick="window.location.href='/training/<%= training.id %>?tab=coursework'">
+              <i class="fas fa-times"></i> Cancel
+            </button>
+            <button type="submit" class="btn btn-primary btn-lg">
+              <i class="fas fa-save"></i> Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+  
+  <script src="/js/main.js"></script>
+  <script>
+    let currentMaterialType = '<%= material.type %>';
+    
+    function switchMaterialType(type, clickedButton) {
+      currentMaterialType = type;
+      
+      // Update tabs
+      document.querySelectorAll('.material-type-tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      // Find and activate the correct tab button
+      if (clickedButton) {
+        clickedButton.classList.add('active');
+      } else {
+        // Find tab by onclick attribute or data attribute
+        const tabs = document.querySelectorAll('.material-type-tab');
+        tabs.forEach(tab => {
+          const onclickAttr = tab.getAttribute('onclick');
+          if (onclickAttr && onclickAttr.includes(`'${type}'`)) {
+            tab.classList.add('active');
+          }
+        });
+      }
+      
+      // Update content
+      document.querySelectorAll('.material-type-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      document.getElementById(type + '-content').classList.add('active');
+      
+      // Update form fields
+      const videoUrl = document.getElementById('video-url');
+      const linkUrl = document.getElementById('link-url');
+      const documentFile = document.getElementById('document-file');
+      const documentLinkUrl = document.getElementById('document-link-url');
+      
+      // Reset all inputs
+      videoUrl.required = false;
+      linkUrl.required = false;
+      documentFile.required = false;
+      documentLinkUrl.required = false;
+      
+      if (type === 'video') {
+        videoUrl.required = true;
+        videoUrl.name = 'url';
+        linkUrl.name = '';
+        documentFile.name = '';
+        documentLinkUrl.name = '';
+      } else if (type === 'document') {
+        documentFile.name = 'file';
+        documentLinkUrl.name = 'document_url';
+        videoUrl.name = '';
+        linkUrl.name = '';
+      } else if (type === 'link') {
+        linkUrl.required = true;
+        linkUrl.name = 'url';
+        videoUrl.name = '';
+        documentFile.name = '';
+        documentLinkUrl.name = '';
+      }
+    }
+    
+    function toggleDocumentLink() {
+      const checkbox = document.getElementById('use-document-link');
+      const linkInput = document.getElementById('document-link-url');
+      const fileInput = document.getElementById('document-file');
+      
+      if (checkbox.checked) {
+        linkInput.style.display = 'block';
+        linkInput.required = true;
+        fileInput.required = false;
+        fileInput.name = '';
+        linkInput.name = 'document_url';
+      } else {
+        linkInput.style.display = 'none';
+        linkInput.required = false;
+        linkInput.name = '';
+        fileInput.required = true;
+        fileInput.name = 'file';
+      }
+    }
+    
+    function handleFileSelect(input) {
+      const file = input.files[0];
+      if (file) {
+        // Check file size (5MB max)
+        const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+        if (file.size > maxSize) {
+          qssShowError('File size exceeds 5MB limit. Please choose a smaller file.');
+          input.value = '';
+          clearFileSelection();
+          return;
+        }
+        
+        document.getElementById('file-name').textContent = file.name;
+        document.getElementById('file-size').textContent = formatFileSize(file.size);
+        document.getElementById('file-selected-display').style.display = 'flex';
+      }
+    }
+    
+    function clearFileSelection() {
+      document.getElementById('document-file').value = '';
+      document.getElementById('file-selected-display').style.display = 'none';
+    }
+    
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+    
+    // Form submission handler
+    document.getElementById('editMaterialForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const form = this;
+      const formData = new FormData(form);
+      
+      // Set material type
+      formData.append('type', currentMaterialType);
+      
+      // Validate based on type
+      if (currentMaterialType === 'document') {
+        const hasFile = document.getElementById('document-file').files.length > 0;
+        const hasLink = document.getElementById('use-document-link').checked && 
+                       document.getElementById('document-link-url').value.trim();
+        const hasCurrentFile = '<%= material.file_path ? 'true' : 'false' %>' === 'true';
+        
+        if (!hasFile && !hasLink && !hasCurrentFile) {
+          qssShowWarning('Please either upload a file or provide a link for the document.');
+          return;
+        }
+      }
+      
+      fetch(form.action, {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          qssShowMessage({
+            type: 'success',
+            title: 'Success',
+            message: 'Material updated successfully!',
+            onClose: () => {
+          window.location.href = '/training/<%= training.id %>?tab=coursework';
+            }
+          });
+        } else {
+          qssShowError('Error updating material: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        qssShowError('Error updating material');
+      });
+    });
+    
+    // Drag and drop for file upload
+    const fileUploadArea = document.getElementById('file-upload-area');
+    if (fileUploadArea) {
+      fileUploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('dragover');
+      });
+      
+      fileUploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+      });
+      
+      fileUploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          const fileInput = document.getElementById('document-file');
+          fileInput.files = files;
+          handleFileSelect(fileInput);
+        }
+      });
+    }
+    
+    // Initialize form based on current material type after DOM loads
+    document.addEventListener('DOMContentLoaded', function() {
+      const materialType = '<%= material.type %>';
+      switchMaterialType(materialType);
+      
+      // Also ensure the correct tab button is active
+      const tabs = document.querySelectorAll('.material-type-tab');
+      tabs.forEach(tab => {
+        const onclickAttr = tab.getAttribute('onclick');
+        if (onclickAttr && onclickAttr.includes(`'${materialType}'`)) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+

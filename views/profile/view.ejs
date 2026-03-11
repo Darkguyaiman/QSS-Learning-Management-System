@@ -1,0 +1,1700 @@
+<% 
+  const pageTitle = 'Profile';
+  const isTrainee = user.userRole === 'trainee';
+%>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile - LMS</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="<%= ['admin', 'trainer'].includes(user.userRole) ? 'has-sidebar' : 'has-navbar' %>">
+  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+    <%- include('../partials/sidebar', { user }) %>
+  <% } else { %>
+    <%- include('../partials/navbar', { user }) %>
+  <% } %>
+  
+  <main class="main-content">
+    <div class="container">
+      <div class="dashboard-header">
+        <h1>My Profile</h1>
+      </div>
+
+      <% if (error) { %>
+        <div class="alert alert-error">
+          <%= error %>
+        </div>
+      <% } %>
+      
+      <% if (passwordError) { %>
+        <div class="alert alert-error">
+          <%= passwordError %>
+        </div>
+      <% } %>
+      
+      <% if (typeof passwordSuccess !== 'undefined' && passwordSuccess) { %>
+        <div class="alert alert-success">
+          <%= passwordSuccess %>
+        </div>
+      <% } %>
+
+      <div class="profile-container">
+        <!-- Profile Header Card -->
+        <div class="profile-header-card">
+          <!-- Animated Flying Icons (Desktop Only) -->
+          <div class="flying-icons-container">
+            <i class="fas fa-heartbeat flying-icon" style="--delay: 0s; --duration: 4s; --top: 12%;"></i>
+            <i class="fas fa-stethoscope flying-icon" style="--delay: 0.4s; --duration: 4.5s; --top: 28%;"></i>
+            <i class="fas fa-user-md flying-icon" style="--delay: 0.8s; --duration: 4.2s; --top: 44%;"></i>
+            <i class="fas fa-microchip flying-icon" style="--delay: 1.2s; --duration: 4.8s; --top: 60%;"></i>
+            <i class="fas fa-lightbulb flying-icon" style="--delay: 1.6s; --duration: 4.3s; --top: 76%;"></i>
+            <i class="fas fa-graduation-cap flying-icon" style="--delay: 2s; --duration: 4.6s; --top: 8%;"></i>
+            <i class="fas fa-book-medical flying-icon" style="--delay: 2.4s; --duration: 4.4s; --top: 24%;"></i>
+            <i class="fas fa-certificate flying-icon" style="--delay: 2.8s; --duration: 4.7s; --top: 40%;"></i>
+            <i class="fas fa-hospital flying-icon" style="--delay: 3.2s; --duration: 4.1s; --top: 56%;"></i>
+            <i class="fas fa-laptop-medical flying-icon" style="--delay: 3.6s; --duration: 4.9s; --top: 72%;"></i>
+          </div>
+          <div class="profile-header-content">
+            <div class="profile-picture-wrapper">
+              <div class="profile-picture-container">
+                <% if (profile.profile_picture) { %>
+                  <img src="<%= profile.profile_picture %>" alt="Profile Picture" class="profile-picture-large">
+                <% } else { %>
+                  <div class="profile-placeholder-large">
+                    <%= (profile.first_name || '').charAt(0) %><%= (profile.last_name || '').charAt(0) %>
+                  </div>
+                <% } %>
+                <% if (!isTrainee) { %>
+                  <div class="profile-picture-overlay">
+                    <form action="/profile/upload-picture" method="POST" enctype="multipart/form-data" class="profile-picture-form">
+                      <input type="file" name="profilePicture" id="profilePicture" accept="image/*" style="display: none;" onchange="this.form.submit()">
+                      <label for="profilePicture" class="profile-picture-upload-overlay">
+                        <i class="fas fa-camera"></i>
+                        <span>Change Picture</span>
+                      </label>
+                    </form>
+                  </div>
+                <% } %>
+              </div>
+            </div>
+            
+            <div class="profile-info-header">
+              <h2><%= profile.first_name %> <%= profile.last_name %></h2>
+              <div class="profile-meta">
+                <div class="profile-meta-item">
+                  <i class="fas fa-envelope"></i>
+                  <span><%= profile.email %></span>
+                </div>
+                <% if (isTrainee && profile.trainee_id) { %>
+                  <div class="profile-meta-item">
+                    <i class="fas fa-id-card"></i>
+                    <span>Trainee ID: <%= profile.trainee_id %></span>
+                  </div>
+                <% } %>
+                <% if (!isTrainee) { %>
+                  <div class="profile-meta-item">
+                    <i class="fas fa-user-tag"></i>
+                    <span><%= profile.role.charAt(0).toUpperCase() + profile.role.slice(1) %></span>
+                  </div>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Profile Cards Grid -->
+        <div class="profile-cards-grid">
+          <!-- Personal Information Card -->
+          <div class="profile-card">
+          <div class="profile-card-header">
+            <i class="fas fa-user"></i>
+            <h3>Personal Information</h3>
+          </div>
+          <form action="/profile/update" method="POST" class="profile-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="firstName">
+                  <i class="fas fa-user"></i>
+                  First Name
+                </label>
+                <input type="text" id="firstName" name="firstName" class="form-input" value="<%= profile.first_name %>" required>
+              </div>
+              
+              <div class="form-group">
+                <label for="lastName">
+                  <i class="fas fa-user"></i>
+                  Last Name
+                </label>
+                <input type="text" id="lastName" name="lastName" class="form-input" value="<%= profile.last_name %>" required>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="email">
+                <i class="fas fa-envelope"></i>
+                Email Address
+              </label>
+              <input type="email" id="email" name="email" class="form-input" value="<%= profile.email %>" required>
+            </div>
+            
+            <% if (isTrainee) { %>
+              <!-- Trainee Information Section -->
+              <div class="profile-section-divider">
+                <span>Trainee Details</span>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="icPassport">
+                    <i class="fas fa-id-card"></i>
+                    IC/Passport
+                  </label>
+                  <input type="text" id="icPassport" name="icPassport" class="form-input form-input-readonly" value="<%= profile.ic_passport || '' %>" readonly>
+                </div>
+                
+                <div class="form-group">
+                  <label for="handphoneNumber">
+                    <i class="fas fa-phone"></i>
+                    Handphone Number
+                  </label>
+                  <input type="text" id="handphoneNumber" name="handphoneNumber" class="form-input form-input-readonly" value="<%= profile.handphone_number || '' %>" readonly>
+                </div>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="healthcare">
+                    <i class="fas fa-hospital"></i>
+                    Healthcare
+                  </label>
+                  <input type="text" id="healthcare" name="healthcare" class="form-input form-input-readonly" value="<%= profile.healthcare || '' %>" readonly>
+                </div>
+                
+                <div class="form-group">
+                  <label for="designation">
+                    <i class="fas fa-briefcase"></i>
+                    Designation
+                  </label>
+                  <input type="text" id="designation" name="designation" class="form-input form-input-readonly" value="<%= profile.designation || '' %>" readonly>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="areaOfSpecialization">
+                  <i class="fas fa-user-md"></i>
+                  Area of Specialization
+                </label>
+                <input type="text" id="areaOfSpecialization" name="areaOfSpecialization" class="form-input form-input-readonly" value="<%= profile.area_of_specialization || '' %>" readonly>
+              </div>
+              
+              <div class="form-group">
+                <label for="serialNumber">
+                  <i class="fas fa-server"></i>
+                  Serial Number
+                </label>
+                <input type="text" id="serialNumber" name="serialNumber" class="form-input form-input-readonly" value="<%= profile.serial_number || '' %>" readonly>
+              </div>
+              
+              <!-- Training Information Section -->
+              <% if (profile.first_training) { %>
+                <div class="profile-section-divider">
+                  <span>Training History</span>
+                </div>
+                
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>
+                      <i class="fas fa-calendar-check"></i>
+                      First Training Date
+                    </label>
+                    <input type="text" class="form-input form-input-readonly" value="<%= new Date(profile.first_training).toLocaleDateString() %>" readonly>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label>
+                      <i class="fas fa-calendar-alt"></i>
+                      Latest Training Date
+                    </label>
+                    <input type="text" class="form-input form-input-readonly" value="<%= profile.latest_training ? new Date(profile.latest_training).toLocaleDateString() : 'N/A' %>" readonly>
+                  </div>
+                </div>
+                
+                <% if (profile.recertification_date) { %>
+                  <div class="form-group">
+                    <label>
+                      <i class="fas fa-certificate"></i>
+                      Recertification Date
+                    </label>
+                    <input type="text" class="form-input form-input-readonly" value="<%= new Date(profile.recertification_date).toLocaleDateString() %>" readonly>
+                  </div>
+                <% } %>
+              <% } %>
+              
+              <!-- Statistics Section -->
+              <div class="profile-section-divider">
+                <span>Statistics</span>
+              </div>
+
+              <div class="stats-grid-profile">
+                <div class="stat-card-profile">
+                  <div class="stat-icon">
+                    <i class="fas fa-graduation-cap"></i>
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-number"><%= profile.number_of_completed_trainings || 0 %></div>
+                    <div class="stat-label">Completed Trainings</div>
+                    <div class="stat-description">Successfully finished training programs</div>
+                  </div>
+                </div>
+
+                <div class="stat-card-profile">
+                  <div class="stat-icon">
+                    <i class="fas fa-user-check"></i>
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-status status-<%= (profile.trainee_status || 'active').toLowerCase() %>">
+                      <%= profile.trainee_status ? profile.trainee_status.charAt(0).toUpperCase() + profile.trainee_status.slice(1) : 'Active' %>
+                    </div>
+                    <div class="stat-label">Account Status</div>
+                    <div class="stat-description">Current training account status</div>
+                  </div>
+                </div>
+              </div>
+            <% } %>
+            
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-save"></i>
+                Update Profile
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Password Change Card -->
+        <div class="profile-card password-card">
+          <div class="profile-card-header password-card-header">
+            <div class="password-header-icon">
+              <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="password-header-content">
+              <h3>Change Password</h3>
+              <p class="password-header-subtitle">Keep your account secure with a strong password</p>
+            </div>
+          </div>
+          <form action="/profile/change-password" method="POST" class="profile-form password-form" id="passwordChangeForm">
+            <div class="form-group">
+              <label for="currentPassword">
+                <i class="fas fa-key"></i>
+                Current Password
+              </label>
+              <div class="password-input-wrapper">
+                <input type="password" id="currentPassword" name="currentPassword" class="form-input" required>
+                <button type="button" class="password-toggle" data-target="currentPassword">
+                  <i class="fas fa-eye"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label for="newPassword">
+                  <i class="fas fa-lock"></i>
+                  New Password
+                </label>
+                <div class="password-input-wrapper">
+                  <input type="password" id="newPassword" name="newPassword" class="form-input" required minlength="6">
+                  <button type="button" class="password-toggle" data-target="newPassword">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+                <small class="form-help">Password must be at least 6 characters long</small>
+              </div>
+              
+              <div class="form-group">
+                <label for="confirmPassword">
+                  <i class="fas fa-lock"></i>
+                  Confirm New Password
+                </label>
+                <div class="password-input-wrapper">
+                  <input type="password" id="confirmPassword" name="confirmPassword" class="form-input" required minlength="6">
+                  <button type="button" class="password-toggle" data-target="confirmPassword">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+                <div class="password-match-indicator" id="passwordMatchIndicator"></div>
+              </div>
+            </div>
+            
+            <!-- Password Strength Meter - Moved to bottom -->
+            <div class="password-strength-container" id="passwordStrengthContainer" style="display: none;">
+              <div class="password-strength-meter">
+                <div class="password-strength-bar" id="passwordStrengthBar"></div>
+              </div>
+              <div class="password-strength-text" id="passwordStrengthText"></div>
+            </div>
+            
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-key"></i>
+                Change Password
+              </button>
+            </div>
+          </form>
+        </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+<style>
+.profile-container {
+  width: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.profile-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-xl);
+  align-items: start;
+}
+
+/* Profile Header Card */
+.profile-header-card {
+  background: linear-gradient(135deg, rgba(87, 63, 215, 0.1) 0%, rgba(17, 53, 139, 0.1) 100%);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-2xl);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(87, 63, 215, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Flying Icons Animation (Desktop Only) */
+.flying-icons-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.flying-icon {
+  position: absolute;
+  font-size: 2rem;
+  color: var(--color-purple);
+  opacity: 0.15;
+  top: var(--top, 50%);
+  left: -50px;
+  animation-name: flyAcross, glowBlink;
+  animation-duration: var(--duration, 4s), 2s;
+  animation-timing-function: linear, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+  animation-delay: var(--delay, 0s), 0s;
+  filter: drop-shadow(0 0 8px rgba(87, 63, 215, 0.6));
+}
+
+@keyframes flyAcross {
+  0% {
+    left: -50px;
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-15px) rotate(180deg);
+  }
+  100% {
+    left: calc(100% + 50px);
+    transform: translateY(0) rotate(360deg);
+  }
+}
+
+@keyframes glowBlink {
+  0%, 100% {
+    opacity: 0.15;
+    filter: drop-shadow(0 0 8px rgba(87, 63, 215, 0.6));
+  }
+  50% {
+    opacity: 0.3;
+    filter: drop-shadow(0 0 16px rgba(87, 63, 215, 0.9));
+  }
+}
+
+.profile-header-content {
+  display: flex;
+  gap: var(--spacing-xl);
+  align-items: flex-start;
+  position: relative;
+  z-index: 1;
+}
+
+.profile-picture-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-shrink: 0;
+}
+
+.profile-picture-container {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.profile-picture-large {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 5px solid var(--color-white);
+  box-shadow: 0 4px 12px rgba(87, 63, 215, 0.3);
+  transition: all 0.3s ease;
+  display: block;
+}
+
+.profile-placeholder-large {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-blue) 100%);
+  color: var(--color-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 2.5rem;
+  border: 5px solid var(--color-white);
+  box-shadow: 0 4px 12px rgba(87, 63, 215, 0.3);
+  transition: all 0.3s ease;
+}
+
+.profile-picture-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.profile-picture-container:hover .profile-picture-overlay {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.profile-picture-container:hover .profile-picture-large,
+.profile-picture-container:hover .profile-placeholder-large {
+  transform: scale(1.05);
+}
+
+.profile-picture-upload-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  color: var(--color-white);
+  cursor: pointer;
+  padding: var(--spacing-sm);
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.profile-picture-upload-overlay:hover {
+  transform: scale(1.1);
+}
+
+.profile-picture-upload-overlay i {
+  font-size: 1.5rem;
+  margin-bottom: var(--spacing-xs);
+}
+
+.profile-picture-upload-overlay span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.profile-picture-form {
+  margin: 0;
+}
+
+.profile-info-header {
+  flex: 1;
+  padding-top: var(--spacing-sm);
+}
+
+.profile-info-header h2 {
+  font-size: 2rem;
+  color: var(--color-dark);
+  margin-bottom: var(--spacing-md);
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.profile-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.profile-meta-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--color-gray);
+  font-size: 0.95rem;
+}
+
+.profile-meta-item i {
+  color: var(--color-purple);
+  width: 18px;
+  text-align: center;
+}
+
+/* Profile Card */
+.profile-card {
+  background: var(--color-white);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-xl);
+  border: 1px solid var(--color-gray-light);
+}
+
+.profile-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 2px solid var(--color-gray-light);
+}
+
+.profile-card-header i {
+  color: var(--color-purple);
+  font-size: 1.5rem;
+}
+
+.profile-card-header h3 {
+  font-size: 1.5rem;
+  color: var(--color-dark);
+  font-weight: 600;
+  margin: 0;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.profile-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.profile-form .form-group label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-weight: 600;
+  color: var(--color-dark);
+  font-size: 0.95rem;
+}
+
+.profile-form .form-group label i {
+  color: var(--color-purple);
+  font-size: 0.875rem;
+  width: 16px;
+  text-align: center;
+}
+
+.profile-form .form-input {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 2px solid var(--color-gray-light);
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  transition: all 0.2s;
+  background: var(--color-white);
+  width: 100%;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.profile-form .form-input:focus {
+  outline: none;
+  border-color: var(--color-purple);
+  box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.1);
+}
+
+.profile-form .form-input-readonly {
+  background: var(--color-gray-light);
+  color: var(--color-gray);
+  cursor: not-allowed;
+  border-color: var(--color-gray-light);
+}
+
+.profile-section-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin: var(--spacing-xl) 0 var(--spacing-lg) 0;
+  padding-top: var(--spacing-lg);
+  border-top: 2px solid var(--color-gray-light);
+}
+
+.profile-section-divider::before {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-gray-light);
+}
+
+.profile-section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-gray-light);
+}
+
+.profile-section-divider span {
+  padding: 0 var(--spacing-md);
+  color: var(--color-purple);
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-badge {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: linear-gradient(135deg, rgba(87, 63, 215, 0.1) 0%, rgba(17, 53, 139, 0.1) 100%);
+  border-radius: var(--border-radius);
+  border: 1px solid rgba(87, 63, 215, 0.2);
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-purple);
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: var(--color-gray);
+  text-transform: lowercase;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: capitalize;
+  width: fit-content;
+}
+
+.status-badge.status-active {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--color-success);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-badge.status-inactive {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-error);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.status-badge.status-suspended {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-orange);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.status-badge.status-registered {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--color-blue);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Enhanced Statistics Section */
+.stats-grid-profile {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+}
+
+.stat-card-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-xl);
+  background: linear-gradient(135deg, rgba(87, 63, 215, 0.05) 0%, rgba(17, 53, 139, 0.05) 100%);
+  border: 2px solid rgba(87, 63, 215, 0.1);
+  border-radius: var(--border-radius-lg);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card-profile::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--color-purple) 0%, var(--color-blue) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.stat-card-profile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(87, 63, 215, 0.15);
+  border-color: rgba(87, 63, 215, 0.2);
+}
+
+.stat-card-profile:hover::before {
+  opacity: 1;
+}
+
+.stat-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-blue) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(87, 63, 215, 0.3);
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--color-purple);
+  line-height: 1;
+  margin-bottom: var(--spacing-xs);
+}
+
+.stat-content .stat-label {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-dark);
+  margin-bottom: var(--spacing-xs);
+}
+
+.stat-description {
+  font-size: 0.875rem;
+  color: var(--color-gray);
+  line-height: 1.4;
+}
+
+.stat-status {
+  display: inline-block;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-xs);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stat-status.status-active {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%);
+  color: var(--color-success);
+  border: 2px solid rgba(16, 185, 129, 0.3);
+}
+
+.stat-status.status-inactive {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.15) 100%);
+  color: var(--color-error);
+  border: 2px solid rgba(239, 68, 68, 0.3);
+}
+
+.stat-status.status-suspended {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.15) 100%);
+  color: var(--color-orange);
+  border: 2px solid rgba(245, 158, 11, 0.3);
+}
+
+.stat-status.status-registered {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.15) 100%);
+  color: var(--color-blue);
+  border: 2px solid rgba(59, 130, 246, 0.3);
+}
+
+.form-actions {
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 2px solid var(--color-gray-light);
+}
+
+.btn-lg {
+  padding: var(--spacing-md) var(--spacing-xl);
+  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  justify-content: center;
+}
+
+.btn-lg i {
+  font-size: 0.875rem;
+}
+
+/* Password Card Styling */
+.password-card {
+  background: linear-gradient(135deg, rgba(87, 63, 215, 0.02) 0%, rgba(17, 53, 139, 0.02) 100%);
+  border: 2px solid rgba(87, 63, 215, 0.1);
+}
+
+.password-card-header {
+  background: linear-gradient(135deg, rgba(87, 63, 215, 0.08) 0%, rgba(17, 53, 139, 0.08) 100%);
+  border-bottom: 2px solid rgba(87, 63, 215, 0.15);
+  padding: var(--spacing-md);
+  margin: calc(-1 * var(--spacing-xl)) calc(-1 * var(--spacing-xl)) var(--spacing-lg) calc(-1 * var(--spacing-xl));
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+}
+
+.password-header-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--border-radius);
+  background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-blue) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF !important;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(87, 63, 215, 0.3);
+}
+
+.password-header-icon i {
+  color: #FFFFFF !important;
+}
+
+.password-header-content h3 {
+  margin: 0 0 var(--spacing-xs) 0;
+  color: var(--color-dark);
+  font-size: 1.5rem;
+}
+
+.password-header-subtitle {
+  margin: 0;
+  color: var(--color-gray);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.password-form {
+  margin-top: var(--spacing-sm);
+}
+
+.password-form label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-weight: 600;
+  color: var(--color-dark);
+  font-size: 0.95rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+.password-form label i {
+  color: var(--color-purple);
+  font-size: 0.875rem;
+  width: 18px;
+  text-align: center;
+}
+
+/* Password Input Wrapper */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--color-white);
+  border: 2px solid var(--color-gray-light);
+  border-radius: var(--border-radius);
+  transition: all 0.2s;
+}
+
+.password-input-wrapper:focus-within {
+  border-color: var(--color-purple);
+  box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.1);
+}
+
+.password-input-wrapper .form-input {
+  padding-right: 3rem;
+  border: none;
+  background: transparent;
+  flex: 1;
+}
+
+.password-input-wrapper .form-input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.password-toggle {
+  position: absolute;
+  right: var(--spacing-sm);
+  background: none;
+  border: none;
+  color: var(--color-gray);
+  cursor: pointer;
+  padding: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 1;
+  border-radius: var(--border-radius);
+  width: 32px;
+  height: 32px;
+}
+
+.password-toggle:hover {
+  color: var(--color-purple);
+  background: rgba(87, 63, 215, 0.1);
+}
+
+.password-toggle:active {
+  transform: scale(0.95);
+}
+
+.password-toggle i {
+  font-size: 0.875rem;
+}
+
+/* Password Strength Container */
+.password-strength-container {
+  margin-top: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 2px solid rgba(87, 63, 215, 0.1);
+}
+
+/* Password Strength Meter */
+.password-strength-meter {
+  width: 100%;
+  height: 6px;
+  background: var(--color-gray-light);
+  border-radius: 3px;
+  margin-top: 0;
+  margin-bottom: var(--spacing-sm);
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.password-strength-bar {
+  height: 100%;
+  width: 0%;
+  transition: all 0.3s ease;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.password-strength-bar.weak {
+  width: 33%;
+  background: linear-gradient(90deg, var(--color-error) 0%, #f87171 100%);
+}
+
+.password-strength-bar.medium {
+  width: 66%;
+  background: linear-gradient(90deg, var(--color-orange) 0%, #f59e0b 100%);
+}
+
+.password-strength-bar.strong {
+  width: 100%;
+  background: linear-gradient(90deg, var(--color-success) 0%, #34d399 100%);
+}
+
+.password-strength-text {
+  margin-top: var(--spacing-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  min-height: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.password-strength-text.weak {
+  color: var(--color-error);
+}
+
+.password-strength-text.weak::before {
+  content: '\f071';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+}
+
+.password-strength-text.medium {
+  color: var(--color-orange);
+}
+
+.password-strength-text.medium::before {
+  content: '\f06a';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+}
+
+.password-strength-text.strong {
+  color: var(--color-success);
+}
+
+.password-strength-text.strong::before {
+  content: '\f058';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+}
+
+/* Password Match Indicator */
+.password-match-indicator {
+  margin-top: var(--spacing-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  min-height: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius);
+  width: fit-content;
+}
+
+.password-match-indicator.match {
+  color: var(--color-success);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.password-match-indicator.match::before {
+  content: '\f00c';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+}
+
+.password-match-indicator.no-match {
+  color: var(--color-error);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.password-match-indicator.no-match::before {
+  content: '\f00d';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+}
+
+.form-help {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
+  color: var(--color-gray);
+  font-size: 0.8125rem;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(87, 63, 215, 0.05);
+  border-radius: var(--border-radius);
+  width: fit-content;
+}
+
+.form-help::before {
+  content: '\f05a';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+  color: var(--color-purple);
+  font-size: 0.75rem;
+}
+
+.password-form .form-actions {
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 2px solid rgba(87, 63, 215, 0.1);
+}
+
+.password-form .btn-primary {
+  background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-blue) 100%);
+  border: none;
+  box-shadow: 0 4px 12px rgba(87, 63, 215, 0.3);
+  transition: all 0.3s ease;
+}
+
+.password-form .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(87, 63, 215, 0.4);
+}
+
+/* Account Actions Card */
+.account-actions-card {
+  border: 2px solid rgba(239, 68, 68, 0.1);
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+}
+
+/* Simplified Account Actions Section */
+.account-actions-content {
+  padding: var(--spacing-lg);
+  text-align: center;
+}
+
+.logout-section {
+  display: flex;
+  justify-content: center;
+}
+
+.btn-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: linear-gradient(135deg, var(--color-error) 0%, #dc2626 100%);
+  color: white;
+  text-decoration: none;
+  border-radius: var(--border-radius-lg);
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  border: 2px solid transparent;
+}
+
+.btn-logout:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+  background: linear-gradient(135deg, #dc2626 0%, var(--color-error) 100%);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.btn-logout:active {
+  transform: translateY(0);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, var(--color-error) 0%, #dc2626 100%);
+  border: none;
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  transition: all 0.3s ease;
+}
+
+.btn-danger:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+  background: linear-gradient(135deg, #dc2626 0%, var(--color-error) 100%);
+}
+
+/* Alert Styles */
+.alert {
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius);
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-weight: 500;
+}
+
+.alert-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-error);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.alert-success {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--color-success);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.alert::before {
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+  font-size: 1.125rem;
+}
+
+.alert-error::before {
+  content: '\f06a';
+}
+
+.alert-success::before {
+  content: '\f058';
+}
+
+/* Form Row Responsive */
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+}
+
+@media (max-width: 768px) {
+  .flying-icons-container {
+    display: none;
+  }
+  
+  .profile-header-content {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .profile-info-header {
+    width: 100%;
+  }
+  
+  .profile-info-header h2 {
+    text-align: center;
+    font-size: 1.5rem;
+  }
+  
+  .profile-meta {
+    align-items: center;
+  }
+  
+  .profile-card {
+    padding: var(--spacing-lg);
+  }
+  
+  .profile-container {
+    gap: var(--spacing-lg);
+  }
+  
+  .profile-cards-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-lg);
+  }
+  
+  .profile-header-card {
+    padding: var(--spacing-lg);
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+  
+  .profile-picture-container {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .profile-picture-large,
+  .profile-placeholder-large {
+    width: 120px;
+    height: 120px;
+    font-size: 2rem;
+  }
+  
+  .profile-card-header h3 {
+    font-size: 1.25rem;
+  }
+  
+  .btn-lg {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: var(--spacing-md);
+  }
+  
+  .profile-header-card {
+    padding: var(--spacing-md);
+  }
+  
+  .profile-card {
+    padding: var(--spacing-md);
+  }
+  
+  .password-card-header {
+    margin: calc(-1 * var(--spacing-md)) calc(-1 * var(--spacing-md)) var(--spacing-md) calc(-1 * var(--spacing-md));
+    padding: var(--spacing-md);
+  }
+
+  .account-actions-content {
+    padding: var(--spacing-md);
+  }
+
+  .account-actions-description {
+    margin-bottom: var(--spacing-md);
+    font-size: 0.875rem;
+  }
+  
+  .profile-picture-container {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .profile-picture-large,
+  .profile-placeholder-large {
+    width: 100px;
+    height: 100px;
+    font-size: 1.75rem;
+  }
+  
+  .profile-info-header h2 {
+    font-size: 1.25rem;
+  }
+  
+  .profile-meta-item {
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 320px) {
+  .container {
+    padding: var(--spacing-sm);
+  }
+  
+  .profile-header-card {
+    padding: var(--spacing-sm);
+  }
+  
+  .profile-card {
+    padding: var(--spacing-sm);
+  }
+  
+  .profile-form .form-input {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: var(--spacing-xs) var(--spacing-sm);
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+  }
+  
+  .password-input-wrapper {
+    width: 100%;
+  }
+  
+  .password-input-wrapper .form-input {
+    padding-right: 2.5rem;
+    width: 100%;
+    min-width: 0;
+  }
+  
+  .password-toggle {
+    right: var(--spacing-xs);
+  }
+  
+  .form-group {
+    width: 100%;
+    min-width: 0;
+  }
+  
+  .profile-info-header h2 {
+    font-size: 1.125rem;
+  }
+  
+  .profile-meta-item {
+    font-size: 0.8125rem;
+    flex-wrap: wrap;
+  }
+  
+  .profile-card-header h3 {
+    font-size: 1.125rem;
+  }
+  
+  .profile-card-header i {
+    font-size: 1.25rem;
+  }
+  
+  .password-header-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
+  }
+  
+  .password-header-content h3 {
+    font-size: 1.25rem;
+  }
+  
+  .password-header-subtitle {
+    font-size: 0.8125rem;
+  }
+  
+  .password-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    text-align: left;
+    margin: calc(-1 * var(--spacing-sm)) calc(-1 * var(--spacing-sm)) var(--spacing-md) calc(-1 * var(--spacing-sm));
+    padding: var(--spacing-sm);
+  }
+
+  .account-actions-content {
+    padding: var(--spacing-sm);
+  }
+
+  .account-actions-description {
+    font-size: 0.8125rem;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  /* Enhanced Statistics Mobile Styles */
+  .stats-grid-profile {
+    gap: var(--spacing-md);
+  }
+
+  .stat-card-profile {
+    padding: var(--spacing-lg);
+    gap: var(--spacing-md);
+  }
+
+  .stat-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 1.25rem;
+  }
+
+  .stat-number {
+    font-size: 2rem;
+  }
+
+  .stat-content .stat-label {
+    font-size: 1rem;
+  }
+
+  .stat-description {
+    font-size: 0.8125rem;
+  }
+
+  .stat-status {
+    font-size: 0.8125rem;
+    padding: var(--spacing-xs) var(--spacing-md);
+  }
+
+  /* Simplified Account Actions Mobile Styles */
+  .account-actions-content {
+    padding: var(--spacing-lg);
+  }
+
+  .btn-logout {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    font-size: 0.9375rem;
+  }
+  
+  .password-form .form-group {
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .btn-lg {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.9375rem;
+  }
+
+  /* Enhanced Statistics Extra Small Screens */
+  .stat-card-profile {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--spacing-md);
+  }
+
+  .stat-icon {
+    width: 45px;
+    height: 45px;
+    font-size: 1.125rem;
+  }
+
+  .stat-number {
+    font-size: 1.75rem;
+  }
+
+  /* Simplified Account Actions Extra Small Screens */
+  .account-actions-content {
+    padding: var(--spacing-md);
+  }
+
+  .btn-logout {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .stat-value {
+    font-size: 1.25rem;
+  }
+  
+  .profile-section-divider span {
+    font-size: 0.8125rem;
+    padding: 0 var(--spacing-sm);
+  }
+}
+</style>
+    </div>
+  </main>
+  
+  <script src="/js/main.js"></script>
+  <script>
+    // Password toggle functionality
+    document.querySelectorAll('.password-toggle').forEach(toggle => {
+      toggle.addEventListener('click', function() {
+        const targetId = this.getAttribute('data-target');
+        const input = document.getElementById(targetId);
+        const icon = this.querySelector('i');
+        
+        if (input.type === 'password') {
+          input.type = 'text';
+          icon.classList.remove('fa-eye');
+          icon.classList.add('fa-eye-slash');
+        } else {
+          input.type = 'password';
+          icon.classList.remove('fa-eye-slash');
+          icon.classList.add('fa-eye');
+        }
+      });
+    });
+
+    // Password strength checker
+    function checkPasswordStrength(password) {
+      const strengthContainer = document.getElementById('passwordStrengthContainer');
+      const strengthBar = document.getElementById('passwordStrengthBar');
+      const strengthText = document.getElementById('passwordStrengthText');
+      
+      // Hide container if password is empty
+      if (password.length === 0) {
+        if (strengthContainer) {
+          strengthContainer.style.display = 'none';
+        }
+        return;
+      }
+      
+      // Show container when password has input
+      if (strengthContainer) {
+        strengthContainer.style.display = 'block';
+      }
+      
+      let strength = 0;
+      let text = '';
+      
+      if (password.length >= 6) strength++;
+      if (password.length >= 8) strength++;
+      if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+      if (/[0-9]/.test(password)) strength++;
+      if (/[^a-zA-Z0-9]/.test(password)) strength++;
+      
+      if (strength <= 2) {
+        strengthBar.className = 'password-strength-bar weak';
+        strengthText.className = 'password-strength-text weak';
+        text = 'Weak password';
+      } else if (strength <= 3) {
+        strengthBar.className = 'password-strength-bar medium';
+        strengthText.className = 'password-strength-text medium';
+        text = 'Medium strength';
+      } else {
+        strengthBar.className = 'password-strength-bar strong';
+        strengthText.className = 'password-strength-text strong';
+        text = 'Strong password';
+      }
+      
+      strengthText.textContent = text;
+    }
+
+    // Password match checker
+    function checkPasswordMatch() {
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      const matchIndicator = document.getElementById('passwordMatchIndicator');
+      
+      if (confirmPassword.length === 0) {
+        matchIndicator.textContent = '';
+        matchIndicator.className = 'password-match-indicator';
+        return;
+      }
+      
+      if (newPassword === confirmPassword) {
+        matchIndicator.textContent = 'Passwords match';
+        matchIndicator.className = 'password-match-indicator match';
+      } else {
+        matchIndicator.textContent = 'Passwords do not match';
+        matchIndicator.className = 'password-match-indicator no-match';
+      }
+    }
+
+    // Event listeners
+    const newPasswordInput = document.getElementById('newPassword');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    
+    if (newPasswordInput) {
+      newPasswordInput.addEventListener('input', function() {
+        checkPasswordStrength(this.value);
+        checkPasswordMatch();
+      });
+    }
+    
+    if (confirmPasswordInput) {
+      confirmPasswordInput.addEventListener('input', checkPasswordMatch);
+    }
+
+    // Form validation
+    const passwordForm = document.getElementById('passwordChangeForm');
+    if (passwordForm) {
+      passwordForm.addEventListener('submit', function(e) {
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        
+        if (newPassword !== confirmPassword) {
+          e.preventDefault();
+          alert('Passwords do not match. Please try again.');
+          return false;
+        }
+        
+        if (newPassword.length < 6) {
+          e.preventDefault();
+          alert('Password must be at least 6 characters long.');
+          return false;
+        }
+      });
+    }
+  </script>
+</body>
+</html>
+

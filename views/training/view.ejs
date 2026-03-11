@@ -1,0 +1,2067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= training.title %> - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <style>
+    .classroom-header-banner {
+      height: 200px;
+      background-size: cover;
+      background-position: center;
+      background-color: #573FD7;
+      position: relative;
+      margin-bottom: 2rem;
+      border-radius: 0 0 12px 12px;
+      overflow: hidden;
+    }
+    
+    
+    .classroom-header-content {
+      position: relative;
+      z-index: 1;
+      padding: 2rem;
+      color: white;
+    }
+    
+    .classroom-title-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+    
+    .classroom-title {
+      font-size: 2rem;
+      font-weight: 400;
+      margin: 0;
+      color: white;
+    }
+    
+    .classroom-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0;
+      padding: 1.5rem 0 1rem 1rem;
+      background: white;
+      border-bottom: none;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      border-radius: 12px 12px 0 0;
+    }
+    
+    /* Remove gap between tabs and header banner in Stream tab only */
+    #stream-tab.active .classroom-header-banner {
+      margin-top: -1.5rem;
+    }
+    
+    .classroom-tabs::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .tab-button {
+      padding: 0.875rem 1.5rem;
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9375rem;
+      font-weight: 500;
+      color: #5F6368;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      white-space: nowrap;
+    }
+    
+    .tab-button i {
+      font-size: 0.875rem;
+      opacity: 0.8;
+      transition: opacity 0.3s;
+    }
+    
+    .tab-button:hover {
+      color: #573FD7;
+      background: rgba(87, 63, 215, 0.08);
+    }
+    
+    .tab-button:hover i {
+      opacity: 1;
+    }
+    
+    .tab-button.active {
+      color: #573FD7;
+      background: rgba(87, 63, 215, 0.12);
+      box-shadow: 0 2px 4px rgba(87, 63, 215, 0.15);
+    }
+    
+    .tab-button.active i {
+      opacity: 1;
+      color: #573FD7;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+      margin-top: 1.5rem;
+    }
+    
+    .trainers-section {
+      background: white;
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+    
+    .trainer-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #E8F0FE;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1967D2;
+      flex-shrink: 0;
+    }
+    
+    .trainer-avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    
+    .materials-section {
+      margin-top: 2rem;
+    }
+    
+    .section-card {
+      background: white;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+    
+    .section-title {
+      font-size: 1.125rem;
+      font-weight: 500;
+      color: #202124;
+      margin: 0 0 1rem 0;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #E8EAED;
+    }
+    
+    .material-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+      cursor: pointer;
+    }
+    
+    .material-item:hover {
+      background: #F8F9FF;
+      border-color: #573FD7;
+      box-shadow: 0 2px 8px rgba(87, 63, 215, 0.1);
+      transform: translateY(-1px);
+    }
+    
+    .material-item-link {
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .material-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    
+    .material-icon.document {
+      background: #E8F0FE;
+      color: #1967D2;
+    }
+    
+    .material-icon.video {
+      background: #FCE8E6;
+      color: #D93025;
+    }
+    
+    .material-icon.link {
+      background: #E6F4EA;
+      color: #137333;
+    }
+    
+    .material-info {
+      flex: 1;
+    }
+    
+    .material-info h4 {
+      margin: 0 0 0.25rem 0;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #202124;
+    }
+    
+    .material-item-link {
+      color: inherit;
+      text-decoration: none;
+    }
+    
+    .material-item-link:hover .material-info h4 {
+      color: #573FD7;
+    }
+    
+    .material-info p {
+      margin: 0;
+      font-size: 0.75rem;
+      color: #5F6368;
+    }
+    
+    .people-section {
+      margin-bottom: 2.5rem;
+    }
+    
+    .people-section-title {
+      font-size: 1.5rem;
+      font-weight: 500;
+      color: #202124;
+      margin: 0 0 0.75rem 0;
+    }
+    
+    .people-section-divider {
+      height: 1px;
+      background: #5F6368;
+      margin-bottom: 1.5rem;
+    }
+    
+    .people-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    
+    .person-card {
+      background: white;
+      border-radius: 8px;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+      transition: all 0.2s;
+    }
+    
+    .person-card:hover {
+      box-shadow: 0 4px 8px rgba(0,0,0,0.16);
+    }
+    
+    .person-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: #E8F0FE;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #1967D2;
+    }
+    
+    .person-avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    
+    .person-info {
+      flex: 1;
+    }
+    
+    .person-name {
+      font-size: 0.9375rem;
+      font-weight: 500;
+      color: #202124;
+      margin: 0 0 0.25rem 0;
+    }
+    
+    .person-role {
+      font-size: 0.8125rem;
+      color: #5F6368;
+      margin: 0;
+    }
+    
+    .marks-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+    
+    .marks-table th {
+      background: #F8F9FA;
+      padding: 1rem;
+      text-align: left;
+      font-weight: 500;
+      font-size: 0.875rem;
+      color: #5F6368;
+      border-bottom: 1px solid #E8EAED;
+    }
+    
+    .marks-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #E8EAED;
+      font-size: 0.875rem;
+      color: #202124;
+    }
+    
+    .marks-table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .marks-table tr:hover {
+      background: #F8F9FA;
+    }
+    
+    .test-score {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    
+    .score-pass {
+      background: #E6F4EA;
+      color: #137333;
+    }
+    
+    .score-fail {
+      background: #FCE8E6;
+      color: #D93025;
+    }
+    
+    .status-select {
+      padding: 0.5rem;
+      border-radius: 4px;
+      border: 1px solid #DADCE0;
+      font-size: 0.875rem;
+    }
+    
+    @media (max-width: 768px) {
+      .classroom-header-banner {
+        margin-bottom: 1.5rem;
+        height: 150px;
+        border-radius: 0 0 8px 8px;
+      }
+      
+      .classroom-header-content {
+        padding: 1rem;
+      }
+      
+      .classroom-title {
+        font-size: 1.5rem;
+      }
+      
+      .classroom-tabs {
+        margin-bottom: 0;
+        padding: 0.5rem;
+        gap: 0.5rem;
+        border-radius: 10px;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x mandatory;
+      }
+      
+      .tab-button {
+        padding: 0.6rem 0.9rem;
+        font-size: 0.875rem;
+        gap: 0.4rem;
+        border: 1px solid rgba(87, 63, 215, 0.14);
+        background: #ffffff;
+        flex: 0 0 auto;
+        scroll-snap-align: start;
+      }
+      
+      .tab-button i {
+        font-size: 0.8125rem;
+        opacity: 1;
+      }
+      
+      .tab-button.active {
+        background: linear-gradient(135deg, #573FD7 0%, #11358B 100%);
+        color: #ffffff;
+        border-color: transparent;
+        box-shadow: 0 6px 14px rgba(87, 63, 215, 0.25);
+      }
+      
+      .tab-button.active i {
+        color: #ffffff;
+      }
+
+      .tab-content.active {
+        margin-top: 1rem;
+      }
+
+      /* Reduce heavy form paddings inside Settings/Marks tabs on mobile */
+      .form-card {
+        padding: 1.25rem;
+        border-radius: 14px;
+      }
+      
+      .form-section {
+        margin-bottom: 1.25rem;
+      }
+    }
+    
+    /* Settings Form Styles */
+    .form-container {
+      max-width: 100%;
+      margin: 0 auto;
+    }
+    
+    .form-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+      border-radius: 20px;
+      padding: 2.5rem;
+      box-shadow: 0 20px 60px rgba(87, 63, 215, 0.15);
+      border: 1px solid rgba(87, 63, 215, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .form-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #573FD7 0%, #11358B 50%, #E48F24 100%);
+    }
+    
+    .form-section {
+      margin-bottom: 2rem;
+    }
+    
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #573FD7;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid rgba(87, 63, 215, 0.1);
+    }
+    
+    .section-title i {
+      font-size: 1.2rem;
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+    
+    .form-group label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: #2A2A2A;
+      margin-bottom: 0.75rem;
+      font-size: 0.95rem;
+    }
+    
+    .form-group label i {
+      color: #573FD7;
+      font-size: 0.9rem;
+    }
+    
+    .form-input,
+    .form-select {
+      width: 100%;
+      padding: 0.875rem 1.25rem;
+      border: 2px solid #E5E7EB;
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: #ffffff;
+      font-family: inherit;
+    }
+    
+    .form-input:focus,
+    .form-select:focus {
+      outline: none;
+      border-color: #573FD7;
+      box-shadow: 0 0 0 4px rgba(87, 63, 215, 0.1);
+      transform: translateY(-1px);
+    }
+    
+    .multiselect-container {
+      border: 2px solid #E5E7EB;
+      border-radius: 12px;
+      background: #ffffff;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .multiselect-container:focus-within {
+      border-color: #573FD7;
+      box-shadow: 0 0 0 4px rgba(87, 63, 215, 0.1);
+    }
+    
+    .multiselect-search {
+      width: 100%;
+      padding: 0.875rem 1.25rem;
+      border: none;
+      border-bottom: 2px solid #E5E7EB;
+      border-radius: 0;
+      font-size: 1rem;
+      background: #ffffff;
+      outline: none;
+    }
+    
+    .multiselect-search:focus {
+      border-bottom-color: #573FD7;
+    }
+    
+    .multiselect-options {
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+    
+    .multiselect-option {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 0.25rem;
+    }
+    
+    .multiselect-option:hover {
+      background: #F9FAFB;
+    }
+    
+    .multiselect-option input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      accent-color: var(--color-orange);
+      flex-shrink: 0;
+    }
+    
+    .multiselect-option span {
+      flex: 1;
+      color: #2A2A2A;
+      font-size: 0.95rem;
+    }
+    
+    .multiselect-option input[type="checkbox"]:checked + span {
+      color: #573FD7;
+      font-weight: 500;
+    }
+    
+    .multiselect-option.hidden {
+      display: none;
+    }
+    
+    .trainer-option-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .trainer-name,
+    .trainer-email {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.95rem;
+    }
+    
+    .trainer-name {
+      color: #2A2A2A;
+      font-weight: 500;
+    }
+    
+    .trainer-name i {
+      color: var(--color-purple);
+      width: 16px;
+    }
+    
+    .trainer-email {
+      color: #6B7280;
+      font-size: 0.875rem;
+    }
+    
+    .trainer-email i {
+      color: #6B7280;
+      width: 16px;
+    }
+    
+    .trainee-option {
+      position: relative;
+      padding: 1rem;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      background: white;
+      margin-bottom: 0.75rem;
+    }
+    
+    .trainee-option:hover {
+      background: #F9FAFB;
+      border-color: var(--color-purple);
+    }
+    
+    .trainee-option input[type="checkbox"] {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      width: 20px;
+      height: 20px;
+      accent-color: var(--color-orange);
+    }
+    
+    .trainee-option-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      padding-right: 2rem;
+    }
+    
+    .trainee-info-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: #6B7280;
+    }
+    
+    .trainee-info-row i {
+      width: 16px;
+      flex-shrink: 0;
+    }
+    
+    .trainee-name-bold {
+      font-weight: 600;
+      color: #2A2A2A;
+    }
+    
+    .custom-device-item {
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+      padding: 1rem;
+      background: #F9FAFB;
+      border-radius: 8px;
+      border: 1px solid #E5E7EB;
+    }
+    
+    .custom-device-item > div {
+      flex: 1;
+    }
+    
+    .form-actions {
+      display: flex;
+      gap: var(--spacing-md);
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 2px solid rgba(87, 63, 215, 0.1);
+    }
+    
+    .btn-lg {
+      padding: var(--spacing-md) var(--spacing-xl);
+      font-size: 1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      justify-content: center;
+    }
+    
+    .btn-lg i {
+      font-size: 0.875rem;
+    }
+    
+    @media (max-width: 768px) {
+      .form-card {
+        padding: 1.5rem;
+        border-radius: 12px;
+      }
+      
+      .form-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+      
+      .form-actions {
+        flex-direction: column;
+      }
+      
+      .multiselect-options {
+        max-height: 200px;
+      }
+    }
+    
+    /* Material Modal Styles */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal-overlay.active {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      position: relative;
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #E8EAED;
+    }
+    
+    .modal-header h2 {
+      margin: 0;
+      color: #202124;
+      font-size: 1.5rem;
+      font-weight: 500;
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: #5F6368;
+      cursor: pointer;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.2s;
+    }
+    
+    .modal-close:hover {
+      background: #F8F9FA;
+      color: #202124;
+    }
+    
+    .material-type-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid #E8EAED;
+    }
+    
+    .material-type-tab {
+      padding: 0.75rem 1.5rem;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      font-size: 0.9375rem;
+      font-weight: 500;
+      color: #5F6368;
+      transition: all 0.2s;
+      position: relative;
+      bottom: -2px;
+    }
+    
+    .material-type-tab:hover {
+      color: #573FD7;
+    }
+    
+    .material-type-tab.active {
+      color: #573FD7;
+      border-bottom-color: #573FD7;
+    }
+    
+    .material-type-content {
+      display: none;
+    }
+    
+    .material-type-content.active {
+      display: block;
+    }
+    
+    .file-upload-area {
+      border: 2px dashed #DADCE0;
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      transition: all 0.3s;
+      cursor: pointer;
+      background: #FAFAFA;
+    }
+    
+    .file-upload-area:hover {
+      border-color: #573FD7;
+      background: #F8F9FF;
+    }
+    
+    .file-upload-area.dragover {
+      border-color: #573FD7;
+      background: #F0F4FF;
+    }
+    
+    .file-upload-area input[type="file"] {
+      display: none;
+    }
+    
+    .file-upload-icon {
+      font-size: 3rem;
+      color: #5F6368;
+      margin-bottom: 0.5rem;
+    }
+    
+    .file-upload-text {
+      color: #5F6368;
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+    }
+    
+    .file-selected {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: #E8F0FE;
+      border-radius: 8px;
+      margin-top: 1rem;
+    }
+    
+    .file-selected-name {
+      flex: 1;
+      font-size: 0.875rem;
+      color: #202124;
+    }
+    
+    .file-selected-size {
+      font-size: 0.75rem;
+      color: #5F6368;
+    }
+    
+    /* 3-Dot Menu Styles */
+    .material-actions {
+      position: relative;
+    }
+    
+    .material-menu-btn {
+      background: none;
+      border: none;
+      padding: 0.5rem;
+      cursor: pointer;
+      color: #5F6368;
+      border-radius: 4px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .material-menu-btn:hover {
+      background: #F8F9FA;
+      color: #202124;
+    }
+    
+    .material-menu-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      min-width: 150px;
+      z-index: 100;
+      margin-top: 0.25rem;
+      overflow: hidden;
+    }
+    
+    .material-menu-dropdown.active {
+      display: block;
+    }
+    
+    .material-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #202124;
+      font-size: 0.875rem;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+    
+    .material-menu-item:hover {
+      background: #F8F9FA;
+    }
+    
+    .material-menu-item.delete {
+      color: #D93025;
+    }
+    
+    .material-menu-item.delete:hover {
+      background: #FCE8E6;
+    }
+    
+    /* Full Screen Modal */
+    .modal-content.fullscreen {
+      max-width: 95vw;
+      max-height: 95vh;
+      width: 95vw;
+      height: 95vh;
+      padding: 2rem;
+    }
+    
+    .modal-content.fullscreen .modal-body {
+      height: calc(95vh - 120px);
+      overflow-y: auto;
+    }
+    
+    /* Custom Scrollbar for Modal */
+    .modal-body::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    .modal-body::-webkit-scrollbar-track {
+      background: #F8F9FA;
+      border-radius: 4px;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb {
+      background: #E48F24;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    
+    .modal-body::-webkit-scrollbar-thumb:hover {
+      background: #D17F1F;
+    }
+    
+    /* Firefox Scrollbar */
+    .modal-body {
+      scrollbar-width: thin;
+      scrollbar-color: #E48F24 #F8F9FA;
+    }
+  </style>
+</head>
+<body class="<%= ['admin', 'trainer'].includes(user.userRole) ? 'has-sidebar' : 'has-navbar' %>">
+  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+    <%- include('../partials/sidebar', { user }) %>
+  <% } else { %>
+    <%- include('../partials/navbar', { user }) %>
+  <% } %>
+  
+  <main class="main-content">
+    <div class="container">
+      <!-- Tabs Navigation -->
+      <div class="classroom-tabs">
+        <button class="tab-button active" onclick="switchTab('stream')">
+          <i class="fas fa-stream"></i> Stream
+        </button>
+        <button class="tab-button" onclick="switchTab('coursework')">
+          <i class="fas fa-book"></i> Coursework
+        </button>
+        <button class="tab-button" onclick="switchTab('people')">
+          <i class="fas fa-users"></i> People (<%= enrolledTrainees.length + (typeof trainers !== 'undefined' ? trainers.length : 1) %>)
+        </button>
+        <% if (user.userRole === 'trainee' && enrollment && enrollment.can_download_results) { %>
+          <button class="tab-button" onclick="switchTab('results')">
+            <i class="fas fa-certificate"></i> My Results
+          </button>
+        <% } %>
+        <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+          <button class="tab-button" onclick="switchTab('marks')">
+            <i class="fas fa-chart-line"></i> Marks
+          </button>
+          <button class="tab-button" onclick="switchTab('attendance')">
+            <i class="fas fa-calendar-check"></i> Attendance
+          </button>
+        <% } %>
+        <% if (training.type === 'main' && user.userRole === 'admin') { %>
+          <button class="tab-button" onclick="switchTab('aspects')">
+            <i class="fas fa-hand-paper"></i> Hands-On Aspects
+          </button>
+        <% } %>
+        <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+          <button class="tab-button" onclick="switchTab('settings')">
+            <i class="fas fa-cog"></i> Settings
+          </button>
+        <% } %>
+      </div>
+      
+      <!-- Stream Tab -->
+      <%- include('./tabs/stream', { training, trainers, trainer, sections }) %>
+      
+      <!-- Coursework Tab -->
+      <%- include('./tabs/coursework', { training, user, sections, trainingTests, enrollment }) %>
+      
+      <!-- People Tab -->
+      <%- include('./tabs/people', { trainers, trainer, enrolledTrainees }) %>
+      
+      <!-- Results Tab (Trainee Only - After Score Release) -->
+      <% if (user.userRole === 'trainee' && enrollment && enrollment.can_download_results) { %>
+        <%- include('./tabs/results', { user, training, enrollment, marksData }) %>
+      <% } %>
+      
+      <!-- Marks Tab (Admin/Trainer Only) -->
+      <%- include('./tabs/marks', { user, training, marksData, aspects }) %>
+      
+      <!-- Attendance Tab (Admin/Trainer Only) -->
+      <%- include('./tabs/attendance', { user, attendanceData, training }) %>
+      
+      <!-- Hands-On Aspects Tab (Main Training, Admin Only) -->
+      <%- include('./tabs/aspects', { training, user, aspects }) %>
+      
+      <!-- Settings Tab (Admin/Trainer Only) -->
+      <%- include('./tabs/settings', { user, training, allHealthcare, trainingHealthcare, allDevices, trainingDevices, allTrainers, trainers, allTrainees, enrolledTrainees }) %>
+    </div>
+  </main>
+  
+  <!-- Modals -->
+  <%- include('./modals/edit-aspect', { user, training, aspects }) %>
+  <%- include('./modals/create-section', { user, training }) %>
+  <%- include('./modals/create-material', { user, training, sections }) %>
+  
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="/js/main.js"></script>
+  <script>
+    function switchTab(tabName) {
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      // Remove active class from all buttons
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      
+      // Show selected tab
+      document.getElementById(tabName + '-tab').classList.add('active');
+      
+      // Add active class to clicked button
+      if (event && event.target) {
+        event.target.closest('.tab-button')?.classList.add('active');
+      } else {
+        // If called programmatically, find the button
+        document.querySelectorAll('.tab-button').forEach(btn => {
+          if (btn.onclick && btn.onclick.toString().includes(tabName)) {
+            btn.classList.add('active');
+          }
+        });
+      }
+      
+      // Update URL without reload
+      const url = new URL(window.location);
+      url.searchParams.set('tab', tabName);
+      window.history.pushState({}, '', url);
+      
+      // Initialize settings tab if it's being opened
+      <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+      if (tabName === 'settings') {
+        initializeSettingsTab();
+        // Initialize datetime pickers when settings tab is opened
+        const dateInputs = document.querySelectorAll('.datetime-picker');
+        dateInputs.forEach(input => {
+          if (!input._flatpickr) {
+            flatpickr(input, {
+              enableTime: true,
+              dateFormat: 'Y-m-d h:i K',
+              time_24hr: false,
+              allowInput: true,
+              minuteIncrement: 1
+            });
+          }
+        });
+      }
+      <% } %>
+    }
+    
+    // Check for tab parameter in URL on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      
+      if (tabParam) {
+        // Find and click the appropriate tab button
+        const tabButtons = document.querySelectorAll('.tab-button');
+        tabButtons.forEach(btn => {
+          const onclickAttr = btn.getAttribute('onclick');
+          if (onclickAttr && onclickAttr.includes(`'${tabParam}'`)) {
+            btn.click();
+          }
+        });
+      }
+    });
+    
+    <% if (user.userRole === 'admin' && training.type === 'main' && aspects.length > 0) { %>
+    function editAspectScore(aspectId, aspectName, currentScore) {
+      document.getElementById('editAspectForm').action = `/training/<%= training.id %>/aspect/${aspectId}/update`;
+      document.getElementById('modal-aspect-name').value = aspectName;
+      document.getElementById('modal-max-score').value = currentScore;
+      document.getElementById('editAspectModal').style.display = 'flex';
+    }
+    
+    function closeAspectModal() {
+      document.getElementById('editAspectModal').style.display = 'none';
+    }
+    
+    document.getElementById('editAspectModal')?.addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeAspectModal();
+      }
+    });
+    <% } %>
+    
+    <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+    // Multiselect search functionality
+    function setupMultiselectSearch(searchId, optionsId) {
+      const searchInput = document.getElementById(searchId);
+      const optionsContainer = document.getElementById(optionsId);
+      
+      if (!searchInput || !optionsContainer) return;
+      
+      searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const options = optionsContainer.querySelectorAll('.multiselect-option');
+        
+        options.forEach(option => {
+          const text = option.textContent.toLowerCase();
+          if (text.includes(searchTerm)) {
+            option.classList.remove('hidden');
+          } else {
+            option.classList.add('hidden');
+          }
+        });
+      });
+    }
+    
+    // Enhanced trainee search
+    function setupTraineeSearch() {
+      const traineeSearch = document.getElementById('settings-trainee-search');
+      const traineeOptions = document.getElementById('settings-trainee-options');
+      if (traineeSearch && traineeOptions) {
+        traineeSearch.addEventListener('input', function() {
+          const searchTerm = this.value.toLowerCase();
+          const options = traineeOptions.querySelectorAll('.trainee-option');
+          
+          options.forEach(option => {
+            const searchText = option.getAttribute('data-search-text').toLowerCase();
+            if (searchText.includes(searchTerm)) {
+              option.classList.remove('hidden');
+            } else {
+              option.classList.add('hidden');
+            }
+          });
+        });
+      }
+    }
+    
+    // Custom device management
+    function addSettingsCustomDevice() {
+      const container = document.getElementById('settings-custom-devices-list');
+      const deviceDiv = document.createElement('div');
+      deviceDiv.className = 'custom-device-item';
+      
+      deviceDiv.innerHTML = `
+        <div>
+          <input type="text" name="device_customs[]" class="form-input" placeholder="Enter serial number" required style="margin-bottom: 0.75rem;">
+        </div>
+        <button type="button" class="btn btn-sm" onclick="removeCustomDeviceRow(this)" style="background: #EF4444; color: white; border: none; padding: 0.5rem 0.75rem; align-self: flex-start;">
+          <i class="fas fa-times"></i>
+        </button>
+      `;
+      
+      container.appendChild(deviceDiv);
+    }
+    
+    function removeCustomDeviceRow(button) {
+      button.closest('.custom-device-item').remove();
+    }
+    
+    // Initialize multiselect searches when Settings tab is opened
+    function initializeSettingsTab() {
+      setupMultiselectSearch('settings-healthcare-search', 'settings-healthcare-options');
+      setupMultiselectSearch('settings-device-search', 'settings-device-options');
+      setupMultiselectSearch('settings-trainer-search', 'settings-trainer-options');
+      setupTraineeSearch();
+    }
+    
+    // Form submission handler
+    document.getElementById('settings-form')?.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      if (!confirm('Are you sure you want to save these changes?')) {
+        return;
+      }
+      
+      // Convert form data to URL-encoded format
+      const formData = new URLSearchParams();
+      const form = this;
+      
+      // Add basic fields
+      formData.append('title', form.querySelector('[name="title"]').value);
+      formData.append('status', form.querySelector('[name="status"]').value);
+      formData.append('start_datetime', form.querySelector('[name="start_datetime"]').value || '');
+      formData.append('end_datetime', form.querySelector('[name="end_datetime"]').value || '');
+      
+      // Add healthcare IDs (from checkboxes)
+      const healthcareCheckboxes = form.querySelectorAll('[name="healthcare_ids[]"]:checked');
+      healthcareCheckboxes.forEach(checkbox => {
+        formData.append('healthcare_ids', checkbox.value);
+      });
+      
+      // Add device data - pair device_type[] with device_ids[] or device_customs[]
+      const deviceCheckboxes = form.querySelectorAll('[name="device_ids[]"]:checked');
+      deviceCheckboxes.forEach(checkbox => {
+        formData.append('device_type[]', 'existing');
+        formData.append('device_ids[]', checkbox.value);
+      });
+      
+      // Add custom devices
+      const customDevices = form.querySelectorAll('[name="device_customs[]"]');
+      customDevices.forEach(input => {
+        if (input.value.trim()) {
+          formData.append('device_type[]', 'custom');
+          formData.append('device_customs[]', input.value.trim());
+        }
+      });
+      
+      // Add trainer IDs (from checkboxes)
+      const trainerCheckboxes = form.querySelectorAll('[name="trainer_ids[]"]:checked');
+      trainerCheckboxes.forEach(checkbox => {
+        formData.append('trainer_ids', checkbox.value);
+      });
+      
+      // Add trainee IDs (from checkboxes)
+      const traineeCheckboxes = form.querySelectorAll('[name="trainee_ids[]"]:checked');
+      traineeCheckboxes.forEach(checkbox => {
+        formData.append('trainee_ids', checkbox.value);
+      });
+      
+      fetch(this.action, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString()
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          qssShowMessage({
+            type: 'success',
+            title: 'Success',
+            message: 'Training settings updated successfully!',
+            onClose: () => location.reload()
+          });
+        } else {
+          qssShowError('Error updating settings: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        qssShowError('Error updating training settings');
+      });
+    });
+    
+    // Initialize datetime pickers on page load if settings tab is active
+    document.addEventListener('DOMContentLoaded', function() {
+      if (document.getElementById('settings-tab')?.classList.contains('active')) {
+        initializeSettingsTab();
+        const dateInputs = document.querySelectorAll('.datetime-picker');
+        dateInputs.forEach(input => {
+          if (!input._flatpickr) {
+            flatpickr(input, {
+              enableTime: true,
+              dateFormat: 'Y-m-d h:i K',
+              time_24hr: false,
+              allowInput: true,
+              minuteIncrement: 1
+            });
+          }
+        });
+      }
+    });
+    <% } %>
+    
+    <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+    // 3-Dot Menu Functions
+    function toggleMaterialMenu(event, menuId) {
+      event.stopPropagation();
+      
+      // Close all other menus
+      document.querySelectorAll('.material-menu-dropdown').forEach(menu => {
+        if (menu.id !== menuId) {
+          menu.classList.remove('active');
+        }
+      });
+      
+      // Toggle current menu
+      const menu = document.getElementById(menuId);
+      if (menu) {
+        menu.classList.toggle('active');
+      }
+    }
+    
+    // Close menus when clicking outside
+    document.addEventListener('click', function(event) {
+      if (!event.target.closest('.material-actions')) {
+        document.querySelectorAll('.material-menu-dropdown').forEach(menu => {
+          menu.classList.remove('active');
+        });
+      }
+    });
+    
+    // Section Management Functions
+    function openCreateSectionModal() {
+      document.getElementById('createSectionModal').classList.add('active');
+      document.getElementById('createSectionForm').reset();
+    }
+    
+    function closeCreateSectionModal() {
+      document.getElementById('createSectionModal').classList.remove('active');
+      document.getElementById('createSectionForm').reset();
+    }
+    
+    // Material Management Functions
+    let currentMaterialType = 'video';
+    
+    function openCreateMaterialModal() {
+      document.getElementById('createMaterialModal').classList.add('active');
+      resetMaterialForm();
+    }
+    
+    function closeCreateMaterialModal() {
+      document.getElementById('createMaterialModal').classList.remove('active');
+      resetMaterialForm();
+    }
+    
+    function resetMaterialForm() {
+      document.getElementById('createMaterialForm').reset();
+      document.getElementById('file-selected-display').style.display = 'none';
+      document.getElementById('document-link-url').style.display = 'none';
+      document.getElementById('use-document-link').checked = false;
+      switchMaterialType('video');
+    }
+    
+    function switchMaterialType(type) {
+      currentMaterialType = type;
+      
+      // Update tabs
+      document.querySelectorAll('.material-type-tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      event?.target?.classList.add('active');
+      
+      // Update content
+      document.querySelectorAll('.material-type-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      document.getElementById(type + '-content').classList.add('active');
+      
+      // Update form action and required fields
+      const form = document.getElementById('createMaterialForm');
+      const titleInput = document.getElementById('material-title');
+      const videoUrl = document.getElementById('video-url');
+      const linkUrl = document.getElementById('link-url');
+      const documentFile = document.getElementById('document-file');
+      const documentLinkUrl = document.getElementById('document-link-url');
+      
+      // Reset all inputs
+      videoUrl.required = false;
+      linkUrl.required = false;
+      documentFile.required = false;
+      documentLinkUrl.required = false;
+      
+      if (type === 'video') {
+        form.action = '/training/<%= training.id %>/materials/create';
+        videoUrl.required = true;
+        videoUrl.name = 'url';
+        linkUrl.name = '';
+        documentFile.name = '';
+        documentLinkUrl.name = '';
+      } else if (type === 'document') {
+        form.action = '/training/<%= training.id %>/materials/create';
+        // Document can have file OR link, so we'll handle validation in submit
+        documentFile.name = 'file';
+        documentLinkUrl.name = 'document_url';
+        videoUrl.name = '';
+        linkUrl.name = '';
+      } else if (type === 'link') {
+        form.action = '/training/<%= training.id %>/materials/create';
+        linkUrl.required = true;
+        linkUrl.name = 'url';
+        videoUrl.name = '';
+        documentFile.name = '';
+        documentLinkUrl.name = '';
+      }
+    }
+    
+    function toggleDocumentLink() {
+      const checkbox = document.getElementById('use-document-link');
+      const linkInput = document.getElementById('document-link-url');
+      const fileInput = document.getElementById('document-file');
+      
+      if (checkbox.checked) {
+        linkInput.style.display = 'block';
+        linkInput.required = true;
+        fileInput.required = false;
+        fileInput.name = '';
+        linkInput.name = 'document_url';
+      } else {
+        linkInput.style.display = 'none';
+        linkInput.required = false;
+        linkInput.name = '';
+        fileInput.required = true;
+        fileInput.name = 'file';
+      }
+    }
+    
+    function handleFileSelect(input) {
+      const file = input.files[0];
+      if (file) {
+        // Check file size (5MB max)
+        const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+        if (file.size > maxSize) {
+          qssShowError('File size exceeds 5MB limit. Please choose a smaller file.');
+          input.value = '';
+          clearFileSelection();
+          return;
+        }
+        
+        document.getElementById('file-name').textContent = file.name;
+        document.getElementById('file-size').textContent = formatFileSize(file.size);
+        document.getElementById('file-selected-display').style.display = 'flex';
+      }
+    }
+    
+    function clearFileSelection() {
+      document.getElementById('document-file').value = '';
+      document.getElementById('file-selected-display').style.display = 'none';
+    }
+    
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+    
+    function deleteMaterial(materialId) {
+      if (!confirm('Are you sure you want to delete this material?')) {
+        return;
+      }
+      
+      fetch(`/training/<%= training.id %>/materials/${materialId}/delete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          location.reload();
+        } else {
+          qssShowError('Error deleting material: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        qssShowError('Error deleting material');
+      });
+    }
+    
+    function deleteSection(sectionId) {
+      if (!confirm('Are you sure you want to delete this section? All materials in this section will be moved to General Materials.')) {
+        return;
+      }
+      
+      fetch(`/training/<%= training.id %>/sections/${sectionId}/delete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          location.reload();
+        } else {
+          qssShowError('Error deleting section: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        qssShowError('Error deleting section');
+      });
+    }
+    
+    // Form submission handler
+    document.getElementById('createMaterialForm')?.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const form = this;
+      const formData = new FormData(form);
+      
+      // Set material type
+      formData.append('type', currentMaterialType);
+      
+      // Validate based on type
+      if (currentMaterialType === 'document') {
+        const hasFile = document.getElementById('document-file').files.length > 0;
+        const hasLink = document.getElementById('use-document-link').checked && 
+                       document.getElementById('document-link-url').value.trim();
+        
+        if (!hasFile && !hasLink) {
+          qssShowWarning('Please either upload a file or provide a link for the document.');
+          return;
+        }
+      }
+      
+      fetch(form.action, {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          qssShowMessage({
+            type: 'success',
+            title: 'Success',
+            message: 'Material created successfully!',
+            onClose: () => location.reload()
+          });
+        } else {
+          qssShowError('Error creating material: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        qssShowError('Error creating material');
+      });
+    });
+    
+    // Close modal when clicking outside
+    document.getElementById('createMaterialModal')?.addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeCreateMaterialModal();
+      }
+    });
+    
+    // Section form submission
+    document.getElementById('createSectionForm')?.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const formData = new URLSearchParams();
+      formData.append('title', document.getElementById('section-title-input').value);
+      
+      fetch(`/training/<%= training.id %>/section`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString()
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          qssShowMessage({
+            type: 'success',
+            title: 'Success',
+            message: 'Section created successfully!',
+            onClose: () => location.reload()
+          });
+        } else {
+          qssShowError('Error creating section: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        qssShowError('Error creating section');
+      });
+    });
+    
+    // Close section modal when clicking outside
+    document.getElementById('createSectionModal')?.addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeCreateSectionModal();
+      }
+    });
+    
+    // Drag and drop for file upload
+    const fileUploadArea = document.getElementById('file-upload-area');
+    if (fileUploadArea) {
+      fileUploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('dragover');
+      });
+      
+      fileUploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+      });
+      
+      fileUploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          const fileInput = document.getElementById('document-file');
+          fileInput.files = files;
+          handleFileSelect(fileInput);
+        }
+      });
+    }
+    <% } %>
+    
+    <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+    // View test responses for a trainee
+    async function viewTestResponses(enrollmentId, traineeName) {
+      try {
+        const response = await fetch(`/training/<%= training.id %>/enrollment/${enrollmentId}/test-responses`);
+        const data = await response.json();
+        
+        if (!data.success) {
+          qssShowError('Error loading test responses: ' + (data.error || 'Unknown error'));
+          return;
+        }
+        
+        // Create modal content
+        let modalContent = `
+          <div class="modal-header">
+            <h2>Test Responses - ${traineeName}</h2>
+            <button class="modal-close" onclick="closeTestResponsesModal()">&times;</button>
+          </div>
+          <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
+        `;
+        
+        if (data.tests.length === 0) {
+          modalContent += '<p style="color: #5F6368; text-align: center; padding: 2rem;">No tests completed yet.</p>';
+        } else {
+          // Separate tests by type
+          const preTest = data.tests.find(t => t.test_type === 'pre_test');
+          const postTest = data.tests.find(t => t.test_type === 'post_test');
+          const certificateTest = data.tests.find(t => t.test_type === 'certificate_enrolment');
+          const refreshmentTest = data.tests.find(t => t.test_type === 'refreshment');
+          
+          // Helper function to render test section
+          const renderTestSection = (test, title, icon, color) => {
+            if (!test) return '';
+            
+            let section = `
+              <div class="test-section" style="margin-bottom: 3rem; border: 2px solid ${color}; border-radius: 12px; overflow: hidden;">
+                <div class="test-section-header" style="background: linear-gradient(135deg, ${color} 0%, ${color}dd 100%); padding: 1.5rem; color: white;">
+                  <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div style="font-size: 2rem;">${icon}</div>
+                    <div style="flex: 1;">
+                      <h3 style="margin: 0 0 0.25rem 0; font-size: 1.5rem;">${title}</h3>
+                      <p style="margin: 0; opacity: 0.95; font-size: 0.95rem;">Score: ${test.score.toFixed(1)}%</p>
+                    </div>
+                    <div style="font-size: 2.5rem; font-weight: bold;">${test.score.toFixed(1)}%</div>
+                  </div>
+                </div>
+                <div style="padding: 1.5rem; background: #F8F9FA;">
+                  <div style="display: grid; gap: 1rem;">
+            `;
+            
+            test.answers.forEach((answer, index) => {
+              const isCorrect = answer.is_correct;
+              section += `
+                <div style="padding: 1.25rem; background: white; border-radius: 8px; border-left: 5px solid ${isCorrect ? '#34A853' : '#EA4335'}; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                  <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                    <strong style="color: #202124; font-size: 1rem;">Question ${index + 1}</strong>
+                    <span style="padding: 0.375rem 0.875rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; background: ${isCorrect ? '#E6F4EA' : '#FCE8E6'}; color: ${isCorrect ? '#137333' : '#C5221F'};">
+                      ${isCorrect ? '✓ Correct' : '✗ Incorrect'}
+                    </span>
+                  </div>
+                  <p style="margin: 0 0 1rem 0; color: #202124; font-size: 1rem; line-height: 1.6;">${answer.question_text}</p>
+                  <div style="display: grid; gap: 0.75rem;">
+                    <div style="padding: 0.75rem; background: ${isCorrect ? '#E6F4EA' : '#FCE8E6'}; border-radius: 6px;">
+                      <strong style="color: #5F6368; font-size: 0.875rem;">Your Answer:</strong>
+                      <div style="color: ${isCorrect ? '#137333' : '#C5221F'}; font-weight: 600; margin-top: 0.25rem;">
+                        ${answer.selected_answer} - ${answer['option_' + answer.selected_answer.toLowerCase()]}
+                      </div>
+                    </div>
+                    ${!isCorrect ? `
+                      <div style="padding: 0.75rem; background: #E6F4EA; border-radius: 6px;">
+                        <strong style="color: #5F6368; font-size: 0.875rem;">Correct Answer:</strong>
+                        <div style="color: #137333; font-weight: 600; margin-top: 0.25rem;">
+                          ${answer.correct_answer} - ${answer['option_' + answer.correct_answer.toLowerCase()]}
+                        </div>
+                      </div>
+                    ` : ''}
+                  </div>
+                </div>
+              `;
+            });
+            
+            section += `
+                  </div>
+                </div>
+              </div>
+            `;
+            return section;
+          };
+          
+          // Render each test section separately
+          if (preTest) {
+            modalContent += renderTestSection(preTest, 'Pre-Test', '📋', '#4285F4');
+          }
+          
+          if (postTest) {
+            modalContent += renderTestSection(postTest, 'Post-Test', '✅', '#34A853');
+          }
+          
+          if (certificateTest) {
+            modalContent += renderTestSection(certificateTest, 'Certificate Enrolment Test', '🎓', '#EA4335');
+          }
+          
+          if (refreshmentTest) {
+            modalContent += renderTestSection(refreshmentTest, 'Refreshment Test', '🔄', '#9C27B0');
+          }
+        }
+        
+        modalContent += `
+          </div>
+        `;
+        
+        // Create and show modal
+        const modal = document.createElement('div');
+        modal.id = 'testResponsesModal';
+        modal.className = 'modal-overlay active';
+        modal.innerHTML = `
+          <div class="modal-content" style="max-width: 900px; width: 95%;">
+            ${modalContent}
+          </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Close on overlay click
+        modal.addEventListener('click', function(e) {
+          if (e.target === modal) {
+            closeTestResponsesModal();
+          }
+        });
+      } catch (error) {
+        console.error('Error:', error);
+        qssShowError('Error loading test responses');
+      }
+    }
+    
+    function closeTestResponsesModal() {
+      const modal = document.getElementById('testResponsesModal');
+      if (modal) {
+        modal.remove();
+      }
+    }
+    
+    // Evaluate hands-on aspects for a trainee
+    async function evaluateHandsOn(enrollmentId, traineeName) {
+      try {
+        const response = await fetch(`/training/<%= training.id %>/enrollment/${enrollmentId}/hands-on`);
+        const data = await response.json();
+        
+        if (!data.success) {
+          qssShowError('Error loading hands-on data: ' + (data.error || 'Unknown error'));
+          return;
+        }
+        
+        // Create modal content
+        let modalContent = `
+          <div class="modal-header">
+            <h2>Evaluate Hands-On - ${traineeName}</h2>
+            <button class="modal-close" onclick="closeHandsOnModal()">&times;</button>
+          </div>
+          <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
+            <form id="hands-on-form" onsubmit="saveHandsOnScores(event, ${enrollmentId})">
+        `;
+        
+        data.aspects.forEach(aspect => {
+          const existingScore = data.scores.find(s => s.aspect_id === aspect.id);
+          modalContent += `
+            <div style="margin-bottom: 1.5rem; padding: 1.5rem; background: #F8F9FA; border-radius: 8px;">
+              <h3 style="margin: 0 0 0.5rem 0; color: #202124;">${aspect.aspect_name}</h3>
+              <p style="margin: 0 0 1rem 0; color: #5F6368; font-size: 0.875rem;">${aspect.description || 'No description'}</p>
+              <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="color: #202124; font-weight: 500;">Score:</span>
+                  <input type="number" 
+                         name="score_${aspect.id}" 
+                         id="score_${aspect.id}"
+                         min="0" 
+                         max="${aspect.max_score}" 
+                         value="${existingScore ? existingScore.score : ''}"
+                         step="0.1"
+                         style="padding: 0.5rem; border: 1px solid #DADCE0; border-radius: 4px; width: 100px;"
+                         required>
+                  <span style="color: #5F6368;">/ ${aspect.max_score}</span>
+                </label>
+                <textarea 
+                  name="comments_${aspect.id}"
+                  id="comments_${aspect.id}"
+                  placeholder="Comments (optional)"
+                  style="flex: 1; min-width: 200px; padding: 0.5rem; border: 1px solid #DADCE0; border-radius: 4px; font-family: inherit; resize: vertical;"
+                  rows="2">${existingScore ? (existingScore.comments || '') : ''}</textarea>
+              </div>
+            </div>
+          `;
+        });
+        
+        modalContent += `
+              <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 2px solid #E8EAED; display: flex; gap: 0.5rem; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="closeHandsOnModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Scores</button>
+              </div>
+            </form>
+          </div>
+        `;
+        
+        // Create and show modal
+        const modal = document.createElement('div');
+        modal.id = 'handsOnModal';
+        modal.className = 'modal-overlay active';
+        modal.innerHTML = `
+          <div class="modal-content" style="max-width: 800px; width: 95%;">
+            ${modalContent}
+          </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Close on overlay click
+        modal.addEventListener('click', function(e) {
+          if (e.target === modal) {
+            closeHandsOnModal();
+          }
+        });
+      } catch (error) {
+        console.error('Error:', error);
+        qssShowError('Error loading hands-on data');
+      }
+    }
+    
+    async function saveHandsOnScores(event, enrollmentId) {
+      event.preventDefault();
+      
+      const formData = new FormData(event.target);
+      const scores = [];
+      
+      <% if (training.type === 'main' && aspects.length > 0) { %>
+        <% aspects.forEach(aspect => { %>
+          const score_<%= aspect.id %> = formData.get('score_<%= aspect.id %>');
+          const comments_<%= aspect.id %> = formData.get('comments_<%= aspect.id %>');
+          if (score_<%= aspect.id %> !== null) {
+            scores.push({
+              aspect_id: <%= aspect.id %>,
+              score: parseFloat(score_<%= aspect.id %>),
+              comments: comments_<%= aspect.id %> || ''
+            });
+          }
+        <% }); %>
+      <% } %>
+      
+      try {
+        const response = await fetch(`/training/<%= training.id %>/enrollment/${enrollmentId}/hands-on/save`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ scores })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          closeHandsOnModal();
+          qssShowMessage({
+            type: 'success',
+            title: 'Success',
+            message: 'Hands-on scores saved successfully!',
+            onClose: () => location.reload()
+          });
+        } else {
+          qssShowError('Error saving scores: ' + (data.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        qssShowError('Error saving hands-on scores');
+      }
+    }
+    
+    function closeHandsOnModal() {
+      const modal = document.getElementById('handsOnModal');
+      if (modal) {
+        modal.remove();
+      }
+    }
+    <% } %>
+    
+    <% if (user.userRole === 'admin') { %>
+    // Lock training function
+    async function lockTraining() {
+      if (!confirm('Are you sure you want to lock this training? Once locked, no changes can be made. You can unlock it later if needed.')) {
+        return;
+      }
+      
+      const btn = document.getElementById('lock-training-btn');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Locking...';
+      
+      try {
+        const response = await fetch(`/training/<%= training.id %>/lock`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          qssShowMessage({
+            type: 'success',
+            title: 'Success',
+            message: 'Training locked successfully!',
+            onClose: () => location.reload()
+          });
+        } else {
+          qssShowError('Error locking training: ' + (data.error || 'Unknown error'));
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        qssShowError('Error locking training');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+    
+    // Unlock training function
+    async function unlockTraining() {
+      if (!confirm('Are you sure you want to unlock this training? This will allow modifications to be made again.')) {
+        return;
+      }
+      
+      const btn = document.getElementById('unlock-training-btn');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Unlocking...';
+      
+      try {
+        const response = await fetch(`/training/<%= training.id %>/unlock`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          qssShowMessage({
+            type: 'success',
+            title: 'Success',
+            message: 'Training unlocked successfully!',
+            onClose: () => location.reload()
+          });
+        } else {
+          qssShowError('Error unlocking training: ' + (data.error || 'Unknown error'));
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        qssShowError('Error unlocking training');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+    <% } %>
+  </script>
+</body>
+</html>

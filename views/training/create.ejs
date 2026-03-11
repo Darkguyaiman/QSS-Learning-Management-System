@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Training - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <style>
+    .form-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .form-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+      border-radius: 20px;
+      padding: 2.5rem;
+      box-shadow: 0 20px 60px rgba(87, 63, 215, 0.15);
+      border: 1px solid rgba(87, 63, 215, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .form-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #573FD7 0%, #11358B 50%, #E48F24 100%);
+    }
+    
+    .form-section {
+      margin-bottom: 2rem;
+    }
+    
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #573FD7;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid rgba(87, 63, 215, 0.1);
+    }
+    
+    .section-title i {
+      font-size: 1.2rem;
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+    
+    .form-group label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: #2A2A2A;
+      margin-bottom: 0.75rem;
+      font-size: 0.95rem;
+    }
+    
+    .form-group label i {
+      color: #573FD7;
+      font-size: 0.9rem;
+    }
+    
+    .form-input,
+    .form-select,
+    textarea.form-input {
+      width: 100%;
+      padding: 0.875rem 1.25rem;
+      border: 2px solid #E5E7EB;
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: #ffffff;
+      font-family: inherit;
+    }
+    
+    .form-input:focus,
+    .form-select:focus,
+    textarea.form-input:focus {
+      outline: none;
+      border-color: #573FD7;
+      box-shadow: 0 0 0 4px rgba(87, 63, 215, 0.1);
+      transform: translateY(-1px);
+    }
+    
+    textarea.form-input {
+      resize: vertical;
+      min-height: 140px;
+      line-height: 1.6;
+    }
+    
+    .info-box {
+      background: linear-gradient(135deg, rgba(87, 63, 215, 0.05) 0%, rgba(17, 53, 139, 0.05) 100%);
+      border-left: 4px solid #573FD7;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-top: 0.5rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+    
+    .info-box i {
+      color: #573FD7;
+      margin-top: 0.125rem;
+      font-size: 1rem;
+    }
+    
+    .info-box p {
+      margin: 0;
+      color: #4B5563;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+    
+    /* Training Media is uploaded during training in Coursework tab (not on create page). */
+    
+    .type-cards {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+    
+    .type-card {
+      background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
+      border: 2px solid #E5E7EB;
+      border-radius: 12px;
+      padding: 1.25rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    
+    .type-card:hover {
+      border-color: #573FD7;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(87, 63, 215, 0.15);
+    }
+    
+    .type-card input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      cursor: pointer;
+    }
+    
+    .type-card input[type="radio"]:checked + .type-card-content {
+      color: #573FD7;
+    }
+    
+    .type-card input[type="radio"]:checked ~ .type-card-content {
+      border-color: #573FD7;
+    }
+    
+    .type-card:has(input[type="radio"]:checked) {
+      border-color: #573FD7;
+      background: linear-gradient(135deg, rgba(87, 63, 215, 0.05) 0%, rgba(17, 53, 139, 0.05) 100%);
+      box-shadow: 0 4px 12px rgba(87, 63, 215, 0.2);
+    }
+    
+    .type-card-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .type-card-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: #2A2A2A;
+      font-size: 1rem;
+    }
+    
+    .type-card-title i {
+      color: #573FD7;
+      font-size: 1.1rem;
+    }
+    
+    .type-card-desc {
+      color: #6B7280;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+    
+    .form-actions {
+      display: flex;
+      gap: var(--spacing-md);
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 2px solid rgba(87, 63, 215, 0.1);
+    }
+    
+    .alert-error {
+      background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+      border: 2px solid #EF4444;
+      color: #991B1B;
+      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .alert-error i {
+      font-size: 1.25rem;
+    }
+    
+    .multiselect-container {
+      border: 2px solid #E5E7EB;
+      border-radius: 12px;
+      background: #ffffff;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .multiselect-container:focus-within {
+      border-color: #573FD7;
+      box-shadow: 0 0 0 4px rgba(87, 63, 215, 0.1);
+    }
+    
+    .multiselect-search {
+      width: 100%;
+      padding: 0.875rem 1.25rem;
+      border: none;
+      border-bottom: 2px solid #E5E7EB;
+      border-radius: 0;
+      font-size: 1rem;
+      background: #ffffff;
+      outline: none;
+    }
+    
+    .multiselect-search:focus {
+      border-bottom-color: #573FD7;
+    }
+    
+    .multiselect-options {
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+    
+    .multiselect-option {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 0.25rem;
+    }
+    
+    .multiselect-option:hover {
+      background: #F9FAFB;
+    }
+    
+    .multiselect-option input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      accent-color: var(--color-orange);
+      flex-shrink: 0;
+    }
+    
+    .multiselect-option span {
+      flex: 1;
+      color: #2A2A2A;
+      font-size: 0.95rem;
+    }
+    
+    .multiselect-option input[type="checkbox"]:checked + span {
+      color: #573FD7;
+      font-weight: 500;
+    }
+    
+    .multiselect-option.hidden {
+      display: none;
+    }
+    
+    .trainer-option-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .trainer-name,
+    .trainer-email {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.95rem;
+    }
+    
+    .trainer-name {
+      color: #2A2A2A;
+      font-weight: 500;
+    }
+    
+    .trainer-name i {
+      color: var(--color-purple);
+      width: 16px;
+    }
+    
+    .trainer-email {
+      color: #6B7280;
+      font-size: 0.875rem;
+    }
+    
+    .trainer-email i {
+      color: #6B7280;
+      width: 16px;
+    }
+    
+    .trainee-option {
+      position: relative;
+      padding: 1rem;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      background: white;
+      margin-bottom: 0.75rem;
+    }
+    
+    .trainee-option:hover {
+      background: #F9FAFB;
+      border-color: var(--color-purple);
+    }
+    
+    .trainee-option input[type="checkbox"] {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      width: 20px;
+      height: 20px;
+      accent-color: var(--color-orange);
+    }
+    
+    .trainee-option-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      padding-right: 2rem;
+    }
+    
+    .trainee-info-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: #6B7280;
+    }
+    
+    .trainee-info-row i {
+      width: 16px;
+      flex-shrink: 0;
+    }
+    
+    .trainee-name-bold {
+      font-weight: 600;
+      color: #2A2A2A;
+    }
+    
+    .custom-device-item {
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+      padding: 1rem;
+      background: #F9FAFB;
+      border-radius: 8px;
+      border: 1px solid #E5E7EB;
+    }
+    
+    .custom-device-item > div {
+      flex: 1;
+    }
+    
+    .btn-lg {
+      padding: var(--spacing-md) var(--spacing-xl);
+      font-size: 1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      justify-content: center;
+    }
+    
+    .btn-lg i {
+      font-size: 0.875rem;
+    }
+    
+    #add-custom-device-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.875rem 1.5rem;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(87, 63, 215, 0.2);
+      transition: all 0.3s ease;
+      border-radius: 12px;
+    }
+    
+    #add-custom-device-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(87, 63, 215, 0.3);
+    }
+    
+    #add-custom-device-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 6px rgba(87, 63, 215, 0.2);
+    }
+    
+    @media (max-width: 768px) {
+      .form-container {
+        max-width: 100%;
+        padding: 0;
+      }
+      
+      .form-card {
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin: 0;
+      }
+      
+      .type-cards {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+      }
+      
+      .form-actions {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+      }
+      
+      .form-input,
+      .form-select,
+      textarea.form-input {
+        font-size: 16px; /* Prevents zoom on iOS */
+        padding: 0.75rem 1rem;
+      }
+      
+      textarea.form-input {
+        min-height: 120px;
+      }
+      
+      .section-title {
+        font-size: 1rem;
+      }
+      
+      .form-group label {
+        font-size: 0.9rem;
+      }
+      
+      .type-card {
+        padding: 1rem;
+      }
+      
+      .type-card-title {
+        font-size: 0.95rem;
+      }
+      
+      .type-card-desc {
+        font-size: 0.8rem;
+      }
+      
+      .form-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+      
+      .info-box {
+        padding: 0.875rem 1rem;
+      }
+      
+      .info-box p {
+        font-size: 0.8rem;
+      }
+      
+      .multiselect-options {
+        max-height: 200px;
+      }
+    }
+  </style>
+</head>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
+  
+  <main class="main-content">
+    <div class="container">
+      <div class="dashboard-header">
+        <h1>Create New Training</h1>
+        <a href="/training" class="btn btn-outline">Back</a>
+      </div>
+      
+      <div class="form-container">
+        <% if (error) { %>
+          <div class="alert-error">
+            <i class="fas fa-exclamation-circle"></i>
+            <span><%= error %></span>
+          </div>
+        <% } %>
+        
+        <div class="form-card">
+          <form action="/training/create" method="POST">
+            <div class="form-section">
+              <div class="section-title">
+                <i class="fas fa-graduation-cap"></i>
+                Training Information
+              </div>
+              
+              <div class="form-group">
+                <label for="title">
+                  <i class="fas fa-heading"></i>
+                  Training Title *
+                </label>
+                <input type="text" id="title" name="title" class="form-input" required placeholder="Enter training title">
+              </div>
+              
+              <div class="form-group">
+                <label for="description">
+                  <i class="fas fa-align-left"></i>
+                  Description
+                </label>
+                <textarea id="description" name="description" class="form-input" rows="6" placeholder="Describe the training program, its objectives, and what trainees will learn..."></textarea>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-title">
+                <i class="fas fa-tags"></i>
+                Training Type *
+              </div>
+              
+              <div class="type-cards">
+                <label class="type-card">
+                  <input type="radio" name="type" value="main" required>
+                  <div class="type-card-content">
+                    <div class="type-card-title">
+                      <i class="fas fa-book-reader"></i>
+                      Main Training
+                    </div>
+                    <div class="type-card-desc">
+                      Includes pre-test, hands-on assessment, and post-test. Comprehensive training program.
+                    </div>
+                  </div>
+                </label>
+                
+                <label class="type-card">
+                  <input type="radio" name="type" value="refreshment" required>
+                  <div class="type-card-content">
+                    <div class="type-card-title">
+                      <i class="fas fa-sync-alt"></i>
+                      Refreshment Training
+                    </div>
+                    <div class="type-card-desc">
+                      Includes refreshment test only. For updating and refreshing existing knowledge.
+                    </div>
+                  </div>
+                </label>
+              </div>
+              
+              <div class="info-box">
+                <i class="fas fa-info-circle"></i>
+                <p>
+                  <strong>Main Training:</strong> Full training program with pre-test, hands-on practical assessment, and post-test evaluation.<br>
+                  <strong>Refreshment Training:</strong> Quick refresher course with a refreshment test to update existing knowledge.
+                </p>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-title">
+                <i class="fas fa-calendar-alt"></i>
+                Training Schedule
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="start_datetime">
+                    <i class="fas fa-play-circle"></i>
+                    Start Date & Time
+                  </label>
+                  <input type="text" id="start_datetime" name="start_datetime" class="form-input datetime-picker" placeholder="Select start date and time">
+                </div>
+                
+                <div class="form-group">
+                  <label for="end_datetime">
+                    <i class="fas fa-stop-circle"></i>
+                    End Date & Time
+                  </label>
+                  <input type="text" id="end_datetime" name="end_datetime" class="form-input datetime-picker" placeholder="Select end date and time">
+                </div>
+              </div>
+            </div>
+
+            
+            
+            <div class="form-section">
+              <div class="section-title">
+                <i class="fas fa-chalkboard-teacher"></i>
+                Trainers
+              </div>
+              
+              <div class="form-group">
+                <label>
+                  <i class="fas fa-user-tie"></i>
+                  Select Additional Trainers
+                </label>
+                <% if (typeof trainers !== 'undefined' && trainers.length > 0) { %>
+                  <div class="multiselect-container">
+                    <input type="text" class="multiselect-search" placeholder="Search trainers by name or email..." id="trainer-search">
+                    <div class="multiselect-options" id="trainer-options">
+                      <% trainers.forEach(trainer => { %>
+                        <label class="multiselect-option trainer-option">
+                          <input type="checkbox" name="trainer_ids[]" value="<%= trainer.id %>">
+                          <div class="trainer-option-content">
+                            <div class="trainer-name">
+                              <i class="fas fa-user"></i>
+                              <span><%= trainer.first_name %> <%= trainer.last_name %></span>
+                            </div>
+                            <div class="trainer-email">
+                              <i class="fas fa-envelope"></i>
+                              <span><%= trainer.email %></span>
+                            </div>
+                          </div>
+                        </label>
+                      <% }); %>
+                    </div>
+                  </div>
+                <% } else { %>
+                  <p style="color: #6B7280; font-size: 0.875rem; margin-top: 0.5rem;">
+                    No other trainers available. You will be added as the trainer automatically.
+                  </p>
+                <% } %>
+                <small style="color: #6B7280; font-size: 0.875rem; margin-top: 0.5rem; display: block;">
+                  You will automatically be added as a trainer. Select additional trainers if needed.
+                </small>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-title">
+                <i class="fas fa-hospital"></i>
+                Participating Healthcare Centres
+              </div>
+              
+              <div class="form-group">
+                <label>
+                  <i class="fas fa-building"></i>
+                  Select Healthcare Centres
+                </label>
+                <div class="multiselect-container">
+                  <input type="text" class="multiselect-search" placeholder="Search healthcare centres..." id="healthcare-search">
+                  <div class="multiselect-options" id="healthcare-options">
+                    <% healthcare.forEach(hc => { %>
+                      <label class="multiselect-option">
+                        <input type="checkbox" name="healthcare_ids[]" value="<%= hc.id %>">
+                        <span><%= hc.name %></span>
+                      </label>
+                    <% }); %>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-title">
+                <i class="fas fa-users"></i>
+                Trainees
+              </div>
+              
+              <div class="form-group">
+                <label>
+                  <i class="fas fa-user-graduate"></i>
+                  Select Trainees *
+                </label>
+                <div class="multiselect-container" id="trainee-container">
+                  <input type="text" class="multiselect-search" placeholder="Search by name, email, healthcare, IC/Passport, or Trainee ID..." id="trainee-search">
+                  <div class="multiselect-options" id="trainee-options">
+                    <% trainees.forEach(trainee => { %>
+                      <label class="multiselect-option trainee-option" data-search-text="<%= (trainee.healthcare || '') + ' ' + trainee.first_name + ' ' + trainee.last_name + ' ' + trainee.email + ' ' + (trainee.ic_passport || '') + ' ' + (trainee.trainee_id || '') %>">
+                        <input type="checkbox" name="trainee_ids[]" value="<%= trainee.id %>" class="trainee-checkbox">
+                        <div class="trainee-option-content">
+                          <% if (trainee.healthcare) { %>
+                            <div class="trainee-info-row">
+                              <i class="fas fa-hospital" style="color: var(--color-orange);"></i>
+                              <span>Healthcare: <%= trainee.healthcare %></span>
+                            </div>
+                          <% } %>
+                          <div class="trainee-info-row">
+                            <i class="fas fa-user" style="color: var(--color-purple);"></i>
+                            <span class="trainee-name-bold"><%= trainee.first_name %> <%= trainee.last_name %></span>
+                          </div>
+                          <div class="trainee-info-row">
+                            <i class="fas fa-id-card" style="color: #1967D2;"></i>
+                            <span>ID: <%= trainee.trainee_id || 'N/A' %></span>
+                          </div>
+                          <% if (trainee.ic_passport) { %>
+                            <div class="trainee-info-row">
+                              <i class="fas fa-passport" style="color: #1967D2;"></i>
+                              <span>IC/Passport: <%= trainee.ic_passport %></span>
+                            </div>
+                          <% } %>
+                        </div>
+                      </label>
+                    <% }); %>
+                  </div>
+                </div>
+                <small style="color: #6B7280; font-size: 0.875rem; margin-top: 0.5rem; display: block;">
+                  At least one trainee must be selected. Selected trainees will be automatically enrolled in this training.
+                </small>
+                <div id="trainee-error" style="color: var(--color-error); font-size: 0.875rem; margin-top: 0.5rem; display: none;">
+                  <i class="fas fa-exclamation-circle"></i> Please select at least one trainee.
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-title">
+                <i class="fas fa-server"></i>
+                Device Serial Numbers
+              </div>
+              
+              <div class="form-group">
+                <label>
+                  <i class="fas fa-microchip"></i>
+                  Select Devices
+                </label>
+                <div class="multiselect-container">
+                  <input type="text" class="multiselect-search" placeholder="Search devices by serial number or model..." id="device-search">
+                  <div class="multiselect-options" id="device-options">
+                    <% devices.forEach(device => { %>
+                      <label class="multiselect-option">
+                        <input type="checkbox" name="device_ids[]" value="<%= device.id %>">
+                        <span><%= device.serial_number %> <% if (device.model_name) { %>(<%= device.model_name %>)<% } %></span>
+                      </label>
+                    <% }); %>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="form-group" id="custom-devices-container">
+                <label>
+                  <i class="fas fa-plus-circle"></i>
+                  Add Custom Serial Numbers
+                </label>
+                <div id="custom-devices-list"></div>
+                <button type="button" class="btn btn-primary btn-lg" onclick="addCustomDevice()" style="margin-top: 0.75rem; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.875rem 1.5rem; font-weight: 600; box-shadow: 0 2px 8px rgba(87, 63, 215, 0.2); transition: all 0.3s ease;">
+                  <i class="fas fa-plus-circle"></i> Add New Custom Device
+                </button>
+              </div>
+            </div>
+            
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary btn-lg btn-block">
+                <i class="fas fa-plus-circle"></i>
+                Create Training
+              </button>
+              <a href="/training" class="btn btn-outline btn-lg btn-block">
+                <i class="fas fa-times"></i>
+                Cancel
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="/js/main.js"></script>
+  <script>
+    // Add visual feedback for radio selection
+    document.querySelectorAll('.type-card input[type="radio"]').forEach(radio => {
+      radio.addEventListener('change', function() {
+        document.querySelectorAll('.type-card').forEach(card => {
+          card.classList.remove('selected');
+        });
+        if (this.checked) {
+          this.closest('.type-card').classList.add('selected');
+        }
+      });
+    });
+    
+    // Multiselect search functionality
+    function setupMultiselectSearch(searchId, optionsId) {
+      const searchInput = document.getElementById(searchId);
+      const optionsContainer = document.getElementById(optionsId);
+      
+      if (!searchInput || !optionsContainer) return;
+      
+      searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const options = optionsContainer.querySelectorAll('.multiselect-option');
+        
+        options.forEach(option => {
+          const text = option.querySelector('span').textContent.toLowerCase();
+          if (text.includes(searchTerm)) {
+            option.classList.remove('hidden');
+          } else {
+            option.classList.add('hidden');
+          }
+        });
+      });
+    }
+    
+    // Initialize datetime pickers
+    flatpickr('.datetime-picker', {
+      enableTime: true,
+      dateFormat: 'Y-m-d h:i K',
+      time_24hr: false,
+      allowInput: true,
+      minuteIncrement: 1
+    });
+    
+    // Initialize multiselect searches
+    setupMultiselectSearch('healthcare-search', 'healthcare-options');
+    setupMultiselectSearch('device-search', 'device-options');
+    setupMultiselectSearch('trainer-search', 'trainer-options');
+    
+    // Enhanced trainee search
+    const traineeSearch = document.getElementById('trainee-search');
+    const traineeOptions = document.getElementById('trainee-options');
+    if (traineeSearch && traineeOptions) {
+      traineeSearch.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const options = traineeOptions.querySelectorAll('.trainee-option');
+        
+        options.forEach(option => {
+          const searchText = option.getAttribute('data-search-text').toLowerCase();
+          if (searchText.includes(searchTerm)) {
+            option.classList.remove('hidden');
+          } else {
+            option.classList.add('hidden');
+          }
+        });
+      });
+    }
+    
+    // Custom device management
+    let customDeviceIndex = 0;
+    const kLaserModels = [
+      <% kLaserModels.forEach((model, index) => { %>
+      { id: <%= model.id %>, name: '<%= model.model_name.replace(/'/g, "\\'") %>' }<%= index < kLaserModels.length - 1 ? ',' : '' %>
+      <% }); %>
+    ];
+    
+    function addCustomDevice() {
+      const container = document.getElementById('custom-devices-list');
+      const deviceDiv = document.createElement('div');
+      deviceDiv.className = 'custom-device-item';
+      
+      deviceDiv.innerHTML = `
+        <div>
+          <input type="text" name="custom_devices[]" class="form-input" placeholder="Enter serial number" required style="margin-bottom: 0.75rem;">
+          <select name="custom_device_models[]" class="form-input" required id="model-select-${customDeviceIndex}" style="margin-bottom: 0.75rem;">
+            <option value="">Select K-Laser Model *</option>
+            ${kLaserModels.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}
+          </select>
+          <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; cursor: pointer;">
+            <input type="checkbox" name="save_custom_devices[]" value="true" onchange="toggleModelSelect(this, ${customDeviceIndex})">
+            <span>Save to settings</span>
+          </label>
+        </div>
+        <button type="button" class="btn btn-sm" onclick="removeCustomDevice(this)" style="background: #EF4444; color: white; border: none; padding: 0.5rem 0.75rem; align-self: flex-start;">
+          <i class="fas fa-times"></i>
+        </button>
+      `;
+      
+      container.appendChild(deviceDiv);
+      customDeviceIndex++;
+    }
+    
+    function removeCustomDevice(button) {
+      button.closest('.custom-device-item').remove();
+    }
+    
+    function toggleModelSelect(checkbox, index) {
+      const select = document.getElementById(`model-select-${index}`);
+      // Model is always required now, checkbox just determines if we save to settings
+      select.required = true;
+    }
+    
+    // Form validation - ensure at least one trainee is selected
+    document.querySelector('form').addEventListener('submit', function(e) {
+      const traineeCheckboxes = document.querySelectorAll('.trainee-checkbox:checked');
+      const traineeError = document.getElementById('trainee-error');
+      
+      if (traineeCheckboxes.length === 0) {
+        e.preventDefault();
+        if (traineeError) {
+          traineeError.style.display = 'block';
+        }
+        document.getElementById('trainee-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return false;
+      } else {
+        if (traineeError) {
+          traineeError.style.display = 'none';
+        }
+      }
+    });
+
+  </script>
+</body>
+</html>

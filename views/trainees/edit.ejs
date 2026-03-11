@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Trainee - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .form-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    .form-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+      border-radius: 20px;
+      padding: 2.5rem;
+      box-shadow: 0 20px 60px rgba(87, 63, 215, 0.15);
+      border: 1px solid rgba(87, 63, 215, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .form-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #573FD7 0%, #11358B 50%, #E48F24 100%);
+    }
+    
+    /* Tab Navigation */
+    .tab-navigation {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+      border-bottom: 2px solid rgba(87, 63, 215, 0.1);
+      padding-bottom: 0;
+    }
+    
+    .tab-button {
+      flex: 1;
+      padding: 1rem 1.5rem;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: #6B7280;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      position: relative;
+    }
+    
+    .tab-button:hover {
+      color: #573FD7;
+      background: rgba(87, 63, 215, 0.05);
+    }
+    
+    .tab-button.active {
+      color: #573FD7;
+      border-bottom-color: #573FD7;
+      background: rgba(87, 63, 215, 0.05);
+    }
+    
+    .tab-button i {
+      font-size: 1rem;
+    }
+    
+    .tab-button .tab-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: rgba(87, 63, 215, 0.1);
+      color: #573FD7;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-right: 0.25rem;
+    }
+    
+    .tab-button.active .tab-number {
+      background: #573FD7;
+      color: white;
+    }
+    
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .form-section {
+      margin-bottom: 2rem;
+    }
+    
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #573FD7;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid rgba(87, 63, 215, 0.1);
+    }
+    
+    .section-title i {
+      font-size: 1.2rem;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: #2A2A2A;
+      margin-bottom: 0.75rem;
+      font-size: 0.95rem;
+    }
+    
+    .form-group label i {
+      color: #573FD7;
+      font-size: 0.9rem;
+    }
+    
+    .form-group label .required {
+      color: #EF4444;
+      margin-left: 0.25rem;
+    }
+    
+    .form-input,
+    .form-select {
+      width: 100%;
+      padding: 0.875rem 1.25rem;
+      border: 2px solid #E5E7EB;
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: #ffffff;
+      font-family: inherit;
+    }
+    
+    .form-input:focus,
+    .form-select:focus {
+      outline: none;
+      border-color: #573FD7;
+      box-shadow: 0 0 0 4px rgba(87, 63, 215, 0.1);
+      transform: translateY(-1px);
+    }
+    
+    .form-input:disabled,
+    .form-select:disabled {
+      background: #F3F4F6;
+      color: #6B7280;
+      cursor: not-allowed;
+      border-color: #D1D5DB;
+    }
+    
+    .readonly-field {
+      position: relative;
+    }
+    
+    .readonly-field::after {
+      content: 'Auto-set';
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: linear-gradient(135deg, rgba(87, 63, 215, 0.1) 0%, rgba(17, 53, 139, 0.1) 100%);
+      color: #573FD7;
+      padding: 0.25rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      pointer-events: none;
+    }
+    
+    .info-box {
+      background: linear-gradient(135deg, rgba(87, 63, 215, 0.05) 0%, rgba(17, 53, 139, 0.05) 100%);
+      border-left: 4px solid #573FD7;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-top: 0.5rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+    
+    .info-box i {
+      color: #573FD7;
+      margin-top: 0.125rem;
+      font-size: 1rem;
+    }
+    
+    .info-box p {
+      margin: 0;
+      color: #4B5563;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+    
+    .form-actions {
+      display: flex;
+      gap: var(--spacing-md);
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 2px solid rgba(87, 63, 215, 0.1);
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .form-nav-buttons {
+      display: flex;
+      gap: var(--spacing-sm);
+      align-items: center;
+    }
+    
+    /* Ensure all buttons have consistent styling */
+    .form-actions .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      min-height: 44px;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      border: 2px solid transparent;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    
+    .form-actions .btn i {
+      font-size: 0.875rem;
+      display: inline-flex;
+      align-items: center;
+    }
+    
+    .form-actions .btn-primary {
+      background: linear-gradient(135deg, #573FD7 0%, #11358B 100%);
+      color: white;
+      border-color: #573FD7;
+    }
+    
+    .form-actions .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(87, 63, 215, 0.3);
+    }
+    
+    .form-actions .btn-secondary {
+      background: #6B7280;
+      color: white;
+      border-color: #6B7280;
+    }
+    
+    .form-actions .btn-secondary:hover {
+      background: #4B5563;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+    }
+    
+    .form-actions .btn-outline {
+      background: transparent;
+      color: #573FD7;
+      border-color: #573FD7;
+    }
+    
+    .form-actions .btn-outline:hover {
+      background: rgba(87, 63, 215, 0.1);
+      transform: translateY(-2px);
+    }
+    
+    .alert-error {
+      background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+      border: 2px solid #EF4444;
+      color: #991B1B;
+      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .alert-error i {
+      font-size: 1.25rem;
+    }
+    
+    .password-toggle {
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #6B7280;
+      cursor: pointer;
+      z-index: 2;
+      transition: color 0.2s ease;
+    }
+    
+    .password-toggle:hover {
+      color: #573FD7;
+    }
+    
+    .form-group:has(.password-toggle) {
+      position: relative;
+    }
+    
+    .form-group:has(.password-toggle) .form-input {
+      padding-right: 3rem;
+    }
+    
+    .validation-error {
+      color: #EF4444;
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+      display: none;
+    }
+    
+    .form-input:invalid:not(:placeholder-shown) + .validation-error,
+    .form-group:has(.form-input:invalid:not(:placeholder-shown)) .validation-error {
+      display: block;
+    }
+    
+    .password-info {
+      font-size: 0.875rem;
+      color: #6B7280;
+      margin-top: 0.5rem;
+    }
+    
+    /* Tablet styles */
+    @media (max-width: 1024px) {
+      .form-card {
+        padding: 2rem;
+      }
+      
+      .form-row {
+        gap: 1rem;
+      }
+    }
+    
+    /* Mobile styles */
+    @media (max-width: 768px) {
+      .main-content .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+      
+      .form-container {
+        max-width: 100%;
+        padding: 0;
+      }
+      
+      .form-card {
+        padding: 1.25rem;
+        border-radius: 12px;
+        margin: 0;
+        box-shadow: 0 10px 30px rgba(87, 63, 215, 0.1);
+      }
+      
+      .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 1rem;
+        padding: 1.5rem 1rem !important;
+      }
+      
+      .dashboard-header h1 {
+        font-size: 1.5rem;
+      }
+      
+      .dashboard-header .btn {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .tab-navigation {
+        flex-direction: column;
+        gap: 0;
+        margin-bottom: 1.5rem;
+        border-bottom: none;
+        border-left: 2px solid rgba(87, 63, 215, 0.1);
+        padding-left: 0.5rem;
+      }
+      
+      .tab-button {
+        border-bottom: 1px solid rgba(87, 63, 215, 0.1);
+        border-left: 3px solid transparent;
+        border-right: none;
+        border-top: none;
+        justify-content: flex-start;
+        padding: 0.875rem 1rem;
+        text-align: left;
+        width: 100%;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+      }
+      
+      .tab-button:last-child {
+        margin-bottom: 0;
+      }
+      
+      .tab-button.active {
+        border-left-color: #573FD7;
+        border-bottom-color: rgba(87, 63, 215, 0.1);
+        background: rgba(87, 63, 215, 0.08);
+      }
+      
+      .tab-button span:not(.tab-number) {
+        flex: 1;
+      }
+      
+      .form-section {
+        margin-bottom: 1.5rem;
+      }
+      
+      .section-title {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+      }
+      
+      .form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      
+      .form-group {
+        margin-bottom: 1.25rem;
+      }
+      
+      .form-group:last-child {
+        margin-bottom: 0;
+      }
+      
+      .form-group label {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+      }
+      
+      .form-input,
+      .form-select {
+        font-size: 16px; /* Prevents zoom on iOS */
+        padding: 0.875rem 1rem;
+        border-radius: 10px;
+      }
+      
+      .form-actions {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+      }
+      
+      .form-nav-buttons {
+        width: 100%;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      
+      .form-actions .btn {
+        width: 100%;
+        justify-content: center;
+        padding: 0.875rem 1.5rem;
+        min-height: 48px; /* Better touch target */
+      }
+      
+      .info-box {
+        padding: 0.875rem 1rem;
+        margin-top: 0.5rem;
+      }
+      
+      .info-box p {
+        font-size: 0.8125rem;
+      }
+      
+      .alert-error {
+        padding: 0.875rem 1rem;
+        font-size: 0.875rem;
+      }
+      
+      .password-info {
+        font-size: 0.8125rem;
+      }
+      
+      .readonly-field::after {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+        right: 0.75rem;
+      }
+    }
+    
+    /* Small mobile devices */
+    @media (max-width: 480px) {
+      .form-card {
+        padding: 1rem;
+        border-radius: 10px;
+      }
+      
+      .dashboard-header {
+        padding: 1rem !important;
+      }
+      
+      .dashboard-header h1 {
+        font-size: 1.25rem;
+      }
+      
+      .tab-button {
+        padding: 0.75rem 0.875rem;
+        font-size: 0.875rem;
+      }
+      
+      .tab-button .tab-number {
+        width: 20px;
+        height: 20px;
+        font-size: 0.7rem;
+      }
+      
+      .tab-button i {
+        font-size: 0.875rem;
+      }
+      
+      .section-title {
+        font-size: 0.9375rem;
+      }
+      
+      .section-title i {
+        font-size: 1rem;
+      }
+      
+      .form-group label {
+        font-size: 0.875rem;
+      }
+      
+      .form-input,
+      .form-select {
+        padding: 0.75rem 0.875rem;
+        font-size: 16px;
+      }
+      
+      .form-actions .btn {
+        padding: 0.75rem 1.25rem;
+        font-size: 0.9375rem;
+      }
+      
+      .form-actions .btn i {
+        font-size: 0.8125rem;
+      }
+    }
+  </style>
+</head>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
+  
+  <main class="main-content">
+    <div class="container">
+      <div class="dashboard-header">
+        <h1><i class="fas fa-user-edit" style="color:#573FD7;"></i> Edit Trainee</h1>
+        <a href="/trainees" class="btn btn-outline">Back to Trainees</a>
+      </div>
+      
+      <div class="form-container">
+        <% if (error) { %>
+          <div class="alert-error">
+            <i class="fas fa-exclamation-circle"></i>
+            <span><%= error %></span>
+          </div>
+        <% } %>
+        
+        <div class="form-card">
+          <form action="/trainees/<%= trainee.id %>/edit" method="POST" id="traineeForm">
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+              <button type="button" class="tab-button active" data-tab="personal">
+                <span class="tab-number">1</span>
+                <i class="fas fa-user"></i>
+                <span>Personal Info</span>
+              </button>
+              <button type="button" class="tab-button" data-tab="professional">
+                <span class="tab-number">2</span>
+                <i class="fas fa-briefcase"></i>
+                <span>Professional</span>
+              </button>
+              <button type="button" class="tab-button" data-tab="auto-managed">
+                <span class="tab-number">3</span>
+                <i class="fas fa-info-circle"></i>
+                <span>Auto-Managed</span>
+              </button>
+            </div>
+            
+            <!-- Tab 1: Personal Information -->
+            <div class="tab-content active" id="tab-personal">
+              <div class="form-section">
+                <div class="section-title">
+                  <i class="fas fa-user"></i>
+                  Personal Information
+                </div>
+                
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="firstName">
+                      <i class="fas fa-user"></i>
+                      First Name <span class="required">*</span>
+                    </label>
+                    <input type="text" id="firstName" name="firstName" class="form-input" required value="<%= trainee.first_name %>" placeholder="John">
+                    <div class="validation-error">First name is required</div>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="lastName">
+                      <i class="fas fa-user"></i>
+                      Last Name <span class="required">*</span>
+                    </label>
+                    <input type="text" id="lastName" name="lastName" class="form-input" required value="<%= trainee.last_name %>" placeholder="Doe">
+                    <div class="validation-error">Last name is required</div>
+                  </div>
+                </div>
+                
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="email">
+                      <i class="fas fa-envelope"></i>
+                      Email <span class="required">*</span>
+                    </label>
+                    <input type="email" id="email" name="email" class="form-input" required value="<%= trainee.email %>" placeholder="john.doe@example.com">
+                    <div class="validation-error">Valid email is required</div>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="icPassport">
+                      <i class="fas fa-id-card"></i>
+                      IC/Passport <span class="required">*</span>
+                    </label>
+                    <input type="text" id="icPassport" name="icPassport" class="form-input" required value="<%= trainee.ic_passport %>" placeholder="A12345678">
+                    <div class="validation-error">IC/Passport is required</div>
+                  </div>
+                </div>
+                
+                <div class="form-group">
+                  <label for="password">
+                    <i class="fas fa-lock"></i>
+                    Password <span class="required" style="display: none;">*</span>
+                  </label>
+                  <div style="position: relative;">
+                    <input type="password" id="password" name="password" class="form-input" minlength="6" placeholder="Leave blank to keep current password">
+                    <i class="fas fa-eye password-toggle" id="passwordToggle"></i>
+                  </div>
+                  <div class="password-info">Leave blank to keep the current password. Enter a new password (min. 6 characters) to change it.</div>
+                  <div class="validation-error">Password must be at least 6 characters if provided</div>
+                </div>
+                
+                <div class="form-group">
+                  <label for="handphoneNumber">
+                    <i class="fas fa-phone"></i>
+                    Handphone Number
+                  </label>
+                  <input type="tel" id="handphoneNumber" name="handphoneNumber" class="form-input" value="<%= trainee.handphone_number || '' %>" placeholder="+60123456789">
+                </div>
+              </div>
+            </div>
+            
+            <!-- Tab 2: Professional Information -->
+            <div class="tab-content" id="tab-professional">
+              <div class="form-section">
+                <div class="section-title">
+                  <i class="fas fa-briefcase"></i>
+                  Professional Information
+                </div>
+                
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="healthcare">
+                      <i class="fas fa-hospital"></i>
+                      Healthcare
+                    </label>
+                    <input type="text" id="healthcare" name="healthcare" class="form-input" value="<%= trainee.healthcare || '' %>" placeholder="General Hospital">
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="designation">
+                      <i class="fas fa-user-tie"></i>
+                      Designation
+                    </label>
+                    <input type="text" id="designation" name="designation" class="form-input" value="<%= trainee.designation || '' %>" placeholder="Nurse">
+                  </div>
+                </div>
+                
+                <div class="form-group">
+                  <label for="areaOfSpecialization">
+                    <i class="fas fa-stethoscope"></i>
+                    Area of Specialization
+                  </label>
+                    <input type="text" id="areaOfSpecialization" name="areaOfSpecialization" class="form-input" value="<%= trainee.area_of_specialization || '' %>" placeholder="Emergency Care">
+                </div>
+                
+                <div class="form-group">
+                  <label for="traineeStatus">
+                    <i class="fas fa-toggle-on"></i>
+                    Status
+                  </label>
+                  <select id="traineeStatus" name="traineeStatus" class="form-select">
+                    <option value="active" <%= trainee.trainee_status === 'active' ? 'selected' : '' %>>Active</option>
+                    <option value="inactive" <%= trainee.trainee_status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+                    <option value="suspended" <%= trainee.trainee_status === 'suspended' ? 'selected' : '' %>>Suspended</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Tab 3: Auto-Managed Fields -->
+            <div class="tab-content" id="tab-auto-managed">
+              <div class="form-section">
+                <div class="section-title">
+                  <i class="fas fa-info-circle"></i>
+                  Auto-Managed Fields
+                </div>
+                
+                <div class="info-box">
+                  <i class="fas fa-info-circle"></i>
+                  <p>
+                    The following fields are automatically managed by the system and will be set based on training activities:
+                    <strong>Serial Number</strong>, <strong>First Training Date</strong>, <strong>Latest Training Date</strong>, 
+                    <strong>Recertification Date</strong>, and <strong>Number of Completed Trainings</strong>.
+                  </p>
+                </div>
+                
+                <div class="form-row">
+                  <div class="form-group readonly-field">
+                    <label for="serialNumber">
+                      <i class="fas fa-server"></i>
+                      Serial Number
+                    </label>
+                    <input type="text" id="serialNumber" class="form-input" disabled value="<%= trainee.serial_number || '' %>" placeholder="Auto-set by system">
+                  </div>
+                  
+                  <div class="form-group readonly-field">
+                    <label for="numberOfCompletedTrainings">
+                      <i class="fas fa-check-circle"></i>
+                      Completed Trainings
+                    </label>
+                    <input type="number" id="numberOfCompletedTrainings" class="form-input" disabled value="<%= trainee.number_of_completed_trainings || 0 %>" placeholder="Auto-set by system">
+                  </div>
+                </div>
+                
+                <div class="form-row">
+                  <div class="form-group readonly-field">
+                    <label for="firstTraining">
+                      <i class="fas fa-calendar-alt"></i>
+                      First Training Date
+                    </label>
+                    <input type="date" id="firstTraining" class="form-input" disabled value="<%= trainee.first_training ? new Date(trainee.first_training).toISOString().split('T')[0] : '' %>" placeholder="Auto-set by system">
+                  </div>
+                  
+                  <div class="form-group readonly-field">
+                    <label for="latestTraining">
+                      <i class="fas fa-calendar-check"></i>
+                      Latest Training Date
+                    </label>
+                    <input type="date" id="latestTraining" class="form-input" disabled value="<%= trainee.latest_training ? new Date(trainee.latest_training).toISOString().split('T')[0] : '' %>" placeholder="Auto-set by system">
+                  </div>
+                </div>
+                
+                <div class="form-group readonly-field">
+                  <label for="recertificationDate">
+                    <i class="fas fa-certificate"></i>
+                    Recertification Date
+                  </label>
+                  <input type="date" id="recertificationDate" class="form-input" disabled value="<%= trainee.recertification_date ? new Date(trainee.recertification_date).toISOString().split('T')[0] : '' %>" placeholder="Auto-set by system">
+                  </div>
+              </div>
+            </div>
+            
+            <!-- Form Actions -->
+            <div class="form-actions">
+              <div class="form-nav-buttons">
+                <button type="button" class="btn btn-outline" id="prevTab" style="display: none;">
+                  <i class="fas fa-arrow-left"></i>
+                  <span>Previous</span>
+                </button>
+                <button type="button" class="btn btn-secondary" id="nextTab">
+                  <span>Next</span>
+                  <i class="fas fa-arrow-right"></i>
+                </button>
+              </div>
+              <div class="form-nav-buttons">
+                <button type="submit" class="btn btn-primary" id="submitBtn" style="display: none;">
+                  <i class="fas fa-save"></i>
+                  <span>Update Trainee</span>
+                </button>
+                <a href="/trainees" class="btn btn-outline">
+                  <span>Cancel</span>
+                </a>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <script src="/js/main.js"></script>
+  <script>
+    // Tab Navigation
+    let currentTab = 0;
+    const tabs = ['personal', 'professional', 'auto-managed'];
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    const prevBtn = document.getElementById('prevTab');
+    const nextBtn = document.getElementById('nextTab');
+    const submitBtn = document.getElementById('submitBtn');
+    const form = document.getElementById('traineeForm');
+    
+    function showTab(index) {
+      // Hide all tabs
+      tabContents.forEach(tab => tab.classList.remove('active'));
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      
+      // Show selected tab
+      tabContents[index].classList.add('active');
+      tabButtons[index].classList.add('active');
+      
+      // Update navigation buttons with proper flex display
+      prevBtn.style.display = index > 0 ? 'inline-flex' : 'none';
+      nextBtn.style.display = index < tabs.length - 1 ? 'inline-flex' : 'none';
+      submitBtn.style.display = index === tabs.length - 1 ? 'inline-flex' : 'none';
+      
+      currentTab = index;
+    }
+    
+    // Tab button clicks - allow free navigation
+    tabButtons.forEach((btn, index) => {
+      btn.addEventListener('click', () => {
+        showTab(index);
+      });
+    });
+    
+    // Next button - allow free navigation
+    nextBtn.addEventListener('click', () => {
+      showTab(currentTab + 1);
+    });
+    
+    // Previous button - allow free navigation
+    prevBtn.addEventListener('click', () => {
+      showTab(currentTab - 1);
+    });
+    
+    // Form submission validation - validate ALL required fields across all tabs
+    form.addEventListener('submit', (e) => {
+      // Clear previous validation errors
+      form.querySelectorAll('.form-input').forEach(field => {
+        field.style.borderColor = '';
+      });
+      
+      // Validate all required fields across all tabs (except password which is optional in edit)
+      const allRequiredFields = form.querySelectorAll('[required]');
+      let allValid = true;
+      const invalidFields = [];
+      
+      allRequiredFields.forEach(field => {
+        if (!field.value.trim()) {
+          field.style.borderColor = '#EF4444';
+          allValid = false;
+          
+          // Find which tab contains this field
+          const tabIndex = Array.from(tabContents).findIndex(tab => tab.contains(field));
+          if (tabIndex !== -1 && !invalidFields.includes(tabIndex)) {
+            invalidFields.push(tabIndex);
+          }
+        }
+      });
+      
+      // Validate password if provided
+      const passwordField = form.querySelector('#password');
+      if (passwordField && passwordField.value && passwordField.value.length < 6) {
+        passwordField.style.borderColor = '#EF4444';
+        allValid = false;
+        const tabIndex = Array.from(tabContents).findIndex(tab => tab.contains(passwordField));
+        if (tabIndex !== -1 && !invalidFields.includes(tabIndex)) {
+          invalidFields.push(tabIndex);
+        }
+      }
+      
+      if (!allValid) {
+        e.preventDefault();
+        
+        // Switch to the first tab with invalid fields
+        if (invalidFields.length > 0) {
+          showTab(invalidFields[0]);
+        }
+        
+        // Build error message
+        const tabNames = ['Personal Information', 'Professional Information', 'Auto-Managed Fields'];
+        const invalidTabNames = invalidFields.map(idx => tabNames[idx]).join(', ');
+        
+        const errorMsg = passwordField && passwordField.value && passwordField.value.length < 6
+          ? 'Password must be at least 6 characters if provided.\n\nMissing or invalid fields in: ' + invalidTabNames
+          : 'Please fill in all required fields before submitting.\n\nMissing fields in: ' + invalidTabNames;
+        
+        alert(errorMsg);
+        return false;
+      }
+    });
+    
+    // Password toggle
+    const passwordToggle = document.getElementById('passwordToggle');
+    const passwordInput = document.getElementById('password');
+    
+    if (passwordToggle && passwordInput) {
+      passwordToggle.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        this.classList.toggle('fa-eye');
+        this.classList.toggle('fa-eye-slash');
+      });
+    }
+    
+    // Reset field borders on input
+    form.querySelectorAll('.form-input').forEach(input => {
+      input.addEventListener('input', () => {
+        input.style.borderColor = '';
+      });
+    });
+  </script>
+</body>
+</html>
+
+
