@@ -4,8 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Edit Question - LMS</title>
+  <link rel="stylesheet" href="/css/tailwind.output.css">
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="/js/tw-components.js"></script>
   <style>
     .form-container {
       max-width: 900px;
@@ -428,7 +430,8 @@
                     <i class="fas fa-clipboard-check"></i>
                     Test Type *
                   </label>
-                  <select id="testType" name="testType" class="form-select" required>
+                  <div id="testTypeDropdown" class="tw-dropdown"></div>
+                  <select id="testType" name="testType" required style="display:none;">
                     <option value="pre_test" <%= question.test_type === 'pre_test' ? 'selected' : '' %>>Pre-Test</option>
                     <option value="post_test" <%= question.test_type === 'post_test' ? 'selected' : '' %>>Post-Test</option>
                     <option value="refreshment" <%= question.test_type === 'refreshment' ? 'selected' : '' %>>Refreshment Test</option>
@@ -441,7 +444,8 @@
                     <i class="fas fa-bullseye"></i>
                     Objective *
                   </label>
-                  <select id="objectiveId" name="objectiveId" class="form-select" required>
+                  <div id="objectiveDropdown" class="tw-dropdown"></div>
+                  <select id="objectiveId" name="objectiveId" required style="display:none;">
                     <option value="">Select objective</option>
                     <% objectives.forEach(objective => { %>
                       <option value="<%= objective.id %>" <%= question.objective_id == objective.id ? 'selected' : '' %>><%= objective.name %></option>
@@ -652,6 +656,39 @@
       if (optionDInput) {
         optionDInput.addEventListener('input', updateCorrectAnswerOptions);
       }
+
+      // ---- TailwindDropdown for Test Type ----
+      var currentTestType = document.getElementById('testType').value;
+      new TailwindDropdown('testTypeDropdown', {
+        items: [
+          { label: 'Pre-Test',                   value: 'pre_test' },
+          { label: 'Post-Test',                  value: 'post_test' },
+          { label: 'Refreshment Test',           value: 'refreshment' },
+          { label: 'Certificate Enrolment Test', value: 'certificate_enrolment' }
+        ],
+        placeholder: 'Select test type',
+        multiSelect: false,
+        initialValue: currentTestType,
+        onChange: function(val) {
+          document.getElementById('testType').value = val || '';
+        }
+      });
+
+      // ---- TailwindDropdown for Objective ----
+      var objectiveItems = [];
+      document.querySelectorAll('#objectiveId option').forEach(function(opt) {
+        if (opt.value) objectiveItems.push({ label: opt.textContent.trim(), value: opt.value });
+      });
+      var currentObjectiveId = document.getElementById('objectiveId').value;
+      new TailwindDropdown('objectiveDropdown', {
+        items: objectiveItems,
+        placeholder: 'Select objective',
+        multiSelect: false,
+        initialValue: currentObjectiveId,
+        onChange: function(val) {
+          document.getElementById('objectiveId').value = val || '';
+        }
+      });
     });
   </script>
 </body>

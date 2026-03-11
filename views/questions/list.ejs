@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Question Bank - LMS</title>
+  <link rel="stylesheet" href="/css/tailwind.output.css">
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="/js/tw-components.js"></script>
@@ -715,7 +716,7 @@
                 <i class="fas fa-bullseye"></i>
                 Objective
               </label>
-              <div id="objectiveFilterDropdown"></div>
+              <div id="objectiveFilterDropdown" class="tw-dropdown tw-dropdown--compact"></div>
               <!-- Hidden native select kept for data only (not displayed) -->
               <select id="objectiveFilter" style="display:none;">
                 <option value="">All Objectives</option>
@@ -730,7 +731,7 @@
                 <i class="fas fa-clipboard-check"></i>
                 Test Type
               </label>
-              <div id="testTypeFilterDropdown"></div>
+              <div id="testTypeFilterDropdown" class="tw-dropdown tw-dropdown--compact"></div>
             </div>
             
             <div class="filter-group">
@@ -738,7 +739,7 @@
                 <i class="fas fa-user"></i>
                 Creator
               </label>
-              <div id="creatorFilterDropdown"></div>
+              <div id="creatorFilterDropdown" class="tw-dropdown tw-dropdown--compact"></div>
             </div>
           </div>
         </div>
@@ -873,6 +874,7 @@
       // ---- Build Objective dropdown ----
       var objectiveItems = [{ label: 'All Objectives', value: '' }];
       document.querySelectorAll('#objectiveFilter option').forEach(function(opt) {
+        if (!opt.value) return; // Skip the "All Objectives" placeholder
         objectiveItems.push({ label: opt.textContent.trim(), value: opt.value });
       });
       new TailwindDropdown('objectiveFilterDropdown', {

@@ -13,7 +13,9 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "tw:build": "tailwindcss -i ./public/css/tailwind.css -o ./public/css/tailwind.output.css --minify",
+    "tw:watch": "tailwindcss -i ./public/css/tailwind.css -o ./public/css/tailwind.output.css --watch"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -33,6 +35,10 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "@tailwindcss/cli": "^4.2.1",
+    "autoprefixer": "^10.4.27",
+    "nodemon": "^3.0.2",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.1"
   }
 }
