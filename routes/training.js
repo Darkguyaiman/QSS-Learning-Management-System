@@ -9,7 +9,7 @@ const sharp = require('sharp');
  * Helper function to randomly select questions for a test
  * Ensures at least 2 questions from each objective
  * @param {Object} db - Database connection
- * @param {string} testType - Type of test (pre_test, post_test, refresher_training, certificate_enrolment)
+ * @param {string} testType - Type of test (pre_test, post_test, refreshment, certificate_enrolment)
  * @param {number} totalQuestions - Total number of questions needed
  * @returns {Promise<Array>} Array of question IDs
  */
@@ -101,7 +101,7 @@ async function selectQuestionsForTest(db, testType, totalQuestions) {
 /**
  * Validate if there are enough questions available for test creation
  * @param {Object} db - Database connection
- * @param {string} trainingType - Type of training (main or refresher_training)
+ * @param {string} trainingType - Type of training (main or refreshment)
  * @returns {Promise<{valid: boolean, errors: string[]}>}
  */
 async function validateTestQuestions(db, trainingType) {
@@ -155,32 +155,32 @@ async function validateTestQuestions(db, trainingType) {
         errors.push(`${test.type}: Not enough total questions available. Need ${test.count}, found ${totalQuestions[0].count}.`);
       }
     }
-  } else if (trainingType === 'refresher_training') {
-    // Refresher training: only refresher training test (10)
+  } else if (trainingType === 'refreshment') {
+    // Refreshment training: only refreshment test (10)
     if (10 < requiredPerObjective) {
-      errors.push(`Refresher Training: Need at least ${requiredPerObjective} questions (2 per objective for ${objectives.length} objectives), but only 10 requested.`);
+      errors.push(`refreshment: Need at least ${requiredPerObjective} questions (2 per objective for ${objectives.length} objectives), but only 10 requested.`);
     } else {
       // Check each objective has enough questions
       for (const objective of objectives) {
         const [questions] = await db.query(
           'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND objective_id = ?',
-          ['refresher_training', objective.id]
+          ['refreshment', objective.id]
         );
         
         const questionCount = questions[0].count;
         if (questionCount < minPerObjective) {
-          errors.push(`Refresher Training: Not enough questions for objective ID ${objective.id}. Need at least ${minPerObjective}, found ${questionCount}.`);
+          errors.push(`refreshment: Not enough questions for objective ID ${objective.id}. Need at least ${minPerObjective}, found ${questionCount}.`);
         }
       }
       
       // Check total available questions
       const [totalQuestions] = await db.query(
         'SELECT COUNT(*) as count FROM questions WHERE test_type = ?',
-        ['refresher_training']
+        ['refreshment']
       );
       
       if (totalQuestions[0].count < 10) {
-        errors.push(`Refresher Training: Not enough total questions available. Need 10, found ${totalQuestions[0].count}.`);
+        errors.push(`refreshment: Not enough total questions available. Need 10, found ${totalQuestions[0].count}.`);
       }
     }
   }
@@ -195,7 +195,7 @@ async function validateTestQuestions(db, trainingType) {
  * Create tests for a training
  * @param {Object} db - Database connection
  * @param {number} trainingId - Training ID
- * @param {string} trainingType - Type of training (main or refresher_training)
+ * @param {string} trainingType - Type of training (main or refreshment)
  */
 async function createTrainingTests(db, trainingId, trainingType) {
   try {
@@ -227,14 +227,14 @@ async function createTrainingTests(db, trainingId, trainingType) {
           );
         }
       }
-    } else if (trainingType === 'refresher_training') {
-      // Refresher training: only refresher training test (10)
-      const questionIds = await selectQuestionsForTest(db, 'refresher_training', 10);
+    } else if (trainingType === 'refreshment') {
+      // Refreshment training: only refreshment test (10)
+      const questionIds = await selectQuestionsForTest(db, 'refreshment', 10);
       
       // Create training_test record
       const [testResult] = await db.query(
         'INSERT INTO training_tests (training_id, test_type, total_questions) VALUES (?, ?, ?)',
-        [trainingId, 'refresher_training', 10]
+        [trainingId, 'refreshment', 10]
       );
       
       const trainingTestId = testResult.insertId;
@@ -479,7 +479,7 @@ function moveFileSafe(srcAbs, destAbs) {
   }
 }
 
-// (Old create-time media attachment removed; media is uploaded during training via Coursework tab.)
+// (Old create-time media attachment removed; media is uploaded during training via course tab.)
 
 // List all trainings
 router.get('/', async (req, res) => {
@@ -921,13 +921,13 @@ router.post('/create', async (req, res) => {
         }
       }
       
-      // If this is a main training, copy all Practical learning outcome aspects from settings
+      // If this is a main training, copy all hands-on aspects from settings
       if (type === 'main') {
-        const [aspects] = await connection.query('SELECT * FROM practical_learning_outcomes_settings');
+        const [aspects] = await connection.query('SELECT * FROM hands_on_aspects_settings');
         
         for (const aspect of aspects) {
           await connection.query(
-            'INSERT INTO practical_learning_outcomes (training_id, aspect_name, description, max_score) VALUES (?, ?, ?, ?)',
+            'INSERT INTO hands_on_aspects (training_id, aspect_name, description, max_score) VALUES (?, ?, ?, ?)',
             [trainingId, aspect.aspect_name, aspect.description, aspect.max_score]
           );
         }
@@ -1099,11 +1099,11 @@ router.get('/:id', async (req, res) => {
     
     const allMaterials = allMaterialsResult || [];
     
-    // Get Practical learning outcome aspects if main training
+    // Get hands-on aspects if main training
     let aspects = [];
     if (training.type === 'main') {
       [aspects] = await req.db.query(
-        'SELECT * FROM practical_learning_outcomes WHERE training_id = ? ORDER BY id',
+        'SELECT * FROM hands_on_aspects WHERE training_id = ? ORDER BY id',
         [req.params.id]
       );
     }
@@ -1174,8 +1174,8 @@ router.get('/:id', async (req, res) => {
         if (training.type === 'main') {
           [handsOnScores] = await req.db.query(`
             SELECT hs.*, ha.aspect_name, ha.max_score
-            FROM practical_learning_outcome_scores hs
-            JOIN practical_learning_outcomes ha ON hs.aspect_id = ha.id
+            FROM hands_on_scores hs
+            JOIN hands_on_aspects ha ON hs.aspect_id = ha.id
             WHERE hs.enrollment_id = ?
           `, [enrollment.id]);
         }
@@ -1206,7 +1206,7 @@ router.get('/:id', async (req, res) => {
         SELECT e.*,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') > 0 as pre_test_completed,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') > 0 as post_test_completed,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed') > 0 as refresher_training_test_completed
+          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refreshment' AND status = 'completed') > 0 as refreshment_test_completed
         FROM enrollments e
         WHERE e.trainee_id = ? AND e.training_id = ?
       `, [req.session.userId, req.params.id]);
@@ -1227,8 +1227,8 @@ router.get('/:id', async (req, res) => {
         if (training.type === 'main') {
           [handsOnScores] = await req.db.query(`
             SELECT hs.*, ha.aspect_name, ha.max_score, ha.description
-            FROM practical_learning_outcome_scores hs
-            JOIN practical_learning_outcomes ha ON hs.aspect_id = ha.id
+            FROM hands_on_scores hs
+            JOIN hands_on_aspects ha ON hs.aspect_id = ha.id
             WHERE hs.enrollment_id = ?
           `, [enrollment.id]);
         }
@@ -2077,13 +2077,13 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
       [enrollmentId]
     );
     
-    // Get Practical learning outcome scores if main training
+    // Get hands-on scores if main training
     let handsOnScores = [];
     if (enrollment.training_type === 'main') {
       [handsOnScores] = await req.db.query(`
         SELECT hs.*, ha.aspect_name, ha.max_score
-        FROM practical_learning_outcome_scores hs
-        JOIN practical_learning_outcomes ha ON hs.aspect_id = ha.id
+        FROM hands_on_scores hs
+        JOIN hands_on_aspects ha ON hs.aspect_id = ha.id
         WHERE hs.enrollment_id = ?
       `, [enrollmentId]);
     }
@@ -2110,7 +2110,7 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
   }
 });
 
-// Update Practical learning outcome aspect max_score (admin only, main training only)
+// Update hands-on aspect max_score (admin only, main training only)
 router.post('/:id/aspect/:aspectId/update', async (req, res) => {
   if (req.session.userRole !== 'admin') {
     return res.status(403).send('Access denied. Only admins can edit aspect scores.');
@@ -2127,7 +2127,7 @@ router.post('/:id/aspect/:aspectId/update', async (req, res) => {
     
     // Verify the aspect belongs to this training
     const [aspects] = await req.db.query(
-      'SELECT id FROM practical_learning_outcomes WHERE id = ? AND training_id = ?',
+      'SELECT id FROM hands_on_aspects WHERE id = ? AND training_id = ?',
       [req.params.aspectId, req.params.id]
     );
     
@@ -2136,7 +2136,7 @@ router.post('/:id/aspect/:aspectId/update', async (req, res) => {
     }
     
     await req.db.query(
-      'UPDATE practical_learning_outcomes SET max_score = ? WHERE id = ?',
+      'UPDATE hands_on_aspects SET max_score = ? WHERE id = ?',
       [max_score || 100, req.params.aspectId]
     );
     
@@ -2252,7 +2252,7 @@ router.get('/:id/enrollment/:enrollmentId/test-answers', async (req, res) => {
       pre_test: 'Pre-Test',
       post_test: 'Post-Test',
       certificate_enrolment: 'Certificate Enrolment',
-      refresher_training: 'Refresher Training Test'
+      refreshment: 'Refreshment Test'
     };
 
     const availableTypes = Array.from(new Set((attempts || []).map(a => a.test_type))).filter(Boolean);
@@ -2287,7 +2287,7 @@ router.get('/:id/enrollment/:enrollmentId/test-answers', async (req, res) => {
       enrollmentId,
       traineeName,
       traineePublicId,
-      availableTypes: availableTypes.length > 0 ? availableTypes : ['pre_test', 'post_test', 'certificate_enrolment', 'refresher_training'],
+      availableTypes: availableTypes.length > 0 ? availableTypes : ['pre_test', 'post_test', 'certificate_enrolment', 'refreshment'],
       selectedType,
       typeLabels,
       attempt,
@@ -2300,8 +2300,8 @@ router.get('/:id/enrollment/:enrollmentId/test-answers', async (req, res) => {
   }
 });
 
-// Get Practical learning outcome aspects and scores for an enrollment (admin/trainer only)
-router.get('/:id/enrollment/:enrollmentId/Practical learning outcome', async (req, res) => {
+// Get hands-on aspects and scores for an enrollment (admin/trainer only)
+router.get('/:id/enrollment/:enrollmentId/hands-on', async (req, res) => {
   if (!['admin', 'trainer'].includes(req.session.userRole)) {
     return res.status(403).json({ success: false, error: 'Access denied' });
   }
@@ -2322,30 +2322,30 @@ router.get('/:id/enrollment/:enrollmentId/Practical learning outcome', async (re
     // Verify training is main type
     const [trainings] = await req.db.query('SELECT type FROM trainings WHERE id = ?', [req.params.id]);
     if (trainings.length === 0 || trainings[0].type !== 'main') {
-      return res.status(400).json({ success: false, error: 'Practical learning outcome evaluation only available for main trainings' });
+      return res.status(400).json({ success: false, error: 'Hands-on evaluation only available for main trainings' });
     }
     
-    // Get Practical learning outcome aspects
+    // Get hands-on aspects
     const [aspects] = await req.db.query(
-      'SELECT * FROM practical_learning_outcomes WHERE training_id = ? ORDER BY id',
+      'SELECT * FROM hands_on_aspects WHERE training_id = ? ORDER BY id',
       [req.params.id]
     );
     
     // Get existing scores
     const [scores] = await req.db.query(
-      'SELECT * FROM practical_learning_outcome_scores WHERE enrollment_id = ?',
+      'SELECT * FROM hands_on_scores WHERE enrollment_id = ?',
       [enrollmentId]
     );
     
     res.json({ success: true, aspects, scores });
   } catch (error) {
-    console.error('Practical learning outcome data error:', error);
-    res.status(500).json({ success: false, error: 'Error loading Practical learning outcome data' });
+    console.error('Hands-on data error:', error);
+    res.status(500).json({ success: false, error: 'Error loading hands-on data' });
   }
 });
 
-// Save Practical learning outcome scores (admin/trainer only)
-router.post('/:id/enrollment/:enrollmentId/Practical learning outcome/save', async (req, res) => {
+// Save hands-on scores (admin/trainer only)
+router.post('/:id/enrollment/:enrollmentId/hands-on/save', async (req, res) => {
   if (!['admin', 'trainer'].includes(req.session.userRole)) {
     return res.status(403).json({ success: false, error: 'Access denied' });
   }
@@ -2367,13 +2367,13 @@ router.post('/:id/enrollment/:enrollmentId/Practical learning outcome/save', asy
     // Verify training is main type
     const [trainings] = await req.db.query('SELECT type FROM trainings WHERE id = ?', [req.params.id]);
     if (trainings.length === 0 || trainings[0].type !== 'main') {
-      return res.status(400).json({ success: false, error: 'Practical learning outcome evaluation only available for main trainings' });
+      return res.status(400).json({ success: false, error: 'Hands-on evaluation only available for main trainings' });
     }
     
     // Save each score
     for (const scoreData of scores) {
       await req.db.query(
-        `INSERT INTO practical_learning_outcome_scores (enrollment_id, aspect_id, score, evaluated_by, comments) 
+        `INSERT INTO hands_on_scores (enrollment_id, aspect_id, score, evaluated_by, comments) 
          VALUES (?, ?, ?, ?, ?) 
          ON DUPLICATE KEY UPDATE score = ?, evaluated_by = ?, comments = ?, evaluated_at = NOW()`,
         [
@@ -2391,11 +2391,9 @@ router.post('/:id/enrollment/:enrollmentId/Practical learning outcome/save', asy
     
     res.json({ success: true });
   } catch (error) {
-    console.error('Save Practical learning outcome scores error:', error);
-    res.status(500).json({ success: false, error: 'Error saving Practical learning outcome scores' });
+    console.error('Save hands-on scores error:', error);
+    res.status(500).json({ success: false, error: 'Error saving hands-on scores' });
   }
 });
 
 module.exports = router;
-
-
