@@ -25,7 +25,7 @@
             const preTest = marksData && marksData.tests ? marksData.tests.find(t => t.test_type === 'pre_test') : null;
             const postTest = marksData && marksData.tests ? marksData.tests.find(t => t.test_type === 'post_test') : null;
             const certificateEnrolmentTest = marksData && marksData.tests ? marksData.tests.find(t => t.test_type === 'certificate_enrolment') : null;
-            const refreshmentTest = marksData && marksData.tests ? marksData.tests.find(t => t.test_type === 'refreshment') : null;
+            const refresher_trainingTest = marksData && marksData.tests ? marksData.tests.find(t => t.test_type === 'refresher_training') : null;
           %>
           
           <% if (preTest) { %>
@@ -77,17 +77,17 @@
               </div>
             <% } %>
           <% } else { %>
-            <% if (refreshmentTest) { %>
-              <div class="test-card refreshment-test">
+            <% if (refresher_trainingTest) { %>
+              <div class="test-card refresher_training-test">
                 <div class="test-icon">
                   <i class="fas fa-sync-alt"></i>
                 </div>
                 <div class="test-content">
-                  <h3>Refreshment Test</h3>
-                  <p class="test-description">Refreshment Assessment</p>
-                  <div class="test-score <%= refreshmentTest.score >= 50 ? 'passed' : 'failed' %>">
-                    <span class="score-value"><%= refreshmentTest.score.toFixed(1) %>%</span>
-                    <span class="score-status"><%= refreshmentTest.score >= 50 ? 'Passed' : 'Failed' %></span>
+                  <h3>Refresher Training Test</h3>
+                  <p class="test-description">Refresher Training Assessment</p>
+                  <div class="test-score <%= refresher_trainingTest.score >= 50 ? 'passed' : 'failed' %>">
+                    <span class="score-value"><%= refresher_trainingTest.score.toFixed(1) %>%</span>
+                    <span class="score-status"><%= refresher_trainingTest.score >= 50 ? 'Passed' : 'Failed' %></span>
                   </div>
                 </div>
               </div>
@@ -96,12 +96,12 @@
         </div>
       </div>
       
-      <!-- Hands-On Scores Section -->
+      <!-- Practical Learning Outcome Scores Section -->
       <% if (training.type === 'main' && marksData && marksData.handsOnScores && marksData.handsOnScores.length > 0) { %>
         <div class="results-section">
           <div class="section-header">
             <i class="fas fa-hand-paper"></i>
-            <h2>Hands-On Evaluation</h2>
+            <h2>Practical Learning Outcome Evaluation</h2>
           </div>
           
           <div class="hands-on-grid">
@@ -262,7 +262,7 @@
       background: linear-gradient(90deg, #EA4335, #573FD7);
     }
     
-    .test-card.refreshment-test::before {
+    .test-card.refresher_training-test::before {
       background: linear-gradient(90deg, #9C27B0, #673AB7);
     }
     
@@ -474,3 +474,4 @@
     }
   </style>
 <% } %>
+

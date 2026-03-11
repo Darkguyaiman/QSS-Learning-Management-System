@@ -102,6 +102,38 @@
     }
   }
 
+  function appendIfMissing(text, extra, patterns) {
+    if (!text || !extra) return text || '';
+    const hay = String(text).toLowerCase();
+    const has = patterns && patterns.some((p) => hay.includes(p));
+    return has ? String(text) : `${text}\n\n${extra}`;
+  }
+
+  function enhanceMessage(type, message) {
+    switch (type) {
+      case 'error':
+        return appendIfMissing(
+          message,
+          'Please try again. If the problem continues, refresh the page and retry.',
+          ['please try again', 'refresh']
+        );
+      case 'warning':
+        return appendIfMissing(
+          message,
+          'Review the information above and try again.',
+          ['review', 'try again']
+        );
+      case 'success':
+        return appendIfMissing(
+          message,
+          'You can continue with the next step or close this message.',
+          ['continue', 'close']
+        );
+      default:
+        return message || '';
+    }
+  }
+
   window.qssShowMessage = function ({ type = 'info', title, message, onClose } = {}) {
     const root = ensureModalRoot();
     const overlay = root.querySelector('.qss-message-overlay');
@@ -114,7 +146,7 @@
     overlay.classList.add(`type-${type}`);
 
     titleEl.textContent = title || defaultTitleForType(type);
-    bodyEl.textContent = message || '';
+    bodyEl.textContent = enhanceMessage(type, message || '');
     iconEl.innerHTML = iconForType(type);
     root.__qssOnClose = typeof onClose === 'function' ? onClose : null;
 
@@ -218,6 +250,13 @@
     cancelText = 'Cancel',
     danger = false
   } = {}) {
+    function appendIfMissing(text, extra, patterns) {
+      if (!text || !extra) return text || '';
+      const hay = String(text).toLowerCase();
+      const has = patterns && patterns.some((p) => hay.includes(p));
+      return has ? String(text) : `${text}\n\n${extra}`;
+    }
+
     const root = ensureRoot();
     const overlay = root.querySelector('.qss-confirm-overlay');
     const titleEl = root.querySelector('#qss-confirm-title');
@@ -225,8 +264,12 @@
     const okBtn = root.querySelector('.qss-confirm-ok');
     const cancelBtn = root.querySelector('.qss-confirm-cancel');
 
+    const detail = danger
+      ? 'This action is permanent and cannot be undone.'
+      : 'You can cancel to keep the current data.';
+    const finalMessage = appendIfMissing(message || '', detail, ['cannot be undone', 'permanent', 'cancel']);
     titleEl.textContent = title || 'Confirm';
-    bodyEl.textContent = message || '';
+    bodyEl.textContent = finalMessage || '';
     okBtn.textContent = confirmText || 'Confirm';
     cancelBtn.textContent = cancelText || 'Cancel';
 
@@ -396,8 +439,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const msg = button.dataset.confirm || 'Are you sure?';
         e.preventDefault();
 
+      const danger = button.dataset.confirmDanger !== 'false';
       const ok = typeof window.qssConfirm === 'function'
-        ? await window.qssConfirm({ title: 'Confirm', message: msg, confirmText: 'Delete', cancelText: 'Cancel', danger: true })
+        ? await window.qssConfirm({ title: 'Confirm', message: msg, confirmText: danger ? 'Delete' : 'Confirm', cancelText: 'Cancel', danger })
         : false;
 
       if (!ok) return;
@@ -505,9 +549,14 @@ async function markAttendance(enrollmentId, date, status) {
 
 // Allow download results
 async function allowDownload(enrollmentId) {
-  if (!confirm('Allow this trainee to download their results?')) {
-    return;
-  }
+  if (typeof window.qssConfirm !== 'function') return;
+  const ok = await window.qssConfirm({
+    title: 'Allow Download?',
+    message: 'Allow this trainee to download their results?',
+    confirmText: 'Allow',
+    cancelText: 'Cancel'
+  });
+  if (!ok) return;
   
   try {
     const response = await fetch(`/results/allow-download/${enrollmentId}`, {

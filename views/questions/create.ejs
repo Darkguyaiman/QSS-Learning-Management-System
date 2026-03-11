@@ -773,7 +773,7 @@
                     <option value="">Select test type</option>
                     <option value="pre_test">Pre-Test</option>
                     <option value="post_test">Post-Test</option>
-                    <option value="refreshment">Refreshment Test</option>
+                    <option value="refresher_training">Refresher Training Test</option>
                     <option value="certificate_enrolment">Certificate Enrolment Test</option>
                   </select>
                 </div>
@@ -1141,8 +1141,8 @@
             continue;
           }
           
-          if (!testType || !['pre_test', 'post_test', 'refreshment', 'certificate_enrolment'].includes(testType)) {
-            errors.push(`Row ${rowNum}: Test Type must be one of: pre_test, post_test, refreshment, certificate_enrolment`);
+          if (!testType || !['pre_test', 'post_test', 'refresher_training', 'certificate_enrolment'].includes(testType)) {
+            errors.push(`Row ${rowNum}: Test Type must be one of: pre_test, post_test, refresher_training, certificate_enrolment`);
             continue;
           }
           
@@ -1305,7 +1305,7 @@
         uploadBtn.addEventListener('click', function() {
         const validData = JSON.parse(this.dataset.validData || '[]');
         if (validData.length === 0) {
-          alert('No valid data to upload');
+          window.qssShowWarning && window.qssShowWarning('No valid data to upload', 'Upload Error');
           return;
         }
         
@@ -1324,10 +1324,8 @@
         .then(response => response.json())
         .then(data => {
           if (data.success) {
-            alert(`Successfully uploaded ${data.inserted} questions!`);
-            TailwindModal.success('Uploaded!', `Successfully uploaded ${data.inserted} questions!`).then(function() {
-              window.location.href = '/questions';
-            });
+            window.qssShowSuccess && window.qssShowSuccess(`Successfully uploaded ${data.inserted} questions!`, 'Uploaded');
+            setTimeout(function() { window.location.href = '/questions'; }, 600);
           } else {
           TailwindModal.error('Upload Failed', 'Upload failed: ' + (data.error || 'Unknown error'));
             const errorsDiv = document.getElementById('validationErrors');
@@ -1362,7 +1360,7 @@
       items: [
         { label: 'Pre-Test',              value: 'pre_test' },
         { label: 'Post-Test',             value: 'post_test' },
-        { label: 'Refreshment Test',      value: 'refreshment' },
+        { label: 'Refresher Training Test',      value: 'refresher_training' },
         { label: 'Certificate Enrolment Test', value: 'certificate_enrolment' }
       ],
       placeholder: 'Select test type',
@@ -1429,7 +1427,7 @@
         <div class="column-guide">
           <table>
             <tr><td>Column A</td><td>Question Text (Required)</td></tr>
-            <tr><td>Column B</td><td>Test Type: pre_test, post_test, refreshment, or certificate_enrolment (Required)</td></tr>
+            <tr><td>Column B</td><td>Test Type: pre_test, post_test, refresher_training, or certificate_enrolment (Required)</td></tr>
             <tr><td>Column C</td><td>Objective Name (Must exist in system) (Required)</td></tr>
             <tr><td>Column D</td><td>Option A (Required)</td></tr>
             <tr><td>Column E</td><td>Option B (Required)</td></tr>
@@ -1444,7 +1442,7 @@
         <h3><i class="fas fa-check-circle do"></i> Do's</h3>
         <ul>
           <li>Start entering data from Row 2 (Row 1 is the header)</li>
-          <li>Use exact test type values: <strong>pre_test</strong>, <strong>post_test</strong>, <strong>refreshment</strong>, or <strong>certificate_enrolment</strong></li>
+          <li>Use exact test type values: <strong>pre_test</strong>, <strong>post_test</strong>, <strong>refresher_training</strong>, or <strong>certificate_enrolment</strong></li>
           <li>Use objective names that exist in the system (case-insensitive)</li>
           <li>Options A and B are required; Options C and D are optional</li>
           <li>Questions can have 2, 3, or 4 options</li>
@@ -1462,7 +1460,7 @@
           <li>Don't leave required fields empty</li>
           <li>Don't use duplicate options within the same question</li>
           <li>Don't use C or D as correct answer if those options are empty</li>
-          <li>Don't use invalid test types (must be exactly: pre_test, post_test, refreshment, or certificate_enrolment)</li>
+          <li>Don't use invalid test types (must be exactly: pre_test, post_test, refresher_training, or certificate_enrolment)</li>
           <li>Don't use invalid correct answer values (must be A, B, C, or D)</li>
           <li>Don't create duplicate questions (same question, same options, same type, same correct answer)</li>
           <li>Don't modify the header row (Row 1)</li>

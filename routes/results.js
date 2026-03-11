@@ -34,13 +34,13 @@ router.get('/enrollment/:enrollmentId', async (req, res) => {
       test.score = parseFloat(test.score) || 0;
     });
     
-    // Get hands-on scores if main training
+    // Get Practical learning outcome scores if main training
     let handsOnScores = [];
     if (enrollmentData.type === 'main') {
       [handsOnScores] = await req.db.query(`
         SELECT hs.*, ha.aspect_name, ha.max_score, u.first_name, u.last_name
-        FROM hands_on_scores hs
-        JOIN hands_on_aspects ha ON hs.aspect_id = ha.id
+        FROM practical_learning_outcome_scores hs
+        JOIN practical_learning_outcomes ha ON hs.aspect_id = ha.id
         LEFT JOIN users u ON hs.evaluated_by = u.id
         WHERE hs.enrollment_id = ?
       `, [req.params.enrollmentId]);
@@ -69,7 +69,7 @@ router.get('/enrollment/:enrollmentId', async (req, res) => {
       FROM objective_scores os
       JOIN objectives o ON os.objective_id = o.id
       WHERE os.enrollment_id = ?
-      AND os.test_type IN ('post_test', 'refreshment', 'certificate_enrolment')
+      AND os.test_type IN ('post_test', 'refresher_training', 'certificate_enrolment')
       ORDER BY o.name
     `, [req.params.enrollmentId]);
     
@@ -108,8 +108,8 @@ router.post('/allow-download/:enrollmentId', async (req, res) => {
   }
 });
 
-// Score hands-on aspect
-router.post('/score-hands-on', async (req, res) => {
+// Score Practical learning outcome aspect
+router.post('/score-Practical learning outcome', async (req, res) => {
   if (!['admin', 'trainer'].includes(req.session.userRole)) {
     return res.status(403).send('Access denied');
   }
@@ -118,13 +118,13 @@ router.post('/score-hands-on', async (req, res) => {
   
   try {
     await req.db.query(
-      'INSERT INTO hands_on_scores (enrollment_id, aspect_id, score, evaluated_by, comments) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE score = ?, evaluated_by = ?, comments = ?, evaluated_at = NOW()',
+      'INSERT INTO practical_learning_outcome_scores (enrollment_id, aspect_id, score, evaluated_by, comments) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE score = ?, evaluated_by = ?, comments = ?, evaluated_at = NOW()',
       [enrollmentId, aspectId, score, req.session.userId, comments, score, req.session.userId, comments]
     );
     
     res.json({ success: true });
   } catch (error) {
-    console.error('Hands-on scoring error:', error);
+    console.error('Practical learning outcome scoring error:', error);
     res.status(500).json({ success: false });
   }
 });
@@ -150,11 +150,11 @@ async function calculateFinalGrades(db, enrollmentId) {
       [enrollmentId]
     );
     
-    let trainingGrade = null; // 40% from post_test or refreshment
+    let trainingGrade = null; // 40% from post_test or refresher_training
     let endorsementGrade = null; // From certificate_enrolment
     
     for (const attempt of testAttempts) {
-      if (attempt.test_type === 'post_test' || attempt.test_type === 'refreshment') {
+      if (attempt.test_type === 'post_test' || attempt.test_type === 'refresher_training') {
         trainingGrade = attempt.score * 0.4; // 40% weight
       } else if (attempt.test_type === 'certificate_enrolment') {
         endorsementGrade = attempt.score;
@@ -166,18 +166,18 @@ async function calculateFinalGrades(db, enrollmentId) {
       SELECT AVG(understanding_percentage) as avg_understanding
       FROM objective_scores
       WHERE enrollment_id = ? 
-      AND test_type IN ('post_test', 'refreshment', 'certificate_enrolment')
+      AND test_type IN ('post_test', 'refresher_training', 'certificate_enrolment')
     `, [enrollmentId]);
     
     const objectiveUnderstanding = objectiveScores[0]?.avg_understanding || null;
     
-    // Calculate hands-on grade (average of all hands-on scores)
+    // Calculate Practical learning outcome grade (average of all Practical learning outcome scores)
     let handsOnGrade = null;
     if (enrollment.training_type === 'main') {
       const [handsOnScores] = await db.query(`
         SELECT AVG(hs.score / ha.max_score * 100) as avg_hands_on
-        FROM hands_on_scores hs
-        JOIN hands_on_aspects ha ON hs.aspect_id = ha.id
+        FROM practical_learning_outcome_scores hs
+        JOIN practical_learning_outcomes ha ON hs.aspect_id = ha.id
         WHERE hs.enrollment_id = ?
       `, [enrollmentId]);
       
@@ -264,3 +264,5 @@ router.get('/download/:enrollmentId', async (req, res) => {
 // Export calculateFinalGrades for use in other routes
 module.exports = router;
 module.exports.calculateFinalGrades = calculateFinalGrades;
+
+

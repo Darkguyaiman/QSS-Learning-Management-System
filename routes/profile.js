@@ -24,6 +24,23 @@ async function getProfile(db, userRole, userId) {
   }
 }
 
+async function getAreasOfSpecialization(db) {
+  const [rows] = await db.query('SELECT id, name FROM areas_of_specialization ORDER BY name');
+  return rows;
+}
+
+async function renderProfileView(req, res, profile, extra) {
+  const areasOfSpecialization = await getAreasOfSpecialization(req.db);
+  res.render('profile/view', {
+    user: req.session,
+    profile,
+    areasOfSpecialization,
+    error: null,
+    passwordError: null,
+    ...extra
+  });
+}
+
 // View profile
 router.get('/', async (req, res) => {
   try {
@@ -33,7 +50,7 @@ router.get('/', async (req, res) => {
       return res.status(404).send('Profile not found');
     }
     
-    res.render('profile/view', { user: req.session, profile, error: null, passwordError: null });
+    await renderProfileView(req, res, profile);
   } catch (error) {
     console.error('Profile view error:', error);
     res.status(500).send('Error loading profile');
@@ -42,7 +59,7 @@ router.get('/', async (req, res) => {
 
 // Update profile
 router.post('/update', async (req, res) => {
-  const { firstName, lastName, email } = req.body;
+  const { firstName, lastName, email, position, phoneNumber, areaOfSpecialization } = req.body;
   
   try {
     // Validate input
@@ -55,11 +72,8 @@ router.post('/update', async (req, res) => {
         const [users] = await req.db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
         profile = users[0];
       }
-      return res.render('profile/view', { 
-        user: req.session, 
-        profile, 
-        error: 'All fields are required',
-        passwordError: null
+      return renderProfileView(req, res, profile, {
+        error: 'All fields are required'
       });
     }
     
@@ -69,10 +83,23 @@ router.post('/update', async (req, res) => {
         [firstName, lastName, email, req.session.userId]
       );
     } else {
+      const cleanPosition = position ? position.trim() : '';
+      if (!cleanPosition) {
+        const [users] = await req.db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
+        return renderProfileView(req, res, users[0], {
+          error: 'Position is required'
+        });
+      }
+
+      const cleanPhone = phoneNumber && phoneNumber.trim() ? phoneNumber.trim() : null;
+      const cleanArea = areaOfSpecialization && areaOfSpecialization.trim() ? areaOfSpecialization.trim() : null;
+
       await req.db.query(
-        'UPDATE users SET first_name = ?, last_name = ?, email = ? WHERE id = ?',
-        [firstName, lastName, email, req.session.userId]
+        'UPDATE users SET first_name = ?, last_name = ?, email = ?, position = ?, phone_number = ?, area_of_specialization = ? WHERE id = ?',
+        [firstName, lastName, email, cleanPosition, cleanPhone, cleanArea, req.session.userId]
       );
+
+      req.session.userPosition = cleanPosition;
     }
     
     req.session.userName = `${firstName} ${lastName}`;
@@ -88,11 +115,8 @@ router.post('/update', async (req, res) => {
         const [users] = await req.db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
         profile = users[0];
       }
-      res.render('profile/view', { 
-        user: req.session, 
-        profile, 
-        error: 'Error updating profile. Please try again.',
-        passwordError: null
+      await renderProfileView(req, res, profile, {
+        error: 'Error updating profile. Please try again.'
       });
     } catch (renderError) {
       res.status(500).send('Error updating profile');
@@ -113,11 +137,8 @@ router.post('/upload-picture', upload.single('profilePicture'), async (req, res)
         const [users] = await req.db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
         profile = users[0];
       }
-      return res.render('profile/view', { 
-        user: req.session, 
-        profile, 
-        error: 'You do not have permission to change profile pictures',
-        passwordError: null
+      return renderProfileView(req, res, profile, {
+        error: 'You do not have permission to change profile pictures'
       });
     }
     
@@ -130,11 +151,8 @@ router.post('/upload-picture', upload.single('profilePicture'), async (req, res)
         const [users] = await req.db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
         profile = users[0];
       }
-      return res.render('profile/view', { 
-        user: req.session, 
-        profile, 
-        error: 'No file uploaded',
-        passwordError: null
+      return renderProfileView(req, res, profile, {
+        error: 'No file uploaded'
       });
     }
     
@@ -148,11 +166,8 @@ router.post('/upload-picture', upload.single('profilePicture'), async (req, res)
         const [users] = await req.db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
         profile = users[0];
       }
-      return res.render('profile/view', { 
-        user: req.session, 
-        profile, 
-        error: 'File size exceeds 5MB limit',
-        passwordError: null
+      return renderProfileView(req, res, profile, {
+        error: 'File size exceeds 5MB limit'
       });
     }
     
@@ -183,11 +198,8 @@ router.post('/upload-picture', upload.single('profilePicture'), async (req, res)
         const [users] = await req.db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
         profile = users[0];
       }
-      res.render('profile/view', { 
-        user: req.session, 
-        profile, 
-        error: 'Error uploading picture. Please try again.',
-        passwordError: null
+      await renderProfileView(req, res, profile, {
+        error: 'Error uploading picture. Please try again.'
       });
     } catch (renderError) {
       res.status(500).send('Error uploading picture');
@@ -209,53 +221,43 @@ router.post('/change-password', async (req, res) => {
     
     // Validate input
     if (!currentPassword || !newPassword || !confirmPassword) {
-      return res.render('profile/view', { 
-        user: req.session, 
-        profile, 
+      return renderProfileView(req, res, profile, {
         error: null,
-        passwordError: 'All password fields are required' 
+        passwordError: 'All password fields are required'
       });
     }
     
     // Validate new password length
     if (newPassword.length < 6) {
-      return res.render('profile/view', { 
-        user: req.session, 
-        profile, 
+      return renderProfileView(req, res, profile, {
         error: null,
-        passwordError: 'New password must be at least 6 characters long' 
+        passwordError: 'New password must be at least 6 characters long'
       });
     }
     
     // Validate password match
     if (newPassword !== confirmPassword) {
-      return res.render('profile/view', { 
-        user: req.session, 
-        profile, 
+      return renderProfileView(req, res, profile, {
         error: null,
-        passwordError: 'New password and confirm password do not match' 
+        passwordError: 'New password and confirm password do not match'
       });
     }
     
     // Verify current password
     const validPassword = await bcrypt.compare(currentPassword, profile.password);
     if (!validPassword) {
-      return res.render('profile/view', { 
-        user: req.session, 
-        profile, 
+      return renderProfileView(req, res, profile, {
         error: null,
-        passwordError: 'Current password is incorrect' 
+        passwordError: 'Current password is incorrect'
       });
     }
     
     // Check if new password is different from current
     const samePassword = await bcrypt.compare(newPassword, profile.password);
     if (samePassword) {
-      return res.render('profile/view', { 
-        user: req.session, 
-        profile, 
+      return renderProfileView(req, res, profile, {
         error: null,
-        passwordError: 'New password must be different from current password' 
+        passwordError: 'New password must be different from current password'
       });
     }
     
@@ -278,23 +280,19 @@ router.post('/change-password', async (req, res) => {
     // Get updated profile
     const updatedProfile = await getProfile(req.db, req.session.userRole, req.session.userId);
     
-    res.render('profile/view', { 
-      user: req.session, 
-      profile: updatedProfile, 
+    await renderProfileView(req, res, updatedProfile, {
       error: null,
       passwordError: null,
-      passwordSuccess: 'Password changed successfully!' 
+      passwordSuccess: 'Password changed successfully!'
     });
   } catch (error) {
     console.error('Password change error:', error);
     let profile;
     try {
       profile = await getProfile(req.db, req.session.userRole, req.session.userId);
-      res.render('profile/view', { 
-        user: req.session, 
-        profile, 
+      await renderProfileView(req, res, profile, {
         error: null,
-        passwordError: 'Error changing password. Please try again.' 
+        passwordError: 'Error changing password. Please try again.'
       });
     } catch (renderError) {
       res.status(500).send('Error changing password');

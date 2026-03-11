@@ -191,12 +191,12 @@
                 let completedActivities = enrollment.pre_test_completed ? 1 : 0;
 
                 if (enrollment.type === 'main') {
-                  totalActivities += 2; // Post-test + Hands-on assessment
+                  totalActivities += 2; // Post-test + Practical learning outcome assessment
                   completedActivities += enrollment.post_test_completed ? 1 : 0;
-                  // Note: Hands-on assessment completion would need to be calculated from attendance/marks
+                  // Note: Practical learning outcome assessment completion would need to be calculated from attendance/marks
                 } else {
-                  totalActivities += 1; // Refreshment test
-                  completedActivities += enrollment.refreshment_test_completed ? 1 : 0;
+                  totalActivities += 1; // refresher training test
+                  completedActivities += enrollment.refresher_training_test_completed ? 1 : 0;
                 }
 
                 const completionPercentage = Math.round((completedActivities / totalActivities) * 100);
@@ -280,15 +280,15 @@
                     <% if (enrollment.type === 'main') { %>
                       <div class="checklist-item pending">
                         <i class="fas fa-circle"></i>
-                        <span>Hands-On</span>
+                        <span>Practical Learning Outcome</span>
                       </div>
                       <div class="checklist-item <%= enrollment.post_test_completed ? 'completed' : 'pending' %>">
                         <i class="fas fa-<%= enrollment.post_test_completed ? 'check-circle' : 'circle' %>"></i>
                         <span>Post-Test</span>
                       </div>
                     <% } else { %>
-                      <div class="checklist-item <%= enrollment.refreshment_test_completed ? 'completed' : 'pending' %>">
-                        <i class="fas fa-<%= enrollment.refreshment_test_completed ? 'check-circle' : 'circle' %>"></i>
+                      <div class="checklist-item <%= enrollment.refresher_training_test_completed ? 'completed' : 'pending' %>">
+                        <i class="fas fa-<%= enrollment.refresher_training_test_completed ? 'check-circle' : 'circle' %>"></i>
                         <span>Assessment</span>
                       </div>
                     <% } %>
@@ -1355,3 +1355,4 @@
   </script>
 </body>
 </html>
+

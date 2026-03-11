@@ -140,6 +140,40 @@
               </label>
               <input type="email" id="email" name="email" class="form-input" value="<%= profile.email %>" required>
             </div>
+
+            <% if (!isTrainee) { %>
+              <div class="profile-section-divider">
+                <span>Professional Details</span>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="position">
+                    <i class="fas fa-briefcase"></i>
+                    Position Name
+                  </label>
+                  <input type="text" id="position" name="position" class="form-input" value="<%= profile.position || '' %>" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="phoneNumber">
+                    <i class="fas fa-phone"></i>
+                    Phone Number
+                  </label>
+                  <input type="text" id="phoneNumber" name="phoneNumber" class="form-input" value="<%= profile.phone_number || '' %>">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="areaOfSpecializationAdmin">
+                  <i class="fas fa-user-md"></i>
+                  Area of Specialization
+                </label>
+                <input type="hidden" id="areaOfSpecializationAdmin" name="areaOfSpecialization" value="<%= profile.area_of_specialization || '' %>">
+                <div id="areaOfSpecializationDropdown" class="tw-dropdown-container"></div>
+                <small class="form-help">Select one or more specializations.</small>
+              </div>
+            <% } %>
             
             <% if (isTrainee) { %>
               <!-- Trainee Information Section -->
@@ -274,6 +308,54 @@
             </div>
           </form>
         </div>
+
+        <% if (!isTrainee) { %>
+          <!-- Certificate Card -->
+          <div class="profile-card certificate-card">
+            <div class="profile-card-header">
+              <i class="fas fa-certificate"></i>
+              <h3>Certificate</h3>
+            </div>
+            <div class="form-group">
+              <% if (profile.certificate_file) { %>
+                <div style="margin-bottom: var(--spacing-md);">
+                  Current certificate:
+                  <a href="<%= profile.certificate_file %>" target="_blank" rel="noopener">View Certificate</a>
+                </div>
+              <% } else { %>
+                <div style="margin-bottom: var(--spacing-md); color: var(--color-gray);">
+                  No certificate uploaded yet.
+                </div>
+              <% } %>
+              <form action="/profile/upload-certificate" method="POST" enctype="multipart/form-data" class="profile-form" id="certificateUploadForm">
+                <div class="form-group">
+                  <label for="certificateFile">
+                    <i class="fas fa-upload"></i>
+                    Upload Certificate (PDF or Image)
+                  </label>
+                  <input type="file" id="certificateFile" name="certificateFile" class="form-input" accept=".pdf,image/*" required hidden>
+                  <div class="certificate-dropzone" id="certificateDropzone" role="button" tabindex="0" aria-label="Upload certificate by dragging a file or clicking to browse">
+                    <div class="dropzone-icon">
+                      <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <div class="dropzone-text">
+                      <strong>Drag & drop</strong> your certificate here, or <span class="dropzone-link">browse</span>
+                    </div>
+                    <div class="dropzone-meta">PDF or image up to 5MB.</div>
+                    <div class="dropzone-filename" id="certificateFilename"></div>
+                  </div>
+                  <small class="form-help">Maximum file size 5MB.</small>
+                </div>
+                <div class="form-actions">
+                  <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    Upload Certificate
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        <% } %>
 
         <!-- Password Change Card -->
         <div class="profile-card password-card">
@@ -1146,12 +1228,136 @@
   width: fit-content;
 }
 
+.certificate-dropzone {
+  margin-top: var(--spacing-sm);
+  border: 2px dashed rgba(87, 63, 215, 0.4);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  text-align: center;
+  background: linear-gradient(135deg, rgba(87, 63, 215, 0.06) 0%, rgba(17, 53, 139, 0.04) 100%);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.certificate-dropzone:focus {
+  outline: none;
+  border-color: var(--color-purple);
+  box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.15);
+}
+
+.certificate-dropzone.is-dragover {
+  border-color: var(--color-purple);
+  background: rgba(87, 63, 215, 0.12);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(87, 63, 215, 0.15);
+}
+
+.dropzone-icon {
+  font-size: 2rem;
+  color: var(--color-purple);
+  margin-bottom: var(--spacing-sm);
+}
+
+.dropzone-text {
+  font-size: 0.95rem;
+  color: var(--color-dark);
+  margin-bottom: var(--spacing-xs);
+}
+
+.dropzone-link {
+  color: var(--color-purple);
+  font-weight: 600;
+}
+
+.dropzone-meta {
+  font-size: 0.8rem;
+  color: var(--color-gray);
+}
+
+.dropzone-filename {
+  margin-top: var(--spacing-sm);
+  font-size: 0.85rem;
+  color: var(--color-dark);
+  font-weight: 600;
+}
+
+.password-card {
+  grid-column: 1 / -1;
+}
+
 .form-help::before {
   content: '\f05a';
   font-family: 'Font Awesome 6 Free';
   font-weight: 900;
   color: var(--color-purple);
   font-size: 0.75rem;
+}
+
+/* TailwindDropdown fallback styling (no Tailwind CSS on page) */
+.tw-dropdown {
+  position: relative;
+}
+
+.tw-dropdown__btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 2px solid #D6D9E0;
+  border-radius: var(--border-radius);
+  background: #FFFFFF;
+  color: var(--color-dark);
+  font-size: 1rem;
+  font-family: inherit;
+  box-shadow: 0 1px 0 rgba(17, 24, 39, 0.04);
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.tw-dropdown__btn:hover {
+  border-color: rgba(87, 63, 215, 0.45);
+  background: #FCFCFF;
+}
+
+.tw-dropdown__btn:focus {
+  outline: none;
+  border-color: var(--color-purple);
+  box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.18);
+}
+
+.tw-dropdown__menu {
+  position: absolute;
+  z-index: 50;
+  margin-top: 6px;
+  width: 100%;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #FFFFFF;
+  border: 1px solid var(--color-gray-light);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  padding: 6px 0;
+}
+
+.tw-dropdown__option {
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: var(--color-dark);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tw-dropdown__option:hover {
+  background: rgba(87, 63, 215, 0.1);
+}
+
+.tw-dropdown__option.is-selected {
+  background: rgba(87, 63, 215, 0.15);
+  color: var(--color-purple);
+  font-weight: 600;
 }
 
 .password-form .form-actions {
@@ -1572,6 +1778,7 @@
     </div>
   </main>
   
+  <script src="/js/tw-components.js"></script>
   <script src="/js/main.js"></script>
   <script>
     // Password toggle functionality
@@ -1674,6 +1881,74 @@
       confirmPasswordInput.addEventListener('input', checkPasswordMatch);
     }
 
+    // Area of Specialization dropdown (admin/trainer only)
+    (function initAreaDropdown() {
+      var dropdownEl = document.getElementById('areaOfSpecializationDropdown');
+      var hiddenInput = document.getElementById('areaOfSpecializationAdmin');
+      if (!dropdownEl || !hiddenInput || !window.TailwindDropdown) return;
+
+      var areas = <%- JSON.stringify(areasOfSpecialization || []) %>;
+      var items = areas.map(function (a) {
+        return { label: a.name, value: a.name };
+      });
+
+      var initial = (hiddenInput.value || '')
+        .split(',')
+        .map(function (v) { return v.trim(); })
+        .filter(Boolean);
+
+      new window.TailwindDropdown('areaOfSpecializationDropdown', {
+        items: items,
+        multiSelect: true,
+        placeholder: 'Select specializations',
+        initialValue: initial,
+        onChange: function (values) {
+          hiddenInput.value = Array.isArray(values) ? values.join(', ') : '';
+        }
+      });
+    })();
+
+    // Certificate drag-and-drop upload
+    (function initCertificateDropzone() {
+      var dropzone = document.getElementById('certificateDropzone');
+      var input = document.getElementById('certificateFile');
+      var filename = document.getElementById('certificateFilename');
+      if (!dropzone || !input) return;
+
+      function setFilename(file) {
+        if (!filename) return;
+        filename.textContent = file ? file.name : '';
+      }
+
+      dropzone.addEventListener('click', function () { input.click(); });
+      dropzone.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          input.click();
+        }
+      });
+
+      dropzone.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        dropzone.classList.add('is-dragover');
+      });
+      dropzone.addEventListener('dragleave', function () {
+        dropzone.classList.remove('is-dragover');
+      });
+      dropzone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        dropzone.classList.remove('is-dragover');
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+          input.files = e.dataTransfer.files;
+          setFilename(e.dataTransfer.files[0]);
+        }
+      });
+
+      input.addEventListener('change', function () {
+        setFilename(input.files && input.files[0] ? input.files[0] : null);
+      });
+    })();
+
     // Form validation
     const passwordForm = document.getElementById('passwordChangeForm');
     if (passwordForm) {
@@ -1683,13 +1958,13 @@
         
         if (newPassword !== confirmPassword) {
           e.preventDefault();
-          alert('Passwords do not match. Please try again.');
+          window.qssShowWarning && window.qssShowWarning('Passwords do not match. Please try again.', 'Validation Error');
           return false;
         }
         
         if (newPassword.length < 6) {
           e.preventDefault();
-          alert('Password must be at least 6 characters long.');
+          window.qssShowWarning && window.qssShowWarning('Password must be at least 6 characters long.', 'Validation Error');
           return false;
         }
       });
@@ -1697,4 +1972,3 @@
   </script>
 </body>
 </html>
-

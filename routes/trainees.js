@@ -301,6 +301,54 @@ router.post('/:id/edit', async (req, res) => {
   }
 });
 
+// Bulk update trainee status
+router.post('/bulk-status', async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body.traineeIds) ? req.body.traineeIds : (req.body.traineeIds ? [req.body.traineeIds] : []);
+    const status = (req.body.status || '').toLowerCase().trim();
+    const allowed = new Set(['active', 'inactive', 'suspended', 'registered']);
+
+    if (ids.length === 0) {
+      return res.redirect('/trainees');
+    }
+    if (!allowed.has(status)) {
+      return res.redirect('/trainees');
+    }
+
+    const placeholders = ids.map(() => '?').join(',');
+    await req.db.query(
+      `UPDATE trainees SET trainee_status = ? WHERE id IN (${placeholders})`,
+      [status, ...ids]
+    );
+
+    res.redirect('/trainees');
+  } catch (error) {
+    console.error('Bulk status update error:', error);
+    res.status(500).send('Error updating trainee statuses');
+  }
+});
+
+// Bulk delete trainees
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body.traineeIds) ? req.body.traineeIds : (req.body.traineeIds ? [req.body.traineeIds] : []);
+    if (ids.length === 0) {
+      return res.redirect('/trainees');
+    }
+
+    const placeholders = ids.map(() => '?').join(',');
+    await req.db.query(
+      `DELETE FROM trainees WHERE id IN (${placeholders})`,
+      ids
+    );
+
+    res.redirect('/trainees');
+  } catch (error) {
+    console.error('Bulk delete error:', error);
+    res.status(500).send('Error deleting trainees');
+  }
+});
+
 module.exports = router;
 
 

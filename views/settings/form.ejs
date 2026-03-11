@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= formMode === 'edit' ? 'Edit' : 'Add' %> <%= singularName %> - Settings - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    .main-content:has(.settings-page) {
+      padding-left: var(--spacing-md);
+      padding-right: var(--spacing-md);
+    }
+
+    .settings-page {
+      width: 100%;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: var(--spacing-xl) var(--spacing-md);
+      box-sizing: border-box;
+    }
+
+    .page-header {
+      margin-bottom: var(--spacing-xl);
+      padding-bottom: var(--spacing-lg);
+      border-bottom: 2px solid var(--color-gray-light);
+    }
+
+    .page-header h1 {
+      color: var(--color-dark);
+      margin-bottom: var(--spacing-xs);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+    }
+
+    .page-header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--spacing-md);
+      flex-wrap: wrap;
+    }
+
+    .page-header .icon {
+      color: var(--color-purple);
+      font-size: 2rem;
+    }
+
+    .page-header p {
+      color: var(--color-gray);
+      margin: 0;
+    }
+
+    .page-actions {
+      margin-left: auto;
+    }
+
+    .settings-card {
+      background: var(--color-white);
+      border-radius: var(--border-radius-lg);
+      padding: var(--spacing-xl);
+      margin-bottom: var(--spacing-lg);
+      box-shadow: var(--shadow);
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--color-dark);
+      margin-bottom: var(--spacing-lg);
+      padding-bottom: var(--spacing-md);
+      border-bottom: 1px solid var(--color-gray-light);
+    }
+
+    .form-group {
+      margin-bottom: var(--spacing-md);
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: var(--spacing-xs);
+      font-weight: 500;
+      color: var(--color-dark);
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: var(--spacing-sm) var(--spacing-md);
+      border: 2px solid #D6D9E0;
+      border-radius: var(--border-radius);
+      font-size: 1rem;
+      font-family: inherit;
+      background: #FFFFFF;
+      box-shadow: 0 1px 0 rgba(17, 24, 39, 0.04);
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+
+    .form-group input::placeholder,
+    .form-group textarea::placeholder {
+      color: #8B93A3;
+    }
+
+    .form-group input:hover,
+    .form-group select:hover,
+    .form-group textarea:hover {
+      border-color: rgba(87, 63, 215, 0.45);
+      background: #FCFCFF;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--color-purple);
+      box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.18);
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--spacing-md);
+    }
+
+    .form-row.form-row-compact {
+      grid-template-columns: 240px 1fr;
+    }
+
+    .error-message {
+      background-color: #FEE2E2;
+      color: #991B1B;
+      padding: var(--spacing-md);
+      border-radius: var(--border-radius);
+      margin-bottom: var(--spacing-lg);
+      border-left: 4px solid #EF4444;
+    }
+
+    /* TailwindDropdown fallback styling (no Tailwind CSS on page) */
+    .tw-dropdown {
+      position: relative;
+    }
+
+    .tw-dropdown__btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm) var(--spacing-md);
+      border: 2px solid #D6D9E0;
+      border-radius: var(--border-radius);
+      background: #FFFFFF;
+      color: var(--color-dark);
+      font-size: 1rem;
+      font-family: inherit;
+      box-shadow: 0 1px 0 rgba(17, 24, 39, 0.04);
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+
+    .tw-dropdown__btn:hover {
+      border-color: rgba(87, 63, 215, 0.45);
+      background: #FCFCFF;
+    }
+
+    .tw-dropdown__btn:focus {
+      outline: none;
+      border-color: var(--color-purple);
+      box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.18);
+    }
+
+    .tw-dropdown__menu {
+      position: absolute;
+      z-index: 50;
+      margin-top: 6px;
+      width: 100%;
+      max-height: 240px;
+      overflow-y: auto;
+      background: #FFFFFF;
+      border: 1px solid var(--color-gray-light);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+      padding: 6px 0;
+    }
+
+    .tw-dropdown__option {
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      color: var(--color-dark);
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .tw-dropdown__option:hover {
+      background: rgba(87, 63, 215, 0.1);
+    }
+
+    .tw-dropdown__option.is-selected {
+      background: rgba(87, 63, 215, 0.15);
+      color: var(--color-purple);
+      font-weight: 600;
+    }
+
+    .certificate-dropzone {
+      margin-top: var(--spacing-sm);
+      border: 2px dashed rgba(87, 63, 215, 0.4);
+      border-radius: var(--border-radius-lg);
+      padding: var(--spacing-lg);
+      text-align: center;
+      background: linear-gradient(135deg, rgba(87, 63, 215, 0.06) 0%, rgba(17, 53, 139, 0.04) 100%);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .certificate-dropzone:focus {
+      outline: none;
+      border-color: var(--color-purple);
+      box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.15);
+    }
+
+    .certificate-dropzone.is-dragover {
+      border-color: var(--color-purple);
+      background: rgba(87, 63, 215, 0.12);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(87, 63, 215, 0.15);
+    }
+
+    .dropzone-icon {
+      font-size: 2rem;
+      color: var(--color-purple);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .dropzone-text {
+      font-size: 0.95rem;
+      color: var(--color-dark);
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .dropzone-link {
+      color: var(--color-purple);
+      font-weight: 600;
+    }
+
+    .dropzone-meta {
+      font-size: 0.8rem;
+      color: var(--color-gray);
+    }
+
+    .dropzone-filename {
+      margin-top: var(--spacing-sm);
+      font-size: 0.85rem;
+      color: var(--color-dark);
+      font-weight: 600;
+    }
+
+    @media (max-width: 768px) {
+      .page-header-top {
+        display: block;
+      }
+
+      .page-actions {
+        margin-left: 0;
+        margin-top: var(--spacing-md);
+      }
+
+      .settings-page {
+        padding: var(--spacing-md);
+        max-width: 100%;
+      }
+
+      .settings-card {
+        padding: var(--spacing-md);
+        border-radius: var(--border-radius);
+      }
+
+      .form-group input,
+      .form-group select,
+      .form-group textarea {
+        font-size: 16px;
+      }
+
+      .form-row,
+      .form-row.form-row-compact {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
+
+  <main class="main-content">
+    <div class="settings-page">
+      <div class="page-header">
+        <div class="page-header-top">
+          <h1>
+            <i class="<%= icon %> icon"></i>
+            <%= formMode === 'edit' ? 'Edit' : 'Add New' %> <%= singularName %>
+          </h1>
+          <div class="page-actions">
+            <a href="<%= backUrl %>" class="btn btn-secondary">
+              <i class="fas fa-arrow-left"></i> Back to <%= pluralName %>
+            </a>
+          </div>
+        </div>
+        <% if (typeof description !== 'undefined' && description) { %>
+          <p><%= description %></p>
+        <% } %>
+      </div>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="error-message">
+          <i class="fas fa-exclamation-circle"></i> <%= error %>
+        </div>
+      <% } %>
+
+      <div class="settings-card">
+        <div class="card-title"><%= formMode === 'edit' ? 'Edit' : 'Add New' %> <%= singularName %></div>
+        <form action="<%= formAction %>" method="POST" <%= typeof pageType !== 'undefined' && pageType === 'users' ? 'enctype="multipart/form-data"' : '' %>>
+          <% if (typeof pageType !== 'undefined' && pageType === 'users') { %>
+            <div class="form-row">
+              <div class="form-group">
+                <label>First Name *</label>
+                <input type="text" name="first_name" value="<%= typeof item !== 'undefined' && item ? item.first_name : '' %>" required>
+              </div>
+              <div class="form-group">
+                <label>Last Name *</label>
+                <input type="text" name="last_name" value="<%= typeof item !== 'undefined' && item ? item.last_name : '' %>" required>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Email *</label>
+                <input type="email" name="email" value="<%= typeof item !== 'undefined' && item ? item.email : '' %>" required>
+              </div>
+              <% if (formMode !== 'edit') { %>
+                <div class="form-group">
+                  <label>Password *</label>
+                  <input type="password" name="password" minlength="6" required>
+                </div>
+              <% } %>
+            </div>
+            <div class="form-row form-row-compact">
+              <div class="form-group">
+                <label>Role *</label>
+                <select name="role" required>
+                  <option value="trainer" <%= typeof item !== 'undefined' && item && item.role === 'trainer' ? 'selected' : '' %>>Trainer</option>
+                  <option value="admin" <%= typeof item !== 'undefined' && item && item.role === 'admin' ? 'selected' : '' %>>Admin</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Position Name *</label>
+                <input type="text" name="position" required maxlength="255" list="positionSuggestions" value="<%= typeof item !== 'undefined' && item ? item.position : '' %>" placeholder="e.g., Senior Trainer">
+                <div style="margin-top: 6px; font-size: 0.85rem; color: var(--color-gray);">
+                  This will appear on attendance reports.
+                </div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Phone Number</label>
+                <input type="text" name="phone_number" maxlength="20" value="<%= typeof item !== 'undefined' && item ? (item.phone_number || '') : '' %>" placeholder="e.g., +65 8123 4567">
+              </div>
+              <div class="form-group">
+                <label>Area of Specialization</label>
+                <input type="hidden" id="settingsAreaOfSpecialization" name="area_of_specialization" value="<%= typeof item !== 'undefined' && item ? (item.area_of_specialization || '') : '' %>">
+                <div id="settingsAreaDropdown" class="tw-dropdown-container"></div>
+                <small class="form-help">Select one or more specializations.</small>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Certificate Upload</label>
+              <% if (typeof item !== 'undefined' && item && item.certificate_file) { %>
+                <div style="margin-bottom: 8px; font-size: 0.9rem;">
+                  Current: <a href="<%= item.certificate_file %>" target="_blank" rel="noopener">View Certificate</a>
+                </div>
+              <% } %>
+              <input type="file" id="settingsCertificateFile" name="certificate_file" accept=".pdf,image/*" hidden>
+              <div class="certificate-dropzone" id="settingsCertificateDropzone" role="button" tabindex="0" aria-label="Upload certificate by dragging a file or clicking to browse">
+                <div class="dropzone-icon">
+                  <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <div class="dropzone-text">
+                  <strong>Drag & drop</strong> your certificate here, or <span class="dropzone-link">browse</span>
+                </div>
+                <div class="dropzone-meta">PDF or image up to 5MB.</div>
+                <div class="dropzone-filename" id="settingsCertificateFilename"></div>
+              </div>
+              <div style="margin-top: 6px; font-size: 0.85rem; color: var(--color-gray);">
+                PDF or image up to 5MB.
+              </div>
+            </div>
+            <datalist id="positionSuggestions">
+              <option value="Trainer"></option>
+              <option value="Senior Trainer"></option>
+              <option value="Lead Trainer"></option>
+              <option value="Training Coordinator"></option>
+              <option value="Administrator"></option>
+              <option value="Manager"></option>
+            </datalist>
+          <% } else if (hasModelDropdown) { %>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="item-name"><%= nameLabel %> *</label>
+                <input type="text" id="item-name" name="<%= nameField %>" value="<%= typeof item !== 'undefined' && item ? item[nameField] : '' %>" required placeholder="<%= namePlaceholder %>">
+              </div>
+              <div class="form-group">
+                <label for="item-model">K-Laser Model *</label>
+                <select id="item-model" name="k_laser_model_id" required>
+                  <option value="">Select Model</option>
+                  <% kLaserModels.forEach(model => { %>
+                    <option value="<%= model.id %>" <%= typeof item !== 'undefined' && item && item.k_laser_model_id == model.id ? 'selected' : '' %>><%= model.model_name %></option>
+                  <% }); %>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="item-notes">Notes</label>
+              <textarea id="item-notes" name="notes" placeholder="Enter notes (optional)"><%= typeof item !== 'undefined' && item ? (item.notes || '') : '' %></textarea>
+            </div>
+          <% } else { %>
+            <div class="form-group">
+              <label for="item-name"><%= nameLabel %> *</label>
+              <input type="text" id="item-name" name="<%= nameField %>" value="<%= typeof item !== 'undefined' && item ? item[nameField] : '' %>" required placeholder="<%= namePlaceholder %>">
+            </div>
+            <div class="form-group">
+              <label for="item-description">Description</label>
+              <textarea id="item-description" name="description" placeholder="<%= descriptionPlaceholder %>"><%= typeof item !== 'undefined' && item ? (item.description || '') : '' %></textarea>
+            </div>
+            <% if (hasMaxScore) { %>
+              <div class="form-group">
+                <label for="item-max-score">Max Score *</label>
+                <input type="number" id="item-max-score" name="max_score" value="<%= typeof item !== 'undefined' && item ? (item.max_score || 100) : 100 %>" min="1" required>
+              </div>
+            <% } %>
+          <% } %>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> <%= formMode === 'edit' ? 'Update' : 'Create' %> <%= singularName %>
+          </button>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/tw-components.js"></script>
+  <script src="/js/main.js"></script>
+  <script>
+    (function initSettingsAreaDropdown() {
+      var dropdownEl = document.getElementById('settingsAreaDropdown');
+      var hiddenInput = document.getElementById('settingsAreaOfSpecialization');
+      if (!dropdownEl || !hiddenInput || !window.TailwindDropdown) return;
+
+      var areas = <%- JSON.stringify(typeof areasOfSpecialization !== 'undefined' ? areasOfSpecialization : []) %>;
+      var items = areas.map(function (a) {
+        return { label: a.name, value: a.name };
+      });
+
+      var initial = (hiddenInput.value || '')
+        .split(',')
+        .map(function (v) { return v.trim(); })
+        .filter(Boolean);
+
+      new window.TailwindDropdown('settingsAreaDropdown', {
+        items: items,
+        multiSelect: true,
+        placeholder: 'Select specializations',
+        initialValue: initial,
+        onChange: function (values) {
+          hiddenInput.value = Array.isArray(values) ? values.join(', ') : '';
+        }
+      });
+    })();
+
+    (function initSettingsCertificateDropzone() {
+      var dropzone = document.getElementById('settingsCertificateDropzone');
+      var input = document.getElementById('settingsCertificateFile');
+      var filename = document.getElementById('settingsCertificateFilename');
+      if (!dropzone || !input) return;
+
+      function setFilename(file) {
+        if (!filename) return;
+        filename.textContent = file ? file.name : '';
+      }
+
+      dropzone.addEventListener('click', function () { input.click(); });
+      dropzone.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          input.click();
+        }
+      });
+
+      dropzone.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        dropzone.classList.add('is-dragover');
+      });
+      dropzone.addEventListener('dragleave', function () {
+        dropzone.classList.remove('is-dragover');
+      });
+      dropzone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        dropzone.classList.remove('is-dragover');
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+          input.files = e.dataTransfer.files;
+          setFilename(e.dataTransfer.files[0]);
+        }
+      });
+
+      input.addEventListener('change', function () {
+        setFilename(input.files && input.files[0] ? input.files[0] : null);
+      });
+    })();
+  </script>
+</body>
+</html>

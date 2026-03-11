@@ -303,7 +303,7 @@ router.post('/bulk/upload', async (req, res) => {
       }
       
       // Validate test type
-      if (!['pre_test', 'post_test', 'refreshment', 'certificate_enrolment'].includes(q.test_type)) {
+      if (!['pre_test', 'post_test', 'refresher_training', 'certificate_enrolment'].includes(q.test_type)) {
         errors.push(`Row ${rowNum}: Invalid test type "${q.test_type}"`);
         continue;
       }

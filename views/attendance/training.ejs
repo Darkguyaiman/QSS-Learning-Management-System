@@ -464,7 +464,7 @@
       const time = document.getElementById('attendance-time').value;
       
       if (!date) {
-        alert('Please select a date');
+        window.qssShowWarning && window.qssShowWarning('Please select a date', 'Missing Date');
         return;
       }
       
@@ -488,7 +488,7 @@
       });
       
       if (attendanceData.length === 0) {
-        alert('Please mark attendance for at least one trainee');
+        window.qssShowWarning && window.qssShowWarning('Please mark attendance for at least one trainee', 'No Selection');
         return;
       }
       
@@ -503,14 +503,14 @@
         
         const result = await response.json();
         if (result.success) {
-          alert(`Attendance marked successfully for ${attendanceData.length} trainee(s)!`);
+          window.qssShowSuccess && window.qssShowSuccess(`Attendance marked successfully for ${attendanceData.length} trainee(s)!`, 'Success');
           location.reload();
         } else {
-          alert('Error marking attendance: ' + (result.error || 'Unknown error'));
+          window.qssShowError && window.qssShowError('Error marking attendance: ' + (result.error || 'Unknown error'), 'Error');
         }
       } catch (error) {
         console.error('Error:', error);
-        alert('Error marking attendance.');
+        window.qssShowError && window.qssShowError('Error marking attendance.', 'Error');
       }
     });
     

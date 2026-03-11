@@ -912,7 +912,7 @@
         const tabNames = ['Personal Information', 'Professional Information', 'Auto-Managed Fields'];
         const invalidTabNames = invalidFields.map(idx => tabNames[idx]).join(', ');
         
-        alert(`Please fill in all required fields before submitting.\n\nMissing fields in: ${invalidTabNames}`);
+        window.qssShowWarning && window.qssShowWarning(`Please fill in all required fields before submitting.\n\nMissing fields in: ${invalidTabNames}`, 'Validation Error');
         return false;
       }
     });

@@ -57,7 +57,7 @@
           <% }); %>
           
           <div style="text-align: center; margin-top: var(--spacing-2xl); padding-top: var(--spacing-xl); border-top: 2px solid var(--color-gray-light);">
-            <button type="submit" class="btn btn-primary btn-lg" style="padding: var(--spacing-md) var(--spacing-xl); font-size: 1.1rem;" onclick="return confirm('Are you sure you want to submit? You cannot change your answers after submission.');">
+            <button type="submit" class="btn btn-primary btn-lg" style="padding: var(--spacing-md) var(--spacing-xl); font-size: 1.1rem;" data-confirm="Submit your test now? Your answers will be final and you won’t be able to edit them afterwards." data-confirm-danger="false">
               Submit Test
             </button>
             <p class="text-muted" style="margin-top: var(--spacing-md);">Please review all answers before submitting.</p>
@@ -67,6 +67,7 @@
     </div>
   </main>
   
+  <script src="/js/main.js"></script>
   <script>
     // Prevent accidental navigation
     window.addEventListener('beforeunload', function (e) {

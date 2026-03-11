@@ -25,6 +25,12 @@
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+  /* Global scrollbar tokens */
+  --scrollbar-track: rgba(17, 53, 139, 0.08);
+  --scrollbar-thumb: rgba(87, 63, 215, 0.55);
+  --scrollbar-thumb-hover: rgba(87, 63, 215, 0.75);
+  --scrollbar-thumb-active: rgba(17, 53, 139, 0.8);
 }
 
 /* QSS Message Modal (custom alert replacement) */
@@ -541,6 +547,43 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Global Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--scrollbar-thumb) 0%, rgba(87, 63, 215, 0.35) 100%);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--scrollbar-thumb-hover) 0%, rgba(87, 63, 215, 0.5) 100%);
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(180deg, var(--scrollbar-thumb-active) 0%, rgba(17, 53, 139, 0.7) 100%);
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .container {
@@ -1070,6 +1113,7 @@ body.has-sidebar {
 body.has-sidebar .main-content {
   padding-left: var(--spacing-xl);
   padding-right: var(--spacing-xl);
+  min-height: 100vh;
 }
 
 /* Auth Pages */
@@ -1535,7 +1579,7 @@ body.has-sidebar .main-content {
   color: var(--color-white);
 }
 
-.badge-refreshment {
+.badge-refresher_training {
   background-color: var(--color-orange);
   color: var(--color-white);
 }

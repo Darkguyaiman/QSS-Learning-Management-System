@@ -10,6 +10,9 @@ CREATE TABLE users (
   first_name VARCHAR(100) NOT NULL,
   last_name VARCHAR(100) NOT NULL,
   position VARCHAR(255) NOT NULL DEFAULT '',
+  phone_number VARCHAR(20),
+  area_of_specialization VARCHAR(255),
+  certificate_file VARCHAR(255),
   role ENUM('admin', 'trainer') NOT NULL,
   profile_picture VARCHAR(255),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -88,8 +91,8 @@ CREATE TABLE device_serial_numbers (
   FOREIGN KEY (k_laser_model_id) REFERENCES k_laser_models(id) ON DELETE RESTRICT
 );
 
--- Hands-on Aspects Settings table (templates for aspects)
-CREATE TABLE hands_on_aspects_settings (
+-- Practical Learning Outcomes Settings table (templates for outcomes)
+CREATE TABLE practical_learning_outcomes_settings (
   id INT AUTO_INCREMENT PRIMARY KEY,
   aspect_name VARCHAR(255) NOT NULL UNIQUE,
   description TEXT,
@@ -103,7 +106,7 @@ CREATE TABLE trainings (
   id INT AUTO_INCREMENT PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
   description TEXT,
-  type ENUM('main', 'refreshment') NOT NULL,
+  type ENUM('main', 'refresher_training') NOT NULL,
   created_by INT,
   status ENUM('in_progress', 'completed', 'canceled', 'rescheduled') DEFAULT 'in_progress',
   start_datetime DATETIME,
@@ -162,7 +165,7 @@ CREATE TABLE questions (
   option_c VARCHAR(500) NULL,
   option_d VARCHAR(500) NULL,
   correct_answer ENUM('A', 'B', 'C', 'D') NOT NULL,
-  test_type ENUM('pre_test', 'post_test', 'refreshment', 'certificate_enrolment') NOT NULL,
+  test_type ENUM('pre_test', 'post_test', 'refresher_training', 'certificate_enrolment') NOT NULL,
   objective_id INT,
   training_id INT,
   created_by INT,
@@ -172,8 +175,8 @@ CREATE TABLE questions (
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
--- Hands-on aspects for main training
-CREATE TABLE hands_on_aspects (
+-- Practical learning outcomes for main training
+CREATE TABLE practical_learning_outcomes (
   id INT AUTO_INCREMENT PRIMARY KEY,
   training_id INT NOT NULL,
   aspect_name VARCHAR(255) NOT NULL,
@@ -216,7 +219,7 @@ CREATE TABLE attendance (
 CREATE TABLE test_attempts (
   id INT AUTO_INCREMENT PRIMARY KEY,
   enrollment_id INT NOT NULL,
-  test_type ENUM('pre_test', 'post_test', 'refreshment', 'certificate_enrolment') NOT NULL,
+  test_type ENUM('pre_test', 'post_test', 'refresher_training', 'certificate_enrolment') NOT NULL,
   score DECIMAL(5,2),
   total_questions INT,
   started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -237,8 +240,8 @@ CREATE TABLE test_answers (
   FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
 );
 
--- Hands-on scores for main training
-CREATE TABLE hands_on_scores (
+-- Practical learning outcome scores for main training
+CREATE TABLE practical_learning_outcome_scores (
   id INT AUTO_INCREMENT PRIMARY KEY,
   enrollment_id INT NOT NULL,
   aspect_id INT NOT NULL,
@@ -247,7 +250,7 @@ CREATE TABLE hands_on_scores (
   comments TEXT,
   evaluated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE,
-  FOREIGN KEY (aspect_id) REFERENCES hands_on_aspects(id) ON DELETE CASCADE,
+  FOREIGN KEY (aspect_id) REFERENCES practical_learning_outcomes(id) ON DELETE CASCADE,
   FOREIGN KEY (evaluated_by) REFERENCES users(id) ON DELETE SET NULL,
   UNIQUE KEY unique_hands_on_score (enrollment_id, aspect_id)
 );

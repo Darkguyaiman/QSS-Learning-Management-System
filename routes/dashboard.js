@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
         SELECT e.*, t.title, t.type, t.description,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') as pre_test_completed,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') as post_test_completed,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refreshment' AND status = 'completed') as refreshment_test_completed
+          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed') as refresher_training_test_completed
         FROM enrollments e
         JOIN trainings t ON e.training_id = t.id
         WHERE e.trainee_id = ? AND e.status = 'active'

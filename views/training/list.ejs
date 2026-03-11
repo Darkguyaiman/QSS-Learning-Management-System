@@ -81,7 +81,7 @@
       color: #1967D2;
     }
     
-    .badge-refreshment {
+    .badge-refresher_training {
       background: #FEF7E0;
       color: #F9AB00;
     }
@@ -179,7 +179,7 @@
                 <h3 class="classroom-title"><%= training.title %></h3>
                 <div class="classroom-meta">
                   <span class="classroom-badge badge-<%= training.type %>">
-                    <%= training.type === 'main' ? 'Main Training' : 'Refreshment' %>
+                    <%= training.type === 'main' ? 'Main Training' : 'Refresher Training' %>
                   </span>
                   <% 
                     const statusLabels = {

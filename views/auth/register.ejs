@@ -7,13 +7,47 @@
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
     .auth-page {
-      background: var(--color-light);
+      background: radial-gradient(circle at top left, rgba(228, 143, 36, 0.18), transparent 45%),
+                  radial-gradient(circle at 70% 15%, rgba(87, 63, 215, 0.18), transparent 45%),
+                  radial-gradient(circle at 30% 80%, rgba(17, 53, 139, 0.18), transparent 45%),
+                  linear-gradient(135deg, #F8FAFF 0%, #EEF2FF 40%, #FFF7ED 100%);
       position: relative;
       height: 100vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .auth-page::before,
+    .auth-page::after {
+      content: '';
+      position: fixed;
+      inset: auto;
+      border-radius: 999px;
+      filter: blur(0px);
+      opacity: 0.5;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .auth-page::before {
+      width: 520px;
+      height: 520px;
+      right: -160px;
+      top: -120px;
+      background: radial-gradient(circle, rgba(87, 63, 215, 0.22), rgba(87, 63, 215, 0));
+    }
+
+    .auth-page::after {
+      width: 480px;
+      height: 480px;
+      left: -140px;
+      bottom: -160px;
+      background: radial-gradient(circle, rgba(228, 143, 36, 0.25), rgba(228, 143, 36, 0));
     }
     
     .auth-header {
@@ -37,13 +71,6 @@
       gap: 1rem;
     }
     
-    .auth-header-divider {
-      height: 30px;
-      width: 1px;
-      background-color: var(--color-gray);
-      opacity: 0.5;
-    }
-    
     .auth-header-logo {
       height: 40px;
       width: auto;
@@ -51,19 +78,14 @@
     }
     
     .auth-header-right {
-      font-size: 1.5rem;
+      font-size: 1.1rem;
       font-weight: 700;
       color: var(--color-purple);
-    }
-    
-    .auth-background-video {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      z-index: -1;
+      text-align: right;
+      max-width: 55%;
+      line-height: 1.2;
+      font-family: 'Playfair', serif;
+      letter-spacing: 0.2px;
     }
     
     .auth-content-wrapper {
@@ -374,6 +396,8 @@
       font-size: 1.75rem;
       font-weight: 700;
       margin-bottom: 0.25rem;
+      font-family: 'Playfair', serif;
+      letter-spacing: 0.3px;
     }
     
     .auth-subtitle {
@@ -877,7 +901,7 @@
       }
       
       .auth-header-right {
-        font-size: 1.25rem;
+        font-size: 1rem;
       }
       
       .auth-content-wrapper {
@@ -913,7 +937,8 @@
       }
       
       .auth-header-right {
-        font-size: 1.1rem;
+        font-size: 0.95rem;
+        max-width: 60%;
       }
       
       .auth-content-wrapper {
@@ -961,16 +986,13 @@
         gap: 0.5rem;
       }
       
-      .auth-header-divider {
-        height: 24px;
-      }
-      
       .auth-header-logo {
         height: 28px;
       }
       
       .auth-header-right {
-        font-size: 1rem;
+        font-size: 0.9rem;
+        max-width: 65%;
       }
       
       .auth-content-wrapper {
@@ -1181,7 +1203,8 @@
       }
       
       .auth-header-right {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
+        max-width: 70%;
       }
       
       .auth-container {
@@ -1348,17 +1371,11 @@
   </style>
 </head>
 <body class="auth-page">
-  <video autoplay muted loop playsinline class="auth-background-video">
-    <source src="/background%20video.mp4" type="video/mp4">
-  </video>
-  
   <header class="auth-header">
     <div class="auth-header-left">
       <img src="/qsslogo.svg" alt="QSS Logo" class="auth-header-logo">
-      <div class="auth-header-divider"></div>
-      <img src="/K-Laser.png" alt="K-Laser Logo" class="auth-header-logo">
     </div>
-    <div class="auth-header-right">LMS</div>
+    <div class="auth-header-right">QSS Learning Management System</div>
   </header>
   
   <div class="auth-content-wrapper">

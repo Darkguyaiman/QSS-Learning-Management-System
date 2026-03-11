@@ -14,7 +14,7 @@
             <% if (training.type === 'main' && aspects && aspects.length > 0) { %>
               <button class="btn btn-primary btn-sm" onclick="toggleHandsOnGrading()" id="toggle-hands-on-btn" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
                 <i class="fas fa-hand-paper"></i>
-                <span>Grade Hands-On</span>
+                <span>Grade Practical Learning Outcome</span>
                 <i class="fas fa-chevron-down" style="margin-left: 0.25rem; transition: transform 0.3s ease; font-size: 0.75rem;"></i>
               </button>
             <% } %>
@@ -40,10 +40,10 @@
               <th>Pre-Test</th>
               <% if (training.type === 'main') { %>
                 <th>Post-Test</th>
+                <th>Practical Learning Outcome</th>
                 <th>Certificate Enrolment</th>
-                <th>Hands-On</th>
               <% } else { %>
-                <th>Refreshment Test</th>
+                <th>Refresher Training Test</th>
               <% } %>
               <th>Status</th>
               <th>Actions</th>
@@ -62,7 +62,7 @@
                   const preTest = data.tests.find(t => t.test_type === 'pre_test');
                   const postTest = data.tests.find(t => t.test_type === 'post_test');
                   const certificateEnrolmentTest = data.tests.find(t => t.test_type === 'certificate_enrolment');
-                  const refreshmentTest = data.tests.find(t => t.test_type === 'refreshment');
+                  const refresher_trainingTest = data.tests.find(t => t.test_type === 'refresher_training');
                 %>
                 <td>
                   <% if (preTest) { %>
@@ -84,15 +84,6 @@
                     <% } %>
                   </td>
                   <td>
-                    <% if (certificateEnrolmentTest) { %>
-                      <span class="test-score <%= certificateEnrolmentTest.score >= 50 ? 'score-pass' : 'score-fail' %>">
-                        <%= certificateEnrolmentTest.score %>% (<%= certificateEnrolmentTest.score >= 50 ? 'Pass' : 'Fail' %>)
-                      </span>
-                    <% } else { %>
-                      <span style="color: #5F6368;">Not taken</span>
-                    <% } %>
-                  </td>
-                  <td>
                     <% if (data.handsOnScores.length > 0) { %>
                       <% 
                         const totalScore = data.handsOnScores.reduce((sum, s) => sum + (parseFloat(s.score) || 0), 0);
@@ -106,11 +97,20 @@
                       <span style="color: #5F6368;">Not evaluated</span>
                     <% } %>
                   </td>
+                  <td>
+                    <% if (certificateEnrolmentTest) { %>
+                      <span class="test-score <%= certificateEnrolmentTest.score >= 50 ? 'score-pass' : 'score-fail' %>">
+                        <%= certificateEnrolmentTest.score %>% (<%= certificateEnrolmentTest.score >= 50 ? 'Pass' : 'Fail' %>)
+                      </span>
+                    <% } else { %>
+                      <span style="color: #5F6368;">Not taken</span>
+                    <% } %>
+                  </td>
                 <% } else { %>
                   <td>
-                    <% if (refreshmentTest) { %>
-                      <span class="test-score <%= refreshmentTest.score >= 50 ? 'score-pass' : 'score-fail' %>">
-                        <%= refreshmentTest.score %>% (<%= refreshmentTest.score >= 50 ? 'Pass' : 'Fail' %>)
+                    <% if (refresher_trainingTest) { %>
+                      <span class="test-score <%= refresher_trainingTest.score >= 50 ? 'score-pass' : 'score-fail' %>">
+                        <%= refresher_trainingTest.score %>% (<%= refresher_trainingTest.score >= 50 ? 'Pass' : 'Fail' %>)
                       </span>
                     <% } else { %>
                       <span style="color: #5F6368;">Not taken</span>
@@ -174,7 +174,7 @@
                   const preTest = data.tests.find(t => t.test_type === 'pre_test');
                   const postTest = data.tests.find(t => t.test_type === 'post_test');
                   const certificateEnrolmentTest = data.tests.find(t => t.test_type === 'certificate_enrolment');
-                  const refreshmentTest = data.tests.find(t => t.test_type === 'refreshment');
+                  const refresher_trainingTest = data.tests.find(t => t.test_type === 'refresher_training');
                 %>
                 
                 <div class="marks-card-row">
@@ -201,18 +201,7 @@
                   </div>
 
                   <div class="marks-card-row">
-                    <span class="marks-label">Certificate Enrolment</span>
-                    <% if (certificateEnrolmentTest) { %>
-                      <span class="test-score <%= certificateEnrolmentTest.score >= 50 ? 'score-pass' : 'score-fail' %>">
-                        <%= certificateEnrolmentTest.score %>% (<%= certificateEnrolmentTest.score >= 50 ? 'Pass' : 'Fail' %>)
-                      </span>
-                    <% } else { %>
-                      <span style="color: #5F6368;">Not taken</span>
-                    <% } %>
-                  </div>
-
-                  <div class="marks-card-row">
-                    <span class="marks-label">Hands-On</span>
+                    <span class="marks-label">Practical Learning Outcome</span>
                     <% if (data.handsOnScores.length > 0) { %>
                       <% 
                         const totalScore = data.handsOnScores.reduce((sum, s) => sum + (parseFloat(s.score) || 0), 0);
@@ -226,12 +215,23 @@
                       <span style="color: #5F6368;">Not evaluated</span>
                     <% } %>
                   </div>
+
+                  <div class="marks-card-row">
+                    <span class="marks-label">Certificate Enrolment</span>
+                    <% if (certificateEnrolmentTest) { %>
+                      <span class="test-score <%= certificateEnrolmentTest.score >= 50 ? 'score-pass' : 'score-fail' %>">
+                        <%= certificateEnrolmentTest.score %>% (<%= certificateEnrolmentTest.score >= 50 ? 'Pass' : 'Fail' %>)
+                      </span>
+                    <% } else { %>
+                      <span style="color: #5F6368;">Not taken</span>
+                    <% } %>
+                  </div>
                 <% } else { %>
                   <div class="marks-card-row">
-                    <span class="marks-label">Refreshment Test</span>
-                    <% if (refreshmentTest) { %>
-                      <span class="test-score <%= refreshmentTest.score >= 50 ? 'score-pass' : 'score-fail' %>">
-                        <%= refreshmentTest.score %>% (<%= refreshmentTest.score >= 50 ? 'Pass' : 'Fail' %>)
+                    <span class="marks-label">Refresher Training Test</span>
+                    <% if (refresher_trainingTest) { %>
+                      <span class="test-score <%= refresher_trainingTest.score >= 50 ? 'score-pass' : 'score-fail' %>">
+                        <%= refresher_trainingTest.score %>% (<%= refresher_trainingTest.score >= 50 ? 'Pass' : 'Fail' %>)
                       </span>
                     <% } else { %>
                       <span style="color: #5F6368;">Not taken</span>
@@ -257,12 +257,12 @@
         </div>
       </div>
 
-      <!-- Hands-On Grading Section (Main Training Only) -->
+      <!-- Practical Learning Outcome Grading Section (Main Training Only) -->
       <% if (training.type === 'main' && aspects && aspects.length > 0) { %>
         <div class="section-card hands-on-grading-section" id="hands-on-grading-section" style="display: none;">
           <div class="grading-header">
             <div>
-              <h3 class="section-title" style="margin: 0 0 0.25rem 0;">Hands-On Grading</h3>
+              <h3 class="section-title" style="margin: 0 0 0.25rem 0;">Practical Learning Outcome Grading</h3>
               <p class="header-subtitle">Enter scores for each trainee and aspect</p>
             </div>
             <button class="btn-save-all" onclick="saveAllHandsOnScores()" id="save-all-hands-on-btn">
@@ -924,7 +924,7 @@
       } else {
         section.style.display = 'none';
         chevron.style.transform = 'rotate(0deg)';
-        textSpan.textContent = 'Grade Hands-On';
+        textSpan.textContent = 'Grade Practical Learning Outcome';
       }
     }
 
@@ -1066,21 +1066,27 @@
       });
     }
     
-    function showScoreReleaseModal() {
+    async function showScoreReleaseModal() {
       const selected = Array.from(document.querySelectorAll('.trainee-checkbox:checked:not(:disabled)')).map(cb => ({
         id: cb.value,
         name: cb.dataset.traineeName
       }));
       
       if (selected.length === 0) {
-        qssShowWarning('Please select at least one trainee to release scores for.');
+        window.qssShowWarning && window.qssShowWarning('Please select at least one trainee to release scores for.', 'No Selection');
         return;
       }
       
       const names = selected.map(s => s.name).join(', ');
-      if (!confirm(`Release scores for ${selected.length} trainee(s)?\n\n${names}\n\nThis will allow them to view their final results and download certificates.`)) {
-        return;
-      }
+      if (typeof window.qssConfirm !== 'function') return;
+      const ok = await window.qssConfirm({
+        title: 'Release Scores?',
+        message: `Release scores for ${selected.length} trainee(s)?\n\n${names}\n\nThis will allow them to view their final results and download certificates.`,
+        confirmText: 'Release',
+        cancelText: 'Cancel',
+        danger: true
+      });
+      if (!ok) return;
       
       releaseScores(selected.map(s => s.id));
     }
@@ -1124,3 +1130,4 @@
   </script>
   <% } %>
 <% } %>
+

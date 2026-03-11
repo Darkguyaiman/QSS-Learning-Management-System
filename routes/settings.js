@@ -1,6 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
+const multer = require('multer');
+const path = require('path');
+
+const certificateStorage = multer.diskStorage({
+  destination: './public/uploads/certificates/',
+  filename: (req, file, cb) => {
+    const safeExt = path.extname(file.originalname || '');
+    cb(null, `certificate-${Date.now()}${safeExt}`);
+  }
+});
+const certificateUpload = multer({
+  storage: certificateStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
 
 // Redirect root settings to objectives
 router.get('/', (req, res) => {
@@ -17,6 +31,22 @@ function renderSettingsTemplate(req, res, config) {
     ...config,
     error
   });
+}
+
+function renderSettingsForm(req, res, config) {
+  const error = req.session.error || null;
+  delete req.session.error;
+
+  res.render('settings/form', {
+    user: req.session,
+    ...config,
+    error
+  });
+}
+
+async function getAreasOfSpecialization(db) {
+  const [rows] = await db.query('SELECT id, name FROM areas_of_specialization ORDER BY name ASC');
+  return rows;
 }
 
 // ========== OBJECTIVES ==========
@@ -39,6 +69,8 @@ router.get('/objectives', async (req, res) => {
       createAction: '/settings/objectives/create',
       updateAction: '/settings/objectives',
       deleteAction: '/settings/objectives',
+      createPage: '/settings/objectives/new',
+      editBase: '/settings/objectives',
       tableHeaders: ['Name', 'Description'],
       hasModelDropdown: false,
       hasModelColumn: false
@@ -46,6 +78,56 @@ router.get('/objectives', async (req, res) => {
   } catch (error) {
     console.error('Objectives page error:', error);
     res.status(500).send('Error loading objectives');
+  }
+});
+
+router.get('/objectives/new', (req, res) => {
+  renderSettingsForm(req, res, {
+    pageTitle: 'Objectives',
+    description: 'Add a new training objective',
+    icon: 'fas fa-bullseye',
+    singularName: 'Objective',
+    pluralName: 'Objectives',
+    formMode: 'create',
+    formAction: '/settings/objectives/create',
+    backUrl: '/settings/objectives',
+    nameField: 'name',
+    nameLabel: 'Name',
+    namePlaceholder: 'Enter objective name',
+    descriptionPlaceholder: 'Enter objective description (optional)',
+    hasModelDropdown: false,
+    hasMaxScore: false
+  });
+});
+
+router.get('/objectives/:id/edit', async (req, res) => {
+  try {
+    const [rows] = await req.db.query('SELECT * FROM objectives WHERE id = ?', [req.params.id]);
+    if (!rows[0]) {
+      req.session.error = 'Objective not found.';
+      return res.redirect('/settings/objectives');
+    }
+
+    renderSettingsForm(req, res, {
+      pageTitle: 'Objectives',
+      description: 'Edit training objective details',
+      icon: 'fas fa-bullseye',
+      singularName: 'Objective',
+      pluralName: 'Objectives',
+      formMode: 'edit',
+      formAction: `/settings/objectives/${req.params.id}/update`,
+      backUrl: '/settings/objectives',
+      nameField: 'name',
+      nameLabel: 'Name',
+      namePlaceholder: 'Enter objective name',
+      descriptionPlaceholder: 'Enter objective description (optional)',
+      hasModelDropdown: false,
+      hasMaxScore: false,
+      item: rows[0]
+    });
+  } catch (error) {
+    console.error('Objective edit page error:', error);
+    res.status(500).send('Error loading objective');
   }
 });
 
@@ -120,12 +202,64 @@ router.get('/healthcare', async (req, res) => {
       createAction: '/settings/healthcare/create',
       updateAction: '/settings/healthcare',
       deleteAction: '/settings/healthcare',
+      createPage: '/settings/healthcare/new',
+      editBase: '/settings/healthcare',
       tableHeaders: ['Name', 'Description'],
       hasModelDropdown: false,
       hasModelColumn: false
     });
   } catch (error) {
     console.error('Healthcare page error:', error);
+    res.status(500).send('Error loading healthcare');
+  }
+});
+
+router.get('/healthcare/new', (req, res) => {
+  renderSettingsForm(req, res, {
+    pageTitle: 'Healthcare',
+    description: 'Add a new healthcare institution',
+    icon: 'fas fa-hospital',
+    singularName: 'Healthcare',
+    pluralName: 'Healthcare',
+    formMode: 'create',
+    formAction: '/settings/healthcare/create',
+    backUrl: '/settings/healthcare',
+    nameField: 'name',
+    nameLabel: 'Name',
+    namePlaceholder: 'Enter healthcare name',
+    descriptionPlaceholder: 'Enter healthcare description (optional)',
+    hasModelDropdown: false,
+    hasMaxScore: false
+  });
+});
+
+router.get('/healthcare/:id/edit', async (req, res) => {
+  try {
+    const [rows] = await req.db.query('SELECT * FROM healthcare WHERE id = ?', [req.params.id]);
+    if (!rows[0]) {
+      req.session.error = 'Healthcare not found.';
+      return res.redirect('/settings/healthcare');
+    }
+
+    renderSettingsForm(req, res, {
+      pageTitle: 'Healthcare',
+      description: 'Edit healthcare institution details',
+      icon: 'fas fa-hospital',
+      singularName: 'Healthcare',
+      pluralName: 'Healthcare',
+      formMode: 'edit',
+      formAction: `/settings/healthcare/${req.params.id}/update`,
+      backUrl: '/settings/healthcare',
+      nameField: 'name',
+      nameLabel: 'Name',
+      namePlaceholder: 'Enter healthcare name',
+      descriptionPlaceholder: 'Enter healthcare description (optional)',
+      hasModelDropdown: false,
+      hasMaxScore: false,
+      item: rows[0]
+    });
+  } catch (error) {
+    console.error('Healthcare edit page error:', error);
     res.status(500).send('Error loading healthcare');
   }
 });
@@ -201,6 +335,8 @@ router.get('/areas', async (req, res) => {
       createAction: '/settings/areas-of-specialization/create',
       updateAction: '/settings/areas-of-specialization',
       deleteAction: '/settings/areas-of-specialization',
+      createPage: '/settings/areas/new',
+      editBase: '/settings/areas',
       tableHeaders: ['Name', 'Description'],
       hasModelDropdown: false,
       hasModelColumn: false
@@ -208,6 +344,56 @@ router.get('/areas', async (req, res) => {
   } catch (error) {
     console.error('Areas page error:', error);
     res.status(500).send('Error loading areas of specialization');
+  }
+});
+
+router.get('/areas/new', (req, res) => {
+  renderSettingsForm(req, res, {
+    pageTitle: 'Areas of Specialization',
+    description: 'Add a new area of specialization',
+    icon: 'fas fa-user-md',
+    singularName: 'Area of Specialization',
+    pluralName: 'Areas of Specialization',
+    formMode: 'create',
+    formAction: '/settings/areas-of-specialization/create',
+    backUrl: '/settings/areas',
+    nameField: 'name',
+    nameLabel: 'Name',
+    namePlaceholder: 'Enter area of specialization',
+    descriptionPlaceholder: 'Enter description (optional)',
+    hasModelDropdown: false,
+    hasMaxScore: false
+  });
+});
+
+router.get('/areas/:id/edit', async (req, res) => {
+  try {
+    const [rows] = await req.db.query('SELECT * FROM areas_of_specialization WHERE id = ?', [req.params.id]);
+    if (!rows[0]) {
+      req.session.error = 'Area of specialization not found.';
+      return res.redirect('/settings/areas');
+    }
+
+    renderSettingsForm(req, res, {
+      pageTitle: 'Areas of Specialization',
+      description: 'Edit area of specialization details',
+      icon: 'fas fa-user-md',
+      singularName: 'Area of Specialization',
+      pluralName: 'Areas of Specialization',
+      formMode: 'edit',
+      formAction: `/settings/areas-of-specialization/${req.params.id}/update`,
+      backUrl: '/settings/areas',
+      nameField: 'name',
+      nameLabel: 'Name',
+      namePlaceholder: 'Enter area of specialization',
+      descriptionPlaceholder: 'Enter description (optional)',
+      hasModelDropdown: false,
+      hasMaxScore: false,
+      item: rows[0]
+    });
+  } catch (error) {
+    console.error('Areas of specialization edit page error:', error);
+    res.status(500).send('Error loading area of specialization');
   }
 });
 
@@ -282,6 +468,8 @@ router.get('/models', async (req, res) => {
       createAction: '/settings/k-laser-models/create',
       updateAction: '/settings/k-laser-models',
       deleteAction: '/settings/k-laser-models',
+      createPage: '/settings/models/new',
+      editBase: '/settings/models',
       tableHeaders: ['Model Name', 'Description'],
       hasModelDropdown: false,
       hasModelColumn: false
@@ -289,6 +477,56 @@ router.get('/models', async (req, res) => {
   } catch (error) {
     console.error('K-Laser models page error:', error);
     res.status(500).send('Error loading K-Laser models');
+  }
+});
+
+router.get('/models/new', (req, res) => {
+  renderSettingsForm(req, res, {
+    pageTitle: 'K-Laser Models',
+    description: 'Add a new K-Laser model',
+    icon: 'fas fa-microchip',
+    singularName: 'K-Laser Model',
+    pluralName: 'K-Laser Models',
+    formMode: 'create',
+    formAction: '/settings/k-laser-models/create',
+    backUrl: '/settings/models',
+    nameField: 'model_name',
+    nameLabel: 'Model Name',
+    namePlaceholder: 'Enter model name',
+    descriptionPlaceholder: 'Enter model description (optional)',
+    hasModelDropdown: false,
+    hasMaxScore: false
+  });
+});
+
+router.get('/models/:id/edit', async (req, res) => {
+  try {
+    const [rows] = await req.db.query('SELECT * FROM k_laser_models WHERE id = ?', [req.params.id]);
+    if (!rows[0]) {
+      req.session.error = 'K-Laser model not found.';
+      return res.redirect('/settings/models');
+    }
+
+    renderSettingsForm(req, res, {
+      pageTitle: 'K-Laser Models',
+      description: 'Edit K-Laser model details',
+      icon: 'fas fa-microchip',
+      singularName: 'K-Laser Model',
+      pluralName: 'K-Laser Models',
+      formMode: 'edit',
+      formAction: `/settings/k-laser-models/${req.params.id}/update`,
+      backUrl: '/settings/models',
+      nameField: 'model_name',
+      nameLabel: 'Model Name',
+      namePlaceholder: 'Enter model name',
+      descriptionPlaceholder: 'Enter model description (optional)',
+      hasModelDropdown: false,
+      hasMaxScore: false,
+      item: rows[0]
+    });
+  } catch (error) {
+    console.error('K-Laser model edit page error:', error);
+    res.status(500).send('Error loading K-Laser model');
   }
 });
 
@@ -380,6 +618,8 @@ router.get('/devices', async (req, res) => {
       createAction: '/settings/device-serial-numbers/create',
       updateAction: '/settings/device-serial-numbers',
       deleteAction: '/settings/device-serial-numbers',
+      createPage: '/settings/devices/new',
+      editBase: '/settings/devices',
       tableHeaders: ['Serial Number', 'K-Laser Model', 'Notes'],
       hasModelDropdown: true,
       hasModelColumn: true,
@@ -388,6 +628,66 @@ router.get('/devices', async (req, res) => {
   } catch (error) {
     console.error('Device serial numbers page error:', error);
     res.status(500).send('Error loading device serial numbers');
+  }
+});
+
+router.get('/devices/new', async (req, res) => {
+  try {
+    const [kLaserModels] = await req.db.query('SELECT * FROM k_laser_models ORDER BY model_name ASC');
+
+    renderSettingsForm(req, res, {
+      pageTitle: 'Device Serial Numbers',
+      description: 'Add a new device serial number',
+      icon: 'fas fa-server',
+      singularName: 'Device Serial Number',
+      pluralName: 'Device Serial Numbers',
+      formMode: 'create',
+      formAction: '/settings/device-serial-numbers/create',
+      backUrl: '/settings/devices',
+      nameField: 'serial_number',
+      nameLabel: 'Serial Number',
+      namePlaceholder: 'Enter serial number',
+      descriptionPlaceholder: 'Enter notes (optional)',
+      hasModelDropdown: true,
+      hasMaxScore: false,
+      kLaserModels
+    });
+  } catch (error) {
+    console.error('Device serial number create page error:', error);
+    res.status(500).send('Error loading device serial numbers');
+  }
+});
+
+router.get('/devices/:id/edit', async (req, res) => {
+  try {
+    const [kLaserModels] = await req.db.query('SELECT * FROM k_laser_models ORDER BY model_name ASC');
+    const [rows] = await req.db.query('SELECT * FROM device_serial_numbers WHERE id = ?', [req.params.id]);
+    if (!rows[0]) {
+      req.session.error = 'Device serial number not found.';
+      return res.redirect('/settings/devices');
+    }
+
+    renderSettingsForm(req, res, {
+      pageTitle: 'Device Serial Numbers',
+      description: 'Edit device serial number details',
+      icon: 'fas fa-server',
+      singularName: 'Device Serial Number',
+      pluralName: 'Device Serial Numbers',
+      formMode: 'edit',
+      formAction: `/settings/device-serial-numbers/${req.params.id}/update`,
+      backUrl: '/settings/devices',
+      nameField: 'serial_number',
+      nameLabel: 'Serial Number',
+      namePlaceholder: 'Enter serial number',
+      descriptionPlaceholder: 'Enter notes (optional)',
+      hasModelDropdown: true,
+      hasMaxScore: false,
+      kLaserModels,
+      item: rows[0]
+    });
+  } catch (error) {
+    console.error('Device serial number edit page error:', error);
+    res.status(500).send('Error loading device serial number');
   }
 });
 
@@ -442,17 +742,17 @@ router.post('/device-serial-numbers/:id/delete', async (req, res) => {
   }
 });
 
-// ========== HANDS-ON ASPECTS ==========
+// ========== Practical Learning Outcomes ==========
 router.get('/hands-on-aspects', async (req, res) => {
   try {
-    const [handsOnAspects] = await req.db.query('SELECT * FROM hands_on_aspects_settings ORDER BY aspect_name ASC');
+    const [handsOnAspects] = await req.db.query('SELECT * FROM practical_learning_outcomes_settings ORDER BY aspect_name ASC');
     
     renderSettingsTemplate(req, res, {
-      pageTitle: 'Hands-On Aspects',
+      pageTitle: 'Practical Learning Outcomes',
       description: 'Manage hands-on assessment aspects and their maximum scores',
       icon: 'fas fa-hand-paper',
-      singularName: 'Hands-On Aspect',
-      pluralName: 'Hands-On Aspects',
+      singularName: 'Practical Learning Outcome',
+      pluralName: 'Practical Learning Outcomes',
       items: handsOnAspects,
       primaryField: 'aspect_name',
       nameField: 'aspect_name',
@@ -462,14 +762,66 @@ router.get('/hands-on-aspects', async (req, res) => {
       createAction: '/settings/hands-on-aspects/create',
       updateAction: '/settings/hands-on-aspects',
       deleteAction: '/settings/hands-on-aspects',
+      createPage: '/settings/hands-on-aspects/new',
+      editBase: '/settings/hands-on-aspects',
       tableHeaders: ['Aspect Name', 'Description', 'Max Score'],
       hasModelDropdown: false,
       hasModelColumn: false,
       hasMaxScore: true
     });
   } catch (error) {
-    console.error('Hands-on aspects page error:', error);
-    res.status(500).send('Error loading hands-on aspects');
+    console.error('Practical Learning Outcomes page error:', error);
+    res.status(500).send('Error loading Practical Learning Outcomes');
+  }
+});
+
+router.get('/hands-on-aspects/new', (req, res) => {
+  renderSettingsForm(req, res, {
+    pageTitle: 'Practical Learning Outcomes',
+    description: 'Add a new hands-on assessment aspect',
+    icon: 'fas fa-hand-paper',
+    singularName: 'Practical Learning Outcome',
+    pluralName: 'Practical Learning Outcomes',
+    formMode: 'create',
+    formAction: '/settings/hands-on-aspects/create',
+    backUrl: '/settings/hands-on-aspects',
+    nameField: 'aspect_name',
+    nameLabel: 'Aspect Name',
+    namePlaceholder: 'Enter aspect name',
+    descriptionPlaceholder: 'Enter aspect description (optional)',
+    hasModelDropdown: false,
+    hasMaxScore: true
+  });
+});
+
+router.get('/hands-on-aspects/:id/edit', async (req, res) => {
+  try {
+    const [rows] = await req.db.query('SELECT * FROM practical_learning_outcomes_settings WHERE id = ?', [req.params.id]);
+    if (!rows[0]) {
+      req.session.error = 'Practical Learning Outcome not found.';
+      return res.redirect('/settings/hands-on-aspects');
+    }
+
+    renderSettingsForm(req, res, {
+      pageTitle: 'Practical Learning Outcomes',
+      description: 'Edit hands-on assessment aspect',
+      icon: 'fas fa-hand-paper',
+      singularName: 'Practical Learning Outcome',
+      pluralName: 'Practical Learning Outcomes',
+      formMode: 'edit',
+      formAction: `/settings/hands-on-aspects/${req.params.id}/update`,
+      backUrl: '/settings/hands-on-aspects',
+      nameField: 'aspect_name',
+      nameLabel: 'Aspect Name',
+      namePlaceholder: 'Enter aspect name',
+      descriptionPlaceholder: 'Enter aspect description (optional)',
+      hasModelDropdown: false,
+      hasMaxScore: true,
+      item: rows[0]
+    });
+  } catch (error) {
+    console.error('Practical Learning Outcome edit page error:', error);
+    res.status(500).send('Error loading Practical Learning Outcome');
   }
 });
 
@@ -478,16 +830,16 @@ router.post('/hands-on-aspects/create', async (req, res) => {
   
   try {
     await req.db.query(
-      'INSERT INTO hands_on_aspects_settings (aspect_name, description, max_score) VALUES (?, ?, ?)',
+      'INSERT INTO practical_learning_outcomes_settings (aspect_name, description, max_score) VALUES (?, ?, ?)',
       [aspect_name, description || null, max_score || 100]
     );
     res.redirect('/settings/hands-on-aspects');
   } catch (error) {
-    console.error('Hands-on aspect creation error:', error);
+    console.error('Practical Learning Outcome creation error:', error);
     if (error.code === 'ER_DUP_ENTRY') {
-      req.session.error = 'Hands-on aspect with this name already exists';
+      req.session.error = 'Practical Learning Outcome with this name already exists';
     } else {
-      req.session.error = 'Error creating hands-on aspect';
+      req.session.error = 'Error creating Practical Learning Outcome';
     }
     res.redirect('/settings/hands-on-aspects');
   }
@@ -498,16 +850,16 @@ router.post('/hands-on-aspects/:id/update', async (req, res) => {
   
   try {
     await req.db.query(
-      'UPDATE hands_on_aspects_settings SET aspect_name = ?, description = ?, max_score = ? WHERE id = ?',
+      'UPDATE practical_learning_outcomes_settings SET aspect_name = ?, description = ?, max_score = ? WHERE id = ?',
       [aspect_name, description || null, max_score || 100, req.params.id]
     );
     res.redirect('/settings/hands-on-aspects');
   } catch (error) {
-    console.error('Hands-on aspect update error:', error);
+    console.error('Practical Learning Outcome update error:', error);
     if (error.code === 'ER_DUP_ENTRY') {
-      req.session.error = 'Hands-on aspect with this name already exists';
+      req.session.error = 'Practical Learning Outcome with this name already exists';
     } else {
-      req.session.error = 'Error updating hands-on aspect';
+      req.session.error = 'Error updating Practical Learning Outcome';
     }
     res.redirect('/settings/hands-on-aspects');
   }
@@ -517,11 +869,11 @@ router.post('/hands-on-aspects/:id/delete', async (req, res) => {
   try {
     // Note: We don't check for existing trainings using this aspect
     // because aspects are copied to trainings at creation time
-    await req.db.query('DELETE FROM hands_on_aspects_settings WHERE id = ?', [req.params.id]);
+    await req.db.query('DELETE FROM practical_learning_outcomes_settings WHERE id = ?', [req.params.id]);
     res.redirect('/settings/hands-on-aspects');
   } catch (error) {
-    console.error('Hands-on aspect delete error:', error);
-    req.session.error = 'Error deleting hands-on aspect';
+    console.error('Practical Learning Outcome delete error:', error);
+    req.session.error = 'Error deleting Practical Learning Outcome';
     res.redirect('/settings/hands-on-aspects');
   }
 });
@@ -534,7 +886,7 @@ router.get('/users', async (req, res) => {
     }
     
     const [users] = await req.db.query(`
-      SELECT id, email, first_name, last_name, role, position, profile_picture
+      SELECT id, email, first_name, last_name, role, position, phone_number, area_of_specialization, certificate_file, profile_picture
       FROM users
       WHERE role IN ('admin', 'trainer')
       ORDER BY role ASC, last_name ASC, first_name ASC
@@ -545,6 +897,10 @@ router.get('/users', async (req, res) => {
       pageTitle: 'Users',
       description: 'Manage Admin/Trainer users. Position is required (used in reports).',
       icon: 'fas fa-users-cog',
+      singularName: 'User',
+      pluralName: 'Users',
+      createPage: '/settings/users/new',
+      editBase: '/settings/users',
       users
     });
   } catch (error) {
@@ -553,13 +909,68 @@ router.get('/users', async (req, res) => {
   }
 });
 
-router.post('/users/create', async (req, res) => {
+router.get('/users/new', async (req, res) => {
+  if (req.session.userRole !== 'admin') {
+    return res.status(403).send('Forbidden');
+  }
+
+  const areasOfSpecialization = await getAreasOfSpecialization(req.db);
+  renderSettingsForm(req, res, {
+    pageType: 'users',
+    pageTitle: 'Users',
+    description: 'Create a new admin or trainer user',
+    icon: 'fas fa-users-cog',
+    singularName: 'User',
+    pluralName: 'Users',
+    formMode: 'create',
+    formAction: '/settings/users/create',
+    backUrl: '/settings/users',
+    areasOfSpecialization
+  });
+});
+
+router.get('/users/:id/edit', async (req, res) => {
+  try {
+    if (req.session.userRole !== 'admin') {
+      return res.status(403).send('Forbidden');
+    }
+
+    const areasOfSpecialization = await getAreasOfSpecialization(req.db);
+    const [rows] = await req.db.query(
+      'SELECT id, email, first_name, last_name, role, position, phone_number, area_of_specialization, certificate_file FROM users WHERE id = ? AND role IN (\'admin\', \'trainer\')',
+      [req.params.id]
+    );
+    if (!rows[0]) {
+      req.session.error = 'User not found.';
+      return res.redirect('/settings/users');
+    }
+
+    renderSettingsForm(req, res, {
+      pageType: 'users',
+      pageTitle: 'Users',
+      description: 'Edit admin or trainer user details',
+      icon: 'fas fa-users-cog',
+      singularName: 'User',
+      pluralName: 'Users',
+      formMode: 'edit',
+      formAction: `/settings/users/${req.params.id}/update`,
+      backUrl: '/settings/users',
+      item: rows[0],
+      areasOfSpecialization
+    });
+  } catch (error) {
+    console.error('User edit page error:', error);
+    res.status(500).send('Error loading user');
+  }
+});
+
+router.post('/users/create', certificateUpload.single('certificate_file'), async (req, res) => {
   try {
     if (req.session.userRole !== 'admin') {
       return res.status(403).send('Forbidden');
     }
     
-    const { first_name, last_name, email, password, role, position } = req.body;
+    const { first_name, last_name, email, password, role, position, phone_number, area_of_specialization } = req.body;
     
     const cleanRole = (role || '').trim().toLowerCase();
     if (!['admin', 'trainer'].includes(cleanRole)) {
@@ -589,16 +1000,20 @@ router.post('/users/create', async (req, res) => {
     }
     
     const hashedPassword = await bcrypt.hash(password, 10);
+    const certificatePath = req.file ? `/uploads/certificates/${req.file.filename}` : null;
     
     await req.db.query(
-      'INSERT INTO users (email, password, first_name, last_name, role, position) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO users (email, password, first_name, last_name, role, position, phone_number, area_of_specialization, certificate_file) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         email.trim(),
         hashedPassword,
         first_name.trim(),
         last_name.trim(),
         cleanRole,
-        position.trim()
+        position.trim(),
+        phone_number && phone_number.trim() ? phone_number.trim() : null,
+        area_of_specialization && area_of_specialization.trim() ? area_of_specialization.trim() : null,
+        certificatePath
       ]
     );
     
@@ -610,13 +1025,13 @@ router.post('/users/create', async (req, res) => {
   }
 });
 
-router.post('/users/:id/update', async (req, res) => {
+router.post('/users/:id/update', certificateUpload.single('certificate_file'), async (req, res) => {
   try {
     if (req.session.userRole !== 'admin') {
       return res.status(403).send('Forbidden');
     }
     
-    const { first_name, last_name, email, role, position } = req.body;
+    const { first_name, last_name, email, role, position, phone_number, area_of_specialization } = req.body;
     const userId = parseInt(req.params.id);
     
     if (!position || position.trim() === '') {
@@ -639,17 +1054,25 @@ router.post('/users/:id/update', async (req, res) => {
       }
     }
     
-    await req.db.query(
-      'UPDATE users SET first_name = ?, last_name = ?, email = ?, role = ?, position = ? WHERE id = ? AND role IN (\'admin\', \'trainer\')',
-      [
-        first_name && first_name.trim() ? first_name.trim() : '',
-        last_name && last_name.trim() ? last_name.trim() : '',
-        email && email.trim() ? email.trim() : '',
-        cleanRole,
-        position.trim(),
-        userId
-      ]
-    );
+    const certificatePath = req.file ? `/uploads/certificates/${req.file.filename}` : null;
+    const updateValues = [
+      first_name && first_name.trim() ? first_name.trim() : '',
+      last_name && last_name.trim() ? last_name.trim() : '',
+      email && email.trim() ? email.trim() : '',
+      cleanRole,
+      position.trim(),
+      phone_number && phone_number.trim() ? phone_number.trim() : null,
+      area_of_specialization && area_of_specialization.trim() ? area_of_specialization.trim() : null
+    ];
+    let updateSql = 'UPDATE users SET first_name = ?, last_name = ?, email = ?, role = ?, position = ?, phone_number = ?, area_of_specialization = ?';
+    if (certificatePath) {
+      updateSql += ', certificate_file = ?';
+      updateValues.push(certificatePath);
+    }
+    updateSql += ' WHERE id = ? AND role IN (\'admin\', \'trainer\')';
+    updateValues.push(userId);
+
+    await req.db.query(updateSql, updateValues);
     
     // If admin updated their own position, keep session in sync
     if (req.session.userId === userId) {
@@ -688,3 +1111,5 @@ router.post('/users/:id/delete', async (req, res) => {
 });
 
 module.exports = router;
+
+

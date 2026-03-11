@@ -934,7 +934,7 @@
           ? 'Password must be at least 6 characters if provided.\n\nMissing or invalid fields in: ' + invalidTabNames
           : 'Please fill in all required fields before submitting.\n\nMissing fields in: ' + invalidTabNames;
         
-        alert(errorMsg);
+        window.qssShowWarning && window.qssShowWarning(errorMsg, 'Validation Error');
         return false;
       }
     });

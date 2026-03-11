@@ -1,7 +1,7 @@
-<!-- Coursework Tab -->
+<!-- Course Tab -->
 <div id="coursework-tab" class="tab-content">
   <style>
-    /* Coursework: make material action buttons (Open/Download/Menu) responsive */
+    /* Course: make material action buttons (Open/Download/Menu) responsive */
     @media (max-width: 768px) {
       #coursework-tab .material-item {
         align-items: flex-start;
@@ -832,7 +832,7 @@
                 let completed = false;
                 if (testType === 'pre_test') completed = enrollment.pre_test_completed;
                 else if (testType === 'post_test') completed = enrollment.post_test_completed;
-                else if (testType === 'refreshment') completed = enrollment.refreshment_test_completed;
+                else if (testType === 'refresher_training') completed = enrollment.refresher_training_test_completed;
               %>
               <% if (completed) { %>
                 <span style="color: #137333; font-weight: 500;"><i class="fas fa-check-circle"></i> Completed</span>

@@ -52,7 +52,7 @@
                 <% tests.forEach(test => { %>
                   <tr>
                     <td>
-                      <span class="badge badge-<%= test.test_type === 'pre_test' || test.test_type === 'post_test' ? 'main' : 'refreshment' %>">
+                      <span class="badge badge-<%= test.test_type === 'pre_test' || test.test_type === 'post_test' ? 'main' : 'refresher_training' %>">
                         <%= test.test_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %>
                       </span>
                     </td>
@@ -74,10 +74,10 @@
         <% } %>
       </div>
       
-      <!-- Hands-On Scores (Main Training Only) -->
+      <!-- Practical Learning Outcome Scores (Main Training Only) -->
       <% if (enrollment.type === 'main' && handsOnScores.length > 0) { %>
         <div class="dashboard-section">
-          <h2>Hands-On Assessment Scores</h2>
+          <h2>Practical Learning Outcome Assessment Scores</h2>
           <div class="table-responsive">
             <table class="data-table">
               <thead>
@@ -115,7 +115,7 @@
             <% if (finalGrades.training_grade !== null) { %>
               <div class="stat-card">
                 <h3><%= finalGrades.training_grade.toFixed(1) %>%</h3>
-                <p>Training Grade (40% from <%= enrollment.type === 'main' ? 'Post-Test' : 'Refreshment' %>)</p>
+                <p>Training Grade (40% from <%= enrollment.type === 'main' ? 'Post-Test' : 'Refresher Training' %>)</p>
               </div>
             <% } %>
             <% if (finalGrades.endorsement_grade !== null) { %>
@@ -133,7 +133,7 @@
             <% if (finalGrades.hands_on_grade !== null) { %>
               <div class="stat-card">
                 <h3><%= finalGrades.hands_on_grade.toFixed(1) %>%</h3>
-                <p>Hands-On Grade</p>
+                <p>Practical Learning Outcome Grade</p>
               </div>
             <% } %>
           </div>
@@ -234,14 +234,14 @@
         
         const data = await response.json();
         if (data.success) {
-          alert('Trainee can now download their results.');
+          window.qssShowSuccess && window.qssShowSuccess('Trainee can now download their results.', 'Success');
           location.reload();
         } else {
-          alert('Error allowing download.');
+          window.qssShowError && window.qssShowError('Error allowing download.', 'Error');
         }
       } catch (error) {
         console.error('Error:', error);
-        alert('Error allowing download.');
+        window.qssShowError && window.qssShowError('Error allowing download.', 'Error');
       }
     }
     
@@ -256,21 +256,27 @@
         
         const data = await response.json();
         if (data.success) {
-          alert('Grades calculated successfully.');
+          window.qssShowSuccess && window.qssShowSuccess('Grades calculated successfully.', 'Success');
           location.reload();
         } else {
-          alert('Error calculating grades: ' + (data.error || 'Unknown error'));
+          window.qssShowError && window.qssShowError('Error calculating grades: ' + (data.error || 'Unknown error'), 'Error');
         }
       } catch (error) {
         console.error('Error:', error);
-        alert('Error calculating grades.');
+        window.qssShowError && window.qssShowError('Error calculating grades.', 'Error');
       }
     }
     
     async function releaseGrades(enrollmentId) {
-      if (!confirm('Are you sure you want to release grades? Trainees will be able to see their final grades.')) {
-        return;
-      }
+      if (typeof window.qssConfirm !== 'function') return;
+      const ok = await window.qssConfirm({
+        title: 'Release Grades?',
+        message: 'Are you sure you want to release grades? Trainees will be able to see their final grades.',
+        confirmText: 'Release',
+        cancelText: 'Cancel',
+        danger: true
+      });
+      if (!ok) return;
       
       try {
         const response = await fetch(`/results/release-grades/${enrollmentId}`, {
@@ -282,20 +288,19 @@
         
         const data = await response.json();
         if (data.success) {
-          alert('Grades released successfully.');
+          window.qssShowSuccess && window.qssShowSuccess('Grades released successfully.', 'Success');
           location.reload();
         } else {
-          alert('Error releasing grades: ' + (data.error || 'Unknown error'));
+          window.qssShowError && window.qssShowError('Error releasing grades: ' + (data.error || 'Unknown error'), 'Error');
         }
       } catch (error) {
         console.error('Error:', error);
-        alert('Error releasing grades.');
+        window.qssShowError && window.qssShowError('Error releasing grades.', 'Error');
       }
     }
   </script>
   <script src="/js/main.js"></script>
 </body>
 </html>
-
 
 

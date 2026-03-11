@@ -4,8 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Trainees - LMS</title>
+  <link rel="stylesheet" href="/css/tailwind.output.css">
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="/js/tw-components.js"></script>
   <style>
     /* Trainee Card Styles for Mobile/Tablet */
     .trainee-card {
@@ -32,6 +34,75 @@
       margin-bottom: 1rem;
       padding-bottom: 1rem;
       border-bottom: 2px solid #E8EAED;
+    }
+
+    .trainee-select {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #1F2937;
+    }
+
+    .trainee-select input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: #573FD7;
+      cursor: pointer;
+    }
+
+    .bulk-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+      padding: 0.9rem 1rem;
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+
+    .bulk-actions-left,
+    .bulk-actions-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .bulk-actions .tw-dropdown {
+      min-width: 220px;
+    }
+
+    .bulk-actions .tw-dropdown__btn {
+      min-height: 40px;
+      padding: 0.625rem 0.875rem;
+      border-radius: 8px;
+      border: 1.5px solid #DADCE0;
+      background: #FFFFFF;
+      box-shadow: none;
+      font-weight: 600;
+      color: #202124;
+    }
+
+    .bulk-actions .tw-dropdown__btn:hover {
+      border-color: rgba(87, 63, 215, 0.45);
+      background: #FCFCFF;
+    }
+
+    .bulk-actions .tw-dropdown__menu {
+      border-radius: 10px;
+      border: 1px solid rgba(87, 63, 215, 0.18);
+      box-shadow: 0 12px 28px rgba(17, 53, 139, 0.12);
+    }
+
+    .bulk-count {
+      font-size: 0.875rem;
+      color: #4B5563;
     }
     
     .trainee-avatar {
@@ -382,6 +453,22 @@
         text-align: center;
         justify-content: center;
       }
+
+      .bulk-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .bulk-actions-left,
+      .bulk-actions-right {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .bulk-actions .btn {
+        width: 100%;
+        justify-content: center;
+      }
     }
   </style>
 </head>
@@ -401,13 +488,35 @@
       <div class="filter-section" style="margin-bottom: 2rem; padding: 1.25rem; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.12);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
           <label style="font-weight: 600; color: #202124; display: flex; align-items: center; gap: 0.5rem;">
-            <i class="fas fa-filter"></i> Search & Filters
+            <i class="fas fa-filter"></i> Search, Filters & Bulk Actions
           </label>
           <button onclick="toggleFilters()" class="btn btn-sm btn-outline" style="display: flex; align-items: center; gap: 0.5rem;">
             <i class="fas fa-chevron-down" id="filter-toggle-icon"></i>
             <span id="filter-toggle-text">Show Filters</span>
           </button>
         </div>
+
+        <% if (trainees.length > 0) { %>
+          <div class="bulk-actions">
+            <div class="bulk-actions-left">
+              <label class="trainee-select">
+                <input type="checkbox" id="select-all">
+                Select All
+              </label>
+              <span class="bulk-count" id="selected-count">0 selected</span>
+            </div>
+            <div class="bulk-actions-right">
+              <div id="bulkStatusDropdown" class="tw-dropdown tw-dropdown--compact"></div>
+              <input type="hidden" id="bulk-status" name="status" value="" form="bulk-actions-form">
+              <button type="submit" class="btn btn-secondary" formaction="/trainees/bulk-status" form="bulk-actions-form">
+                <i class="fas fa-sync-alt"></i> Update Status
+              </button>
+              <button type="submit" class="btn btn-outline" formaction="/trainees/bulk-delete" data-confirm="Delete selected trainees?" form="bulk-actions-form">
+                <i class="fas fa-trash"></i> Delete Selected
+              </button>
+            </div>
+          </div>
+        <% } %>
         
         <div id="filters-content" style="display: none;">
           <!-- Global Search -->
@@ -515,11 +624,15 @@
           <% } %>
         </div>
       <% } else { %>
+        <form id="bulk-actions-form" method="POST">
         <!-- Desktop Table View -->
         <div class="table-responsive">
           <table class="data-table">
             <thead>
               <tr>
+                <th style="width: 60px; text-align: center;">
+                  Select
+                </th>
                 <th>Trainee ID</th>
                 <th>Name</th>
                 <th>Email</th>
@@ -541,6 +654,9 @@
             <tbody>
               <% trainees.forEach(trainee => { %>
                 <tr>
+                  <td style="text-align: center;">
+                    <input type="checkbox" class="trainee-checkbox" name="traineeIds" value="<%= trainee.id %>">
+                  </td>
                   <td><strong><%= trainee.trainee_id %></strong></td>
                   <td>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -584,6 +700,10 @@
             <div class="trainee-card">
               <div class="trainee-card-header">
                 <div class="trainee-card-header-top">
+                  <label class="trainee-select">
+                    <input type="checkbox" class="trainee-checkbox" name="traineeIds" value="<%= trainee.id %>">
+                    Select
+                  </label>
                   <div class="trainee-avatar">
                     <%= trainee.first_name.charAt(0).toUpperCase() %><%= trainee.last_name.charAt(0).toUpperCase() %>
                   </div>
@@ -712,6 +832,7 @@
             </div>
           <% }); %>
         </div>
+        </form>
         
         <div style="margin-top: var(--spacing-lg); padding: var(--spacing-md); background: var(--color-white); border-radius: var(--border-radius); box-shadow: var(--shadow); text-align: center;">
           <p style="margin: 0; color: var(--color-gray); font-size: 0.9rem;">
@@ -844,6 +965,90 @@
       if (healthcare) url.searchParams.set('healthcare', healthcare);
       
       window.location.href = url.toString();
+    }
+
+    // Bulk actions
+    function getSelectedIds() {
+      const ids = new Set();
+      document.querySelectorAll('.trainee-checkbox:checked').forEach(cb => {
+        if (cb.value) ids.add(cb.value);
+      });
+      return Array.from(ids);
+    }
+
+    function updateSelectedCount() {
+      const count = getSelectedIds().length;
+      const countEl = document.getElementById('selected-count');
+      if (countEl) {
+        countEl.textContent = `${count} selected`;
+      }
+    }
+
+    function setAllCheckboxes(checked) {
+      document.querySelectorAll('.trainee-checkbox').forEach(cb => {
+        cb.checked = checked;
+      });
+      const selectAll = document.getElementById('select-all');
+      if (selectAll) selectAll.checked = checked;
+      updateSelectedCount();
+    }
+
+    document.getElementById('select-all')?.addEventListener('change', function() {
+      setAllCheckboxes(this.checked);
+    });
+
+    document.querySelectorAll('.trainee-checkbox').forEach(cb => {
+      cb.addEventListener('change', updateSelectedCount);
+    });
+
+    document.getElementById('bulk-actions-form')?.addEventListener('submit', async function(e) {
+      const selected = getSelectedIds();
+      const action = (e.submitter && e.submitter.getAttribute('formaction')) || '';
+      if (selected.length === 0) {
+        e.preventDefault();
+        window.qssShowWarning && window.qssShowWarning('Please select at least one trainee.', 'No Selection');
+        return;
+      }
+      if (action.includes('/bulk-status')) {
+        const status = document.getElementById('bulk-status')?.value;
+        if (!status) {
+          e.preventDefault();
+          window.qssShowWarning && window.qssShowWarning('Please choose a status to apply.', 'Missing Status');
+          return;
+        }
+      }
+      let confirmMsg = e.submitter && e.submitter.dataset.confirm;
+      if (confirmMsg) {
+        e.preventDefault();
+        if (typeof window.qssConfirm !== 'function') return;
+        if (action.includes('/bulk-delete')) {
+          confirmMsg = `Delete ${selected.length} trainee(s)?\n\nThis will permanently remove their records, including training history and certificates.`;
+        }
+        const ok = await window.qssConfirm({ title: 'Confirm Deletion', message: confirmMsg, confirmText: 'Delete', cancelText: 'Cancel', danger: true });
+        if (ok) {
+          e.currentTarget.submit();
+        }
+      }
+    });
+
+    // Bulk status dropdown
+    if (typeof TailwindDropdown === 'function' && document.getElementById('bulkStatusDropdown')) {
+      new TailwindDropdown('bulkStatusDropdown', {
+        items: [
+          { label: 'Change status...', value: '' },
+          { label: 'Active', value: 'active' },
+          { label: 'Inactive', value: 'inactive' },
+          { label: 'Suspended', value: 'suspended' },
+          { label: 'Registered', value: 'registered' }
+        ],
+        placeholder: 'Change status...',
+        multiSelect: false,
+        initialValue: '',
+        onChange: function(val) {
+          const input = document.getElementById('bulk-status');
+          if (input) input.value = val || '';
+        }
+      });
     }
   </script>
 </body>

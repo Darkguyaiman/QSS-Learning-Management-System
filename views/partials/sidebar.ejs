@@ -1,4 +1,27 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair:wght@500;600;700&display=swap');
+
+  .sidebar-brand {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.4rem;
+  }
+
+  .sidebar-logo {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+  }
+
+  .sidebar-brand-text {
+    font-family: 'Playfair', serif;
+    letter-spacing: 0.2px;
+    font-size: 0.85rem;
+    line-height: 1.2;
+  }
+</style>
 
 <!-- Mobile Menu Toggle Button -->
 <button class="sidebar-toggle-mobile" id="sidebarToggleMobile" aria-label="Toggle menu">
@@ -12,7 +35,7 @@
   <div class="sidebar-header">
     <a href="/dashboard" class="sidebar-brand">
       <img src="/QSS.ico" alt="QSS Logo" class="sidebar-logo">
-      <span>LMS</span>
+      <span class="sidebar-brand-text">QSS Learning Management System</span>
     </a>
     <button class="sidebar-close-mobile" id="sidebarCloseMobile" aria-label="Close menu">
       <i class="fas fa-times"></i>
@@ -70,7 +93,7 @@
           </a>
           <a href="/settings/hands-on-aspects" class="sidebar-sublink">
             <i class="fas fa-hand-paper sidebar-icon"></i>
-            <span>Hands-On Aspects</span>
+            <span>Practical Learning Outcomes</span>
           </a>
           <% if (user.userRole === 'admin') { %>
             <a href="/settings/users" class="sidebar-sublink">
@@ -266,4 +289,5 @@
     }, 250);
   });
 </script>
+
 

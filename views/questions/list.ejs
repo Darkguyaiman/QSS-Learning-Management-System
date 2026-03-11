@@ -210,7 +210,7 @@
       border: 1px solid rgba(17, 53, 139, 0.2);
     }
     
-    .badge-test-type.refreshment {
+    .badge-test-type.refresher_training {
       background: rgba(228, 143, 36, 0.1);
       color: var(--color-orange);
       border: 1px solid rgba(228, 143, 36, 0.2);
@@ -766,7 +766,7 @@
                       <%= question.objective_name %>
                     </span>
                   <% } %>
-                  <span class="question-badge badge-test-type <%= question.test_type === 'refreshment' ? 'refreshment' : question.test_type === 'certificate_enrolment' ? 'certificate_enrolment' : '' %>">
+                  <span class="question-badge badge-test-type <%= question.test_type === 'refresher_training' ? 'refresher_training' : question.test_type === 'certificate_enrolment' ? 'certificate_enrolment' : '' %>">
                     <i class="fas fa-clipboard-check"></i>
                     <%= question.test_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) %>
                   </span>
@@ -891,7 +891,7 @@
           { label: 'All Types',              value: '' },
           { label: 'Pre-Test',               value: 'pre_test' },
           { label: 'Post-Test',              value: 'post_test' },
-          { label: 'Refreshment',            value: 'refreshment' },
+          { label: 'Refresher Training',            value: 'refresher_training' },
           { label: 'Certificate Enrolment',  value: 'certificate_enrolment' }
         ],
         placeholder: 'All Types',
@@ -916,21 +916,21 @@
       });
 
       // ---- Delete confirmation with TailwindModal ----
-      document.addEventListener('click', function(e) {
+      document.addEventListener('click', async function(e) {
         var btn = e.target.closest('.delete-question-btn');
         if (!btn) return;
         e.preventDefault();
         var form = btn.closest('.question-delete-form');
         if (!form) return;
-        TailwindModal.confirm(
-          'Delete Question',
-          'Are you sure you want to delete this question? This action cannot be undone.',
-          'Delete',
-          'Cancel',
-          true
-        ).then(function(confirmed) {
-          if (confirmed) form.submit();
+        if (typeof window.qssConfirm !== 'function') return;
+        var confirmed = await window.qssConfirm({
+          title: 'Delete Question',
+          message: 'Are you sure you want to delete this question? This action cannot be undone.',
+          confirmText: 'Delete',
+          cancelText: 'Cancel',
+          danger: true
         });
+        if (confirmed) form.submit();
       });
 
       // ---- Filter logic ----

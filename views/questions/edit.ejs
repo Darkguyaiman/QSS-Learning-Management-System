@@ -434,7 +434,7 @@
                   <select id="testType" name="testType" required style="display:none;">
                     <option value="pre_test" <%= question.test_type === 'pre_test' ? 'selected' : '' %>>Pre-Test</option>
                     <option value="post_test" <%= question.test_type === 'post_test' ? 'selected' : '' %>>Post-Test</option>
-                    <option value="refreshment" <%= question.test_type === 'refreshment' ? 'selected' : '' %>>Refreshment Test</option>
+                    <option value="refresher_training" <%= question.test_type === 'refresher_training' ? 'selected' : '' %>>Refresher Training Test</option>
                     <option value="certificate_enrolment" <%= question.test_type === 'certificate_enrolment' ? 'selected' : '' %>>Certificate Enrolment Test</option>
                   </select>
                 </div>
@@ -663,7 +663,7 @@
         items: [
           { label: 'Pre-Test',                   value: 'pre_test' },
           { label: 'Post-Test',                  value: 'post_test' },
-          { label: 'Refreshment Test',           value: 'refreshment' },
+          { label: 'Refresher Training Test',           value: 'refresher_training' },
           { label: 'Certificate Enrolment Test', value: 'certificate_enrolment' }
         ],
         placeholder: 'Select test type',
