@@ -1,19 +1,48 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
+const MySQLStore = require('express-mysql-session')(session);
+const mysql = require('mysql2');
 const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { pool, initializeDatabase } = require('./config/database');
+const { pool, dbConfig, initializeDatabase } = require('./config/database');
 
 const app = express();
+app.disable('x-powered-by');
 
 // Config from .env (secure defaults)
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = process.env.SESSION_SECRET || 'change-me-in-production';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const isProduction = NODE_ENV === 'production';
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'lms.sid';
+const SESSION_MAX_AGE_HOURS = parseInt(process.env.SESSION_MAX_AGE_HOURS || '24', 10);
+const SESSION_MAX_AGE = Math.max(1, SESSION_MAX_AGE_HOURS) * 60 * 60 * 1000;
+const SESSION_COOKIE_SECURE = process.env.SESSION_COOKIE_SECURE
+  ? process.env.SESSION_COOKIE_SECURE === 'true'
+  : isProduction;
+
+if (isProduction) {
+  if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
+    console.error('SESSION_SECRET must be set to a strong value in production (at least 32 characters).');
+    process.exit(1);
+  }
+  app.set('trust proxy', 1);
+}
+
+const sessionPool = mysql.createPool({
+  ...dbConfig,
+  database: 'lms_db'
+});
+
+const sessionStore = new MySQLStore({
+  clearExpired: true,
+  checkExpirationInterval: 15 * 60 * 1000,
+  expiration: SESSION_MAX_AGE,
+  tableName: process.env.SESSION_TABLE || 'sessions'
+}, sessionPool);
 
 // File upload configuration
 const storage = multer.diskStorage({
@@ -52,12 +81,15 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static('public'));
 app.use(session({
+  name: SESSION_COOKIE_NAME,
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
+  store: sessionStore,
+  proxy: isProduction,
   cookie: {
-    secure: isProduction,
-    maxAge: 24 * 60 * 60 * 1000,
+    secure: SESSION_COOKIE_SECURE,
+    maxAge: SESSION_MAX_AGE,
     httpOnly: true,
     sameSite: 'lax'
   }

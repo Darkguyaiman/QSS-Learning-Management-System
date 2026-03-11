@@ -153,6 +153,7 @@ const pool = mysql.createPool({
 });
 
 module.exports = {
+  dbConfig,
   pool,
   initializeDatabase,
   generateUniqueTraineeId

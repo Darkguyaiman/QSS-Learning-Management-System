@@ -2048,7 +2048,15 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
     
     // Verify enrollment and check if scores are released
     const [enrollments] = await req.db.query(`
-      SELECT e.*, t.title as training_title, t.type as training_type, tr.first_name, tr.last_name, tr.trainee_id
+      SELECT e.*,
+        t.title as training_title,
+        t.type as training_type,
+        t.start_datetime,
+        t.end_datetime,
+        tr.first_name,
+        tr.last_name,
+        tr.trainee_id,
+        tr.healthcare
       FROM enrollments e
       JOIN trainings t ON e.training_id = t.id
       JOIN trainees tr ON e.trainee_id = tr.id
@@ -2096,13 +2104,44 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
     
     const finalGrade = finalGrades.length > 0 ? finalGrades[0] : null;
     
+    const formatDate = (value) => {
+      const d = value ? new Date(value) : null;
+      if (d && !isNaN(d.valueOf())) {
+        return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      }
+      return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
+
+    const participantName = `${enrollment.first_name} ${enrollment.last_name}`;
+    const courseName = enrollment.training_title;
+    const location = enrollment.healthcare || 'N/A';
+    const date = formatDate(enrollment.end_datetime || enrollment.start_datetime || enrollment.enrolled_at);
+    const validityPeriod = 'N/A';
+    const certificateNumber = `QSS-${trainingId}-${enrollmentId}`;
+    const signerName = 'Administrator';
+    const signerTitle = 'Authorized Signatory';
+    const signerCompany = 'Quick Stop Solution';
+    const signatureName = signerName;
+    const signatureImage = null;
+
     // Render certificate view
     res.render('training/certificate', {
       user: req.session,
       enrollment,
       testAttempts,
       handsOnScores,
-      finalGrade
+      finalGrade,
+      participantName,
+      courseName,
+      location,
+      date,
+      validityPeriod,
+      certificateNumber,
+      signerName,
+      signerTitle,
+      signerCompany,
+      signatureName,
+      signatureImage
     });
   } catch (error) {
     console.error('Certificate generation error:', error);

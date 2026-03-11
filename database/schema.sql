@@ -2,6 +2,13 @@
 CREATE DATABASE IF NOT EXISTS lms_db;
 USE lms_db;
 
+-- Sessions table (express-mysql-session)
+CREATE TABLE sessions (
+  session_id VARCHAR(128) NOT NULL PRIMARY KEY,
+  expires INT UNSIGNED NOT NULL,
+  data MEDIUMTEXT
+);
+
 -- Users table (Admin, Trainer only)
 CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,

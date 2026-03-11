@@ -115,7 +115,10 @@
             <% if (finalGrades.training_grade !== null) { %>
               <div class="stat-card">
                 <h3><%= finalGrades.training_grade.toFixed(1) %>%</h3>
-                <p>Training Grade (40% from <%= enrollment.type === 'main' ? 'Post-Test' : 'Refresher Training' %>)</p>
+                <p>
+                  Training Grade
+                  <%= enrollment.type === 'main' ? '(60% Practical Learning Outcome + 40% Certificate Enrolment)' : '(Refresher Training Test)' %>
+                </p>
               </div>
             <% } %>
             <% if (finalGrades.endorsement_grade !== null) { %>
