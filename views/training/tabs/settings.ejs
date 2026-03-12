@@ -30,6 +30,21 @@
             </select>
           </div>
           
+          <div class="form-group">
+            <label for="settings-device-model">
+              <i class="fas fa-microchip"></i>
+              Device Model *
+            </label>
+            <select id="settings-device-model" name="device_model_id" class="form-select" required <%= training.status === 'completed' ? 'disabled' : '' %>>
+              <option value="">Select device model</option>
+              <% if (typeof allDeviceModels !== 'undefined' && allDeviceModels) { %>
+                <% allDeviceModels.forEach(model => { %>
+                  <option value="<%= model.id %>" <%= training.device_model_id == model.id ? 'selected' : '' %>><%= model.model_name %></option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
+          
           <div class="form-row">
             <div class="form-group">
               <label for="settings-start">

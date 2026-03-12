@@ -448,26 +448,26 @@ router.post('/areas-of-specialization/:id/delete', async (req, res) => {
   }
 });
 
-// ========== K-LASER MODELS ==========
+// ========== DEVICE MODELS ==========
 router.get('/models', async (req, res) => {
   try {
-    const [kLaserModels] = await req.db.query('SELECT * FROM k_laser_models ORDER BY model_name ASC');
+    const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
     
     renderSettingsTemplate(req, res, {
-      pageTitle: 'K-Laser Models',
-      description: 'Manage K-Laser device models',
+      pageTitle: 'Device Models',
+      description: 'Manage device models',
       icon: 'fas fa-microchip',
-      singularName: 'K-Laser Model',
-      pluralName: 'K-Laser Models',
-      items: kLaserModels,
+      singularName: 'Device Model',
+      pluralName: 'Device Models',
+      items: deviceModels,
       primaryField: 'model_name',
       nameField: 'model_name',
       nameLabel: 'Model Name',
       namePlaceholder: 'Enter model name',
       descriptionPlaceholder: 'Enter model description (optional)',
-      createAction: '/settings/k-laser-models/create',
-      updateAction: '/settings/k-laser-models',
-      deleteAction: '/settings/k-laser-models',
+      createAction: '/settings/device-models/create',
+      updateAction: '/settings/device-models',
+      deleteAction: '/settings/device-models',
       createPage: '/settings/models/new',
       editBase: '/settings/models',
       tableHeaders: ['Model Name', 'Description'],
@@ -475,20 +475,20 @@ router.get('/models', async (req, res) => {
       hasModelColumn: false
     });
   } catch (error) {
-    console.error('K-Laser models page error:', error);
-    res.status(500).send('Error loading K-Laser models');
+    console.error('Device models page error:', error);
+    res.status(500).send('Error loading device models');
   }
 });
 
 router.get('/models/new', (req, res) => {
   renderSettingsForm(req, res, {
-    pageTitle: 'K-Laser Models',
-    description: 'Add a new K-Laser model',
+    pageTitle: 'Device Models',
+    description: 'Add a new device model',
     icon: 'fas fa-microchip',
-    singularName: 'K-Laser Model',
-    pluralName: 'K-Laser Models',
+    singularName: 'Device Model',
+    pluralName: 'Device Models',
     formMode: 'create',
-    formAction: '/settings/k-laser-models/create',
+    formAction: '/settings/device-models/create',
     backUrl: '/settings/models',
     nameField: 'model_name',
     nameLabel: 'Model Name',
@@ -501,20 +501,20 @@ router.get('/models/new', (req, res) => {
 
 router.get('/models/:id/edit', async (req, res) => {
   try {
-    const [rows] = await req.db.query('SELECT * FROM k_laser_models WHERE id = ?', [req.params.id]);
+    const [rows] = await req.db.query('SELECT * FROM device_models WHERE id = ?', [req.params.id]);
     if (!rows[0]) {
-      req.session.error = 'K-Laser model not found.';
+      req.session.error = 'Device model not found.';
       return res.redirect('/settings/models');
     }
 
     renderSettingsForm(req, res, {
-      pageTitle: 'K-Laser Models',
-      description: 'Edit K-Laser model details',
+      pageTitle: 'Device Models',
+      description: 'Edit device model details',
       icon: 'fas fa-microchip',
-      singularName: 'K-Laser Model',
-      pluralName: 'K-Laser Models',
+      singularName: 'Device Model',
+      pluralName: 'Device Models',
       formMode: 'edit',
-      formAction: `/settings/k-laser-models/${req.params.id}/update`,
+      formAction: `/settings/device-models/${req.params.id}/update`,
       backUrl: '/settings/models',
       nameField: 'model_name',
       nameLabel: 'Model Name',
@@ -525,69 +525,69 @@ router.get('/models/:id/edit', async (req, res) => {
       item: rows[0]
     });
   } catch (error) {
-    console.error('K-Laser model edit page error:', error);
-    res.status(500).send('Error loading K-Laser model');
+    console.error('Device model edit page error:', error);
+    res.status(500).send('Error loading device model');
   }
 });
 
-router.post('/k-laser-models/create', async (req, res) => {
+router.post('/device-models/create', async (req, res) => {
   const { model_name, description } = req.body;
   
   try {
     await req.db.query(
-      'INSERT INTO k_laser_models (model_name, description) VALUES (?, ?)',
+      'INSERT INTO device_models (model_name, description) VALUES (?, ?)',
       [model_name, description || null]
     );
     res.redirect('/settings/models');
   } catch (error) {
-    console.error('K-Laser model creation error:', error);
+    console.error('Device model creation error:', error);
     if (error.code === 'ER_DUP_ENTRY') {
-      req.session.error = 'K-Laser model with this name already exists';
+      req.session.error = 'Device model with this name already exists';
     } else {
-      req.session.error = 'Error creating K-Laser model';
+      req.session.error = 'Error creating device model';
     }
     res.redirect('/settings/models');
   }
 });
 
-router.post('/k-laser-models/:id/update', async (req, res) => {
+router.post('/device-models/:id/update', async (req, res) => {
   const { model_name, description } = req.body;
   
   try {
     await req.db.query(
-      'UPDATE k_laser_models SET model_name = ?, description = ? WHERE id = ?',
+      'UPDATE device_models SET model_name = ?, description = ? WHERE id = ?',
       [model_name, description || null, req.params.id]
     );
     res.redirect('/settings/models');
   } catch (error) {
-    console.error('K-Laser model update error:', error);
+    console.error('Device model update error:', error);
     if (error.code === 'ER_DUP_ENTRY') {
-      req.session.error = 'K-Laser model with this name already exists';
+      req.session.error = 'Device model with this name already exists';
     } else {
-      req.session.error = 'Error updating K-Laser model';
+      req.session.error = 'Error updating device model';
     }
     res.redirect('/settings/models');
   }
 });
 
-router.post('/k-laser-models/:id/delete', async (req, res) => {
+router.post('/device-models/:id/delete', async (req, res) => {
   try {
     // Check if any devices are using this model
     const [devices] = await req.db.query(
-      'SELECT COUNT(*) as count FROM device_serial_numbers WHERE k_laser_model_id = ?',
+      'SELECT COUNT(*) as count FROM device_serial_numbers WHERE device_model_id = ?',
       [req.params.id]
     );
     
     if (devices[0].count > 0) {
-      req.session.error = 'Cannot delete K-Laser model. There are devices using this model.';
+      req.session.error = 'Cannot delete device model. There are devices using this model.';
       return res.redirect('/settings/models');
     }
     
-    await req.db.query('DELETE FROM k_laser_models WHERE id = ?', [req.params.id]);
+    await req.db.query('DELETE FROM device_models WHERE id = ?', [req.params.id]);
     res.redirect('/settings/models');
   } catch (error) {
-    console.error('K-Laser model delete error:', error);
-    req.session.error = 'Error deleting K-Laser model';
+    console.error('Device model delete error:', error);
+    req.session.error = 'Error deleting device model';
     res.redirect('/settings/models');
   }
 });
@@ -595,17 +595,17 @@ router.post('/k-laser-models/:id/delete', async (req, res) => {
 // ========== DEVICE SERIAL NUMBERS ==========
 router.get('/devices', async (req, res) => {
   try {
-    const [kLaserModels] = await req.db.query('SELECT * FROM k_laser_models ORDER BY model_name ASC');
+    const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
     const [deviceSerialNumbers] = await req.db.query(`
       SELECT d.*, k.model_name 
       FROM device_serial_numbers d
-      LEFT JOIN k_laser_models k ON d.k_laser_model_id = k.id
+      LEFT JOIN device_models k ON d.device_model_id = k.id
       ORDER BY d.serial_number ASC
     `);
     
     renderSettingsTemplate(req, res, {
       pageTitle: 'Device Serial Numbers',
-      description: 'Manage device serial numbers and their associated K-Laser models',
+      description: 'Manage device serial numbers and their associated device models',
       icon: 'fas fa-server',
       singularName: 'Device Serial Number',
       pluralName: 'Device Serial Numbers',
@@ -620,10 +620,10 @@ router.get('/devices', async (req, res) => {
       deleteAction: '/settings/device-serial-numbers',
       createPage: '/settings/devices/new',
       editBase: '/settings/devices',
-      tableHeaders: ['Serial Number', 'K-Laser Model', 'Notes'],
+      tableHeaders: ['Serial Number', 'Device Model', 'Notes'],
       hasModelDropdown: true,
       hasModelColumn: true,
-      kLaserModels
+      deviceModels
     });
   } catch (error) {
     console.error('Device serial numbers page error:', error);
@@ -633,7 +633,7 @@ router.get('/devices', async (req, res) => {
 
 router.get('/devices/new', async (req, res) => {
   try {
-    const [kLaserModels] = await req.db.query('SELECT * FROM k_laser_models ORDER BY model_name ASC');
+    const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
 
     renderSettingsForm(req, res, {
       pageTitle: 'Device Serial Numbers',
@@ -650,7 +650,7 @@ router.get('/devices/new', async (req, res) => {
       descriptionPlaceholder: 'Enter notes (optional)',
       hasModelDropdown: true,
       hasMaxScore: false,
-      kLaserModels
+      deviceModels
     });
   } catch (error) {
     console.error('Device serial number create page error:', error);
@@ -660,7 +660,7 @@ router.get('/devices/new', async (req, res) => {
 
 router.get('/devices/:id/edit', async (req, res) => {
   try {
-    const [kLaserModels] = await req.db.query('SELECT * FROM k_laser_models ORDER BY model_name ASC');
+    const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
     const [rows] = await req.db.query('SELECT * FROM device_serial_numbers WHERE id = ?', [req.params.id]);
     if (!rows[0]) {
       req.session.error = 'Device serial number not found.';
@@ -682,7 +682,7 @@ router.get('/devices/:id/edit', async (req, res) => {
       descriptionPlaceholder: 'Enter notes (optional)',
       hasModelDropdown: true,
       hasMaxScore: false,
-      kLaserModels,
+      deviceModels,
       item: rows[0]
     });
   } catch (error) {
@@ -692,12 +692,12 @@ router.get('/devices/:id/edit', async (req, res) => {
 });
 
 router.post('/device-serial-numbers/create', async (req, res) => {
-  const { serial_number, k_laser_model_id, notes } = req.body;
+  const { serial_number, device_model_id, notes } = req.body;
   
   try {
     await req.db.query(
-      'INSERT INTO device_serial_numbers (serial_number, k_laser_model_id, notes) VALUES (?, ?, ?)',
-      [serial_number, k_laser_model_id, notes || null]
+      'INSERT INTO device_serial_numbers (serial_number, device_model_id, notes) VALUES (?, ?, ?)',
+      [serial_number, device_model_id, notes || null]
     );
     res.redirect('/settings/devices');
   } catch (error) {
@@ -712,12 +712,12 @@ router.post('/device-serial-numbers/create', async (req, res) => {
 });
 
 router.post('/device-serial-numbers/:id/update', async (req, res) => {
-  const { serial_number, k_laser_model_id, notes } = req.body;
+  const { serial_number, device_model_id, notes } = req.body;
   
   try {
     await req.db.query(
-      'UPDATE device_serial_numbers SET serial_number = ?, k_laser_model_id = ?, notes = ? WHERE id = ?',
-      [serial_number, k_laser_model_id, notes || null, req.params.id]
+      'UPDATE device_serial_numbers SET serial_number = ?, device_model_id = ?, notes = ? WHERE id = ?',
+      [serial_number, device_model_id, notes || null, req.params.id]
     );
     res.redirect('/settings/devices');
   } catch (error) {
@@ -1111,5 +1111,7 @@ router.post('/users/:id/delete', async (req, res) => {
 });
 
 module.exports = router;
+
+
 
 

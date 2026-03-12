@@ -413,11 +413,11 @@
                 <input type="text" id="item-name" name="<%= nameField %>" value="<%= typeof item !== 'undefined' && item ? item[nameField] : '' %>" required placeholder="<%= namePlaceholder %>">
               </div>
               <div class="form-group">
-                <label for="item-model">K-Laser Model *</label>
-                <select id="item-model" name="k_laser_model_id" required>
+                <label for="item-model">Device Model *</label>
+                <select id="item-model" name="device_model_id" required>
                   <option value="">Select Model</option>
-                  <% kLaserModels.forEach(model => { %>
-                    <option value="<%= model.id %>" <%= typeof item !== 'undefined' && item && item.k_laser_model_id == model.id ? 'selected' : '' %>><%= model.model_name %></option>
+                  <% deviceModels.forEach(model => { %>
+                    <option value="<%= model.id %>" <%= typeof item !== 'undefined' && item && item.device_model_id == model.id ? 'selected' : '' %>><%= model.model_name %></option>
                   <% }); %>
                 </select>
               </div>

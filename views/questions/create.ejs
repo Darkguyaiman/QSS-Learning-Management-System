@@ -735,6 +735,10 @@
         <% objectives.forEach(function(obj) { %>
         window.availableObjectives.push('<%= obj.name.replace(/'/g, "\\'") %>');
         <% }); %>
+        window.availableDeviceModels = [];
+        <% deviceModels.forEach(function(model) { %>
+        window.availableDeviceModels.push('<%= model.model_name.replace(/'/g, "\\'") %>');
+        <% }); %>
       </script>
       
       <div class="form-container">
@@ -761,7 +765,7 @@
                 <textarea id="questionText" name="questionText" class="form-input" rows="4" required placeholder="Enter your question here..."></textarea>
               </div>
               
-              <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+              <div class="form-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;">
                 <div class="form-group">
                   <label for="testType">
                     <i class="fas fa-clipboard-check"></i>
@@ -788,6 +792,20 @@
                     <option value="">Select objective</option>
                     <% objectives.forEach(objective => { %>
                       <option value="<%= objective.id %>"><%= objective.name %></option>
+                    <% }); %>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="deviceModelId">
+                    <i class="fas fa-microchip"></i>
+                    Device Model *
+                  </label>
+                  <div id="deviceModelDropdown" class="tw-dropdown"></div>
+                  <select id="deviceModelId" name="deviceModelId" required style="display:none;">
+                    <option value="">Select device model</option>
+                    <% deviceModels.forEach(model => { %>
+                      <option value="<%= model.id %>"><%= model.model_name %></option>
                     <% }); %>
                   </select>
                 </div>
@@ -1041,7 +1059,7 @@
             if (!Array.isArray(jsonData[i])) {
               jsonData[i] = [];
             }
-            while (jsonData[i].length < 8) {
+            while (jsonData[i].length < 9) {
               jsonData[i].push('');
             }
           }
@@ -1097,6 +1115,7 @@
         const errors = [];
         const validData = [];
         const availableObjectives = window.availableObjectives || [];
+        const availableDeviceModels = window.availableDeviceModels || [];
         
         // Skip header row (row 0) and start from row 1 (index 1)
         for (let i = 1; i < data.length; i++) {
@@ -1118,15 +1137,16 @@
             return strValue;
           }
           
-          // Excel columns: A=Question, B=Test Type, C=Objective, D=Option A, E=Option B, F=Option C, G=Option D, H=Correct Answer
+          // Excel columns: A=Question, B=Test Type, C=Device Model, D=Objective, E=Option A, F=Option B, G=Option C, H=Option D, I=Correct Answer
           const question = getCellValue(0);
           const testType = getCellValue(1).toLowerCase();
-          const objective = getCellValue(2);
-          const optionA = getCellValue(3);
-          const optionB = getCellValue(4);
-          const optionC = getCellValue(5);
-          const optionD = getCellValue(6);
-          const correctAnswer = getCellValue(7).toUpperCase();
+          const deviceModel = getCellValue(2);
+          const objective = getCellValue(3);
+          const optionA = getCellValue(4);
+          const optionB = getCellValue(5);
+          const optionC = getCellValue(6);
+          const optionD = getCellValue(7);
+          const correctAnswer = getCellValue(8).toUpperCase();
           
           // Debug logging for first row with issues (only log once)
           if (i === 1 && (!optionA || !optionB)) {
@@ -1150,6 +1170,20 @@
             errors.push(`Row ${rowNum}: Objective is required`);
             continue;
           }
+
+          if (!deviceModel) {
+            errors.push(`Row ${rowNum}: Device Model is required`);
+            continue;
+          }
+
+          // Validate device model exists in system
+          const deviceModelExists = availableDeviceModels.some(model => 
+            model.toLowerCase() === deviceModel.toLowerCase()
+          );
+          if (!deviceModelExists) {
+            errors.push(`Row ${rowNum}: Device Model "${deviceModel}" not found in system. Available device models: ${availableDeviceModels.join(', ')}`);
+            continue;
+          }
           
           // Validate objective exists in system
           const objectiveExists = availableObjectives.some(obj => 
@@ -1167,18 +1201,18 @@
           
           if (optionAEmpty) {
             // Enhanced error message with debugging info
-            const debugInfo = `Row ${rowNum}: Option A is required (Column D). `;
+            const debugInfo = `Row ${rowNum}: Option A is required (Column E). `;
             const valueInfo = `Value: "${optionA}" (type: ${typeof optionA}, length: ${optionA ? String(optionA).length : 0})`;
-            const rowInfo = `Row array length: ${row.length}, Row[3]: ${row[3]}`;
+            const rowInfo = `Row array length: ${row.length}, Row[4]: ${row[4]}`;
             errors.push(debugInfo + valueInfo + '. ' + rowInfo);
             continue;
           }
           
           if (optionBEmpty) {
             // Enhanced error message with debugging info
-            const debugInfo = `Row ${rowNum}: Option B is required (Column E). `;
+            const debugInfo = `Row ${rowNum}: Option B is required (Column F). `;
             const valueInfo = `Value: "${optionB}" (type: ${typeof optionB}, length: ${optionB ? String(optionB).length : 0})`;
-            const rowInfo = `Row array length: ${row.length}, Row[4]: ${row[4]}`;
+            const rowInfo = `Row array length: ${row.length}, Row[5]: ${row[5]}`;
             errors.push(debugInfo + valueInfo + '. ' + rowInfo);
             continue;
           }
@@ -1209,6 +1243,7 @@
           validData.push({
             question_text: question,
             test_type: testType,
+            device_model_name: deviceModel,
             objective_name: objective,
             option_a: optionA,
             option_b: optionB,
@@ -1383,6 +1418,20 @@
         document.getElementById('objectiveId').value = val || '';
       }
     });
+
+    // ---- TailwindDropdown for Device Model ----
+    var deviceModelItems = [];
+    document.querySelectorAll('#deviceModelId option').forEach(function(opt) {
+      if (opt.value) deviceModelItems.push({ label: opt.textContent.trim(), value: opt.value });
+    });
+    new TailwindDropdown('deviceModelDropdown', {
+      items: deviceModelItems,
+      placeholder: 'Select device model',
+      multiSelect: false,
+      onChange: function(val) {
+        document.getElementById('deviceModelId').value = val || '';
+      }
+    });
   });
   </script>
   
@@ -1428,12 +1477,13 @@
           <table>
             <tr><td>Column A</td><td>Question Text (Required)</td></tr>
             <tr><td>Column B</td><td>Test Type: pre_test, post_test, refresher_training, or certificate_enrolment (Required)</td></tr>
-            <tr><td>Column C</td><td>Objective Name (Must exist in system) (Required)</td></tr>
-            <tr><td>Column D</td><td>Option A (Required)</td></tr>
-            <tr><td>Column E</td><td>Option B (Required)</td></tr>
-            <tr><td>Column F</td><td>Option C (Optional - leave empty for 2-option questions)</td></tr>
-            <tr><td>Column G</td><td>Option D (Optional - leave empty for 2-3 option questions)</td></tr>
-            <tr><td>Column H</td><td>Correct Answer: A, B, C, or D (must match available options)</td></tr>
+            <tr><td>Column C</td><td>Device Model (Must exist in system) (Required)</td></tr>
+            <tr><td>Column D</td><td>Objective Name (Must exist in system) (Required)</td></tr>
+            <tr><td>Column E</td><td>Option A (Required)</td></tr>
+            <tr><td>Column F</td><td>Option B (Required)</td></tr>
+            <tr><td>Column G</td><td>Option C (Optional - leave empty for 2-option questions)</td></tr>
+            <tr><td>Column H</td><td>Option D (Optional - leave empty for 2-3 option questions)</td></tr>
+            <tr><td>Column I</td><td>Correct Answer: A, B, C, or D (must match available options)</td></tr>
           </table>
         </div>
       </div>
@@ -1443,6 +1493,7 @@
         <ul>
           <li>Start entering data from Row 2 (Row 1 is the header)</li>
           <li>Use exact test type values: <strong>pre_test</strong>, <strong>post_test</strong>, <strong>refresher_training</strong>, or <strong>certificate_enrolment</strong></li>
+          <li>Use device model names that exist in the system (case-insensitive)</li>
           <li>Use objective names that exist in the system (case-insensitive)</li>
           <li>Options A and B are required; Options C and D are optional</li>
           <li>Questions can have 2, 3, or 4 options</li>
@@ -1456,6 +1507,7 @@
       <div class="rules-section">
         <h3><i class="fas fa-times-circle dont"></i> Don'ts</h3>
         <ul>
+          <li>Don't use device model names that don't exist in the system</li>
           <li>Don't use objective names that don't exist in the system</li>
           <li>Don't leave required fields empty</li>
           <li>Don't use duplicate options within the same question</li>

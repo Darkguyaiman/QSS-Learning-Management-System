@@ -9,11 +9,12 @@ const sharp = require('sharp');
  * Helper function to randomly select questions for a test
  * Ensures at least 2 questions from each objective
  * @param {Object} db - Database connection
- * @param {string} testType - Type of test (pre_test, post_test, refreshment, certificate_enrolment)
+ * @param {string} testType - Type of test (pre_test, post_test, refresher_training, certificate_enrolment)
  * @param {number} totalQuestions - Total number of questions needed
+ * @param {number} deviceModelId - Device model ID
  * @returns {Promise<Array>} Array of question IDs
  */
-async function selectQuestionsForTest(db, testType, totalQuestions) {
+async function selectQuestionsForTest(db, testType, totalQuestions, deviceModelId) {
   // Get all objectives
   const [objectives] = await db.query('SELECT id FROM objectives ORDER BY id');
   
@@ -36,8 +37,8 @@ async function selectQuestionsForTest(db, testType, totalQuestions) {
   // Get questions grouped by objective
   for (const objective of objectives) {
     const [questions] = await db.query(
-      'SELECT id FROM questions WHERE test_type = ? AND objective_id = ? ORDER BY RAND()',
-      [testType, objective.id]
+      'SELECT id FROM questions WHERE test_type = ? AND objective_id = ? AND device_model_id = ? ORDER BY RAND()',
+      [testType, objective.id, deviceModelId]
     );
     
     if (questions.length < minPerObjective) {
@@ -76,8 +77,8 @@ async function selectQuestionsForTest(db, testType, totalQuestions) {
   if (remainingSlots > 0) {
     // Get all available questions of this test type
     const [allQuestions] = await db.query(
-      'SELECT id FROM questions WHERE test_type = ? ORDER BY RAND()',
-      [testType]
+      'SELECT id FROM questions WHERE test_type = ? AND device_model_id = ? ORDER BY RAND()',
+      [testType, deviceModelId]
     );
     
     const availableQuestions = allQuestions
@@ -101,11 +102,16 @@ async function selectQuestionsForTest(db, testType, totalQuestions) {
 /**
  * Validate if there are enough questions available for test creation
  * @param {Object} db - Database connection
- * @param {string} trainingType - Type of training (main or refreshment)
+ * @param {string} trainingType - Type of training (main or refresher_training)
+ * @param {number} deviceModelId - Device model ID
  * @returns {Promise<{valid: boolean, errors: string[]}>}
  */
-async function validateTestQuestions(db, trainingType) {
+async function validateTestQuestions(db, trainingType, deviceModelId) {
   const errors = [];
+  
+  if (!deviceModelId) {
+    return { valid: false, errors: ['Device model is required for test generation.'] };
+  }
   
   // Get all objectives
   const [objectives] = await db.query('SELECT id FROM objectives ORDER BY id');
@@ -135,8 +141,8 @@ async function validateTestQuestions(db, trainingType) {
       // Check each objective has enough questions
       for (const objective of objectives) {
         const [questions] = await db.query(
-          'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND objective_id = ?',
-          [test.type, objective.id]
+          'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND objective_id = ? AND device_model_id = ?',
+          [test.type, objective.id, deviceModelId]
         );
         
         const questionCount = questions[0].count;
@@ -147,40 +153,40 @@ async function validateTestQuestions(db, trainingType) {
       
       // Check total available questions
       const [totalQuestions] = await db.query(
-        'SELECT COUNT(*) as count FROM questions WHERE test_type = ?',
-        [test.type]
+        'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND device_model_id = ?',
+        [test.type, deviceModelId]
       );
       
       if (totalQuestions[0].count < test.count) {
         errors.push(`${test.type}: Not enough total questions available. Need ${test.count}, found ${totalQuestions[0].count}.`);
       }
     }
-  } else if (trainingType === 'refreshment') {
-    // Refreshment training: only refreshment test (10)
+  } else if (trainingType === 'refresher_training') {
+    // Refresher training: only refresher test (10)
     if (10 < requiredPerObjective) {
-      errors.push(`refreshment: Need at least ${requiredPerObjective} questions (2 per objective for ${objectives.length} objectives), but only 10 requested.`);
+      errors.push(`refresher_training: Need at least ${requiredPerObjective} questions (2 per objective for ${objectives.length} objectives), but only 10 requested.`);
     } else {
       // Check each objective has enough questions
       for (const objective of objectives) {
         const [questions] = await db.query(
-          'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND objective_id = ?',
-          ['refreshment', objective.id]
+          'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND objective_id = ? AND device_model_id = ?',
+          ['refresher_training', objective.id, deviceModelId]
         );
         
         const questionCount = questions[0].count;
         if (questionCount < minPerObjective) {
-          errors.push(`refreshment: Not enough questions for objective ID ${objective.id}. Need at least ${minPerObjective}, found ${questionCount}.`);
+          errors.push(`refresher_training: Not enough questions for objective ID ${objective.id}. Need at least ${minPerObjective}, found ${questionCount}.`);
         }
       }
       
       // Check total available questions
       const [totalQuestions] = await db.query(
-        'SELECT COUNT(*) as count FROM questions WHERE test_type = ?',
-        ['refreshment']
+        'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND device_model_id = ?',
+        ['refresher_training', deviceModelId]
       );
       
       if (totalQuestions[0].count < 10) {
-        errors.push(`refreshment: Not enough total questions available. Need 10, found ${totalQuestions[0].count}.`);
+        errors.push(`refresher_training: Not enough total questions available. Need 10, found ${totalQuestions[0].count}.`);
       }
     }
   }
@@ -195,9 +201,10 @@ async function validateTestQuestions(db, trainingType) {
  * Create tests for a training
  * @param {Object} db - Database connection
  * @param {number} trainingId - Training ID
- * @param {string} trainingType - Type of training (main or refreshment)
+ * @param {string} trainingType - Type of training (main or refresher_training)
+ * @param {number} deviceModelId - Device model ID
  */
-async function createTrainingTests(db, trainingId, trainingType) {
+async function createTrainingTests(db, trainingId, trainingType, deviceModelId) {
   try {
     if (trainingType === 'main') {
       // Main training: pre_test (10), post_test (10), certificate_enrolment (40)
@@ -209,7 +216,7 @@ async function createTrainingTests(db, trainingId, trainingType) {
       
       for (const test of tests) {
         // Select questions
-        const questionIds = await selectQuestionsForTest(db, test.type, test.count);
+        const questionIds = await selectQuestionsForTest(db, test.type, test.count, deviceModelId);
         
         // Create training_test record
         const [testResult] = await db.query(
@@ -227,14 +234,14 @@ async function createTrainingTests(db, trainingId, trainingType) {
           );
         }
       }
-    } else if (trainingType === 'refreshment') {
-      // Refreshment training: only refreshment test (10)
-      const questionIds = await selectQuestionsForTest(db, 'refreshment', 10);
+    } else if (trainingType === 'refresher_training') {
+      // Refresher training: only refresher test (10)
+      const questionIds = await selectQuestionsForTest(db, 'refresher_training', 10, deviceModelId);
       
       // Create training_test record
       const [testResult] = await db.query(
         'INSERT INTO training_tests (training_id, test_type, total_questions) VALUES (?, ?, ?)',
-        [trainingId, 'refreshment', 10]
+        [trainingId, 'refresher_training', 10]
       );
       
       const trainingTestId = testResult.insertId;
@@ -607,7 +614,7 @@ router.get('/', async (req, res) => {
     const [devices] = await req.db.query(`
       SELECT DISTINCT d.id, d.serial_number, k.model_name
       FROM device_serial_numbers d
-      LEFT JOIN k_laser_models k ON d.k_laser_model_id = k.id
+      LEFT JOIN device_models k ON d.device_model_id = k.id
       INNER JOIN training_devices td ON d.id = td.device_serial_number_id
       ORDER BY d.serial_number ASC
     `);
@@ -652,10 +659,10 @@ router.get('/create', async (req, res) => {
     const [devices] = await req.db.query(`
       SELECT d.*, k.model_name 
       FROM device_serial_numbers d
-      LEFT JOIN k_laser_models k ON d.k_laser_model_id = k.id
+      LEFT JOIN device_models k ON d.device_model_id = k.id
       ORDER BY d.serial_number ASC
     `);
-    const [kLaserModels] = await req.db.query('SELECT * FROM k_laser_models ORDER BY model_name ASC');
+    const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
     
     // Fetch all trainers (admin and trainer roles), excluding current user
     const [trainers] = await req.db.query(`
@@ -671,7 +678,7 @@ router.get('/create', async (req, res) => {
       healthcare,
       trainees,
       devices,
-      kLaserModels,
+      deviceModels,
       trainers
     });
   } catch (error) {
@@ -690,6 +697,7 @@ router.post('/create', async (req, res) => {
     title, 
     description, 
     type,
+    device_model_id,
     start_datetime,
     end_datetime,
     healthcare_ids, // Array of healthcare IDs
@@ -698,7 +706,7 @@ router.post('/create', async (req, res) => {
     device_ids, // Array of device_serial_numbers IDs
     custom_devices, // Array of custom serial numbers
     save_custom_devices, // Array of booleans indicating if custom device should be saved
-    custom_device_models // Array of k_laser_model_id for custom devices
+    custom_device_models // Array of device_model_id for custom devices
   } = req.body;
   
   let connection = null;
@@ -757,8 +765,36 @@ router.post('/create', async (req, res) => {
       endDatetime = convertToMySQLDatetime(end_datetime);
     }
     
+    if (!device_model_id) {
+      const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
+      const [trainees] = await req.db.query('SELECT id, first_name, last_name, email, healthcare, ic_passport, trainee_id FROM trainees WHERE trainee_status = "active" ORDER BY first_name, last_name ASC');
+      const [devices] = await req.db.query(`
+        SELECT d.*, k.model_name 
+        FROM device_serial_numbers d
+        LEFT JOIN device_models k ON d.device_model_id = k.id
+        ORDER BY d.serial_number ASC
+      `);
+      const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
+      const [trainers] = await req.db.query(`
+        SELECT id, first_name, last_name, email 
+        FROM users 
+        WHERE role IN ('admin', 'trainer') AND id != ?
+        ORDER BY last_name, first_name ASC
+      `, [req.session.userId]);
+      
+      return res.render('training/create', { 
+        user: req.session, 
+        error: 'Device model is required.',
+        healthcare,
+        trainees,
+        devices,
+        deviceModels,
+        trainers
+      });
+    }
+
     // Validate test questions availability BEFORE creating training
-    const validation = await validateTestQuestions(req.db, type);
+    const validation = await validateTestQuestions(req.db, type, device_model_id);
     if (!validation.valid) {
       // Re-fetch data for form
       const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
@@ -766,10 +802,10 @@ router.post('/create', async (req, res) => {
       const [devices] = await req.db.query(`
         SELECT d.*, k.model_name 
         FROM device_serial_numbers d
-        LEFT JOIN k_laser_models k ON d.k_laser_model_id = k.id
+        LEFT JOIN device_models k ON d.device_model_id = k.id
         ORDER BY d.serial_number ASC
       `);
-      const [kLaserModels] = await req.db.query('SELECT * FROM k_laser_models ORDER BY model_name ASC');
+      const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
       const [trainers] = await req.db.query(`
         SELECT id, first_name, last_name, email 
         FROM users 
@@ -783,7 +819,7 @@ router.post('/create', async (req, res) => {
         healthcare,
         trainees,
         devices,
-        kLaserModels,
+        deviceModels,
         trainers
       });
     }
@@ -797,8 +833,8 @@ router.post('/create', async (req, res) => {
       
       // Insert training
       const [result] = await connection.query(
-        'INSERT INTO trainings (title, description, type, created_by, status, start_datetime, end_datetime, header_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [title, description, type, req.session.userId, 'in_progress', startDatetime, endDatetime, headerImage]
+        'INSERT INTO trainings (title, description, type, device_model_id, created_by, status, start_datetime, end_datetime, header_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [title, description, type, device_model_id, req.session.userId, 'in_progress', startDatetime, endDatetime, headerImage]
       );
       
       const trainingId = result.insertId;
@@ -861,7 +897,7 @@ router.post('/create', async (req, res) => {
             if (save_custom_devices && save_custom_devices[i] === 'true' && custom_device_models && custom_device_models[i]) {
               try {
                 const [deviceResult] = await connection.query(
-                  'INSERT INTO device_serial_numbers (serial_number, k_laser_model_id) VALUES (?, ?)',
+                  'INSERT INTO device_serial_numbers (serial_number, device_model_id) VALUES (?, ?)',
                   [customSerial.trim(), custom_device_models[i]]
                 );
                 deviceSerialNumberId = deviceResult.insertId;
@@ -934,7 +970,7 @@ router.post('/create', async (req, res) => {
       }
       
       // Create tests for the training (must succeed or transaction will rollback)
-      await createTrainingTests(connection, trainingId, type);
+      await createTrainingTests(connection, trainingId, type, device_model_id);
       
       // Commit transaction
       await connection.commit();
@@ -953,10 +989,10 @@ router.post('/create', async (req, res) => {
         const [devices] = await req.db.query(`
           SELECT d.*, k.model_name 
           FROM device_serial_numbers d
-          LEFT JOIN k_laser_models k ON d.k_laser_model_id = k.id
+          LEFT JOIN device_models k ON d.device_model_id = k.id
           ORDER BY d.serial_number ASC
         `);
-        const [kLaserModels] = await req.db.query('SELECT * FROM k_laser_models ORDER BY model_name ASC');
+        const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
         const [trainers] = await req.db.query(`
           SELECT id, first_name, last_name, email 
           FROM users 
@@ -973,7 +1009,7 @@ router.post('/create', async (req, res) => {
           healthcare,
           trainees,
           devices,
-          kLaserModels,
+          deviceModels,
           trainers
         });
       } catch (renderError) {
@@ -997,10 +1033,10 @@ router.post('/create', async (req, res) => {
       const [devices] = await req.db.query(`
         SELECT d.*, k.model_name 
         FROM device_serial_numbers d
-        LEFT JOIN k_laser_models k ON d.k_laser_model_id = k.id
+        LEFT JOIN device_models k ON d.device_model_id = k.id
         ORDER BY d.serial_number ASC
       `);
-      const [kLaserModels] = await req.db.query('SELECT * FROM k_laser_models ORDER BY model_name ASC');
+      const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
       const [trainers] = await req.db.query(`
         SELECT id, first_name, last_name, email 
         FROM users 
@@ -1014,7 +1050,7 @@ router.post('/create', async (req, res) => {
         healthcare,
         trainees,
         devices,
-        kLaserModels,
+        deviceModels,
         trainers
       });
     } catch (renderError) {
@@ -1206,7 +1242,7 @@ router.get('/:id', async (req, res) => {
         SELECT e.*,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') > 0 as pre_test_completed,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') > 0 as post_test_completed,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refreshment' AND status = 'completed') > 0 as refreshment_test_completed
+          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed') > 0 as refresher_training_test_completed
         FROM enrollments e
         WHERE e.trainee_id = ? AND e.training_id = ?
       `, [req.session.userId, req.params.id]);
@@ -1274,9 +1310,10 @@ router.get('/:id', async (req, res) => {
     }
     
     // Get data for Settings tab (Admin/Trainer only)
-    let allHealthcare = [];
-    let allDevices = [];
-    let allTrainers = [];
+      let allHealthcare = [];
+      let allDevices = [];
+      let allDeviceModels = [];
+      let allTrainers = [];
     let allTrainees = [];
     let trainingHealthcare = [];
     let trainingDevices = [];
@@ -1291,13 +1328,16 @@ router.get('/:id', async (req, res) => {
         [req.params.id]
       );
       
-      // Get all devices
-      [allDevices] = await req.db.query(`
-        SELECT dsn.*, klm.model_name 
-        FROM device_serial_numbers dsn
-        LEFT JOIN k_laser_models klm ON dsn.k_laser_model_id = klm.id
-        ORDER BY dsn.serial_number ASC
-      `);
+        // Get all devices
+        [allDevices] = await req.db.query(`
+          SELECT dsn.*, klm.model_name 
+          FROM device_serial_numbers dsn
+          LEFT JOIN device_models klm ON dsn.device_model_id = klm.id
+          ORDER BY dsn.serial_number ASC
+        `);
+        
+        // Get all device models
+        [allDeviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
       
       // Get current training devices
       [trainingDevices] = await req.db.query(
@@ -1359,6 +1399,7 @@ router.get('/:id', async (req, res) => {
       attendanceData,
       allHealthcare,
       allDevices,
+      allDeviceModels,
       allTrainers,
       allTrainees,
       trainingHealthcare,
@@ -1767,7 +1808,11 @@ router.post('/:id/update', async (req, res) => {
   
   try {
     const trainingId = req.params.id;
-    const { title, status, start_datetime, end_datetime, healthcare_ids, trainer_ids, trainee_ids } = req.body;
+    const { title, status, start_datetime, end_datetime, healthcare_ids, trainer_ids, trainee_ids, device_model_id } = req.body;
+    
+    if (!device_model_id) {
+      return res.json({ success: false, error: 'Device model is required.' });
+    }
     
     // Helper function to convert AM/PM format to MySQL datetime
     function convertToMySQLDatetime(dateTimeStr) {
@@ -1809,10 +1854,43 @@ router.post('/:id/update', async (req, res) => {
     await connection.beginTransaction();
     
     try {
+      const [trainingRows] = await connection.query(
+        'SELECT id, type, device_model_id FROM trainings WHERE id = ?',
+        [trainingId]
+      );
+      if (!trainingRows.length) {
+        await connection.rollback();
+        return res.json({ success: false, error: 'Training not found.' });
+      }
+      
+      const currentTraining = trainingRows[0];
+      const deviceModelChanged = String(currentTraining.device_model_id || '') !== String(device_model_id || '');
+      
+      if (deviceModelChanged) {
+        const [attemptRows] = await connection.query(
+          `SELECT COUNT(*) as count
+           FROM test_attempts ta
+           JOIN enrollments e ON ta.enrollment_id = e.id
+           WHERE e.training_id = ?`,
+          [trainingId]
+        );
+        
+        if ((attemptRows[0]?.count || 0) > 0) {
+          await connection.rollback();
+          return res.json({ success: false, error: 'Cannot change device model after tests have started.' });
+        }
+        
+        const validation = await validateTestQuestions(connection, currentTraining.type, device_model_id);
+        if (!validation.valid) {
+          await connection.rollback();
+          return res.json({ success: false, error: validation.errors.join(' ') });
+        }
+      }
+
       // Update training basic info
       await connection.query(
-        'UPDATE trainings SET title = ?, status = ?, start_datetime = ?, end_datetime = ? WHERE id = ?',
-        [title, status, startDatetime, endDatetime, trainingId]
+        'UPDATE trainings SET title = ?, status = ?, start_datetime = ?, end_datetime = ?, device_model_id = ? WHERE id = ?',
+        [title, status, startDatetime, endDatetime, device_model_id, trainingId]
       );
       
       // Update healthcare centres
@@ -1894,6 +1972,29 @@ router.post('/:id/update', async (req, res) => {
             [parseInt(traineeId), trainingId]
           );
         }
+      }
+
+      if (deviceModelChanged) {
+        const [existingTests] = await connection.query(
+          'SELECT id FROM training_tests WHERE training_id = ?',
+          [trainingId]
+        );
+        
+        if (existingTests.length > 0) {
+          const testIds = existingTests.map(t => t.id);
+          const placeholders = testIds.map(() => '?').join(',');
+          await connection.query(
+            `DELETE FROM training_test_questions WHERE training_test_id IN (${placeholders})`,
+            testIds
+          );
+        }
+        
+        await connection.query(
+          'DELETE FROM training_tests WHERE training_id = ?',
+          [trainingId]
+        );
+        
+        await createTrainingTests(connection, trainingId, currentTraining.type, device_model_id);
       }
       
       await connection.commit();
@@ -2291,7 +2392,7 @@ router.get('/:id/enrollment/:enrollmentId/test-answers', async (req, res) => {
       pre_test: 'Pre-Test',
       post_test: 'Post-Test',
       certificate_enrolment: 'Certificate Enrolment',
-      refreshment: 'Refreshment Test'
+      refresher_training: 'Refresher Training Test'
     };
 
     const availableTypes = Array.from(new Set((attempts || []).map(a => a.test_type))).filter(Boolean);
@@ -2326,7 +2427,7 @@ router.get('/:id/enrollment/:enrollmentId/test-answers', async (req, res) => {
       enrollmentId,
       traineeName,
       traineePublicId,
-      availableTypes: availableTypes.length > 0 ? availableTypes : ['pre_test', 'post_test', 'certificate_enrolment', 'refreshment'],
+      availableTypes: availableTypes.length > 0 ? availableTypes : ['pre_test', 'post_test', 'certificate_enrolment', 'refresher_training'],
       selectedType,
       typeLabels,
       attempt,
@@ -2436,3 +2537,6 @@ router.post('/:id/enrollment/:enrollmentId/hands-on/save', async (req, res) => {
 });
 
 module.exports = router;
+
+
+

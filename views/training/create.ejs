@@ -590,6 +590,26 @@
             
             <div class="form-section">
               <div class="section-title">
+                <i class="fas fa-microchip"></i>
+                Device Model *
+              </div>
+              
+              <div class="form-group">
+                <label for="device_model_id">
+                  <i class="fas fa-microchip"></i>
+                  Select Device Model *
+                </label>
+                <select id="device_model_id" name="device_model_id" class="form-select" required>
+                  <option value="">Select device model</option>
+                  <% deviceModels.forEach(model => { %>
+                    <option value="<%= model.id %>"><%= model.model_name %></option>
+                  <% }); %>
+                </select>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-title">
                 <i class="fas fa-calendar-alt"></i>
                 Training Schedule
               </div>
@@ -859,9 +879,9 @@
     
     // Custom device management
     let customDeviceIndex = 0;
-    const kLaserModels = [
-      <% kLaserModels.forEach((model, index) => { %>
-      { id: <%= model.id %>, name: '<%= model.model_name.replace(/'/g, "\\'") %>' }<%= index < kLaserModels.length - 1 ? ',' : '' %>
+    const deviceModels = [
+      <% deviceModels.forEach((model, index) => { %>
+      { id: <%= model.id %>, name: '<%= model.model_name.replace(/'/g, "\\'") %>' }<%= index < deviceModels.length - 1 ? ',' : '' %>
       <% }); %>
     ];
     
@@ -874,8 +894,8 @@
         <div>
           <input type="text" name="custom_devices[]" class="form-input" placeholder="Enter serial number" required style="margin-bottom: 0.75rem;">
           <select name="custom_device_models[]" class="form-input" required id="model-select-${customDeviceIndex}" style="margin-bottom: 0.75rem;">
-            <option value="">Select K-Laser Model *</option>
-            ${kLaserModels.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}
+            <option value="">Select Device Model *</option>
+            ${deviceModels.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}
           </select>
           <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; cursor: pointer;">
             <input type="checkbox" name="save_custom_devices[]" value="true" onchange="toggleModelSelect(this, ${customDeviceIndex})">

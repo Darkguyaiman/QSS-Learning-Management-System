@@ -78,8 +78,8 @@ CREATE TABLE areas_of_specialization (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- K-Laser Models table
-CREATE TABLE k_laser_models (
+-- Device Models table
+CREATE TABLE device_models (
   id INT AUTO_INCREMENT PRIMARY KEY,
   model_name VARCHAR(255) NOT NULL UNIQUE,
   description TEXT,
@@ -87,15 +87,15 @@ CREATE TABLE k_laser_models (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- Device Serial Numbers table (linked to K-Laser Models)
+-- Device Serial Numbers table (linked to Device Models)
 CREATE TABLE device_serial_numbers (
   id INT AUTO_INCREMENT PRIMARY KEY,
   serial_number VARCHAR(255) NOT NULL UNIQUE,
-  k_laser_model_id INT NOT NULL,
+  device_model_id INT NOT NULL,
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (k_laser_model_id) REFERENCES k_laser_models(id) ON DELETE RESTRICT
+  FOREIGN KEY (device_model_id) REFERENCES device_models(id) ON DELETE RESTRICT
 );
 
 -- Practical Learning Outcomes Settings table (templates for outcomes)
@@ -114,6 +114,7 @@ CREATE TABLE trainings (
   title VARCHAR(255) NOT NULL,
   description TEXT,
   type ENUM('main', 'refresher_training') NOT NULL,
+  device_model_id INT NOT NULL,
   created_by INT,
   status ENUM('in_progress', 'completed', 'canceled', 'rescheduled') DEFAULT 'in_progress',
   start_datetime DATETIME,
@@ -121,6 +122,7 @@ CREATE TABLE trainings (
   header_image VARCHAR(255),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (device_model_id) REFERENCES device_models(id) ON DELETE RESTRICT,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
@@ -173,10 +175,12 @@ CREATE TABLE questions (
   option_d VARCHAR(500) NULL,
   correct_answer ENUM('A', 'B', 'C', 'D') NOT NULL,
   test_type ENUM('pre_test', 'post_test', 'refresher_training', 'certificate_enrolment') NOT NULL,
+  device_model_id INT NOT NULL,
   objective_id INT,
   training_id INT,
   created_by INT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (device_model_id) REFERENCES device_models(id) ON DELETE RESTRICT,
   FOREIGN KEY (objective_id) REFERENCES objectives(id) ON DELETE SET NULL,
   FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE SET NULL,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
@@ -315,4 +319,6 @@ CREATE INDEX idx_enrollment_training ON enrollments(training_id);
 CREATE INDEX idx_attendance_date ON attendance(date);
 CREATE INDEX idx_test_attempts_enrollment ON test_attempts(enrollment_id);
 CREATE INDEX idx_questions_training ON questions(training_id);
-CREATE INDEX idx_device_model ON device_serial_numbers(k_laser_model_id);
+CREATE INDEX idx_device_model ON device_serial_numbers(device_model_id);
+CREATE INDEX idx_questions_device_model ON questions(device_model_id);
+CREATE INDEX idx_trainings_device_model ON trainings(device_model_id);

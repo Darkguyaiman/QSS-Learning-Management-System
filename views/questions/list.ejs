@@ -69,7 +69,7 @@
     
     .filter-controls {
       display: grid;
-      grid-template-columns: 2fr 1fr 1fr 1fr;
+      grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
       gap: var(--spacing-md);
       align-items: end;
     }
@@ -220,6 +220,12 @@
       background: rgba(139, 69, 19, 0.1);
       color: #8B4513;
       border: 1px solid rgba(139, 69, 19, 0.2);
+    }
+
+    .badge-device-model {
+      background: rgba(16, 185, 129, 0.1);
+      color: #047857;
+      border: 1px solid rgba(16, 185, 129, 0.2);
     }
     
     .badge-creator {
@@ -725,6 +731,20 @@
                 <% }); %>
               </select>
             </div>
+
+            <div class="filter-group">
+              <label>
+                <i class="fas fa-microchip"></i>
+                Device Model
+              </label>
+              <div id="deviceModelFilterDropdown" class="tw-dropdown tw-dropdown--compact"></div>
+              <select id="deviceModelFilter" style="display:none;">
+                <option value="">All Device Models</option>
+                <% deviceModels.forEach(model => { %>
+                  <option value="<%= model.id %>"><%= model.model_name %></option>
+                <% }); %>
+              </select>
+            </div>
             
             <div class="filter-group">
               <label>
@@ -753,6 +773,7 @@
                  data-option-c="<%= (question.option_c || '').toLowerCase() %>"
                  data-option-d="<%= (question.option_d || '').toLowerCase() %>"
                  data-objective-id="<%= question.objective_id || '' %>"
+                 data-device-model-id="<%= question.device_model_id || '' %>"
                  data-test-type="<%= question.test_type %>"
                  data-creator-id="<%= question.creator_id || '' %>">
               <div class="question-header">
@@ -764,6 +785,12 @@
                     <span class="question-badge badge-objective">
                       <i class="fas fa-bullseye"></i>
                       <%= question.objective_name %>
+                    </span>
+                  <% } %>
+                  <% if (question.device_model_name) { %>
+                    <span class="question-badge badge-device-model">
+                      <i class="fas fa-microchip"></i>
+                      <%= question.device_model_name %>
                     </span>
                   <% } %>
                   <span class="question-badge badge-test-type <%= question.test_type === 'refresher_training' ? 'refresher_training' : question.test_type === 'certificate_enrolment' ? 'certificate_enrolment' : '' %>">
@@ -868,6 +895,7 @@
     (function() {
       // ---- Filter state ----
       var activeObjective = '';
+      var activeDeviceModel = '';
       var activeTestType  = '';
       var activeCreator   = '';
 
@@ -883,6 +911,20 @@
         multiSelect: false,
         initialValue: '',
         onChange: function(val) { activeObjective = val || ''; filterQuestions(); }
+      });
+
+      // ---- Build Device Model dropdown ----
+      var deviceModelItems = [{ label: 'All Device Models', value: '' }];
+      document.querySelectorAll('#deviceModelFilter option').forEach(function(opt) {
+        if (!opt.value) return;
+        deviceModelItems.push({ label: opt.textContent.trim(), value: opt.value });
+      });
+      new TailwindDropdown('deviceModelFilterDropdown', {
+        items: deviceModelItems,
+        placeholder: 'All Device Models',
+        multiSelect: false,
+        initialValue: '',
+        onChange: function(val) { activeDeviceModel = val || ''; filterQuestions(); }
       });
 
       // ---- Build Test Type dropdown ----
@@ -950,6 +992,7 @@
           var optionC      = card.dataset.optionC   || '';
           var optionD      = card.dataset.optionD   || '';
           var objectiveId  = card.dataset.objectiveId || '';
+          var deviceModelId = card.dataset.deviceModelId || '';
           var testType     = card.dataset.testType  || '';
           var creatorId    = card.dataset.creatorId || '';
 
@@ -961,10 +1004,11 @@
             optionD.includes(searchTerm);
 
           var matchesObjective = !activeObjective || objectiveId === activeObjective;
+          var matchesDeviceModel = !activeDeviceModel || deviceModelId === activeDeviceModel;
           var matchesTestType  = !activeTestType  || testType    === activeTestType;
           var matchesCreator   = !activeCreator   || creatorId   === activeCreator;
 
-          if (matchesSearch && matchesObjective && matchesTestType && matchesCreator) {
+          if (matchesSearch && matchesObjective && matchesDeviceModel && matchesTestType && matchesCreator) {
             card.classList.remove('hidden');
             visibleCount++;
           } else {

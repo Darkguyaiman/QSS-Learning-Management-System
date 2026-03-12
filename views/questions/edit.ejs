@@ -424,7 +424,7 @@
                 <textarea id="questionText" name="questionText" class="form-input" rows="4" required><%= question.question_text %></textarea>
               </div>
               
-              <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+              <div class="form-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;">
                 <div class="form-group">
                   <label for="testType">
                     <i class="fas fa-clipboard-check"></i>
@@ -449,6 +449,20 @@
                     <option value="">Select objective</option>
                     <% objectives.forEach(objective => { %>
                       <option value="<%= objective.id %>" <%= question.objective_id == objective.id ? 'selected' : '' %>><%= objective.name %></option>
+                    <% }); %>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="deviceModelId">
+                    <i class="fas fa-microchip"></i>
+                    Device Model *
+                  </label>
+                  <div id="deviceModelDropdown" class="tw-dropdown"></div>
+                  <select id="deviceModelId" name="deviceModelId" required style="display:none;">
+                    <option value="">Select device model</option>
+                    <% deviceModels.forEach(model => { %>
+                      <option value="<%= model.id %>" <%= question.device_model_id == model.id ? 'selected' : '' %>><%= model.model_name %></option>
                     <% }); %>
                   </select>
                 </div>
@@ -687,6 +701,22 @@
         initialValue: currentObjectiveId,
         onChange: function(val) {
           document.getElementById('objectiveId').value = val || '';
+        }
+      });
+
+      // ---- TailwindDropdown for Device Model ----
+      var deviceModelItems = [];
+      document.querySelectorAll('#deviceModelId option').forEach(function(opt) {
+        if (opt.value) deviceModelItems.push({ label: opt.textContent.trim(), value: opt.value });
+      });
+      var currentDeviceModelId = document.getElementById('deviceModelId').value;
+      new TailwindDropdown('deviceModelDropdown', {
+        items: deviceModelItems,
+        placeholder: 'Select device model',
+        multiSelect: false,
+        initialValue: currentDeviceModelId,
+        onChange: function(val) {
+          document.getElementById('deviceModelId').value = val || '';
         }
       });
     });
