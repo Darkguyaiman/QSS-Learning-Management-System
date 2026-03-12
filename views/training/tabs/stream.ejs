@@ -59,60 +59,6 @@
     </div>
   </div>
 
-  <!-- Training Media Gallery -->
-  <% if (typeof trainingMedia !== 'undefined' && trainingMedia && trainingMedia.length > 0) { %>
-    <div class="section-card" style="margin-bottom: 1.5rem;">
-      <h3 class="section-title" style="display:flex; align-items:center; justify-content:space-between; gap: 1rem;">
-        <span><i class="fas fa-images" style="margin-right: 0.5rem;"></i>Training Media</span>
-        <span style="font-size: 0.85rem; font-weight: 600; color:#5F6368;"><%= trainingMedia.length %> photo(s)</span>
-      </h3>
-
-      <div class="training-media-grid">
-        <% trainingMedia.forEach(m => { %>
-          <a class="training-media-item" href="<%= m.file_path %>" target="_blank" rel="noopener">
-            <img src="<%= m.file_path %>" alt="<%= m.original_name || 'Training media' %>">
-          </a>
-        <% }); %>
-      </div>
-    </div>
-
-    <style>
-      .training-media-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-        gap: 0.75rem;
-      }
-      .training-media-item {
-        display: block;
-        border-radius: 12px;
-        overflow: hidden;
-        border: 1px solid #E8EAED;
-        background: #F8F9FA;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.06);
-        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-      }
-      .training-media-item:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 24px rgba(87, 63, 215, 0.12);
-        border-color: rgba(87, 63, 215, 0.35);
-      }
-      .training-media-item img {
-        width: 100%;
-        height: 140px;
-        object-fit: cover;
-        display: block;
-      }
-      @media (max-width: 360px) {
-        .training-media-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-        .training-media-item img {
-          height: 120px;
-        }
-      }
-    </style>
-  <% } %>
-
   <style>
     /* Stream tab button styling */
     #stream-tab .btn {
@@ -309,5 +255,59 @@
       </div>
     <% } %>
   </div>
+
+  <!-- Training Media Gallery -->
+  <% if (typeof trainingMedia !== 'undefined' && trainingMedia && trainingMedia.length > 0) { %>
+    <div class="section-card" style="margin-top: 1.5rem;">
+      <h3 class="section-title" style="display:flex; align-items:center; justify-content:space-between; gap: 1rem;">
+        <span><i class="fas fa-images" style="margin-right: 0.5rem;"></i>Training Media</span>
+        <span style="font-size: 0.85rem; font-weight: 600; color:#5F6368;"><%= trainingMedia.length %> photo(s)</span>
+      </h3>
+
+      <div class="training-media-grid">
+        <% trainingMedia.forEach(m => { %>
+          <a class="training-media-item" href="<%= m.file_path %>" target="_blank" rel="noopener">
+            <img src="<%= m.file_path %>" alt="<%= m.original_name || 'Training media' %>">
+          </a>
+        <% }); %>
+      </div>
+    </div>
+
+    <style>
+      .training-media-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 0.75rem;
+      }
+      .training-media-item {
+        display: block;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #E8EAED;
+        background: #F8F9FA;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      }
+      .training-media-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px rgba(87, 63, 215, 0.12);
+        border-color: rgba(87, 63, 215, 0.35);
+      }
+      .training-media-item img {
+        width: 100%;
+        height: 140px;
+        object-fit: cover;
+        display: block;
+      }
+      @media (max-width: 360px) {
+        .training-media-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .training-media-item img {
+          height: 120px;
+        }
+      }
+    </style>
+  <% } %>
 </div>
 

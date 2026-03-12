@@ -20,10 +20,10 @@
         <a href="/dashboard" class="btn btn-outline">Back to Dashboard</a>
       </div>
       
-      <div class="training-card" style="margin-bottom: var(--spacing-xl);">
+      <div class="training-card results-info-card">
         <h2><%= enrollment.title %></h2>
         <span class="badge badge-<%= enrollment.type %>"><%= enrollment.type %></span>
-        <p class="text-muted" style="margin-top: var(--spacing-md);">
+        <p class="text-muted results-info-meta">
           Trainee: <%= enrollment.first_name %> <%= enrollment.last_name %> (<%= enrollment.trainee_id %>)
         </p>
       </div>
@@ -57,7 +57,7 @@
                       </span>
                     </td>
                     <td>
-                      <strong style="color: <%= test.score >= 70 ? 'var(--color-success)' : 'var(--color-error)' %>;">
+                      <strong class="results-score-text results-score-text--<%= test.score >= 70 ? 'pass' : 'fail' %>">
                         <%= test.score.toFixed(1) %>%
                       </strong>
                     </td>
@@ -164,7 +164,7 @@
                     <td><%= score.questions_answered %></td>
                     <td><%= score.questions_correct %></td>
                     <td>
-                      <strong style="color: <%= score.understanding_percentage >= 70 ? 'var(--color-success)' : 'var(--color-error)' %>;">
+                      <strong class="results-score-text results-score-text--<%= score.understanding_percentage >= 70 ? 'pass' : 'fail' %>">
                         <%= score.understanding_percentage.toFixed(1) %>%
                       </strong>
                     </td>
@@ -203,19 +203,19 @@
       
       <!-- Download Results (if allowed) -->
       <% if (enrollment.can_download_results && user.userRole === 'trainee') { %>
-        <div style="text-align: center; margin-top: var(--spacing-xl);">
+        <div class="results-actions">
           <a href="/results/download/<%= enrollment.id %>" class="btn btn-primary">Download Results (PDF)</a>
         </div>
       <% } %>
       
       <!-- Admin/Trainer Actions -->
       <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-        <div style="text-align: center; margin-top: var(--spacing-xl); display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+        <div class="results-actions results-actions--admin">
           <% if (!gradesReleased) { %>
             <button onclick="calculateGrades(<%= enrollment.id %>)" class="btn btn-secondary">Calculate Grades</button>
             <button onclick="releaseGrades(<%= enrollment.id %>)" class="btn btn-primary">Release Grades</button>
           <% } else { %>
-            <span class="badge badge-success" style="padding: 0.75rem 1.5rem; font-size: 1rem;">Grades Released</span>
+            <span class="badge badge-success results-badge-success">Grades Released</span>
           <% } %>
           <% if (!enrollment.can_download_results) { %>
             <button onclick="allowDownload(<%= enrollment.id %>)" class="btn btn-outline">Allow Trainee to Download Results</button>

@@ -34,8 +34,13 @@ router.post('/login', async (req, res) => {
       req.session.userName = `${user.first_name} ${user.last_name}`;
       req.session.userProfile = user.profile_picture;
       req.session.userPosition = user.position || '';
-      
-      return res.redirect('/dashboard');
+
+      return req.session.save((saveErr) => {
+        if (saveErr) {
+          console.error('Session save error:', saveErr);
+        }
+        res.redirect('/dashboard');
+      });
     }
     
     // Try to find in trainees table
@@ -57,8 +62,13 @@ router.post('/login', async (req, res) => {
       req.session.userName = `${trainee.first_name} ${trainee.last_name}`;
       req.session.userProfile = trainee.profile_picture;
       req.session.traineeId = trainee.trainee_id;
-      
-      return res.redirect('/dashboard');
+
+      return req.session.save((saveErr) => {
+        if (saveErr) {
+          console.error('Session save error:', saveErr);
+        }
+        res.redirect('/dashboard');
+      });
     }
     
     return res.render('auth/login', { error: 'Invalid email or password' });
@@ -314,8 +324,13 @@ router.post('/register', async (req, res) => {
 
 // Logout
 router.get('/logout', (req, res) => {
-  req.session.destroy();
-  res.redirect('/login');
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Logout error:', err);
+    }
+    res.clearCookie(req.session?.cookie?.name || 'lms.sid');
+    res.redirect('/login');
+  });
 });
 
 // Public healthcare search endpoint for registration form

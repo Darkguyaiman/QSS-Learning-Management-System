@@ -42,7 +42,7 @@
         </div>
       <% } %>
 
-      <div class="profile-container">
+      <div class="profile-container <%= isTrainee ? 'trainee-view' : '' %>">
         <!-- Profile Header Card -->
         <div class="profile-header-card">
           <!-- Animated Flying Icons (Desktop Only) -->
@@ -89,6 +89,12 @@
                   <i class="fas fa-envelope"></i>
                   <span><%= profile.email %></span>
                 </div>
+                <% if (isTrainee) { %>
+                  <div class="profile-meta-item profile-badge">
+                    <i class="fas fa-user-graduate"></i>
+                    <span>Trainee</span>
+                  </div>
+                <% } %>
                 <% if (isTrainee && profile.trainee_id) { %>
                   <div class="profile-meta-item">
                     <i class="fas fa-id-card"></i>
@@ -107,7 +113,7 @@
         </div>
 
         <!-- Profile Cards Grid -->
-        <div class="profile-cards-grid">
+        <div class="profile-cards-grid <%= isTrainee ? 'trainee-grid' : '' %>">
           <!-- Personal Information Card -->
           <div class="profile-card">
           <div class="profile-card-header">
@@ -176,125 +182,133 @@
             <% } %>
             
             <% if (isTrainee) { %>
-              <!-- Trainee Information Section -->
-              <div class="profile-section-divider">
-                <span>Trainee Details</span>
-              </div>
-              
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="icPassport">
-                    <i class="fas fa-id-card"></i>
-                    IC/Passport
-                  </label>
-                  <input type="text" id="icPassport" name="icPassport" class="form-input form-input-readonly" value="<%= profile.ic_passport || '' %>" readonly>
-                </div>
-                
-                <div class="form-group">
-                  <label for="handphoneNumber">
-                    <i class="fas fa-phone"></i>
-                    Handphone Number
-                  </label>
-                  <input type="text" id="handphoneNumber" name="handphoneNumber" class="form-input form-input-readonly" value="<%= profile.handphone_number || '' %>" readonly>
-                </div>
-              </div>
-              
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="healthcare">
-                    <i class="fas fa-hospital"></i>
-                    Healthcare
-                  </label>
-                  <input type="text" id="healthcare" name="healthcare" class="form-input form-input-readonly" value="<%= profile.healthcare || '' %>" readonly>
-                </div>
-                
-                <div class="form-group">
-                  <label for="designation">
-                    <i class="fas fa-briefcase"></i>
-                    Designation
-                  </label>
-                  <input type="text" id="designation" name="designation" class="form-input form-input-readonly" value="<%= profile.designation || '' %>" readonly>
-                </div>
-              </div>
-              
-              <div class="form-group">
-                <label for="areaOfSpecialization">
-                  <i class="fas fa-user-md"></i>
-                  Area of Specialization
-                </label>
-                <input type="text" id="areaOfSpecialization" name="areaOfSpecialization" class="form-input form-input-readonly" value="<%= profile.area_of_specialization || '' %>" readonly>
-              </div>
-              
-              <div class="form-group">
-                <label for="serialNumber">
-                  <i class="fas fa-server"></i>
-                  Serial Number
-                </label>
-                <input type="text" id="serialNumber" name="serialNumber" class="form-input form-input-readonly" value="<%= profile.serial_number || '' %>" readonly>
-              </div>
-              
-              <!-- Training Information Section -->
-              <% if (profile.first_training) { %>
-                <div class="profile-section-divider">
-                  <span>Training History</span>
-                </div>
-                
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>
-                      <i class="fas fa-calendar-check"></i>
-                      First Training Date
-                    </label>
-                    <input type="text" class="form-input form-input-readonly" value="<%= new Date(profile.first_training).toLocaleDateString() %>" readonly>
+              <div class="trainee-layout">
+                <div class="trainee-primary">
+                  <!-- Trainee Information Section -->
+                  <div class="profile-section-divider">
+                    <span>Trainee Details</span>
+                  </div>
+                  
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="icPassport">
+                        <i class="fas fa-id-card"></i>
+                        IC/Passport
+                      </label>
+                      <input type="text" id="icPassport" name="icPassport" class="form-input form-input-readonly" value="<%= profile.ic_passport || '' %>" readonly>
+                    </div>
+                    
+                    <div class="form-group">
+                      <label for="handphoneNumber">
+                        <i class="fas fa-phone"></i>
+                        Handphone Number
+                      </label>
+                      <input type="text" id="handphoneNumber" name="handphoneNumber" class="form-input form-input-readonly" value="<%= profile.handphone_number || '' %>" readonly>
+                    </div>
+                  </div>
+                  
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="healthcare">
+                        <i class="fas fa-hospital"></i>
+                        Healthcare
+                      </label>
+                      <input type="text" id="healthcare" name="healthcare" class="form-input form-input-readonly" value="<%= profile.healthcare || '' %>" readonly>
+                    </div>
+                    
+                    <div class="form-group">
+                      <label for="designation">
+                        <i class="fas fa-briefcase"></i>
+                        Designation
+                      </label>
+                      <input type="text" id="designation" name="designation" class="form-input form-input-readonly" value="<%= profile.designation || '' %>" readonly>
+                    </div>
                   </div>
                   
                   <div class="form-group">
-                    <label>
-                      <i class="fas fa-calendar-alt"></i>
-                      Latest Training Date
+                    <label for="areaOfSpecialization">
+                      <i class="fas fa-user-md"></i>
+                      Area of Specialization
                     </label>
-                    <input type="text" class="form-input form-input-readonly" value="<%= profile.latest_training ? new Date(profile.latest_training).toLocaleDateString() : 'N/A' %>" readonly>
+                    <input type="text" id="areaOfSpecialization" name="areaOfSpecialization" class="form-input form-input-readonly" value="<%= profile.area_of_specialization || '' %>" readonly>
                   </div>
-                </div>
-                
-                <% if (profile.recertification_date) { %>
+                  
                   <div class="form-group">
-                    <label>
-                      <i class="fas fa-certificate"></i>
-                      Recertification Date
+                    <label for="serialNumber">
+                      <i class="fas fa-server"></i>
+                      Serial Number
                     </label>
-                    <input type="text" class="form-input form-input-readonly" value="<%= new Date(profile.recertification_date).toLocaleDateString() %>" readonly>
+                    <input type="text" id="serialNumber" name="serialNumber" class="form-input form-input-readonly" value="<%= profile.serial_number || '' %>" readonly>
                   </div>
-                <% } %>
-              <% } %>
-              
-              <!-- Statistics Section -->
-              <div class="profile-section-divider">
-                <span>Statistics</span>
-              </div>
-
-              <div class="stats-grid-profile">
-                <div class="stat-card-profile">
-                  <div class="stat-icon">
-                    <i class="fas fa-graduation-cap"></i>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-number"><%= profile.number_of_completed_trainings || 0 %></div>
-                    <div class="stat-label">Completed Trainings</div>
-                    <div class="stat-description">Successfully finished training programs</div>
-                  </div>
+                  
+                  <!-- Training Information Section -->
+                  <% if (profile.first_training) { %>
+                    <div class="profile-section-divider">
+                      <span>Training History</span>
+                    </div>
+                    
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>
+                          <i class="fas fa-calendar-check"></i>
+                          First Training Date
+                        </label>
+                        <input type="text" class="form-input form-input-readonly" value="<%= new Date(profile.first_training).toLocaleDateString() %>" readonly>
+                      </div>
+                      
+                      <div class="form-group">
+                        <label>
+                          <i class="fas fa-calendar-alt"></i>
+                          Latest Training Date
+                        </label>
+                        <input type="text" class="form-input form-input-readonly" value="<%= profile.latest_training ? new Date(profile.latest_training).toLocaleDateString() : 'N/A' %>" readonly>
+                      </div>
+                    </div>
+                    
+                    <% if (profile.recertification_date) { %>
+                      <div class="form-group">
+                        <label>
+                          <i class="fas fa-certificate"></i>
+                          Recertification Date
+                        </label>
+                        <input type="text" class="form-input form-input-readonly" value="<%= new Date(profile.recertification_date).toLocaleDateString() %>" readonly>
+                      </div>
+                    <% } %>
+                  <% } %>
                 </div>
 
-                <div class="stat-card-profile">
-                  <div class="stat-icon">
-                    <i class="fas fa-user-check"></i>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-status status-<%= (profile.trainee_status || 'active').toLowerCase() %>">
-                      <%= profile.trainee_status ? profile.trainee_status.charAt(0).toUpperCase() + profile.trainee_status.slice(1) : 'Active' %>
+                <div class="trainee-secondary">
+                  <div class="trainee-stats-card">
+                    <!-- Statistics Section -->
+                    <div class="profile-section-divider">
+                      <span>Statistics</span>
                     </div>
-                    <div class="stat-label">Account Status</div>
-                    <div class="stat-description">Current training account status</div>
+
+                    <div class="stats-grid-profile">
+                      <div class="stat-card-profile">
+                        <div class="stat-icon">
+                          <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <div class="stat-content">
+                          <div class="stat-number"><%= profile.number_of_completed_trainings || 0 %></div>
+                          <div class="stat-label">Completed Trainings</div>
+                          <div class="stat-description">Successfully finished training programs</div>
+                        </div>
+                      </div>
+
+                      <div class="stat-card-profile">
+                        <div class="stat-icon">
+                          <i class="fas fa-user-check"></i>
+                        </div>
+                        <div class="stat-content">
+                          <div class="stat-status status-<%= (profile.trainee_status || 'active').toLowerCase() %>">
+                            <%= profile.trainee_status ? profile.trainee_status.charAt(0).toUpperCase() + profile.trainee_status.slice(1) : 'Active' %>
+                          </div>
+                          <div class="stat-label">Account Status</div>
+                          <div class="stat-description">Current training account status</div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -448,6 +462,53 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--spacing-xl);
   align-items: start;
+}
+
+.profile-cards-grid.trainee-grid {
+  grid-template-columns: 1fr;
+}
+
+.profile-meta-item.profile-badge {
+  background: rgba(87, 63, 215, 0.12);
+  color: var(--color-purple);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  width: fit-content;
+  max-width: 240px;
+}
+
+.trainee-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr);
+  gap: var(--spacing-lg);
+  align-items: start;
+}
+
+.trainee-primary,
+.trainee-secondary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.trainee-secondary .stats-grid-profile {
+  grid-template-columns: 1fr;
+}
+
+.trainee-stats-card {
+  background: #FFFFFF;
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  border: 1px solid rgba(87, 63, 215, 0.08);
+  box-shadow: var(--shadow);
+}
+
+.trainee-stats-card .profile-section-divider {
+  margin-top: 0;
 }
 
 /* Profile Header Card */
@@ -1546,6 +1607,10 @@
   .btn-lg {
     width: 100%;
     justify-content: center;
+  }
+
+  .trainee-layout {
+    grid-template-columns: 1fr;
   }
 }
 

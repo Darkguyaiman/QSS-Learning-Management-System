@@ -25,14 +25,26 @@
         </a>
       <% } %>
 
-      <a href="/profile" class="nav-link">
-        <% if (user.userProfile) { %>
-          <img src="<%= user.userProfile %>" alt="Profile" class="profile-picture-small">
-        <% } else { %>
-          <div class="profile-placeholder-small"><%= user.userName.charAt(0) %></div>
-        <% } %>
-        <span>Profile</span>
-      </a>
+      <div class="navbar-user" id="navbarUser">
+        <button class="navbar-user-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Open profile menu">
+          <% if (user.userProfile) { %>
+            <img src="<%= user.userProfile %>" alt="Profile" class="profile-picture-small">
+          <% } else { %>
+            <div class="profile-placeholder-small"><%= user.userName.charAt(0) %></div>
+          <% } %>
+          <i class="fas fa-chevron-down navbar-user-caret"></i>
+        </button>
+        <div class="dropdown-menu" role="menu" aria-label="Profile menu">
+          <a href="/profile" class="nav-link dropdown-link" role="menuitem">
+            <i class="fas fa-user"></i>
+            <span>Profile</span>
+          </a>
+          <a href="/logout" class="nav-link dropdown-link" role="menuitem">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+          </a>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -71,5 +83,7 @@
         }
       });
     });
+
+    // Hover/focus dropdown: no click toggle needed
   </script>
 </nav>

@@ -10,7 +10,7 @@
 <body>
   <%- include('../partials/navbar', { user }) %>
 
-  <main class="main-content">
+  <main class="main-content trainee-dashboard">
     <!-- Welcome Hero Section -->
     <div class="welcome-hero">
       <div class="container">
@@ -323,9 +323,11 @@
       background-attachment: fixed;
       color: white;
       padding: var(--spacing-xl) 0;
-      margin: -2rem -1rem 0 -1rem;
+      margin-top: -2rem;
       position: relative;
-      width: calc(100% + 2rem);
+      width: calc(100% + (var(--page-padding) * 2));
+      margin-left: calc(-1 * var(--page-padding));
+      margin-right: calc(-1 * var(--page-padding));
       min-height: 400px;
       display: flex;
       align-items: center;
@@ -395,6 +397,12 @@
     .section-header {
       text-align: left;
       margin-bottom: var(--spacing-2xl);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-auto-rows: auto;
+      column-gap: var(--spacing-lg);
+      row-gap: var(--spacing-xs);
+      align-items: center;
     }
 
     .section-header h2 {
@@ -416,6 +424,7 @@
       font-size: 1rem;
       color: var(--color-gray);
       margin: 0;
+      grid-column: 1;
     }
 
     .section-link {
@@ -428,6 +437,9 @@
       font-size: 0.875rem;
       margin-top: var(--spacing-md);
       transition: all 0.3s ease;
+      grid-column: 2;
+      grid-row: 1 / span 2;
+      justify-self: end;
     }
 
     .section-link:hover {
@@ -444,6 +456,7 @@
       grid-template-columns: 2fr 1fr;
       gap: var(--spacing-xl);
       margin-top: var(--spacing-xl);
+      align-items: stretch;
     }
 
     .action-card-primary {
@@ -456,6 +469,7 @@
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
       border: 2px solid rgba(0, 0, 0, 0.05);
       position: relative;
+      height: 100%;
     }
 
     .action-card-primary:hover {
@@ -521,6 +535,7 @@
       display: flex;
       flex-direction: column;
       gap: var(--spacing-md);
+      height: 100%;
     }
 
     .action-card-secondary {
@@ -535,6 +550,7 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
       border: 2px solid transparent;
       overflow: hidden;
+      flex: 1;
     }
 
     .action-card-secondary:hover {
@@ -773,6 +789,20 @@
       color: var(--color-orange);
     }
 
+    .main-content {
+      --page-padding: var(--spacing-xl);
+      overflow-x: clip;
+    }
+
+    .main-content.trainee-dashboard {
+      padding-top: var(--spacing-md);
+    }
+
+    .main-content > .container {
+      padding-left: clamp(8px, 2vw, 14px);
+      padding-right: clamp(8px, 2vw, 14px);
+    }
+
     /* Trainings Section */
     .trainings-section {
       margin-bottom: var(--spacing-2xl);
@@ -1001,6 +1031,7 @@
       padding: 0 var(--spacing-lg) var(--spacing-lg) var(--spacing-lg);
       display: flex;
       gap: var(--spacing-sm);
+      align-items: stretch;
     }
 
     .training-card-actions .btn {
@@ -1176,6 +1207,21 @@
       .profile-info-item {
         font-size: 0.8125rem;
       }
+
+      .main-content {
+        --page-padding: var(--spacing-md);
+      }
+
+      .section-header {
+        grid-template-columns: 1fr;
+      }
+
+      .section-link {
+        grid-column: 1;
+        grid-row: auto;
+        justify-self: start;
+        margin-top: var(--spacing-sm);
+      }
     }
 
     @media (max-width: 640px) {
@@ -1207,8 +1253,7 @@
       .welcome-hero {
         min-height: 220px;
         padding: var(--spacing-md) 0;
-        margin: -1.5rem -1rem 0 -1rem;
-        width: calc(100% + 2rem);
+        margin-top: -1.5rem;
         background-size: cover;
         background-position: center;
       }
@@ -1216,10 +1261,11 @@
 
     @media (max-width: 425px) {
       .welcome-hero {
-        margin: -2rem -1rem 0 -1rem;
+        margin-top: -2rem;
       }
     }
 
+    @media (max-width: 425px) {
       .hero-content-centered {
         left: 5%;
         top: 50%;
@@ -1294,34 +1340,38 @@
   <script>
     // Animate progress bars and circles on page load
     document.addEventListener('DOMContentLoaded', function() {
-      // Animate progress rings in analytics section
-      const progressRings = document.querySelectorAll('.progress-ring circle:last-child');
-      progressRings.forEach((ring, index) => {
+      function animateCircleStroke(circle, percentage, duration) {
+        const radius = parseFloat(circle.getAttribute('r')) || 0;
+        const circumference = 2 * Math.PI * radius;
+        circle.style.transition = 'none';
+        circle.style.strokeDasharray = `${circumference}`;
+        circle.style.strokeDashoffset = `${circumference}`;
+        circle.getBoundingClientRect();
         setTimeout(() => {
-          const radius = 35; // SVG circle radius
-          const circumference = 2 * Math.PI * radius;
-          const progress = ring.parentElement.querySelector('.progress-circle-number');
-          if (progress) {
-            const percentage = parseInt(progress.textContent);
-            const offset = circumference - (percentage / 100) * circumference;
-            ring.style.strokeDashoffset = offset;
-          }
-        }, index * 200);
-      });
+          circle.style.transition = `stroke-dashoffset ${duration}ms ease`;
+          const offset = circumference - (percentage / 100) * circumference;
+          circle.style.strokeDashoffset = `${offset}`;
+        }, 20);
+      }
+
+      // Animate progress ring in analytics section
+      const analyticsRing = document.querySelector('.progress-ring svg circle:nth-of-type(2)');
+      const analyticsPercentEl = document.querySelector('.progress-ring-number');
+      if (analyticsRing && analyticsPercentEl) {
+        const analyticsPercent = parseInt(analyticsPercentEl.textContent, 10) || 0;
+        animateCircleStroke(analyticsRing, analyticsPercent, 900);
+      }
 
       // Animate training progress circles
-      const trainingCircles = document.querySelectorAll('.training-progress .progress-circle circle:last-child');
-      trainingCircles.forEach((circle, index) => {
+      const trainingCircles = document.querySelectorAll('.training-progress .progress-circle');
+      trainingCircles.forEach((circleWrap, index) => {
+        const circle = circleWrap.querySelector('svg circle:nth-of-type(2)');
+        const label = circleWrap.querySelector('.progress-circle-number[data-target]');
+        if (!circle || !label) return;
+        const percentage = parseInt(label.getAttribute('data-target'), 10) || 0;
         setTimeout(() => {
-          const radius = 35; // SVG circle radius
-          const circumference = 2 * Math.PI * radius;
-          const progress = circle.parentElement.querySelector('.progress-circle-number');
-          if (progress) {
-            const percentage = parseInt(progress.textContent);
-            const offset = circumference - (percentage / 100) * circumference;
-            circle.style.strokeDashoffset = offset;
-          }
-        }, index * 300);
+          animateCircleStroke(circle, percentage, 900);
+        }, index * 120);
       });
 
       // Animate percentage counters in training cards
@@ -1355,4 +1405,3 @@
   </script>
 </body>
 </html>
-

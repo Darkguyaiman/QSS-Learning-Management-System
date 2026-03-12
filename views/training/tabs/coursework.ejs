@@ -101,6 +101,259 @@
     }
   </style>
 
+
+  <!-- Materials Section -->
+  <div class="materials-section">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem;">
+      <h2 style="margin: 0; font-size: 1.25rem; font-weight: 400; color: #202124;">Training Materials</h2>
+      <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-outline" onclick="openCreateSectionModal()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+            <i class="fas fa-folder-plus"></i> Create Section
+          </button>
+          <button class="btn btn-primary" onclick="openCreateMaterialModal()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+            <i class="fas fa-plus"></i> Create Material
+          </button>
+        </div>
+      <% } %>
+    </div>
+    
+    <!-- Materials in "General Materials" section -->
+    <% 
+      let generalMaterialsSection = null;
+      let materialsWithoutSection = [];
+      if (sections.length > 0) {
+        generalMaterialsSection = sections.find(s => s.title === 'General Materials');
+      }
+      if (generalMaterialsSection && generalMaterialsSection.materials && generalMaterialsSection.materials.length > 0) {
+        materialsWithoutSection = generalMaterialsSection.materials;
+      }
+    %>
+    <% if (materialsWithoutSection.length > 0) { %>
+      <div class="section-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h3 class="section-title" style="margin: 0; flex: 1;">General Materials</h3>
+            <% if (['admin', 'trainer'].includes(user.userRole) && generalMaterialsSection) { %>
+              <div class="material-actions">
+                <button class="material-menu-btn" onclick="toggleMaterialMenu(event, 'section-general')" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+                  <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <% if (training.status !== 'completed') { %>
+                  <div id="section-general" class="material-menu-dropdown">
+                    <a href="/training/<%= training.id %>/sections/<%= generalMaterialsSection.id %>/edit" class="material-menu-item">
+                      <i class="fas fa-edit"></i>
+                      <span>Edit Section</span>
+                    </a>
+                  </div>
+                <% } %>
+              </div>
+            <% } %>
+        </div>
+        <% materialsWithoutSection.forEach(material => { %>
+          <div class="material-item">
+            <a href="/training/<%= training.id %>/materials/<%= material.id %>" class="material-item-link">
+              <div class="material-icon <%= material.type %>">
+                <% if (material.type === 'document') { %>
+                  <i class="fas fa-file-alt"></i>
+                <% } else if (material.type === 'video') { %>
+                  <i class="fas fa-video"></i>
+                <% } else if (material.type === 'link') { %>
+                  <i class="fas fa-link"></i>
+                <% } else { %>
+                  <i class="fas fa-file"></i>
+                <% } %>
+              </div>
+              <div class="material-info">
+                <h4><%= material.title %></h4>
+                <p>Uploaded by <%= material.uploaded_by %></p>
+              </div>
+            </a>
+            <div style="display: flex; gap: 0.5rem; align-items: center;" onclick="event.stopPropagation();">
+              <% if (material.file_path) { %>
+                <a href="<%= material.file_path %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
+                  <i class="fas fa-download"></i> Download
+                </a>
+              <% } %>
+              <% if (material.url) { %>
+                <a href="<%= material.url %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
+                  <i class="fas fa-external-link-alt"></i> Open
+                </a>
+              <% } %>
+              <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+                <div class="material-actions">
+                  <button class="material-menu-btn" onclick="event.stopPropagation(); toggleMaterialMenu(event, 'material-<%= material.id %>')" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+                    <i class="fas fa-ellipsis-v"></i>
+                  </button>
+                  <% if (training.status !== 'completed') { %>
+                    <div id="material-<%= material.id %>" class="material-menu-dropdown">
+                      <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="material-menu-item">
+                        <i class="fas fa-edit"></i>
+                        <span>Edit</span>
+                      </a>
+                      <button class="material-menu-item delete" onclick="deleteMaterial(<%= material.id %>)">
+                        <i class="fas fa-trash"></i>
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  <% } %>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+    
+    <!-- Materials organized by sections -->
+    <% 
+      const sectionsToShow = sections.filter(s => s.title !== 'General Materials');
+    %>
+    <% if (sectionsToShow.length > 0) { %>
+      <% sectionsToShow.forEach(section => { %>
+        <div class="section-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 class="section-title" style="margin: 0; flex: 1;"><%= section.title %></h3>
+            <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+              <div class="material-actions">
+                <button class="material-menu-btn" onclick="toggleMaterialMenu(event, 'section-<%= section.id %>')" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+                  <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <% if (training.status !== 'completed') { %>
+                  <div id="section-<%= section.id %>" class="material-menu-dropdown">
+                    <a href="/training/<%= training.id %>/sections/<%= section.id %>/edit" class="material-menu-item">
+                      <i class="fas fa-edit"></i>
+                      <span>Edit Section</span>
+                    </a>
+                    <button class="material-menu-item delete" onclick="deleteSection(<%= section.id %>)">
+                      <i class="fas fa-trash"></i>
+                      <span>Delete Section</span>
+                    </button>
+                  </div>
+                <% } %>
+              </div>
+            <% } %>
+          </div>
+          
+          <% if (section.materials && section.materials.length > 0) { %>
+            <% section.materials.forEach(material => { %>
+              <div class="material-item">
+                <a href="/training/<%= training.id %>/materials/<%= material.id %>" class="material-item-link">
+                  <div class="material-icon <%= material.type %>">
+                    <% if (material.type === 'document') { %>
+                      <i class="fas fa-file-alt"></i>
+                    <% } else if (material.type === 'video') { %>
+                      <i class="fas fa-video"></i>
+                    <% } else if (material.type === 'link') { %>
+                      <i class="fas fa-link"></i>
+                    <% } else { %>
+                      <i class="fas fa-file"></i>
+                    <% } %>
+                  </div>
+                  <div class="material-info">
+                    <h4><%= material.title %></h4>
+                    <p>Uploaded by <%= material.uploaded_by %></p>
+                  </div>
+                </a>
+                <div style="display: flex; gap: 0.5rem; align-items: center;" onclick="event.stopPropagation();">
+                  <% if (material.file_path) { %>
+                    <a href="<%= material.file_path %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
+                      <i class="fas fa-download"></i> Download
+                    </a>
+                  <% } %>
+                  <% if (material.url) { %>
+                    <a href="<%= material.url %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
+                      <i class="fas fa-external-link-alt"></i> Open
+                    </a>
+                  <% } %>
+                  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+                    <div class="material-actions">
+                      <button class="material-menu-btn" onclick="event.stopPropagation(); toggleMaterialMenu(event, 'material-<%= material.id %>')" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+                        <i class="fas fa-ellipsis-v"></i>
+                      </button>
+                      <% if (training.status !== 'completed') { %>
+                        <div id="material-<%= material.id %>" class="material-menu-dropdown">
+                          <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="material-menu-item">
+                            <i class="fas fa-edit"></i>
+                            <span>Edit</span>
+                          </a>
+                          <button class="material-menu-item delete" onclick="deleteMaterial(<%= material.id %>)">
+                            <i class="fas fa-trash"></i>
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      <% } %>
+                    </div>
+                  <% } %>
+                </div>
+              </div>
+            <% }); %>
+          <% } else { %>
+            <p style="color: #5F6368; font-size: 0.875rem; margin: 0;">No materials in this section yet.</p>
+          <% } %>
+        </div>
+      <% }); %>
+    <% } %>
+    
+    <% if (sections.length === 0 && materialsWithoutSection.length === 0) { %>
+      <div class="empty-state">
+        <p>No materials added yet.</p>
+        <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+          <button class="btn btn-primary" onclick="openCreateMaterialModal()" style="margin-top: 1rem;">
+            <i class="fas fa-plus"></i> Create First Material
+          </button>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+  
+  <!-- Tests Section -->
+  <div class="section-card" style="margin-top: 2rem;">
+    <h3 class="section-title">Tests</h3>
+    <% if (trainingTests && trainingTests.length > 0) { %>
+      <ul style="list-style: none; padding: 0; margin: 0;">
+        <% trainingTests.forEach(test => { %>
+          <li style="padding: 0.75rem 0; border-bottom: 1px solid #E8EAED; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-weight: 500;">
+                <%= test.test_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %>
+              </span>
+              <span style="color: #5F6368; font-size: 0.875rem; margin-left: 0.5rem;">
+                (<%= test.total_questions %> questions)
+              </span>
+            </div>
+            <% if (user.userRole === 'trainee' && enrollment) { %>
+              <% 
+                const testType = test.test_type;
+                let completed = false;
+                if (testType === 'pre_test') completed = enrollment.pre_test_completed;
+                else if (testType === 'post_test') completed = enrollment.post_test_completed;
+                else if (testType === 'refresher_training') completed = enrollment.refresher_training_test_completed;
+              %>
+              <% if (completed) { %>
+                <span style="color: #137333; font-weight: 500;"><i class="fas fa-check-circle"></i> Completed</span>
+              <% } else if (testType === 'post_test' && !enrollment.pre_test_completed) { %>
+                <span style="color: #5F6368;">Complete Pre-Test first</span>
+              <% } else { %>
+                <a href="/tests/start/<%= enrollment.id %>/<%= testType %>" class="btn btn-sm btn-primary">Take Test</a>
+              <% } %>
+            <% } else if (['admin', 'trainer'].includes(user.userRole)) { %>
+              <span style="color: #5F6368; font-size: 0.875rem;">View responses in Marks tab</span>
+            <% } %>
+          </li>
+        <% }); %>
+      </ul>
+      <% if (user.userRole === 'trainee' && enrollment) { %>
+        <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+          <a href="/results/enrollment/<%= enrollment.id %>" class="btn btn-secondary btn-sm">View Results</a>
+          <a href="/attendance/trainee/<%= enrollment.id %>" class="btn btn-outline btn-sm">View Attendance</a>
+        </div>
+      <% } %>
+    <% } else { %>
+      <p style="color: #5F6368; margin: 0;">No tests available for this training.</p>
+    <% } %>
+  </div>
+
+
   <!-- Training Media (Photos) -->
   <div class="section-card" style="margin-bottom: 2rem;">
     <div style="display:flex; justify-content:space-between; align-items:center; gap: 0.75rem; flex-wrap: wrap;">
@@ -606,256 +859,6 @@
       })();
     </script>
   </div>
-
-  <!-- Materials Section -->
-  <div class="materials-section">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem;">
-      <h2 style="margin: 0; font-size: 1.25rem; font-weight: 400; color: #202124;">Training Materials</h2>
-      <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-        <div style="display: flex; gap: 0.5rem;">
-          <button class="btn btn-outline" onclick="openCreateSectionModal()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
-            <i class="fas fa-folder-plus"></i> Create Section
-          </button>
-          <button class="btn btn-primary" onclick="openCreateMaterialModal()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
-            <i class="fas fa-plus"></i> Create Material
-          </button>
-        </div>
-      <% } %>
-    </div>
-    
-    <!-- Materials in "General Materials" section -->
-    <% 
-      let generalMaterialsSection = null;
-      let materialsWithoutSection = [];
-      if (sections.length > 0) {
-        generalMaterialsSection = sections.find(s => s.title === 'General Materials');
-      }
-      if (generalMaterialsSection && generalMaterialsSection.materials && generalMaterialsSection.materials.length > 0) {
-        materialsWithoutSection = generalMaterialsSection.materials;
-      }
-    %>
-    <% if (materialsWithoutSection.length > 0) { %>
-      <div class="section-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-          <h3 class="section-title" style="margin: 0; flex: 1;">General Materials</h3>
-            <% if (['admin', 'trainer'].includes(user.userRole) && generalMaterialsSection) { %>
-              <div class="material-actions">
-                <button class="material-menu-btn" onclick="toggleMaterialMenu(event, 'section-general')" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
-                  <i class="fas fa-ellipsis-v"></i>
-                </button>
-                <% if (training.status !== 'completed') { %>
-                  <div id="section-general" class="material-menu-dropdown">
-                    <a href="/training/<%= training.id %>/sections/<%= generalMaterialsSection.id %>/edit" class="material-menu-item">
-                      <i class="fas fa-edit"></i>
-                      <span>Edit Section</span>
-                    </a>
-                  </div>
-                <% } %>
-              </div>
-            <% } %>
-        </div>
-        <% materialsWithoutSection.forEach(material => { %>
-          <div class="material-item">
-            <a href="/training/<%= training.id %>/materials/<%= material.id %>" class="material-item-link">
-              <div class="material-icon <%= material.type %>">
-                <% if (material.type === 'document') { %>
-                  <i class="fas fa-file-alt"></i>
-                <% } else if (material.type === 'video') { %>
-                  <i class="fas fa-video"></i>
-                <% } else if (material.type === 'link') { %>
-                  <i class="fas fa-link"></i>
-                <% } else { %>
-                  <i class="fas fa-file"></i>
-                <% } %>
-              </div>
-              <div class="material-info">
-                <h4><%= material.title %></h4>
-                <p>Uploaded by <%= material.uploaded_by %></p>
-              </div>
-            </a>
-            <div style="display: flex; gap: 0.5rem; align-items: center;" onclick="event.stopPropagation();">
-              <% if (material.file_path) { %>
-                <a href="<%= material.file_path %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
-                  <i class="fas fa-download"></i> Download
-                </a>
-              <% } %>
-              <% if (material.url) { %>
-                <a href="<%= material.url %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
-                  <i class="fas fa-external-link-alt"></i> Open
-                </a>
-              <% } %>
-              <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-                <div class="material-actions">
-                  <button class="material-menu-btn" onclick="event.stopPropagation(); toggleMaterialMenu(event, 'material-<%= material.id %>')" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
-                    <i class="fas fa-ellipsis-v"></i>
-                  </button>
-                  <% if (training.status !== 'completed') { %>
-                    <div id="material-<%= material.id %>" class="material-menu-dropdown">
-                      <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="material-menu-item">
-                        <i class="fas fa-edit"></i>
-                        <span>Edit</span>
-                      </a>
-                      <button class="material-menu-item delete" onclick="deleteMaterial(<%= material.id %>)">
-                        <i class="fas fa-trash"></i>
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                  <% } %>
-                </div>
-              <% } %>
-            </div>
-          </div>
-        <% }); %>
-      </div>
-    <% } %>
-    
-    <!-- Materials organized by sections -->
-    <% 
-      const sectionsToShow = sections.filter(s => s.title !== 'General Materials');
-    %>
-    <% if (sectionsToShow.length > 0) { %>
-      <% sectionsToShow.forEach(section => { %>
-        <div class="section-card">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3 class="section-title" style="margin: 0; flex: 1;"><%= section.title %></h3>
-            <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-              <div class="material-actions">
-                <button class="material-menu-btn" onclick="toggleMaterialMenu(event, 'section-<%= section.id %>')" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
-                  <i class="fas fa-ellipsis-v"></i>
-                </button>
-                <% if (training.status !== 'completed') { %>
-                  <div id="section-<%= section.id %>" class="material-menu-dropdown">
-                    <a href="/training/<%= training.id %>/sections/<%= section.id %>/edit" class="material-menu-item">
-                      <i class="fas fa-edit"></i>
-                      <span>Edit Section</span>
-                    </a>
-                    <button class="material-menu-item delete" onclick="deleteSection(<%= section.id %>)">
-                      <i class="fas fa-trash"></i>
-                      <span>Delete Section</span>
-                    </button>
-                  </div>
-                <% } %>
-              </div>
-            <% } %>
-          </div>
-          
-          <% if (section.materials && section.materials.length > 0) { %>
-            <% section.materials.forEach(material => { %>
-              <div class="material-item">
-                <a href="/training/<%= training.id %>/materials/<%= material.id %>" class="material-item-link">
-                  <div class="material-icon <%= material.type %>">
-                    <% if (material.type === 'document') { %>
-                      <i class="fas fa-file-alt"></i>
-                    <% } else if (material.type === 'video') { %>
-                      <i class="fas fa-video"></i>
-                    <% } else if (material.type === 'link') { %>
-                      <i class="fas fa-link"></i>
-                    <% } else { %>
-                      <i class="fas fa-file"></i>
-                    <% } %>
-                  </div>
-                  <div class="material-info">
-                    <h4><%= material.title %></h4>
-                    <p>Uploaded by <%= material.uploaded_by %></p>
-                  </div>
-                </a>
-                <div style="display: flex; gap: 0.5rem; align-items: center;" onclick="event.stopPropagation();">
-                  <% if (material.file_path) { %>
-                    <a href="<%= material.file_path %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
-                      <i class="fas fa-download"></i> Download
-                    </a>
-                  <% } %>
-                  <% if (material.url) { %>
-                    <a href="<%= material.url %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
-                      <i class="fas fa-external-link-alt"></i> Open
-                    </a>
-                  <% } %>
-                  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-                    <div class="material-actions">
-                      <button class="material-menu-btn" onclick="event.stopPropagation(); toggleMaterialMenu(event, 'material-<%= material.id %>')" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
-                        <i class="fas fa-ellipsis-v"></i>
-                      </button>
-                      <% if (training.status !== 'completed') { %>
-                        <div id="material-<%= material.id %>" class="material-menu-dropdown">
-                          <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="material-menu-item">
-                            <i class="fas fa-edit"></i>
-                            <span>Edit</span>
-                          </a>
-                          <button class="material-menu-item delete" onclick="deleteMaterial(<%= material.id %>)">
-                            <i class="fas fa-trash"></i>
-                            <span>Delete</span>
-                          </button>
-                        </div>
-                      <% } %>
-                    </div>
-                  <% } %>
-                </div>
-              </div>
-            <% }); %>
-          <% } else { %>
-            <p style="color: #5F6368; font-size: 0.875rem; margin: 0;">No materials in this section yet.</p>
-          <% } %>
-        </div>
-      <% }); %>
-    <% } %>
-    
-    <% if (sections.length === 0 && materialsWithoutSection.length === 0) { %>
-      <div class="empty-state">
-        <p>No materials added yet.</p>
-        <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-          <button class="btn btn-primary" onclick="openCreateMaterialModal()" style="margin-top: 1rem;">
-            <i class="fas fa-plus"></i> Create First Material
-          </button>
-        <% } %>
-      </div>
-    <% } %>
-  </div>
   
-  <!-- Tests Section -->
-  <div class="section-card" style="margin-top: 2rem;">
-    <h3 class="section-title">Tests</h3>
-    <% if (trainingTests && trainingTests.length > 0) { %>
-      <ul style="list-style: none; padding: 0; margin: 0;">
-        <% trainingTests.forEach(test => { %>
-          <li style="padding: 0.75rem 0; border-bottom: 1px solid #E8EAED; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <span style="font-weight: 500;">
-                <%= test.test_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %>
-              </span>
-              <span style="color: #5F6368; font-size: 0.875rem; margin-left: 0.5rem;">
-                (<%= test.total_questions %> questions)
-              </span>
-            </div>
-            <% if (user.userRole === 'trainee' && enrollment) { %>
-              <% 
-                const testType = test.test_type;
-                let completed = false;
-                if (testType === 'pre_test') completed = enrollment.pre_test_completed;
-                else if (testType === 'post_test') completed = enrollment.post_test_completed;
-                else if (testType === 'refresher_training') completed = enrollment.refresher_training_test_completed;
-              %>
-              <% if (completed) { %>
-                <span style="color: #137333; font-weight: 500;"><i class="fas fa-check-circle"></i> Completed</span>
-              <% } else if (testType === 'post_test' && !enrollment.pre_test_completed) { %>
-                <span style="color: #5F6368;">Complete Pre-Test first</span>
-              <% } else { %>
-                <a href="/tests/start/<%= enrollment.id %>/<%= testType %>" class="btn btn-sm btn-primary">Take Test</a>
-              <% } %>
-            <% } else if (['admin', 'trainer'].includes(user.userRole)) { %>
-              <span style="color: #5F6368; font-size: 0.875rem;">View responses in Marks tab</span>
-            <% } %>
-          </li>
-        <% }); %>
-      </ul>
-      <% if (user.userRole === 'trainee' && enrollment) { %>
-        <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
-          <a href="/results/enrollment/<%= enrollment.id %>" class="btn btn-secondary btn-sm">View Results</a>
-          <a href="/attendance/trainee/<%= enrollment.id %>" class="btn btn-outline btn-sm">View Attendance</a>
-        </div>
-      <% } %>
-    <% } else { %>
-      <p style="color: #5F6368; margin: 0;">No tests available for this training.</p>
-    <% } %>
-  </div>
 </div>
 

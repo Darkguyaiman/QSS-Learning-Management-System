@@ -2217,7 +2217,15 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
     const courseName = enrollment.training_title;
     const location = enrollment.healthcare || 'N/A';
     const date = formatDate(enrollment.end_datetime || enrollment.start_datetime || enrollment.enrolled_at);
-    const validityPeriod = 'N/A';
+
+    const certificateAttempt = (testAttempts || []).find(attempt => attempt.test_type === 'certificate_enrolment');
+    const validityStartRaw = certificateAttempt?.completed_at || enrollment.end_datetime || enrollment.start_datetime || enrollment.enrolled_at || new Date();
+    const validityStart = new Date(validityStartRaw);
+    const validityEnd = new Date(validityStart);
+    if (!isNaN(validityEnd.valueOf())) {
+      validityEnd.setFullYear(validityEnd.getFullYear() + 2);
+    }
+    const validityPeriod = `${formatDate(validityStart)} to ${formatDate(validityEnd)}`;
     const certificateNumber = `QSS-${trainingId}-${enrollmentId}`;
     const signerName = 'Administrator';
     const signerTitle = 'Authorized Signatory';
