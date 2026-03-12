@@ -2088,7 +2088,7 @@ body.has-sidebar .main-content {
 
 .results-scorebox-score {
   font-size: 3rem;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--color-dark);
 }
 
@@ -2250,6 +2250,10 @@ body.has-sidebar .main-content {
   color: var(--color-error);
 }
 
+.results-score-text {
+  font-weight: 500;
+}
+
 .results-actions {
   display: flex;
   justify-content: center;
@@ -2407,7 +2411,7 @@ body.has-sidebar .main-content {
 
 .score-value {
   font-size: 2.2rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .score-status {
@@ -2490,6 +2494,29 @@ body.has-sidebar .main-content {
   font-size: 0.85rem;
   color: var(--color-gray);
   font-weight: 700;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hands-on-status {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hands-on-status.status-outstanding {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+.hands-on-status.status-not-passed {
+  background: rgba(239, 68, 68, 0.12);
+  color: #B91C1C;
 }
 
 .final-grade-card {
@@ -2511,7 +2538,7 @@ body.has-sidebar .main-content {
 
 .final-grade-value {
   font-size: 3.4rem;
-  font-weight: 800;
+  font-weight: 600;
   margin-bottom: 0.4rem;
   color: var(--color-dark);
 }

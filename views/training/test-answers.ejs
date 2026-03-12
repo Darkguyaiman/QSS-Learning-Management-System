@@ -259,11 +259,11 @@
             <i class="fas fa-list-ol"></i>
             Questions: <%= answers.length %>
           </div>
-          <div class="summary-pill <%= attempt.score >= 50 ? 'pill-good' : 'pill-bad' %>">
+          <div class="summary-pill <%= attempt.score >= 80 ? 'pill-good' : 'pill-bad' %>">
             <i class="fas fa-percent"></i>
             Score: <%= attempt.score %>%
           </div>
-          <div class="summary-pill <%= correctCount >= Math.ceil(answers.length * 0.5) ? 'pill-good' : 'pill-bad' %>">
+          <div class="summary-pill <%= correctCount >= Math.ceil(answers.length * 0.8) ? 'pill-good' : 'pill-bad' %>">
             <i class="fas fa-check-circle"></i>
             Correct: <%= correctCount %>/<%= answers.length %>
           </div>

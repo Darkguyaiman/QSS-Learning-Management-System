@@ -5,6 +5,13 @@ const router = express.Router();
 const fs = require('fs');
 const sharp = require('sharp');
 
+const TEST_TYPE_LABELS = {
+  pre_test: 'Pre-Test',
+  post_test: 'Post-Test',
+  refresher_training: 'Refresher Training Test',
+  certificate_enrolment: 'Certificate Enrolment Test'
+};
+
 /**
  * Helper function to randomly select questions for a test
  * Ensures at least 2 questions from each objective
@@ -195,6 +202,108 @@ async function validateTestQuestions(db, trainingType, deviceModelId) {
     valid: errors.length === 0,
     errors
   };
+}
+
+async function buildQuestionValidationSummary(db, errors, deviceModelId) {
+  const summary = {
+    title: 'Cannot create training',
+    message: 'Not enough questions in the question bank to generate the required tests.',
+    sections: [],
+    raw: errors
+  };
+
+  if (!Array.isArray(errors) || errors.length === 0) {
+    return summary;
+  }
+
+  if (errors.some(error => String(error).includes('No objectives found'))) {
+    summary.message = 'No objectives found. Please create objectives first, then add questions for each objective.';
+    return summary;
+  }
+
+  const objectiveRe = /^(\w+): Not enough questions for objective ID (\d+)\. Need at least (\d+), found (\d+)\.$/;
+  const totalRe = /^(\w+): Not enough total questions available\. Need (\d+), found (\d+)\.$/;
+  const requestedRe = /^(\w+): Need at least (\d+) questions .* but only (\d+) requested\.$/;
+
+  const perObjective = {};
+  const totals = {};
+  const requested = {};
+  const objectiveIds = new Set();
+
+  for (const error of errors) {
+    const text = String(error);
+    let match = text.match(objectiveRe);
+    if (match) {
+      const testType = match[1];
+      const objectiveId = parseInt(match[2], 10);
+      const need = parseInt(match[3], 10);
+      const found = parseInt(match[4], 10);
+      if (!perObjective[testType]) perObjective[testType] = [];
+      perObjective[testType].push({ objectiveId, need, found });
+      objectiveIds.add(objectiveId);
+      continue;
+    }
+
+    match = text.match(totalRe);
+    if (match) {
+      const testType = match[1];
+      totals[testType] = { need: parseInt(match[2], 10), found: parseInt(match[3], 10) };
+      continue;
+    }
+
+    match = text.match(requestedRe);
+    if (match) {
+      const testType = match[1];
+      requested[testType] = { need: parseInt(match[2], 10), requested: parseInt(match[3], 10) };
+      continue;
+    }
+  }
+
+  let objectiveNames = {};
+  if (objectiveIds.size > 0) {
+    const ids = Array.from(objectiveIds);
+    const placeholders = ids.map(() => '?').join(',');
+    const [rows] = await db.query(`SELECT id, name FROM objectives WHERE id IN (${placeholders})`, ids);
+    objectiveNames = (rows || []).reduce((acc, row) => {
+      acc[row.id] = row.name;
+      return acc;
+    }, {});
+  }
+
+  if (deviceModelId) {
+    const [models] = await db.query('SELECT model_name FROM device_models WHERE id = ?', [deviceModelId]);
+    const modelName = models?.[0]?.model_name;
+    if (modelName) {
+      summary.message = `Not enough questions in the question bank for the selected device model (${modelName}).`;
+    }
+  }
+
+  const testTypes = new Set([
+    ...Object.keys(perObjective),
+    ...Object.keys(totals),
+    ...Object.keys(requested)
+  ]);
+
+  const orderedTestTypes = ['pre_test', 'post_test', 'certificate_enrolment', 'refresher_training']
+    .filter(type => testTypes.has(type))
+    .concat(Array.from(testTypes).filter(type => !['pre_test', 'post_test', 'certificate_enrolment', 'refresher_training'].includes(type)));
+
+  summary.sections = orderedTestTypes.map(testType => {
+    const objectives = (perObjective[testType] || []).map(entry => ({
+      ...entry,
+      objectiveName: objectiveNames[entry.objectiveId] || `Objective ${entry.objectiveId}`
+    }));
+
+    return {
+      testType,
+      label: TEST_TYPE_LABELS[testType] || testType,
+      objectives,
+      total: totals[testType] || null,
+      requested: requested[testType] || null
+    };
+  }).filter(section => section.objectives.length || section.total || section.requested);
+
+  return summary;
 }
 
 /**
@@ -813,9 +922,10 @@ router.post('/create', async (req, res) => {
         ORDER BY last_name, first_name ASC
       `, [req.session.userId]);
       
+      const errorSummary = await buildQuestionValidationSummary(req.db, validation.errors, device_model_id);
       return res.render('training/create', { 
         user: req.session, 
-        error: `Cannot create training: ${validation.errors.join(' ')}`,
+        error: errorSummary,
         healthcare,
         trainees,
         devices,
@@ -959,11 +1069,11 @@ router.post('/create', async (req, res) => {
       
       // If this is a main training, copy all hands-on aspects from settings
       if (type === 'main') {
-        const [aspects] = await connection.query('SELECT * FROM hands_on_aspects_settings');
+        const [aspects] = await connection.query('SELECT * FROM practical_learning_outcomes_settings');
         
         for (const aspect of aspects) {
           await connection.query(
-            'INSERT INTO hands_on_aspects (training_id, aspect_name, description, max_score) VALUES (?, ?, ?, ?)',
+            'INSERT INTO practical_learning_outcomes (training_id, aspect_name, description, max_score) VALUES (?, ?, ?, ?)',
             [trainingId, aspect.aspect_name, aspect.description, aspect.max_score]
           );
         }
@@ -1139,7 +1249,7 @@ router.get('/:id', async (req, res) => {
     let aspects = [];
     if (training.type === 'main') {
       [aspects] = await req.db.query(
-        'SELECT * FROM hands_on_aspects WHERE training_id = ? ORDER BY id',
+        'SELECT * FROM practical_learning_outcomes WHERE training_id = ? ORDER BY id',
         [req.params.id]
       );
     }
@@ -1210,8 +1320,8 @@ router.get('/:id', async (req, res) => {
         if (training.type === 'main') {
           [handsOnScores] = await req.db.query(`
             SELECT hs.*, ha.aspect_name, ha.max_score
-            FROM hands_on_scores hs
-            JOIN hands_on_aspects ha ON hs.aspect_id = ha.id
+            FROM practical_learning_outcome_scores hs
+            JOIN practical_learning_outcomes ha ON hs.aspect_id = ha.id
             WHERE hs.enrollment_id = ?
           `, [enrollment.id]);
         }
@@ -1242,7 +1352,8 @@ router.get('/:id', async (req, res) => {
         SELECT e.*,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') > 0 as pre_test_completed,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') > 0 as post_test_completed,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed') > 0 as refresher_training_test_completed
+          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed') > 0 as refresher_training_test_completed,
+          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') > 0 as certificate_enrolment_test_completed
         FROM enrollments e
         WHERE e.trainee_id = ? AND e.training_id = ?
       `, [req.session.userId, req.params.id]);
@@ -1263,8 +1374,8 @@ router.get('/:id', async (req, res) => {
         if (training.type === 'main') {
           [handsOnScores] = await req.db.query(`
             SELECT hs.*, ha.aspect_name, ha.max_score, ha.description
-            FROM hands_on_scores hs
-            JOIN hands_on_aspects ha ON hs.aspect_id = ha.id
+            FROM practical_learning_outcome_scores hs
+            JOIN practical_learning_outcomes ha ON hs.aspect_id = ha.id
             WHERE hs.enrollment_id = ?
           `, [enrollment.id]);
         }
@@ -1366,7 +1477,7 @@ router.get('/:id', async (req, res) => {
       training, 
       trainingMedia,
       enrollment,
-      marksData: req.session.userRole === 'trainee' && traineeMarksData ? traineeMarksData : marksData,
+      marksData: req.session.userRole === 'trainee' ? (traineeMarksData || null) : marksData,
       sections: sections.map(s => {
         let materials = [];
         try {
@@ -1395,7 +1506,6 @@ router.get('/:id', async (req, res) => {
       trainer,
       trainers,
       enrolledTrainees,
-      marksData,
       attendanceData,
       allHealthcare,
       allDevices,
@@ -2171,13 +2281,10 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
     const enrollment = enrollments[0];
     
     // Check access - trainee can only access their own, admin/trainer can access any
-    if (req.session.userRole === 'trainee' && enrollment.trainee_id !== req.session.userId) {
-      return res.status(403).send('Access denied');
-    }
-    
-    // Check if scores are released (for trainees)
-    if (req.session.userRole === 'trainee' && !enrollment.can_download_results) {
-      return res.status(403).send('Scores have not been released yet. Please contact your administrator.');
+    if (req.session.userRole === 'trainee') {
+      if (String(enrollment.trainee_id) !== String(req.session.userId)) {
+        return res.status(403).send('Access denied');
+      }
     }
     
     // Get test results
@@ -2185,14 +2292,22 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
       'SELECT * FROM test_attempts WHERE enrollment_id = ? AND status = "completed" ORDER BY test_type',
       [enrollmentId]
     );
+
+    // Check if scores are released (for trainees) or certificate enrolment completed
+    if (req.session.userRole === 'trainee' && !enrollment.can_download_results) {
+      const hasCertificateAttempt = (testAttempts || []).some(attempt => attempt.test_type === 'certificate_enrolment');
+      if (!hasCertificateAttempt) {
+        return res.status(403).send('Scores have not been released yet. Please contact your administrator.');
+      }
+    }
     
     // Get hands-on scores if main training
     let handsOnScores = [];
     if (enrollment.training_type === 'main') {
       [handsOnScores] = await req.db.query(`
         SELECT hs.*, ha.aspect_name, ha.max_score
-        FROM hands_on_scores hs
-        JOIN hands_on_aspects ha ON hs.aspect_id = ha.id
+        FROM practical_learning_outcome_scores hs
+        JOIN practical_learning_outcomes ha ON hs.aspect_id = ha.id
         WHERE hs.enrollment_id = ?
       `, [enrollmentId]);
     }
@@ -2275,7 +2390,7 @@ router.post('/:id/aspect/:aspectId/update', async (req, res) => {
     
     // Verify the aspect belongs to this training
     const [aspects] = await req.db.query(
-      'SELECT id FROM hands_on_aspects WHERE id = ? AND training_id = ?',
+      'SELECT id FROM practical_learning_outcomes WHERE id = ? AND training_id = ?',
       [req.params.aspectId, req.params.id]
     );
     
@@ -2284,7 +2399,7 @@ router.post('/:id/aspect/:aspectId/update', async (req, res) => {
     }
     
     await req.db.query(
-      'UPDATE hands_on_aspects SET max_score = ? WHERE id = ?',
+      'UPDATE practical_learning_outcomes SET max_score = ? WHERE id = ?',
       [max_score || 100, req.params.aspectId]
     );
     
@@ -2475,13 +2590,13 @@ router.get('/:id/enrollment/:enrollmentId/hands-on', async (req, res) => {
     
     // Get hands-on aspects
     const [aspects] = await req.db.query(
-      'SELECT * FROM hands_on_aspects WHERE training_id = ? ORDER BY id',
+      'SELECT * FROM practical_learning_outcomes WHERE training_id = ? ORDER BY id',
       [req.params.id]
     );
     
     // Get existing scores
     const [scores] = await req.db.query(
-      'SELECT * FROM hands_on_scores WHERE enrollment_id = ?',
+      'SELECT * FROM practical_learning_outcome_scores WHERE enrollment_id = ?',
       [enrollmentId]
     );
     
@@ -2521,7 +2636,7 @@ router.post('/:id/enrollment/:enrollmentId/hands-on/save', async (req, res) => {
     // Save each score
     for (const scoreData of scores) {
       await req.db.query(
-        `INSERT INTO hands_on_scores (enrollment_id, aspect_id, score, evaluated_by, comments) 
+        `INSERT INTO practical_learning_outcome_scores (enrollment_id, aspect_id, score, evaluated_by, comments) 
          VALUES (?, ?, ?, ?, ?) 
          ON DUPLICATE KEY UPDATE score = ?, evaluated_by = ?, comments = ?, evaluated_at = NOW()`,
         [

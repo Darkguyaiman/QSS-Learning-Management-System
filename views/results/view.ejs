@@ -57,9 +57,9 @@
                       </span>
                     </td>
                     <td>
-                      <strong class="results-score-text results-score-text--<%= test.score >= 70 ? 'pass' : 'fail' %>">
+                      <span class="results-score-text results-score-text--<%= test.score >= 80 ? 'pass' : 'fail' %>">
                         <%= test.score.toFixed(1) %>%
-                      </strong>
+                      </span>
                     </td>
                     <td><%= test.total_questions %></td>
                     <td><%= new Date(test.completed_at).toLocaleDateString() %></td>
@@ -164,9 +164,9 @@
                     <td><%= score.questions_answered %></td>
                     <td><%= score.questions_correct %></td>
                     <td>
-                      <strong class="results-score-text results-score-text--<%= score.understanding_percentage >= 70 ? 'pass' : 'fail' %>">
+                      <span class="results-score-text results-score-text--<%= score.understanding_percentage >= 80 ? 'pass' : 'fail' %>">
                         <%= score.understanding_percentage.toFixed(1) %>%
-                      </strong>
+                      </span>
                     </td>
                   </tr>
                 <% }); %>

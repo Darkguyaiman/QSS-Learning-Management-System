@@ -133,14 +133,16 @@ const attendanceRoutes = require('./routes/attendance');
 const resultsRoutes = require('./routes/results');
 const profileRoutes = require('./routes/profile');
 const settingsRoutes = require('./routes/settings');
+const traineeRoutes = require('./routes/trainee');
 
 app.use('/', authRoutes);
+app.use('/', requireAuth, traineeRoutes);
 app.use('/dashboard', requireAuth, dashboardRoutes);
 app.use('/training', requireAuth, trainingRoutes);
 app.use('/trainees', requireAuth, requireRole(['admin', 'trainer']), traineesRoutes);
 app.use('/questions', requireAuth, requireRole(['admin', 'trainer']), questionBankRoutes);
 app.use('/tests', requireAuth, testRoutes);
-app.use('/attendance', requireAuth, requireRole(['admin', 'trainer']), attendanceRoutes);
+app.use('/attendance', requireAuth, attendanceRoutes);
 app.use('/results', requireAuth, resultsRoutes);
 app.use('/profile', requireAuth, profileRoutes);
 app.use('/settings', requireAuth, requireRole(['admin', 'trainer']), settingsRoutes);

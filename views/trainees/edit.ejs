@@ -8,7 +8,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     .form-container {
-      max-width: 900px;
+      max-width: 100%;
+      width: 100%;
       margin: 0 auto;
     }
     
@@ -140,6 +141,7 @@
     }
     
     .form-group {
+      position: relative;
       margin-bottom: 1.5rem;
     }
     
@@ -149,7 +151,7 @@
       gap: 0.5rem;
       font-weight: 600;
       color: #2A2A2A;
-      margin-bottom: 0.75rem;
+      margin-bottom: 0.4rem;
       font-size: 0.95rem;
     }
     
@@ -182,6 +184,341 @@
       box-shadow: 0 0 0 4px rgba(87, 63, 215, 0.1);
       transform: translateY(-1px);
     }
+
+    /* Dropdown-style multi-select for area of specialization */
+    .chip-multiselect {
+      position: relative;
+      margin-top: 0.25rem;
+    }
+
+    .chip-multiselect-control {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 0.65rem 0.9rem;
+      border-radius: 12px;
+      border: 2px solid #E5E7EB;
+      background: #ffffff;
+      font-size: 1rem;
+      color: #374151;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+      min-height: 48px;
+    }
+
+    .chip-multiselect-control:hover {
+      border-color: #C4B5FD;
+      box-shadow: 0 0 0 1px rgba(87, 63, 215, 0.12);
+    }
+
+    .chip-multiselect.open .chip-multiselect-control {
+      border-color: #573FD7;
+      box-shadow: 0 0 0 1px rgba(87, 63, 215, 0.18);
+    }
+
+    .chip-multiselect-control-main {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      min-width: 0;
+      gap: 0.4rem;
+    }
+
+    .chip-multiselect-placeholder {
+      color: #9CA3AF;
+    }
+
+    .chip-multiselect-control span {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      margin-right: 0.5rem;
+    }
+
+    .chip-multiselect-control i {
+      color: #9CA3AF;
+      font-size: 0.85rem;
+    }
+
+    .chip-summary-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      background: rgba(87, 63, 215, 0.08);
+      color: #4B5563;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    .chip-multiselect-panel {
+      position: absolute;
+      top: 105%;
+      left: 0;
+      right: 0;
+      z-index: 30;
+      background: #FFFFFF;
+      border-radius: 12px;
+      border: 1px solid #E5E7EB;
+      box-shadow: 0 14px 35px rgba(15, 23, 42, 0.15);
+      max-height: 140px;
+      overflow-y: auto;
+      padding: 0.5rem 0;
+      display: none;
+    }
+
+    .chip-multiselect.open .chip-multiselect-panel {
+      display: block;
+    }
+
+    .chip-option {
+      display: flex;
+      align-items: center;
+      padding: 0.35rem 0.75rem;
+      gap: 0.5rem;
+      cursor: pointer;
+      font-size: 0.95rem;
+      color: #374151;
+    }
+
+    .chip-option:hover {
+      background: rgba(87, 63, 215, 0.04);
+    }
+
+    .chip-option input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .chip-option-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      cursor: pointer;
+    }
+
+    /* Healthcare searchable dropdown */
+    .healthcare-suggestions {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      border: 1px solid #E5E7EB;
+      border-radius: 0 0 8px 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      max-height: 180px;
+      overflow-y: auto;
+      z-index: 20;
+    }
+
+    .healthcare-suggestion-item {
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+
+    .healthcare-suggestion-item:hover {
+      background: rgba(87, 63, 215, 0.06);
+    }
+
+    .healthcare-suggestions-empty {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.9rem;
+      color: #9CA3AF;
+    }
+
+    /* Mobile modal styles */
+    .mobile-modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 9998;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .mobile-modal-overlay.active {
+      display: block;
+      opacity: 1;
+    }
+
+    .mobile-modal {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      border-radius: 20px 20px 0 0;
+      max-height: 90vh;
+      z-index: 9999;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+      opacity: 0;
+    }
+
+    .mobile-modal.active {
+      display: flex;
+      flex-direction: column;
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .mobile-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 1.5rem;
+      border-bottom: 2px solid rgba(87, 63, 215, 0.1);
+      flex-shrink: 0;
+    }
+
+    .mobile-modal-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #573FD7;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .mobile-modal-close {
+      background: transparent;
+      border: none;
+      font-size: 1.5rem;
+      color: #6B7280;
+      cursor: pointer;
+      padding: 0.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .mobile-modal-close:hover {
+      background: rgba(107, 114, 128, 0.1);
+      color: #374151;
+    }
+
+    .mobile-modal-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem 1.5rem 1.5rem;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .healthcare-modal-search {
+      position: sticky;
+      top: 0;
+      background: #ffffff;
+      padding-bottom: 1rem;
+      z-index: 10;
+      margin-bottom: 1rem;
+    }
+
+    .healthcare-modal-search input {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      border: 2px solid #E5E7EB;
+      border-radius: 10px;
+      font-size: 1rem;
+      min-height: 48px;
+    }
+
+    .healthcare-modal-search input:focus {
+      border-color: #573FD7;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.1);
+    }
+
+    .healthcare-modal-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .healthcare-modal-item {
+      padding: 1rem;
+      border: 2px solid #E5E7EB;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.2s ease;
+      background: #ffffff;
+    }
+
+    .healthcare-modal-item:hover,
+    .healthcare-modal-item:active {
+      background: rgba(87, 63, 215, 0.05);
+      border-color: #573FD7;
+    }
+
+    .healthcare-modal-empty {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #9CA3AF;
+      font-size: 0.95rem;
+    }
+
+    .area-modal-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .area-modal-item {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      border: 2px solid #E5E7EB;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: #ffffff;
+      gap: 0.75rem;
+    }
+
+    .area-modal-item:hover,
+    .area-modal-item:active {
+      background: rgba(87, 63, 215, 0.05);
+      border-color: #573FD7;
+    }
+
+    .mobile-modal-footer {
+      padding: 1rem 1.5rem 1.5rem;
+      border-top: 2px solid rgba(87, 63, 215, 0.1);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
+    .mobile-modal-done-btn {
+      background: linear-gradient(135deg, #573FD7 0%, #11358B 100%);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    @media (min-width: 769px) {
+      .mobile-modal-overlay,
+      .mobile-modal {
+        display: none !important;
+      }
+    }
     
     .form-input:disabled,
     .form-select:disabled {
@@ -199,7 +536,7 @@
       content: 'Auto-set';
       position: absolute;
       right: 1rem;
-      top: 50%;
+      top: 55%;
       transform: translateY(-50%);
       background: linear-gradient(135deg, rgba(87, 63, 215, 0.1) 0%, rgba(17, 53, 139, 0.1) 100%);
       color: #573FD7;
@@ -216,6 +553,7 @@
       border-radius: 8px;
       padding: 1rem 1.25rem;
       margin-top: 0.5rem;
+      margin-bottom: 1rem;
       display: flex;
       align-items: flex-start;
       gap: 0.75rem;
@@ -257,7 +595,8 @@
       justify-content: center;
       gap: 0.5rem;
       padding: 0.75rem 1.5rem;
-      min-height: 44px;
+      min-height: 48px;
+      line-height: 1;
       font-size: 1rem;
       font-weight: 600;
       border-radius: 8px;
@@ -711,7 +1050,16 @@
                       <i class="fas fa-hospital"></i>
                       Healthcare
                     </label>
-                    <input type="text" id="healthcare" name="healthcare" class="form-input" value="<%= trainee.healthcare || '' %>" placeholder="General Hospital">
+                    <input 
+                      type="text" 
+                      id="healthcare" 
+                      name="healthcare" 
+                      class="form-input" 
+                      value="<%= trainee.healthcare || '' %>" 
+                      placeholder="Start typing to search healthcare..."
+                      autocomplete="off"
+                    >
+                    <div id="healthcareSuggestions" class="healthcare-suggestions"></div>
                   </div>
                   
                   <div class="form-group">
@@ -728,7 +1076,34 @@
                     <i class="fas fa-stethoscope"></i>
                     Area of Specialization
                   </label>
-                    <input type="text" id="areaOfSpecialization" name="areaOfSpecialization" class="form-input" value="<%= trainee.area_of_specialization || '' %>" placeholder="Emergency Care">
+                  <div class="chip-multiselect" id="areaChips">
+                    <div class="chip-multiselect-control" id="areaChipsControl">
+                      <div class="chip-multiselect-control-main">
+                        <span id="areaChipsSummary" class="chip-multiselect-placeholder">
+                          Select area(s) of specialization
+                        </span>
+                      </div>
+                      <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="chip-multiselect-panel" id="areaChipsPanel">
+                      <% if (typeof areasOfSpecialization !== 'undefined' && areasOfSpecialization && areasOfSpecialization.length) { %>
+                        <% areasOfSpecialization.forEach(function(area, index) { %>
+                          <div class="chip-option">
+                            <input 
+                              type="checkbox" 
+                              id="area-chip-<%= index %>" 
+                              name="areaOfSpecialization" 
+                              value="<%= area.name %>"
+                              <%= (trainee.area_of_specialization || '').split(',').map(s => s.trim()).includes(area.name) ? 'checked' : '' %>
+                            >
+                            <label class="chip-option-label" for="area-chip-<%= index %>">
+                              <span><%= area.name %></span>
+                            </label>
+                          </div>
+                        <% }) %>
+                      <% } %>
+                    </div>
+                  </div>
                 </div>
                 
                 <div class="form-group">
@@ -835,6 +1210,71 @@
       </div>
     </div>
   </main>
+
+  <!-- Healthcare Modal (Mobile) -->
+  <div class="mobile-modal-overlay" id="healthcareModalOverlay"></div>
+  <div class="mobile-modal" id="healthcareModal">
+    <div class="mobile-modal-header">
+      <h2 class="mobile-modal-title">
+        <i class="fas fa-hospital"></i>
+        Select Healthcare
+      </h2>
+      <button class="mobile-modal-close" id="healthcareModalClose" aria-label="Close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="mobile-modal-content">
+      <div class="healthcare-modal-search">
+        <input 
+          type="text" 
+          id="healthcareModalSearch" 
+          placeholder="Search healthcare..."
+          autocomplete="off"
+        >
+      </div>
+      <div class="healthcare-modal-list" id="healthcareModalList"></div>
+    </div>
+  </div>
+
+  <!-- Area of Specialization Modal (Mobile) -->
+  <div class="mobile-modal-overlay" id="areaModalOverlay"></div>
+  <div class="mobile-modal" id="areaModal">
+    <div class="mobile-modal-header">
+      <h2 class="mobile-modal-title">
+        <i class="fas fa-tags"></i>
+        Select Area of Specialization
+      </h2>
+      <button class="mobile-modal-close" id="areaModalClose" aria-label="Close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="mobile-modal-content">
+      <div class="area-modal-list" id="areaModalList">
+        <% if (typeof areasOfSpecialization !== 'undefined' && areasOfSpecialization && areasOfSpecialization.length) { %>
+          <% areasOfSpecialization.forEach(function(area, index) { %>
+            <div class="area-modal-item">
+              <input 
+                type="checkbox" 
+                id="area-modal-<%= index %>" 
+                name="areaOfSpecializationModal" 
+                value="<%= area.name %>"
+                data-original-id="area-chip-<%= index %>"
+                <%= (trainee.area_of_specialization || '').split(',').map(s => s.trim()).includes(area.name) ? 'checked' : '' %>
+              >
+              <label class="area-modal-item-label" for="area-modal-<%= index %>">
+                <%= area.name %>
+              </label>
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+    </div>
+    <div class="mobile-modal-footer">
+      <button class="mobile-modal-done-btn" id="areaModalDone">
+        Done
+      </button>
+    </div>
+  </div>
   
   <script src="/js/main.js"></script>
   <script>
@@ -958,6 +1398,305 @@
         input.style.borderColor = '';
       });
     });
+
+    function isMobileDevice() {
+      return window.innerWidth <= 768;
+    }
+
+    // Area of specialization single-select dropdown
+    const areaChipsContainer = document.getElementById('areaChips');
+    const areaChipsControl = document.getElementById('areaChipsControl');
+    const areaChipsPanel = document.getElementById('areaChipsPanel');
+    const areaChipsSummary = document.getElementById('areaChipsSummary');
+
+    function updateAreaSummary() {
+      if (!areaChipsContainer || !areaChipsSummary) return;
+      const checked = areaChipsContainer.querySelectorAll('input[type="checkbox"]:checked');
+      if (!checked.length) {
+        areaChipsSummary.textContent = 'Select area(s) of specialization';
+        areaChipsSummary.classList.add('chip-multiselect-placeholder');
+      } else {
+        if (checked.length <= 2) {
+          const names = Array.from(checked).map(c => c.value);
+          areaChipsSummary.innerHTML = names
+            .map(name => `<span class="chip-summary-badge">${name}</span>`)
+            .join('');
+        } else {
+          areaChipsSummary.innerHTML = `<span class="chip-summary-badge">${checked.length} areas selected</span>`;
+        }
+        areaChipsSummary.classList.remove('chip-multiselect-placeholder');
+      }
+    }
+
+    function syncAreaCheckboxes(fromModalToOriginal) {
+      if (fromModalToOriginal) {
+        const modalCheckboxes = document.querySelectorAll('#areaModalList input[type="checkbox"]');
+        modalCheckboxes.forEach(modalCb => {
+          const originalId = modalCb.getAttribute('data-original-id');
+          const originalCb = document.getElementById(originalId);
+          if (originalCb) {
+            originalCb.checked = modalCb.checked;
+          }
+        });
+      } else {
+        const originalCheckboxes = document.querySelectorAll('#areaChipsPanel input[type="checkbox"]');
+        originalCheckboxes.forEach(originalCb => {
+          const modalId = originalCb.id.replace('area-chip-', 'area-modal-');
+          const modalCb = document.getElementById(modalId);
+          if (modalCb) {
+            modalCb.checked = originalCb.checked;
+          }
+        });
+      }
+    }
+
+    if (areaChipsContainer && areaChipsControl && areaChipsPanel && areaChipsSummary) {
+      areaChipsControl.addEventListener('click', () => {
+        if (isMobileDevice()) {
+          document.getElementById('areaModalOverlay').classList.add('active');
+          document.getElementById('areaModal').classList.add('active');
+          document.body.style.overflow = 'hidden';
+          syncAreaCheckboxes(false);
+        } else {
+          areaChipsContainer.classList.toggle('open');
+        }
+      });
+
+      areaChipsPanel.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', () => {
+          updateAreaSummary();
+        });
+      });
+
+      areaChipsPanel.querySelectorAll('.chip-option').forEach(option => {
+        option.addEventListener('click', (e) => {
+          if (e.target.tagName.toLowerCase() === 'input') return;
+          const checkbox = option.querySelector('input[type="checkbox"]');
+          if (checkbox) {
+            checkbox.checked = !checkbox.checked;
+            checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        });
+      });
+
+      updateAreaSummary();
+
+      document.addEventListener('click', (e) => {
+        if (!isMobileDevice() && !areaChipsContainer.contains(e.target)) {
+          areaChipsContainer.classList.remove('open');
+        }
+      });
+    }
+
+    const areaModal = document.getElementById('areaModal');
+    const areaModalOverlay = document.getElementById('areaModalOverlay');
+    const areaModalClose = document.getElementById('areaModalClose');
+    const areaModalDone = document.getElementById('areaModalDone');
+
+    function closeAreaModal() {
+      if (areaModal) areaModal.classList.remove('active');
+      if (areaModalOverlay) areaModalOverlay.classList.remove('active');
+      document.body.style.overflow = '';
+      syncAreaCheckboxes(true);
+      updateAreaSummary();
+    }
+
+    if (areaModalClose) areaModalClose.addEventListener('click', closeAreaModal);
+    if (areaModalDone) areaModalDone.addEventListener('click', closeAreaModal);
+    if (areaModalOverlay) areaModalOverlay.addEventListener('click', closeAreaModal);
+
+    document.querySelectorAll('#areaModalList input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        syncAreaCheckboxes(true);
+        updateAreaSummary();
+      });
+    });
+
+    document.querySelectorAll('#areaModalList .area-modal-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (e.target.tagName.toLowerCase() === 'input') return;
+        const checkbox = item.querySelector('input[type="checkbox"]');
+        if (checkbox) {
+          checkbox.checked = !checkbox.checked;
+          checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
+    });
+
+    // Healthcare searchable dropdown
+    const healthcareInput = document.getElementById('healthcare');
+    const healthcareSuggestions = document.getElementById('healthcareSuggestions');
+    const healthcareModal = document.getElementById('healthcareModal');
+    const healthcareModalOverlay = document.getElementById('healthcareModalOverlay');
+    const healthcareModalClose = document.getElementById('healthcareModalClose');
+    const healthcareModalList = document.getElementById('healthcareModalList');
+    const healthcareModalSearch = document.getElementById('healthcareModalSearch');
+    let healthcareSearchTimeout = null;
+    let lastHealthcareQuery = '';
+
+    function clearHealthcareSuggestions() {
+      if (healthcareSuggestions && !isMobileDevice()) {
+        healthcareSuggestions.innerHTML = '';
+        healthcareSuggestions.style.display = 'none';
+      }
+    }
+
+    function renderHealthcareSuggestions(items, isModal = false) {
+      if (isModal) {
+        if (!healthcareModalList) return;
+        healthcareModalList.innerHTML = '';
+        if (!items || !items.length) {
+          const emptyEl = document.createElement('div');
+          emptyEl.className = 'healthcare-modal-empty';
+          emptyEl.textContent = 'No results. Try a different search.';
+          healthcareModalList.appendChild(emptyEl);
+          return;
+        }
+        items.forEach(item => {
+          const el = document.createElement('div');
+          el.className = 'healthcare-modal-item';
+          el.textContent = item.name;
+          el.addEventListener('click', () => {
+            healthcareInput.value = item.name;
+            closeHealthcareModal();
+          });
+          healthcareModalList.appendChild(el);
+        });
+        return;
+      }
+
+      if (!healthcareSuggestions) return;
+      healthcareSuggestions.innerHTML = '';
+      if (!items || !items.length) {
+        const emptyEl = document.createElement('div');
+        emptyEl.className = 'healthcare-suggestions-empty';
+        emptyEl.textContent = 'No results. Try a different search.';
+        healthcareSuggestions.appendChild(emptyEl);
+        healthcareSuggestions.style.display = 'block';
+        return;
+      }
+      items.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'healthcare-suggestion-item';
+        el.textContent = item.name;
+        el.addEventListener('click', () => {
+          healthcareInput.value = item.name;
+          clearHealthcareSuggestions();
+        });
+        healthcareSuggestions.appendChild(el);
+      });
+      healthcareSuggestions.style.display = 'block';
+    }
+
+    async function searchHealthcare(query, isModal = false) {
+      try {
+        const params = query ? `?q=${encodeURIComponent(query)}` : '';
+        const response = await fetch(`/healthcare/search${params}`);
+        if (!response.ok) {
+          if (isModal) {
+            renderHealthcareSuggestions([], true);
+          } else {
+            clearHealthcareSuggestions();
+          }
+          return;
+        }
+        const data = await response.json();
+        renderHealthcareSuggestions(data, isModal);
+      } catch (err) {
+        console.error('Error searching healthcare:', err);
+        if (isModal) {
+          renderHealthcareSuggestions([], true);
+        } else {
+          clearHealthcareSuggestions();
+        }
+      }
+    }
+
+    function openHealthcareModal() {
+      if (isMobileDevice()) {
+        if (healthcareModalOverlay) healthcareModalOverlay.classList.add('active');
+        if (healthcareModal) healthcareModal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        if (healthcareModalSearch) {
+          healthcareModalSearch.focus();
+          searchHealthcare(healthcareModalSearch.value.trim(), true);
+        }
+      }
+    }
+
+    function closeHealthcareModal() {
+      if (healthcareModal) healthcareModal.classList.remove('active');
+      if (healthcareModalOverlay) healthcareModalOverlay.classList.remove('active');
+      document.body.style.overflow = '';
+      if (healthcareModalSearch) healthcareModalSearch.value = '';
+    }
+
+    if (healthcareInput) {
+      healthcareInput.addEventListener('focus', () => {
+        if (isMobileDevice()) {
+          openHealthcareModal();
+        } else if (!healthcareInput.value.trim()) {
+          searchHealthcare('', false);
+        }
+      });
+
+      healthcareInput.addEventListener('click', () => {
+        if (isMobileDevice()) {
+          openHealthcareModal();
+        }
+      });
+
+      if (!isMobileDevice() && healthcareSuggestions) {
+        healthcareInput.addEventListener('input', () => {
+          const query = healthcareInput.value.trim();
+
+          if (query.length === 0) {
+            clearTimeout(healthcareSearchTimeout);
+            healthcareSearchTimeout = setTimeout(() => {
+              searchHealthcare('', false);
+            }, 200);
+            return;
+          }
+
+          if (query.length < 2) {
+            clearHealthcareSuggestions();
+            return;
+          }
+
+          if (query === lastHealthcareQuery) return;
+          lastHealthcareQuery = query;
+
+          clearTimeout(healthcareSearchTimeout);
+          healthcareSearchTimeout = setTimeout(() => {
+            searchHealthcare(query, false);
+          }, 250);
+        });
+
+        document.addEventListener('click', (e) => {
+          if (healthcareSuggestions && !healthcareSuggestions.contains(e.target) && e.target !== healthcareInput) {
+            clearHealthcareSuggestions();
+          }
+        });
+      }
+    }
+
+    if (healthcareModalSearch) {
+      healthcareModalSearch.addEventListener('input', () => {
+        const query = healthcareModalSearch.value.trim();
+        clearTimeout(healthcareSearchTimeout);
+        healthcareSearchTimeout = setTimeout(() => {
+          searchHealthcare(query, true);
+        }, 250);
+      });
+    }
+
+    if (healthcareModalClose) {
+      healthcareModalClose.addEventListener('click', closeHealthcareModal);
+    }
+
+    if (healthcareModalOverlay) {
+      healthcareModalOverlay.addEventListener('click', closeHealthcareModal);
+    }
   </script>
 </body>
 </html>

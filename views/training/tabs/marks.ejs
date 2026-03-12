@@ -66,8 +66,8 @@
                 %>
                 <td>
                   <% if (preTest) { %>
-                    <span class="test-score <%= preTest.score >= 50 ? 'score-pass' : 'score-fail' %>">
-                      <%= preTest.score %>% (<%= preTest.score >= 50 ? 'Pass' : 'Fail' %>)
+                    <span class="test-score <%= preTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
+                      <%= preTest.score %>% (<%= preTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
                     </span>
                   <% } else { %>
                     <span style="color: #5F6368;">Not taken</span>
@@ -76,8 +76,8 @@
                 <% if (training.type === 'main') { %>
                   <td>
                     <% if (postTest) { %>
-                      <span class="test-score <%= postTest.score >= 50 ? 'score-pass' : 'score-fail' %>">
-                        <%= postTest.score %>% (<%= postTest.score >= 50 ? 'Pass' : 'Fail' %>)
+                      <span class="test-score <%= postTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
+                        <%= postTest.score %>% (<%= postTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
                       </span>
                     <% } else { %>
                       <span style="color: #5F6368;">Not taken</span>
@@ -90,7 +90,7 @@
                         const maxScore = data.handsOnScores.reduce((sum, s) => sum + (parseInt(s.max_score) || 0), 0);
                         const percentage = maxScore > 0 ? (totalScore / maxScore * 100).toFixed(1) : 0;
                       %>
-                      <span class="test-score <%= percentage >= 50 ? 'score-pass' : 'score-fail' %>">
+                      <span class="test-score <%= percentage >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
                         <%= percentage %>% (<%= totalScore %>/<%= maxScore %>)
                       </span>
                     <% } else { %>
@@ -99,8 +99,8 @@
                   </td>
                   <td>
                     <% if (certificateEnrolmentTest) { %>
-                      <span class="test-score <%= certificateEnrolmentTest.score >= 50 ? 'score-pass' : 'score-fail' %>">
-                        <%= certificateEnrolmentTest.score %>% (<%= certificateEnrolmentTest.score >= 50 ? 'Pass' : 'Fail' %>)
+                      <span class="test-score <%= certificateEnrolmentTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
+                        <%= certificateEnrolmentTest.score %>% (<%= certificateEnrolmentTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
                       </span>
                     <% } else { %>
                       <span style="color: #5F6368;">Not taken</span>
@@ -109,8 +109,8 @@
                 <% } else { %>
                   <td>
                     <% if (refresher_trainingTest) { %>
-                      <span class="test-score <%= refresher_trainingTest.score >= 50 ? 'score-pass' : 'score-fail' %>">
-                        <%= refresher_trainingTest.score %>% (<%= refresher_trainingTest.score >= 50 ? 'Pass' : 'Fail' %>)
+                      <span class="test-score <%= refresher_trainingTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
+                        <%= refresher_trainingTest.score %>% (<%= refresher_trainingTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
                       </span>
                     <% } else { %>
                       <span style="color: #5F6368;">Not taken</span>
@@ -180,8 +180,8 @@
                 <div class="marks-card-row">
                   <span class="marks-label">Pre-Test</span>
                   <% if (preTest) { %>
-                    <span class="test-score <%= preTest.score >= 50 ? 'score-pass' : 'score-fail' %>">
-                      <%= preTest.score %>% (<%= preTest.score >= 50 ? 'Pass' : 'Fail' %>)
+                    <span class="test-score <%= preTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
+                      <%= preTest.score %>% (<%= preTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
                     </span>
                   <% } else { %>
                     <span style="color: #5F6368;">Not taken</span>
@@ -192,8 +192,8 @@
                   <div class="marks-card-row">
                     <span class="marks-label">Post-Test</span>
                     <% if (postTest) { %>
-                      <span class="test-score <%= postTest.score >= 50 ? 'score-pass' : 'score-fail' %>">
-                        <%= postTest.score %>% (<%= postTest.score >= 50 ? 'Pass' : 'Fail' %>)
+                      <span class="test-score <%= postTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
+                        <%= postTest.score %>% (<%= postTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
                       </span>
                     <% } else { %>
                       <span style="color: #5F6368;">Not taken</span>
@@ -208,7 +208,7 @@
                         const maxScore = data.handsOnScores.reduce((sum, s) => sum + (parseInt(s.max_score) || 0), 0);
                         const percentage = maxScore > 0 ? (totalScore / maxScore * 100).toFixed(1) : 0;
                       %>
-                      <span class="test-score <%= percentage >= 50 ? 'score-pass' : 'score-fail' %>">
+                      <span class="test-score <%= percentage >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
                         <%= percentage %>% (<%= totalScore %>/<%= maxScore %>)
                       </span>
                     <% } else { %>
@@ -219,8 +219,8 @@
                   <div class="marks-card-row">
                     <span class="marks-label">Certificate Enrolment</span>
                     <% if (certificateEnrolmentTest) { %>
-                      <span class="test-score <%= certificateEnrolmentTest.score >= 50 ? 'score-pass' : 'score-fail' %>">
-                        <%= certificateEnrolmentTest.score %>% (<%= certificateEnrolmentTest.score >= 50 ? 'Pass' : 'Fail' %>)
+                      <span class="test-score <%= certificateEnrolmentTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
+                        <%= certificateEnrolmentTest.score %>% (<%= certificateEnrolmentTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
                       </span>
                     <% } else { %>
                       <span style="color: #5F6368;">Not taken</span>
@@ -230,8 +230,8 @@
                   <div class="marks-card-row">
                     <span class="marks-label">Refresher Training Test</span>
                     <% if (refresher_trainingTest) { %>
-                      <span class="test-score <%= refresher_trainingTest.score >= 50 ? 'score-pass' : 'score-fail' %>">
-                        <%= refresher_trainingTest.score %>% (<%= refresher_trainingTest.score >= 50 ? 'Pass' : 'Fail' %>)
+                      <span class="test-score <%= refresher_trainingTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
+                        <%= refresher_trainingTest.score %>% (<%= refresher_trainingTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
                       </span>
                     <% } else { %>
                       <span style="color: #5F6368;">Not taken</span>

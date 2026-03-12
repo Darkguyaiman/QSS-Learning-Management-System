@@ -9,8 +9,9 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <style>
     .form-container {
-      max-width: 800px;
-      margin: 0 auto;
+      width: 100%;
+      max-width: none;
+      margin: 0;
     }
     
     .form-card {
@@ -217,12 +218,54 @@
       border-radius: 12px;
       margin-bottom: 1.5rem;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 0.75rem;
     }
     
     .alert-error i {
       font-size: 1.25rem;
+      margin-top: 0.15rem;
+      flex-shrink: 0;
+    }
+
+    .alert-error-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex: 1;
+    }
+
+    .alert-error-title {
+      font-weight: 700;
+      color: #7F1D1D;
+      font-size: 1rem;
+    }
+
+    .alert-error-message {
+      font-size: 0.95rem;
+      color: #991B1B;
+    }
+
+    .alert-error-section {
+      background: rgba(255, 255, 255, 0.6);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .alert-error-section-title {
+      font-weight: 600;
+      color: #7F1D1D;
+      font-size: 0.95rem;
+    }
+
+    .alert-error-line {
+      font-size: 0.85rem;
+      color: #7F1D1D;
+      line-height: 1.4;
     }
     
     .multiselect-container {
@@ -499,6 +542,55 @@
       .multiselect-options {
         max-height: 200px;
       }
+
+      .alert-error {
+        padding: 0.85rem 1rem;
+      }
+
+      .alert-error-section {
+        padding: 0.65rem 0.75rem;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .form-card {
+        padding: 1.25rem;
+        box-shadow: 0 10px 24px rgba(87, 63, 215, 0.12);
+      }
+
+      .section-title {
+        flex-wrap: wrap;
+        gap: 0.35rem 0.5rem;
+      }
+
+      .type-card-content {
+        gap: 0.35rem;
+      }
+
+      .trainer-option-content,
+      .trainee-option-content {
+        gap: 0.35rem;
+      }
+
+      .trainer-name,
+      .trainer-email,
+      .trainee-info-row {
+        flex-wrap: wrap;
+        row-gap: 0.25rem;
+      }
+
+      .trainee-option {
+        padding-right: 2.5rem;
+      }
+
+      .custom-device-item {
+        flex-direction: column;
+      }
+
+      .custom-device-item button {
+        width: 100%;
+        justify-content: center;
+      }
     }
   </style>
 </head>
@@ -516,7 +608,42 @@
         <% if (error) { %>
           <div class="alert-error">
             <i class="fas fa-exclamation-circle"></i>
-            <span><%= error %></span>
+            <% if (typeof error === 'string') { %>
+              <span><%= error %></span>
+            <% } else { %>
+              <div class="alert-error-content">
+                <div class="alert-error-title"><%= error.title || 'Cannot create training' %></div>
+                <% if (error.message) { %>
+                  <div class="alert-error-message"><%= error.message %></div>
+                <% } %>
+                <% if (error.sections && error.sections.length) { %>
+                  <% error.sections.forEach(section => { %>
+                    <div class="alert-error-section">
+                      <div class="alert-error-section-title"><%= section.label %></div>
+                      <% if (section.objectives && section.objectives.length) { %>
+                        <div class="alert-error-line">
+                          Missing per-objective questions:
+                          <%= section.objectives.map(o => `${o.objectiveName} (need ${o.need}, found ${o.found})`).join(', ') %>
+                        </div>
+                      <% } %>
+                      <% if (section.total) { %>
+                        <div class="alert-error-line">
+                          Total available: <%= section.total.found %> / <%= section.total.need %>
+                        </div>
+                      <% } %>
+                      <% if (section.requested) { %>
+                        <div class="alert-error-line">
+                          Minimum required: <%= section.requested.need %> questions, but this test only uses <%= section.requested.requested %>.
+                        </div>
+                      <% } %>
+                    </div>
+                  <% }); %>
+                <% } else if (error.raw && error.raw.length) { %>
+                  <div class="alert-error-line"><%= error.raw.join(' ') %></div>
+                <% } %>
+                <div class="alert-error-line">Go to Question Bank and add questions for the selected device model.</div>
+              </div>
+            <% } %>
           </div>
         <% } %>
         
@@ -920,6 +1047,114 @@
       // Model is always required now, checkbox just determines if we save to settings
       select.required = true;
     }
+
+    // Persist form state in localStorage
+    const formStorageKey = 'training-create-form-v1';
+    const trainingForm = document.querySelector('form');
+
+    function collectFormState() {
+      if (!trainingForm) return null;
+      const state = {};
+      const elements = trainingForm.querySelectorAll('input, select, textarea');
+
+      elements.forEach(el => {
+        if (!el.name) return;
+
+        if (el.type === 'checkbox') {
+          if (!state[el.name]) state[el.name] = [];
+          if (el.checked) state[el.name].push(el.value);
+          return;
+        }
+
+        if (el.type === 'radio') {
+          if (el.checked) state[el.name] = el.value;
+          return;
+        }
+
+        state[el.name] = el.value;
+      });
+
+      state._customDevices = Array.from(document.querySelectorAll('#custom-devices-list .custom-device-item')).map(item => ({
+        serial: item.querySelector('input[name="custom_devices[]"]')?.value || '',
+        model: item.querySelector('select[name="custom_device_models[]"]')?.value || '',
+        save: item.querySelector('input[name="save_custom_devices[]"]')?.checked || false
+      }));
+
+      return state;
+    }
+
+    function saveFormState() {
+      const state = collectFormState();
+      if (!state) return;
+      try {
+        localStorage.setItem(formStorageKey, JSON.stringify(state));
+      } catch (error) {
+        console.warn('Unable to save form state:', error);
+      }
+    }
+
+    function restoreFormState() {
+      if (!trainingForm) return;
+      let saved = null;
+      try {
+        saved = JSON.parse(localStorage.getItem(formStorageKey) || 'null');
+      } catch (error) {
+        console.warn('Unable to read saved form state:', error);
+      }
+      if (!saved) return;
+
+      const elements = trainingForm.querySelectorAll('input, select, textarea');
+      elements.forEach(el => {
+        if (!el.name) return;
+
+        if (el.type === 'checkbox') {
+          const values = Array.isArray(saved[el.name]) ? saved[el.name] : [];
+          el.checked = values.includes(el.value);
+          return;
+        }
+
+        if (el.type === 'radio') {
+          el.checked = saved[el.name] === el.value;
+          return;
+        }
+
+        if (saved[el.name] !== undefined) {
+          el.value = saved[el.name];
+        }
+      });
+
+      if (Array.isArray(saved._customDevices) && saved._customDevices.length > 0) {
+        const list = document.getElementById('custom-devices-list');
+        if (list) {
+          list.innerHTML = '';
+          customDeviceIndex = 0;
+          saved._customDevices.forEach(device => {
+            addCustomDevice();
+            const items = list.querySelectorAll('.custom-device-item');
+            const item = items[items.length - 1];
+            if (!item) return;
+            const serialInput = item.querySelector('input[name="custom_devices[]"]');
+            const modelSelect = item.querySelector('select[name="custom_device_models[]"]');
+            const saveCheckbox = item.querySelector('input[name="save_custom_devices[]"]');
+            if (serialInput) serialInput.value = device.serial || '';
+            if (modelSelect) modelSelect.value = device.model || '';
+            if (saveCheckbox) saveCheckbox.checked = !!device.save;
+          });
+        }
+      }
+    }
+
+    if (trainingForm) {
+      let saveTimer = null;
+      const scheduleSave = () => {
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveFormState, 250);
+      };
+      trainingForm.addEventListener('input', scheduleSave);
+      trainingForm.addEventListener('change', scheduleSave);
+    }
+
+    restoreFormState();
     
     // Form validation - ensure at least one trainee is selected
     document.querySelector('form').addEventListener('submit', function(e) {
@@ -936,6 +1171,12 @@
       } else {
         if (traineeError) {
           traineeError.style.display = 'none';
+        }
+        // Clear saved form state once submission is allowed
+        try {
+          localStorage.removeItem(formStorageKey);
+        } catch (error) {
+          console.warn('Unable to clear saved form state:', error);
         }
       }
     });

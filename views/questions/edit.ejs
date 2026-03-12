@@ -10,11 +10,19 @@
   <script src="/js/tw-components.js"></script>
   <style>
     .form-container {
-      max-width: 900px;
+      max-width: 100%;
+      width: 100%;
       margin: 0 auto;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
     }
     
     .form-card {
+      width: 100%;
       background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
       border-radius: 20px;
       padding: 2.5rem;
@@ -144,6 +152,11 @@
       font-size: 0.75rem;
       font-weight: 700;
     }
+
+    #correctAnswerDropdown .tw-dropdown__menu {
+      max-height: 160px;
+      overflow-y: auto;
+    }
     
     .form-actions {
       display: flex;
@@ -198,6 +211,12 @@
       
       .options-grid {
         gap: 1rem;
+      }
+    }
+
+    @media (max-width: 1200px) {
+      .form-row {
+        grid-template-columns: repeat(2, 1fr);
       }
     }
     
@@ -424,7 +443,7 @@
                 <textarea id="questionText" name="questionText" class="form-input" rows="4" required><%= question.question_text %></textarea>
               </div>
               
-              <div class="form-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;">
+              <div class="form-row">
                 <div class="form-group">
                   <label for="testType">
                     <i class="fas fa-clipboard-check"></i>
@@ -529,7 +548,8 @@
                   <i class="fas fa-check-circle"></i>
                   Correct Answer *
                 </label>
-                <select id="correctAnswer" name="correctAnswer" class="form-select" required>
+                <div id="correctAnswerDropdown" class="tw-dropdown"></div>
+                <select id="correctAnswer" name="correctAnswer" class="form-select" required style="display:none;">
                   <option value="A" <%= question.correct_answer === 'A' ? 'selected' : '' %>>Option A</option>
                   <option value="B" <%= question.correct_answer === 'B' ? 'selected' : '' %>>Option B</option>
                   <option value="C" id="correctAnswerC" <%= question.correct_answer === 'C' ? 'selected' : '' %> style="display: none;">Option C</option>
@@ -617,6 +637,33 @@
         if (correctAnswerSelect && correctAnswerSelect.value === 'D' && !hasD) {
           correctAnswerSelect.value = 'A';
         }
+
+        renderCorrectAnswerDropdown();
+      }
+
+      function getCorrectAnswerItems() {
+        if (!correctAnswerSelect) return [];
+        return Array.from(correctAnswerSelect.options)
+          .filter(option => option.value && option.style.display !== 'none')
+          .map(option => ({
+            label: option.textContent.trim(),
+            value: option.value
+          }));
+      }
+
+      function renderCorrectAnswerDropdown() {
+        const container = document.getElementById('correctAnswerDropdown');
+        if (!container || !correctAnswerSelect) return;
+        container.innerHTML = '';
+        new TailwindDropdown('correctAnswerDropdown', {
+          items: getCorrectAnswerItems(),
+          placeholder: 'Select correct answer',
+          multiSelect: false,
+          initialValue: correctAnswerSelect.value || '',
+          onChange: function(val) {
+            correctAnswerSelect.value = val || '';
+          }
+        });
       }
       
       // Add Option C
@@ -670,6 +717,8 @@
       if (optionDInput) {
         optionDInput.addEventListener('input', updateCorrectAnswerOptions);
       }
+
+      updateCorrectAnswerOptions();
 
       // ---- TailwindDropdown for Test Type ----
       var currentTestType = document.getElementById('testType').value;

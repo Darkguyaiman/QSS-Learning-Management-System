@@ -1,9 +1,19 @@
 const express = require('express');
 const router = express.Router();
 
+const requireStaff = (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    res.status(403).send('Access denied');
+    return false;
+  }
+  return true;
+};
+
 // View attendance for a training
 router.get('/training/:trainingId', async (req, res) => {
   try {
+    if (!requireStaff(req, res)) return;
+
     const [training] = await req.db.query('SELECT * FROM trainings WHERE id = ?', [req.params.trainingId]);
     
     if (training.length === 0) {
@@ -106,6 +116,8 @@ router.post('/mark', async (req, res) => {
   const { enrollmentId, date, status, notes } = req.body;
   
   try {
+    if (!requireStaff(req, res)) return;
+
     await req.db.query(
       'INSERT INTO attendance (enrollment_id, date, status, marked_by, notes) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?, marked_by = ?, notes = ?',
       [enrollmentId, date, status, req.session.userId, notes, status, req.session.userId, notes]
@@ -127,6 +139,8 @@ router.post('/mark-bulk', async (req, res) => {
   }
   
   try {
+    if (!requireStaff(req, res)) return;
+
     // Use transaction to ensure all records are saved or none
     const connection = await req.db.getConnection();
     await connection.beginTransaction();
@@ -189,6 +203,8 @@ router.post('/mark-bulk', async (req, res) => {
 // Get list of sessions for a training (for update tab)
 router.get('/sessions/:trainingId', async (req, res) => {
   try {
+    if (!requireStaff(req, res)) return;
+
     const [sessions] = await req.db.query(`
       SELECT DISTINCT 
         DATE_FORMAT(a.date, '%Y-%m-%d') as date,
@@ -219,6 +235,8 @@ router.get('/sessions/:trainingId', async (req, res) => {
 // Get session details for a specific date
 router.get('/session-details/:trainingId', async (req, res) => {
   try {
+    if (!requireStaff(req, res)) return;
+
     const { date } = req.query;
     
     if (!date) {
@@ -251,6 +269,8 @@ router.post('/update-bulk', async (req, res) => {
   }
   
   try {
+    if (!requireStaff(req, res)) return;
+
     // Use transaction to ensure all records are updated or none
     const connection = await req.db.getConnection();
     await connection.beginTransaction();
@@ -348,6 +368,14 @@ router.get('/trainee/:enrollmentId', async (req, res) => {
     
     if (enrollment.length === 0) {
       return res.status(404).send('Enrollment not found');
+    }
+
+    if (req.session.userRole === 'trainee') {
+      if (String(enrollment[0].trainee_id) !== String(req.session.userId)) {
+        return res.status(403).send('Access denied');
+      }
+    } else if (!['admin', 'trainer'].includes(req.session.userRole)) {
+      return res.status(403).send('Access denied');
     }
     
     // Pagination

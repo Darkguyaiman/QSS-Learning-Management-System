@@ -19,8 +19,10 @@ router.get('/enrollment/:enrollmentId', async (req, res) => {
     const enrollmentData = enrollment[0];
     
     // Check access
-    if (req.session.userRole === 'trainee' && enrollmentData.trainee_id !== req.session.userId) {
-      return res.status(403).send('Access denied');
+    if (req.session.userRole === 'trainee') {
+      if (String(enrollmentData.trainee_id) !== String(req.session.userId)) {
+        return res.status(403).send('Access denied');
+      }
     }
     
     // Get test results

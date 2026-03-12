@@ -36,9 +36,9 @@
               <div class="test-content">
                 <h3>Pre-Test</h3>
                 <p class="test-description">Initial Assessment</p>
-                <div class="test-score <%= preTest.score >= 50 ? 'passed' : 'failed' %>">
+                <div class="test-score <%= preTest.score >= 80 ? 'passed' : 'failed' %>">
                   <span class="score-value"><%= preTest.score.toFixed(1) %>%</span>
-                  <span class="score-status"><%= preTest.score >= 50 ? 'Passed' : 'Failed' %></span>
+                  <span class="score-status"><%= preTest.score >= 80 ? 'Outstanding' : 'Not Passed' %></span>
                 </div>
               </div>
             </div>
@@ -53,9 +53,9 @@
                 <div class="test-content">
                   <h3>Post-Test</h3>
                   <p class="test-description">Final Assessment</p>
-                  <div class="test-score <%= postTest.score >= 50 ? 'passed' : 'failed' %>">
+                  <div class="test-score <%= postTest.score >= 80 ? 'passed' : 'failed' %>">
                     <span class="score-value"><%= postTest.score.toFixed(1) %>%</span>
-                    <span class="score-status"><%= postTest.score >= 50 ? 'Passed' : 'Failed' %></span>
+                    <span class="score-status"><%= postTest.score >= 80 ? 'Outstanding' : 'Not Passed' %></span>
                   </div>
                 </div>
               </div>
@@ -69,9 +69,9 @@
                 <div class="test-content">
                   <h3>Certificate Enrolment Test</h3>
                   <p class="test-description">Certification Assessment</p>
-                  <div class="test-score <%= certificateEnrolmentTest.score >= 50 ? 'passed' : 'failed' %>">
+                  <div class="test-score <%= certificateEnrolmentTest.score >= 80 ? 'passed' : 'failed' %>">
                     <span class="score-value"><%= certificateEnrolmentTest.score.toFixed(1) %>%</span>
-                    <span class="score-status"><%= certificateEnrolmentTest.score >= 50 ? 'Passed' : 'Failed' %></span>
+                    <span class="score-status"><%= certificateEnrolmentTest.score >= 80 ? 'Outstanding' : 'Not Passed' %></span>
                   </div>
                 </div>
               </div>
@@ -85,9 +85,9 @@
                 <div class="test-content">
                   <h3>Refresher Training Test</h3>
                   <p class="test-description">Refresher Training Assessment</p>
-                  <div class="test-score <%= refresher_trainingTest.score >= 50 ? 'passed' : 'failed' %>">
+                  <div class="test-score <%= refresher_trainingTest.score >= 80 ? 'passed' : 'failed' %>">
                     <span class="score-value"><%= refresher_trainingTest.score.toFixed(1) %>%</span>
-                    <span class="score-status"><%= refresher_trainingTest.score >= 50 ? 'Passed' : 'Failed' %></span>
+                    <span class="score-status"><%= refresher_trainingTest.score >= 80 ? 'Outstanding' : 'Not Passed' %></span>
                   </div>
                 </div>
               </div>
@@ -116,8 +116,12 @@
                   </div>
                 </div>
                 <p class="hands-on-description"><%= score.description || 'No description available' %></p>
+                <% const handsOnPercent = ((parseFloat(score.score) / parseInt(score.max_score)) * 100); %>
                 <div class="hands-on-percentage">
-                  <%= ((parseFloat(score.score) / parseInt(score.max_score)) * 100).toFixed(1) %>%
+                  <%= handsOnPercent.toFixed(1) %>%
+                  <span class="hands-on-status <%= handsOnPercent >= 80 ? 'status-outstanding' : 'status-not-passed' %>">
+                    <%= handsOnPercent >= 80 ? 'Outstanding' : 'Not Passed' %>
+                  </span>
                 </div>
               </div>
             <% }); %>
@@ -144,16 +148,35 @@
       <% } %>
       
       <!-- Certificate Download Section -->
+      <% 
+        const certTest = marksData && marksData.tests ? marksData.tests.find(t => t.test_type === 'certificate_enrolment') : null;
+        const certOutstanding = certTest && certTest.score >= 80;
+        let practicalOutstanding = true;
+        if (training.type === 'main' && marksData && marksData.handsOnScores && marksData.handsOnScores.length > 0) {
+          const total = marksData.handsOnScores.reduce((sum, s) => sum + (parseFloat(s.score) / parseFloat(s.max_score) * 100), 0);
+          const avg = total / marksData.handsOnScores.length;
+          practicalOutstanding = avg >= 80;
+        }
+        const canDownloadCertificate = certOutstanding && practicalOutstanding;
+      %>
       <div class="certificate-download-section">
         <div class="certificate-icon">
           <i class="fas fa-certificate"></i>
         </div>
         <h3>Download Your Certificate</h3>
-        <p>Your official certificate of completion is ready for download.</p>
-        <a href="/training/<%= training.id %>/certificate/<%= enrollment.id %>" target="_blank" class="btn-certificate">
-          <i class="fas fa-download"></i>
-          Download Certificate
-        </a>
+        <% if (canDownloadCertificate) { %>
+          <p>Your official certificate of completion is ready for download.</p>
+          <a href="/training/<%= training.id %>/certificate/<%= enrollment.id %>" target="_blank" class="btn-certificate">
+            <i class="fas fa-download"></i>
+            Download Certificate
+          </a>
+        <% } else { %>
+          <p>Certificate becomes available after both Certificate Enrolment Test and Practical Learning Outcome are Outstanding (80%+).</p>
+          <button class="btn-certificate" style="opacity: 0.6; cursor: not-allowed;" disabled>
+            <i class="fas fa-lock"></i>
+            Certificate Locked
+          </button>
+        <% } %>
       </div>
     </div>
   </div>

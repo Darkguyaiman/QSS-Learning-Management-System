@@ -13,7 +13,6 @@
           </div>
         </div>
       </div>
-      <p style="margin: 0.5rem 0 0 0; color: rgba(255,255,255,0.9); font-size: 0.875rem;"><%= training.description %></p>
     </div>
   </div>
   
@@ -58,6 +57,25 @@
       <% } %>
     </div>
   </div>
+
+
+    
+  <!-- Description Section -->
+  <% if (training.description && training.description.trim().length > 0) { %>
+    <div style="background:white; border-radius:12px; padding:1.5rem 1.75rem; margin:1.25rem 0 1.5rem 0; box-shadow:0 10px 30px rgba(15,23,42,0.06); border:1px solid #E5E7EB;">
+      <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+        <div style="width:32px; height:32px; border-radius:999px; background:rgba(87,63,215,0.08); display:flex; align-items:center; justify-content:center; color:#573FD7;">
+          <i class="fas fa-align-left"></i>
+        </div>
+        <h2 style="margin:0; font-size:0.95rem; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:#6B7280;">
+          Training Description
+        </h2>
+      </div>
+      <div style="color:#111827; font-size:0.95rem; line-height:1.7; white-space:normal; text-align:justify; text-justify:inter-word; max-height:260px; overflow-y:auto; padding-right:0.25rem;">
+        <%= training.description.trim() %>
+      </div>
+    </div>
+  <% } %>
 
   <style>
     /* Stream tab button styling */

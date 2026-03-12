@@ -10,11 +10,19 @@
   <script src="/js/tw-components.js"></script>
   <style>
     .form-container {
-      max-width: 900px;
+      max-width: 100%;
+      width: 100%;
       margin: 0 auto;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
     }
     
     .form-card {
+      width: 100%;
       background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
       border-radius: 20px;
       padding: 2.5rem;
@@ -144,6 +152,11 @@
       font-size: 0.75rem;
       font-weight: 700;
     }
+
+    #correctAnswerDropdown .tw-dropdown__menu {
+      max-height: 160px;
+      overflow-y: auto;
+    }
     
     .form-actions {
       display: flex;
@@ -271,29 +284,148 @@
     .rules-section .dont {
       color: var(--color-error);
     }
+
+    .rules-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+
+    .rule-card {
+      background: #ffffff;
+      border: 1px solid rgba(87, 63, 215, 0.1);
+      border-radius: 12px;
+      padding: 0.75rem 0.9rem;
+      display: flex;
+      gap: 0.6rem;
+      align-items: flex-start;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+    }
+
+    .rule-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      flex: 0 0 auto;
+    }
+
+    .rule-icon.do {
+      background: #DCFCE7;
+      color: #166534;
+      border: 1px solid #86EFAC;
+    }
+
+    .rule-icon.dont {
+      background: #FEE2E2;
+      color: #991B1B;
+      border: 1px solid #FCA5A5;
+    }
+
+    .rule-icon.info {
+      background: #DBEAFE;
+      color: #1D4ED8;
+      border: 1px solid #93C5FD;
+    }
+
+    .rule-text {
+      color: #1F2937;
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
     
     .column-guide {
-      background: var(--color-gray-light);
-      border-radius: var(--border-radius);
-      padding: var(--spacing-md);
+      background: #F8FAFF;
+      border-radius: 14px;
+      padding: 1rem;
       margin: var(--spacing-md) 0;
-      font-family: monospace;
-      font-size: 0.9rem;
+      border: 1px solid rgba(87, 63, 215, 0.15);
+      font-family: inherit;
+      font-size: 0.92rem;
     }
-    
-    .column-guide table {
-      width: 100%;
-      border-collapse: collapse;
+
+    .column-grid {
+      display: grid;
+      gap: 0.5rem;
     }
-    
-    .column-guide td {
-      padding: var(--spacing-xs) var(--spacing-sm);
-      border-bottom: 1px solid var(--color-gray-light);
+
+    .column-head {
+      display: grid;
+      grid-template-columns: 120px 1fr 160px;
+      gap: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      color: #6B7280;
+      border-bottom: 1px solid rgba(87, 63, 215, 0.15);
     }
-    
-    .column-guide td:first-child {
+
+    .column-row {
+      display: grid;
+      grid-template-columns: 120px 1fr 160px;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border-radius: 10px;
+      background: #ffffff;
+      border: 1px solid rgba(87, 63, 215, 0.08);
+    }
+
+    .column-row + .column-row {
+      margin-top: 0.5rem;
+    }
+
+    .column-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 90px;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.78rem;
+      color: #1E1B4B;
+      background: rgba(87, 63, 215, 0.12);
+    }
+
+    .column-field {
+      color: #1F2937;
       font-weight: 600;
-      color: var(--color-purple);
+      margin-bottom: 0.25rem;
+    }
+
+    .column-notes {
+      color: #6B7280;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    .pill-required {
+      color: #7C2D12;
+      background: #FFEDD5;
+      border: 1px solid #FDBA74;
+    }
+
+    .pill-optional {
+      color: #1E40AF;
+      background: #DBEAFE;
+      border: 1px solid #93C5FD;
     }
     
     .bulk-upload-modal {
@@ -421,6 +553,12 @@
       .bulk-upload-content {
         padding: var(--spacing-xl);
         max-width: 90%;
+      }
+    }
+
+    @media (max-width: 1200px) {
+      .form-row {
+        grid-template-columns: repeat(2, 1fr);
       }
     }
     
@@ -587,6 +725,10 @@
         font-size: 0.875rem;
         padding-left: var(--spacing-md);
       }
+
+      .rules-grid {
+        grid-template-columns: 1fr;
+      }
       
       .column-guide {
         padding: var(--spacing-sm);
@@ -699,9 +841,12 @@
         font-size: 0.75rem;
       }
       
-      .column-guide td {
-        padding: var(--spacing-xs);
-        font-size: 0.75rem;
+      .column-head {
+        display: none;
+      }
+
+      .column-row {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -765,7 +910,7 @@
                 <textarea id="questionText" name="questionText" class="form-input" rows="4" required placeholder="Enter your question here..."></textarea>
               </div>
               
-              <div class="form-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;">
+              <div class="form-row">
                 <div class="form-group">
                   <label for="testType">
                     <i class="fas fa-clipboard-check"></i>
@@ -872,7 +1017,8 @@
                   <i class="fas fa-check-circle"></i>
                   Correct Answer *
                 </label>
-                <select id="correctAnswer" name="correctAnswer" class="form-select" required>
+                <div id="correctAnswerDropdown" class="tw-dropdown"></div>
+                <select id="correctAnswer" name="correctAnswer" class="form-select" required style="display:none;">
                   <option value="">Select correct answer</option>
                   <option value="A">Option A</option>
                   <option value="B">Option B</option>
@@ -942,6 +1088,33 @@
         if (correctAnswerSelect && correctAnswerSelect.value === 'D' && !hasD) {
           correctAnswerSelect.value = '';
         }
+
+        renderCorrectAnswerDropdown();
+      }
+
+      function getCorrectAnswerItems() {
+        if (!correctAnswerSelect) return [];
+        return Array.from(correctAnswerSelect.options)
+          .filter(option => option.value && option.style.display !== 'none')
+          .map(option => ({
+            label: option.textContent.trim(),
+            value: option.value
+          }));
+      }
+
+      function renderCorrectAnswerDropdown() {
+        const container = document.getElementById('correctAnswerDropdown');
+        if (!container || !correctAnswerSelect) return;
+        container.innerHTML = '';
+        new TailwindDropdown('correctAnswerDropdown', {
+          items: getCorrectAnswerItems(),
+          placeholder: 'Select correct answer',
+          multiSelect: false,
+          initialValue: correctAnswerSelect.value || '',
+          onChange: function(val) {
+            correctAnswerSelect.value = val || '';
+          }
+        });
       }
       
       // Add Option C
@@ -995,6 +1168,8 @@
       if (optionDInput) {
         optionDInput.addEventListener('input', updateCorrectAnswerOptions);
       }
+
+      updateCorrectAnswerOptions();
       
       // Bulk upload functionality
       const uploadBulkBtn = document.getElementById('uploadBulkBtn');
@@ -1311,7 +1486,17 @@
           }
         });
       }
-      
+
+      // Close template modal when clicking outside content
+      const templateModal = document.getElementById('templateModal');
+      if (templateModal) {
+        templateModal.addEventListener('click', function(event) {
+          if (event.target === templateModal) {
+            templateModal.classList.remove('active');
+          }
+        });
+      }
+
       const closeTemplateModal2 = document.getElementById('closeTemplateModal2');
       if (closeTemplateModal2) {
         closeTemplateModal2.addEventListener('click', function() {
@@ -1388,8 +1573,7 @@
         });
       });
       }
-    });
-
+    
     // ---- TailwindDropdown for Test Type ----
     new TailwindDropdown('testTypeDropdown', {
       items: [
@@ -1474,59 +1658,205 @@
       <div class="rules-section">
         <h3><i class="fas fa-table"></i> Column Structure</h3>
         <div class="column-guide">
-          <table>
-            <tr><td>Column A</td><td>Question Text (Required)</td></tr>
-            <tr><td>Column B</td><td>Test Type: pre_test, post_test, refresher_training, or certificate_enrolment (Required)</td></tr>
-            <tr><td>Column C</td><td>Device Model (Must exist in system) (Required)</td></tr>
-            <tr><td>Column D</td><td>Objective Name (Must exist in system) (Required)</td></tr>
-            <tr><td>Column E</td><td>Option A (Required)</td></tr>
-            <tr><td>Column F</td><td>Option B (Required)</td></tr>
-            <tr><td>Column G</td><td>Option C (Optional - leave empty for 2-option questions)</td></tr>
-            <tr><td>Column H</td><td>Option D (Optional - leave empty for 2-3 option questions)</td></tr>
-            <tr><td>Column I</td><td>Correct Answer: A, B, C, or D (must match available options)</td></tr>
-          </table>
+          <div class="column-grid">
+            <div class="column-head">
+              <div>Column</div>
+              <div>Field</div>
+              <div>Required</div>
+            </div>
+
+            <div class="column-row">
+              <div><span class="column-tag">Column A</span></div>
+              <div>
+                <div class="column-field">Question Text</div>
+                <div class="column-notes">Enter the full question statement.</div>
+              </div>
+              <div><span class="pill pill-required">Required</span></div>
+            </div>
+
+            <div class="column-row">
+              <div><span class="column-tag">Column B</span></div>
+              <div>
+                <div class="column-field">Test Type</div>
+                <div class="column-notes">Use: pre_test, post_test, refresher_training, or certificate_enrolment.</div>
+              </div>
+              <div><span class="pill pill-required">Required</span></div>
+            </div>
+
+            <div class="column-row">
+              <div><span class="column-tag">Column C</span></div>
+              <div>
+                <div class="column-field">Device Model</div>
+                <div class="column-notes">Must match an existing device model in the system.</div>
+              </div>
+              <div><span class="pill pill-required">Required</span></div>
+            </div>
+
+            <div class="column-row">
+              <div><span class="column-tag">Column D</span></div>
+              <div>
+                <div class="column-field">Objective Name</div>
+                <div class="column-notes">Must match an existing objective name in the system.</div>
+              </div>
+              <div><span class="pill pill-required">Required</span></div>
+            </div>
+
+            <div class="column-row">
+              <div><span class="column-tag">Column E</span></div>
+              <div>
+                <div class="column-field">Option A</div>
+                <div class="column-notes">First answer option.</div>
+              </div>
+              <div><span class="pill pill-required">Required</span></div>
+            </div>
+
+            <div class="column-row">
+              <div><span class="column-tag">Column F</span></div>
+              <div>
+                <div class="column-field">Option B</div>
+                <div class="column-notes">Second answer option.</div>
+              </div>
+              <div><span class="pill pill-required">Required</span></div>
+            </div>
+
+            <div class="column-row">
+              <div><span class="column-tag">Column G</span></div>
+              <div>
+                <div class="column-field">Option C</div>
+                <div class="column-notes">Optional. Leave blank for 2-option questions.</div>
+              </div>
+              <div><span class="pill pill-optional">Optional</span></div>
+            </div>
+
+            <div class="column-row">
+              <div><span class="column-tag">Column H</span></div>
+              <div>
+                <div class="column-field">Option D</div>
+                <div class="column-notes">Optional. Leave blank for 2-3 option questions.</div>
+              </div>
+              <div><span class="pill pill-optional">Optional</span></div>
+            </div>
+
+            <div class="column-row">
+              <div><span class="column-tag">Column I</span></div>
+              <div>
+                <div class="column-field">Correct Answer</div>
+                <div class="column-notes">Use A, B, C, or D and match available options.</div>
+              </div>
+              <div><span class="pill pill-required">Required</span></div>
+            </div>
+          </div>
         </div>
       </div>
       
       <div class="rules-section">
         <h3><i class="fas fa-check-circle do"></i> Do's</h3>
-        <ul>
-          <li>Start entering data from Row 2 (Row 1 is the header)</li>
-          <li>Use exact test type values: <strong>pre_test</strong>, <strong>post_test</strong>, <strong>refresher_training</strong>, or <strong>certificate_enrolment</strong></li>
-          <li>Use device model names that exist in the system (case-insensitive)</li>
-          <li>Use objective names that exist in the system (case-insensitive)</li>
-          <li>Options A and B are required; Options C and D are optional</li>
-          <li>Questions can have 2, 3, or 4 options</li>
-          <li>Ensure all options are unique (no duplicates)</li>
-          <li>Correct answer must match available options (e.g., if only A and B exist, answer must be A or B)</li>
-          <li>Fill all required fields for each question</li>
-          <li>Leave empty rows if you want to skip them</li>
-        </ul>
+        <div class="rules-grid">
+          <div class="rule-card">
+            <span class="rule-icon do"><i class="fas fa-check"></i></span>
+            <div class="rule-text">Start entering data from Row 2 (Row 1 is the header).</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon do"><i class="fas fa-check"></i></span>
+            <div class="rule-text">Use exact test type values: <strong>pre_test</strong>, <strong>post_test</strong>, <strong>refresher_training</strong>, or <strong>certificate_enrolment</strong>.</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon do"><i class="fas fa-check"></i></span>
+            <div class="rule-text">Use device model names that exist in the system (case-insensitive).</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon do"><i class="fas fa-check"></i></span>
+            <div class="rule-text">Use objective names that exist in the system (case-insensitive).</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon do"><i class="fas fa-check"></i></span>
+            <div class="rule-text">Options A and B are required; Options C and D are optional.</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon do"><i class="fas fa-check"></i></span>
+            <div class="rule-text">Questions can have 2, 3, or 4 options.</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon do"><i class="fas fa-check"></i></span>
+            <div class="rule-text">Ensure all options are unique (no duplicates).</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon do"><i class="fas fa-check"></i></span>
+            <div class="rule-text">Correct answer must match available options (e.g., if only A and B exist, answer must be A or B).</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon do"><i class="fas fa-check"></i></span>
+            <div class="rule-text">Fill all required fields for each question.</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon do"><i class="fas fa-check"></i></span>
+            <div class="rule-text">Leave empty rows if you want to skip them.</div>
+          </div>
+        </div>
       </div>
       
       <div class="rules-section">
         <h3><i class="fas fa-times-circle dont"></i> Don'ts</h3>
-        <ul>
-          <li>Don't use device model names that don't exist in the system</li>
-          <li>Don't use objective names that don't exist in the system</li>
-          <li>Don't leave required fields empty</li>
-          <li>Don't use duplicate options within the same question</li>
-          <li>Don't use C or D as correct answer if those options are empty</li>
-          <li>Don't use invalid test types (must be exactly: pre_test, post_test, refresher_training, or certificate_enrolment)</li>
-          <li>Don't use invalid correct answer values (must be A, B, C, or D)</li>
-          <li>Don't create duplicate questions (same question, same options, same type, same correct answer)</li>
-          <li>Don't modify the header row (Row 1)</li>
-        </ul>
+        <div class="rules-grid">
+          <div class="rule-card">
+            <span class="rule-icon dont"><i class="fas fa-times"></i></span>
+            <div class="rule-text">Don't use device model names that don't exist in the system.</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon dont"><i class="fas fa-times"></i></span>
+            <div class="rule-text">Don't use objective names that don't exist in the system.</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon dont"><i class="fas fa-times"></i></span>
+            <div class="rule-text">Don't leave required fields empty.</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon dont"><i class="fas fa-times"></i></span>
+            <div class="rule-text">Don't use duplicate options within the same question.</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon dont"><i class="fas fa-times"></i></span>
+            <div class="rule-text">Don't use C or D as correct answer if those options are empty.</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon dont"><i class="fas fa-times"></i></span>
+            <div class="rule-text">Don't use invalid test types (must be exactly: pre_test, post_test, refresher_training, or certificate_enrolment).</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon dont"><i class="fas fa-times"></i></span>
+            <div class="rule-text">Don't use invalid correct answer values (must be A, B, C, or D).</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon dont"><i class="fas fa-times"></i></span>
+            <div class="rule-text">Don't create duplicate questions (same question, same options, same type, same correct answer).</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon dont"><i class="fas fa-times"></i></span>
+            <div class="rule-text">Don't modify the header row (Row 1).</div>
+          </div>
+        </div>
       </div>
       
       <div class="rules-section">
         <h3><i class="fas fa-info-circle"></i> Validation Process</h3>
-        <ul>
-          <li><strong>Frontend Validation:</strong> Checks file structure, required fields, and basic rules before upload</li>
-          <li><strong>Backend Validation:</strong> Performs thorough checks including duplicate detection and database validation</li>
-          <li><strong>Batch Insertion:</strong> Questions are inserted in batches of 10 for optimal performance</li>
-          <li><strong>Error Reporting:</strong> Detailed error messages will show exactly what needs to be fixed</li>
-        </ul>
+        <div class="rules-grid">
+          <div class="rule-card">
+            <span class="rule-icon info"><i class="fas fa-info"></i></span>
+            <div class="rule-text"><strong>Frontend Validation:</strong> Checks file structure, required fields, and basic rules before upload.</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon info"><i class="fas fa-info"></i></span>
+            <div class="rule-text"><strong>Backend Validation:</strong> Performs thorough checks including duplicate detection and database validation.</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon info"><i class="fas fa-info"></i></span>
+            <div class="rule-text"><strong>Batch Insertion:</strong> Questions are inserted in batches of 10 for optimal performance.</div>
+          </div>
+          <div class="rule-card">
+            <span class="rule-icon info"><i class="fas fa-info"></i></span>
+            <div class="rule-text"><strong>Error Reporting:</strong> Detailed error messages will show exactly what needs to be fixed.</div>
+          </div>
+        </div>
       </div>
       
       <div style="display: flex; gap: var(--spacing-md); justify-content: flex-end; margin-top: var(--spacing-xl); padding-top: var(--spacing-lg); border-top: 2px solid var(--color-gray-light);">

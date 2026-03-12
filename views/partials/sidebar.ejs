@@ -204,7 +204,27 @@
     
     // Highlight active submenu item if on settings page
     if (isSettingsPage) {
-      const activeLink = document.querySelector(`.sidebar-sublink[href="${currentPath}"]`);
+      // Try to find an exact match first
+      let activeLink = document.querySelector(`.sidebar-sublink[href="${currentPath}"]`);
+
+      // If no exact match (e.g. /settings/users/new or /settings/users/123/edit),
+      // fall back to the link whose href is a prefix of the current path.
+      if (!activeLink) {
+        const links = Array.from(document.querySelectorAll('.sidebar-sublink[href^="/settings"]'));
+        let bestMatch = null;
+        let bestLength = 0;
+
+        links.forEach(link => {
+          const href = link.getAttribute('href');
+          if (href && currentPath.startsWith(href) && href.length > bestLength) {
+            bestMatch = link;
+            bestLength = href.length;
+          }
+        });
+
+        activeLink = bestMatch;
+      }
+
       if (activeLink) {
         activeLink.classList.add('active');
       }

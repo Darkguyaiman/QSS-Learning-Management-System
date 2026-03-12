@@ -251,6 +251,27 @@ CREATE TABLE test_answers (
   FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
 );
 
+-- Training tests (pre/post/certificate/refresher definitions per training)
+CREATE TABLE training_tests (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  training_id INT NOT NULL,
+  test_type ENUM('pre_test', 'post_test', 'refresher_training', 'certificate_enrolment') NOT NULL,
+  total_questions INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE CASCADE
+);
+
+-- Questions assigned to each training test
+CREATE TABLE training_test_questions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  training_test_id INT NOT NULL,
+  question_id INT NOT NULL,
+  question_order INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (training_test_id) REFERENCES training_tests(id) ON DELETE CASCADE,
+  FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
+);
+
 -- Practical learning outcome scores for main training
 CREATE TABLE practical_learning_outcome_scores (
   id INT AUTO_INCREMENT PRIMARY KEY,

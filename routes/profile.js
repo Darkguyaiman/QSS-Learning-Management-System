@@ -13,6 +13,33 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB limit
 
+// Certificate upload (PDF or image)
+const certificateStorage = multer.diskStorage({
+  destination: './public/uploads/certificates/',
+  filename: (req, file, cb) => {
+    cb(null, req.session.userId + '-' + Date.now() + path.extname(file.originalname));
+  }
+});
+
+const certificateUpload = multer({
+  storage: certificateStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp'
+    ];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF and image files are allowed.'));
+    }
+  }
+});
+
 // Helper function to get profile
 async function getProfile(db, userRole, userId) {
   if (userRole === 'trainee') {
@@ -205,6 +232,66 @@ router.post('/upload-picture', upload.single('profilePicture'), async (req, res)
       res.status(500).send('Error uploading picture');
     }
   }
+});
+
+// Upload certificate (admin/trainer only)
+router.post('/upload-certificate', (req, res) => {
+  const uploadSingle = certificateUpload.single('certificateFile');
+
+  uploadSingle(req, res, async (err) => {
+    try {
+      // Only trainers and admins can upload certificates
+      if (!['admin', 'trainer'].includes(req.session.userRole)) {
+        const profile = await getProfile(req.db, req.session.userRole, req.session.userId);
+        return renderProfileView(req, res, profile, {
+          error: 'You do not have permission to upload certificates'
+        });
+      }
+
+      if (err) {
+        const profile = await getProfile(req.db, req.session.userRole, req.session.userId);
+
+        let message = 'Error uploading certificate. Please try again.';
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          message = 'File size exceeds 5MB limit';
+        } else if (err.message) {
+          message = err.message;
+        }
+
+        return renderProfileView(req, res, profile, {
+          error: message
+        });
+      }
+
+      if (!req.file) {
+        const profile = await getProfile(req.db, req.session.userRole, req.session.userId);
+        return renderProfileView(req, res, profile, {
+          error: 'No certificate file uploaded'
+        });
+      }
+
+      const certificatePath = `/uploads/certificates/${req.file.filename}`;
+
+      // Certificates are only for non-trainee users based on the UI
+      await req.db.query(
+        'UPDATE users SET certificate_file = ? WHERE id = ?',
+        [certificatePath, req.session.userId]
+      );
+
+      // Use PRG pattern to avoid resubmission warning on refresh
+      return res.redirect('/profile');
+    } catch (error) {
+      console.error('Certificate upload error:', error);
+      try {
+        const profile = await getProfile(req.db, req.session.userRole, req.session.userId);
+        return renderProfileView(req, res, profile, {
+          error: 'Error uploading certificate. Please try again.'
+        });
+      } catch (renderError) {
+        return res.status(500).send('Error uploading certificate');
+      }
+    }
+  });
 });
 
 // Change password

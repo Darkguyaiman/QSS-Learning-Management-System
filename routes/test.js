@@ -18,9 +18,9 @@ router.get('/start/:enrollmentId/:testType', async (req, res) => {
     
     const enrollment = enrollments[0];
     
-    // Check if test already passed (score >= 50%) - if passed, show results
+    // Check if test already passed (score >= 80%) - if passed, show results
     const [passed] = await req.db.query(
-      'SELECT id, score FROM test_attempts WHERE enrollment_id = ? AND test_type = ? AND status = "completed" AND score >= 50',
+      'SELECT id, score FROM test_attempts WHERE enrollment_id = ? AND test_type = ? AND status = "completed" AND score >= 80',
       [enrollmentId, testType]
     );
     
@@ -123,8 +123,15 @@ router.post('/submit/:attemptId', async (req, res) => {
       [attemptId]
     );
     
-    if (attempts.length === 0 || attempts[0].trainee_id !== req.session.userId) {
+    if (attempts.length === 0) {
       return res.status(403).send('Access denied');
+    }
+    if (req.session.userRole === 'trainee') {
+      const attemptTraineeId = Number(attempts[0].trainee_id);
+      const sessionTraineeId = Number(req.session.userId);
+      if (!Number.isFinite(attemptTraineeId) || !Number.isFinite(sessionTraineeId) || attemptTraineeId !== sessionTraineeId) {
+        return res.status(403).send('Access denied');
+      }
     }
     
     if (attempts[0].status === 'completed') {
@@ -248,8 +255,12 @@ router.get('/results/:attemptId', async (req, res) => {
     attempt.score = parseFloat(attempt.score) || 0;
     
     // Check access
-    if (req.session.userRole === 'trainee' && attempt.trainee_id !== req.session.userId) {
-      return res.status(403).send('Access denied');
+    if (req.session.userRole === 'trainee') {
+      const attemptTraineeId = Number(attempt.trainee_id);
+      const sessionTraineeId = Number(req.session.userId);
+      if (!Number.isFinite(attemptTraineeId) || !Number.isFinite(sessionTraineeId) || attemptTraineeId !== sessionTraineeId) {
+        return res.status(403).send('Access denied');
+      }
     }
     
     // Get answers with questions
@@ -270,8 +281,8 @@ router.get('/results/:attemptId', async (req, res) => {
       WHERE os.enrollment_id = ? AND os.test_type = ?
     `, [attempt.enrollment_id, attempt.test_type]);
     
-    // Check if test passed (score >= 50%)
-    const passed = attempt.score >= 50;
+    // Check if test passed (score >= 80%)
+    const passed = attempt.score >= 80;
     
     // Get enrollment to check if can retake
     const [enrollments] = await req.db.query(

@@ -2,6 +2,11 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const router = express.Router();
 
+async function getAreasOfSpecialization(db) {
+  const [rows] = await db.query('SELECT id, name FROM areas_of_specialization ORDER BY name');
+  return rows;
+}
+
 // List all trainees
 router.get('/', async (req, res) => {
   try {
@@ -94,11 +99,18 @@ router.get('/', async (req, res) => {
 });
 
 // Create trainee page
-router.get('/create', (req, res) => {
-  res.render('trainees/create', { 
-    user: req.session, 
-    error: null 
-  });
+router.get('/create', async (req, res) => {
+  try {
+    const areasOfSpecialization = await getAreasOfSpecialization(req.db);
+    res.render('trainees/create', { 
+      user: req.session, 
+      error: null,
+      areasOfSpecialization
+    });
+  } catch (error) {
+    console.error('Trainee create load error:', error);
+    res.status(500).send('Error loading trainee form');
+  }
 });
 
 // Create trainee POST
@@ -119,9 +131,11 @@ router.post('/create', async (req, res) => {
   try {
     // Validate required fields
     if (!firstName || !lastName || !email || !password || !icPassport) {
+      const areasOfSpecialization = await getAreasOfSpecialization(req.db);
       return res.render('trainees/create', { 
         user: req.session, 
-        error: 'Please fill in all required fields' 
+        error: 'Please fill in all required fields',
+        areasOfSpecialization
       });
     }
     
@@ -132,9 +146,11 @@ router.post('/create', async (req, res) => {
     );
     
     if (existingTrainee.length > 0) {
+      const areasOfSpecialization = await getAreasOfSpecialization(req.db);
       return res.render('trainees/create', { 
         user: req.session, 
-        error: 'Email already registered' 
+        error: 'Email already registered',
+        areasOfSpecialization
       });
     }
     
@@ -148,6 +164,10 @@ router.post('/create', async (req, res) => {
     connection.release();
     
     // Insert trainee
+    const cleanArea = Array.isArray(areaOfSpecialization)
+      ? areaOfSpecialization.filter(Boolean).join(', ')
+      : (areaOfSpecialization || null);
+
     await req.db.query(
       `INSERT INTO trainees (
         trainee_id, email, password, first_name, last_name, 
@@ -164,7 +184,7 @@ router.post('/create', async (req, res) => {
         handphoneNumber || null, 
         healthcare || null, 
         designation || null,
-        areaOfSpecialization || null, 
+        cleanArea, 
         traineeStatus || 'active'
       ]
     );
@@ -174,7 +194,8 @@ router.post('/create', async (req, res) => {
     console.error('Trainee creation error:', error);
     res.render('trainees/create', { 
       user: req.session, 
-      error: 'An error occurred. Please try again.' 
+      error: 'An error occurred. Please try again.',
+      areasOfSpecialization: await getAreasOfSpecialization(req.db)
     });
   }
 });
@@ -190,11 +211,12 @@ router.get('/:id/edit', async (req, res) => {
     if (trainees.length === 0) {
       return res.status(404).send('Trainee not found');
     }
-    
+    const areasOfSpecialization = await getAreasOfSpecialization(req.db);
     res.render('trainees/edit', { 
       user: req.session, 
       trainee: trainees[0],
-      error: null 
+      error: null,
+      areasOfSpecialization
     });
   } catch (error) {
     console.error('Trainee edit error:', error);
@@ -224,10 +246,12 @@ router.post('/:id/edit', async (req, res) => {
         'SELECT * FROM trainees WHERE id = ?',
         [req.params.id]
       );
+      const areasOfSpecialization = await getAreasOfSpecialization(req.db);
       return res.render('trainees/edit', { 
         user: req.session, 
         trainee: trainees[0],
-        error: 'Please fill in all required fields' 
+        error: 'Please fill in all required fields',
+        areasOfSpecialization
       });
     }
     
@@ -242,14 +266,20 @@ router.post('/:id/edit', async (req, res) => {
         'SELECT * FROM trainees WHERE id = ?',
         [req.params.id]
       );
+      const areasOfSpecialization = await getAreasOfSpecialization(req.db);
       return res.render('trainees/edit', { 
         user: req.session, 
         trainee: trainees[0],
-        error: 'Email already registered to another trainee' 
+        error: 'Email already registered to another trainee',
+        areasOfSpecialization
       });
     }
     
     // Build update query
+    const cleanArea = Array.isArray(areaOfSpecialization)
+      ? areaOfSpecialization.filter(Boolean).join(', ')
+      : (areaOfSpecialization || null);
+
     let updateQuery = `
       UPDATE trainees SET 
         first_name = ?, 
@@ -270,7 +300,7 @@ router.post('/:id/edit', async (req, res) => {
       handphoneNumber || null,
       healthcare || null,
       designation || null,
-      areaOfSpecialization || null,
+      cleanArea,
       traineeStatus || 'active'
     ];
     
@@ -293,10 +323,12 @@ router.post('/:id/edit', async (req, res) => {
       'SELECT * FROM trainees WHERE id = ?',
       [req.params.id]
     );
+    const areasOfSpecialization = await getAreasOfSpecialization(req.db);
     res.render('trainees/edit', { 
       user: req.session, 
       trainee: trainees[0] || {},
-      error: 'An error occurred. Please try again.' 
+      error: 'An error occurred. Please try again.',
+      areasOfSpecialization
     });
   }
 });

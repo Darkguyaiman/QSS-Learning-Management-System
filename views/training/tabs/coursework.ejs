@@ -328,6 +328,7 @@
                 if (testType === 'pre_test') completed = enrollment.pre_test_completed;
                 else if (testType === 'post_test') completed = enrollment.post_test_completed;
                 else if (testType === 'refresher_training') completed = enrollment.refresher_training_test_completed;
+                else if (testType === 'certificate_enrolment') completed = enrollment.certificate_enrolment_test_completed;
               %>
               <% if (completed) { %>
                 <span style="color: #137333; font-weight: 500;"><i class="fas fa-check-circle"></i> Completed</span>

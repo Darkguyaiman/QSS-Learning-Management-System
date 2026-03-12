@@ -117,10 +117,10 @@
           <!-- Personal Information Card -->
           <div class="profile-card">
           <div class="profile-card-header">
-            <i class="fas fa-user"></i>
-            <h3>Personal Information</h3>
+          <i class="fas fa-user"></i>
+          <h3>Personal Information</h3>
           </div>
-          <form action="/profile/update" method="POST" class="profile-form">
+          <form action="/profile/update" method="POST" class="profile-form" id="profileUpdateForm">
             <div class="form-row">
               <div class="form-group">
                 <label for="firstName">
@@ -2034,6 +2034,42 @@
         }
       });
     }
+
+    // Profile update client-side validation
+    (function initProfileFormValidation() {
+      const profileForm = document.getElementById('profileUpdateForm');
+      if (!profileForm) return;
+
+      const isTrainee = <%= isTrainee ? 'true' : 'false' %>;
+
+      profileForm.addEventListener('submit', function (e) {
+        const firstName = (document.getElementById('firstName')?.value || '').trim();
+        const lastName = (document.getElementById('lastName')?.value || '').trim();
+        const email = (document.getElementById('email')?.value || '').trim();
+        const positionInput = document.getElementById('position');
+        const position = (positionInput && positionInput.value ? positionInput.value : '').trim();
+
+        let message = '';
+
+        if (!firstName || !lastName || !email) {
+          message = 'First name, last name, and email are required.';
+        } else if (!isTrainee && !position) {
+          message = 'Position is required for this profile.';
+        }
+
+        if (message) {
+          e.preventDefault();
+          if (window.qssShowWarning) {
+            window.qssShowWarning(message, 'Validation Error');
+          } else {
+            alert(message);
+          }
+          return false;
+        }
+
+        return true;
+      });
+    })();
   </script>
 </body>
 </html>
