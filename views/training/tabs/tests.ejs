@@ -1,0 +1,50 @@
+<!-- Tests Tab (Trainee-focused) -->
+<div id="tests-tab" class="tab-content">
+  <div class="section-card">
+    <h3 class="section-title">Tests</h3>
+    <% if (trainingTests && trainingTests.length > 0) { %>
+      <ul style="list-style: none; padding: 0; margin: 0;">
+        <% trainingTests.forEach(test => { %>
+          <li style="padding: 0.75rem 0; border-bottom: 1px solid #E8EAED; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-weight: 500;">
+                <%= test.test_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %>
+              </span>
+              <span style="color: #5F6368; font-size: 0.875rem; margin-left: 0.5rem;">
+                (<%= test.total_questions %> questions)
+              </span>
+            </div>
+            <% if (user.userRole === 'trainee' && enrollment) { %>
+              <% 
+                const testType = test.test_type;
+                let completed = false;
+                if (testType === 'pre_test') completed = enrollment.pre_test_completed;
+                else if (testType === 'post_test') completed = enrollment.post_test_completed;
+                else if (testType === 'refresher_training') completed = enrollment.refresher_training_test_completed;
+                else if (testType === 'certificate_enrolment') completed = enrollment.certificate_enrolment_test_completed;
+              %>
+              <% if (completed) { %>
+                <span style="color: #137333; font-weight: 500;"><i class="fas fa-check-circle"></i> Completed</span>
+              <% } else if (testType === 'post_test' && !enrollment.pre_test_completed) { %>
+                <span style="color: #5F6368;">Complete Pre-Test first</span>
+              <% } else if (testType === 'certificate_enrolment' && training.type === 'main' && !enrollment.pre_test_completed) { %>
+                <span style="color: #5F6368;">Complete Pre-Test first</span>
+              <% } else { %>
+                <a href="/tests/start/<%= enrollment.id %>/<%= testType %>" class="btn btn-sm btn-primary">Take Test</a>
+              <% } %>
+            <% } %>
+          </li>
+        <% }); %>
+      </ul>
+      <% if (user.userRole === 'trainee' && enrollment) { %>
+        <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <a href="/results/enrollment/<%= enrollment.id %>" class="btn btn-secondary btn-sm">View Results</a>
+          <a href="/attendance/trainee/<%= enrollment.id %>" class="btn btn-outline btn-sm">View Attendance</a>
+        </div>
+      <% } %>
+    <% } else { %>
+      <p style="color: #5F6368; margin: 0;">No tests available for this training.</p>
+    <% } %>
+  </div>
+</div>
+

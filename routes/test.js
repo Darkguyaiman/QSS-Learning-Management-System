@@ -27,6 +27,16 @@ router.get('/start/:enrollmentId/:testType', async (req, res) => {
     if (passed.length > 0) {
       return res.redirect(`/tests/results/${passed[0].id}`);
     }
+
+    if (testType === 'certificate_enrolment' && enrollment.training_type === 'main') {
+      const [preTestCompleted] = await req.db.query(
+        'SELECT id FROM test_attempts WHERE enrollment_id = ? AND test_type = "pre_test" AND status = "completed"',
+        [enrollmentId]
+      );
+      if (preTestCompleted.length === 0) {
+        return res.status(403).send('Complete the pre-test before starting the certificate enrolment test.');
+      }
+    }
     
     // If failed, allow retake - delete old failed attempts to allow new attempt
     const [failed] = await req.db.query(

@@ -147,13 +147,8 @@
     }
   </style>
 </head>
-<body class="<%= ['admin', 'trainer'].includes(user.userRole) ? 'has-sidebar' : 'has-navbar' %>">
-  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-    <%- include('../partials/sidebar', { user }) %>
-  <% } else { %>
-    <%- include('../partials/navbar', { user }) %>
-  <% } %>
-  
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
   <main class="main-content">
     <div class="container">
       <div class="dashboard-header">

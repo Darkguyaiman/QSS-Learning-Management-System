@@ -1,89 +1,81 @@
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<!-- Mobile Top Nav: Logo + Title -->
+<div class="mobile-navbar-header">
+  <a href="/dashboard" class="mobile-navbar-logo" aria-label="QSS Home">
+    <img src="/QSS.ico" alt="QSS Logo">
+  </a>
+  <div class="mobile-navbar-titles">
+    <div class="mobile-navbar-app">QSS Learning Management System</div>
+    <div class="mobile-navbar-page">
+      <%= typeof pageTitle !== 'undefined' ? pageTitle : 'Dashboard' %>
+    </div>
+  </div>
+</div>
+
+<!-- Main Navbar (Desktop top bar, Mobile bottom nav tabs) -->
 <nav class="navbar">
   <div class="navbar-container">
+    <!-- Desktop Brand -->
     <div class="navbar-brand">
-      <a href="/dashboard" style="display: flex; align-items: center; gap: 1rem;">
-        <img src="/qsslogo.svg" alt="QSS Logo" style="height: 30px; width: auto; object-fit: contain;">
-        <div style="height: 24px; width: 1px; background-color: var(--color-gray, #6B7280); opacity: 0.5;"></div>
-        <img src="/K-Laser.png" alt="K-Laser Logo" style="height: 30px; width: auto; object-fit: contain;">
+      <a href="/dashboard">
+        QSS LMS
       </a>
     </div>
-    
+
+    <!-- Tabs + Profile -->
     <div class="navbar-menu">
-      <a href="/dashboard" class="nav-link">
-        <i class="fas fa-tachometer-alt"></i>
-        <span>Dashboard</span>
+      <a href="/dashboard" class="nav-link" data-route="/dashboard">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
       </a>
-      <a href="/training" class="nav-link">
-        <i class="fas fa-graduation-cap"></i>
+
+      <a href="/training" class="nav-link" data-route="/training">
+        <i class="fas fa-book"></i>
         <span>Trainings</span>
       </a>
 
       <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-        <a href="/questions" class="nav-link">
-          <i class="fas fa-question-circle"></i>
-          <span>Questions</span>
+        <a href="/trainees" class="nav-link" data-route="/trainees">
+          <i class="fas fa-users"></i>
+          <span>Trainees</span>
         </a>
       <% } %>
 
-      <div class="navbar-user" id="navbarUser">
-        <button class="navbar-user-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Open profile menu">
-          <% if (user.userProfile) { %>
+      <a href="/profile" class="nav-link" data-route="/profile">
+        <% if (user && user.userProfile) { %>
+          <span class="profile-picture-small-wrapper">
             <img src="<%= user.userProfile %>" alt="Profile" class="profile-picture-small">
-          <% } else { %>
-            <div class="profile-placeholder-small"><%= user.userName.charAt(0) %></div>
-          <% } %>
-          <i class="fas fa-chevron-down navbar-user-caret"></i>
-        </button>
-        <div class="dropdown-menu" role="menu" aria-label="Profile menu">
-          <a href="/profile" class="nav-link dropdown-link" role="menuitem">
-            <i class="fas fa-user"></i>
-            <span>Profile</span>
-          </a>
-          <a href="/logout" class="nav-link dropdown-link" role="menuitem">
-            <i class="fas fa-sign-out-alt"></i>
-            <span>Logout</span>
-          </a>
-        </div>
-      </div>
+          </span>
+        <% } else { %>
+          <i class="fas fa-user-circle"></i>
+        <% } %>
+        <span>Profile</span>
+      </a>
     </div>
   </div>
-
-  <script>
-    // Add active class to current navigation item
-    document.addEventListener('DOMContentLoaded', function() {
-      const currentPath = window.location.pathname;
-      const navLinks = document.querySelectorAll('.navbar-menu .nav-link');
-
-      navLinks.forEach(link => {
-        const href = link.getAttribute('href');
-
-        // Check if current path matches the link href
-        if (href === currentPath) {
-          link.classList.add('active');
-        }
-
-        // Special case for dashboard (root path)
-        if (href === '/dashboard' && (currentPath === '/' || currentPath === '/dashboard')) {
-          link.classList.add('active');
-        }
-
-        // Special case for training routes (any path starting with /training)
-        if (href === '/training' && currentPath.startsWith('/training')) {
-          link.classList.add('active');
-        }
-
-        // Special case for questions routes (any path starting with /questions)
-        if (href === '/questions' && currentPath.startsWith('/questions')) {
-          link.classList.add('active');
-        }
-
-        // Special case for profile routes (any path starting with /profile)
-        if (href === '/profile' && currentPath.startsWith('/profile')) {
-          link.classList.add('active');
-        }
-      });
-    });
-
-    // Hover/focus dropdown: no click toggle needed
-  </script>
 </nav>
+
+<script>
+  // Highlight active tab based on current path (for both desktop and mobile)
+  document.addEventListener('DOMContentLoaded', function() {
+    var currentPath = window.location.pathname || '/';
+    var links = document.querySelectorAll('.navbar .nav-link[data-route]');
+
+    links.forEach(function(link) {
+      var route = link.getAttribute('data-route');
+      if (!route) return;
+
+      // Dashboard: root or /dashboard
+      if (route === '/dashboard' && (currentPath === '/' || currentPath === '/dashboard')) {
+        link.classList.add('active');
+        return;
+      }
+
+      // Other routes: any path starting with the route
+      if (route !== '/dashboard' && currentPath.startsWith(route)) {
+        link.classList.add('active');
+      }
+    });
+  });
+</script>

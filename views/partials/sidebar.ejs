@@ -164,71 +164,108 @@
     }
   }
   
-  // Initialize settings menu state on page load - uses global localStorage state
+  // Initialize settings menu + active nav state on page load - uses global localStorage state
   document.addEventListener('DOMContentLoaded', function() {
     const menuItem = document.querySelector('.sidebar-menu-item');
     const submenu = document.getElementById('settings-submenu');
     const currentPath = window.location.pathname;
     
-    if (!menuItem || !submenu) return;
-    
-    // Check if we're on a settings page
-    const isSettingsPage = currentPath.startsWith('/settings');
-    
-    // Get saved state from localStorage (global state)
-    const savedState = localStorage.getItem('settingsMenuExpanded');
-    
-    // Use saved state if it exists, otherwise default to expanded on settings pages
-    let shouldExpand = false;
-    
-    if (savedState !== null) {
-      // Use saved preference (global state)
-      shouldExpand = savedState === 'true';
-    } else {
-      // First time - expand if on settings page
-      shouldExpand = isSettingsPage;
+    if (menuItem && submenu) {
+      // Check if we're on a settings page
+      const isSettingsPage = currentPath.startsWith('/settings');
+      
+      // Get saved state from localStorage (global state)
+      const savedState = localStorage.getItem('settingsMenuExpanded');
+      
+      // Use saved state if it exists, otherwise default to expanded on settings pages
+      let shouldExpand = false;
+      
+      if (savedState !== null) {
+        // Use saved preference (global state)
+        shouldExpand = savedState === 'true';
+      } else {
+        // First time - expand if on settings page
+        shouldExpand = isSettingsPage;
+        if (isSettingsPage) {
+          localStorage.setItem('settingsMenuExpanded', 'true');
+        }
+      }
+      
+      // Set state without animation (no animating class)
+      if (shouldExpand) {
+        menuItem.classList.add('active');
+        // Set height immediately without transition
+        submenu.style.maxHeight = submenu.scrollHeight + 'px';
+      } else {
+        menuItem.classList.remove('active');
+        submenu.style.maxHeight = '0';
+      }
+      
+      // Highlight active submenu item if on settings page
       if (isSettingsPage) {
-        localStorage.setItem('settingsMenuExpanded', 'true');
+        // Try to find an exact match first
+        let activeLink = document.querySelector(`.sidebar-sublink[href="${currentPath}"]`);
+
+        // If no exact match (e.g. /settings/users/new or /settings/users/123/edit),
+        // fall back to the link whose href is a prefix of the current path.
+        if (!activeLink) {
+          const links = Array.from(document.querySelectorAll('.sidebar-sublink[href^="/settings"]'));
+          let bestMatch = null;
+          let bestLength = 0;
+          
+          links.forEach(link => {
+            const href = link.getAttribute('href');
+            if (href && currentPath.startsWith(href) && href.length > bestLength) {
+              bestMatch = link;
+              bestLength = href.length;
+            }
+          });
+          
+          activeLink = bestMatch;
+        }
+        
+        if (activeLink) {
+          activeLink.classList.add('active');
+        }
       }
     }
-    
-    // Set state without animation (no animating class)
-    if (shouldExpand) {
-      menuItem.classList.add('active');
-      // Set height immediately without transition
-      submenu.style.maxHeight = submenu.scrollHeight + 'px';
-    } else {
-      menuItem.classList.remove('active');
-      submenu.style.maxHeight = '0';
-    }
-    
-    // Highlight active submenu item if on settings page
-    if (isSettingsPage) {
-      // Try to find an exact match first
-      let activeLink = document.querySelector(`.sidebar-sublink[href="${currentPath}"]`);
 
-      // If no exact match (e.g. /settings/users/new or /settings/users/123/edit),
-      // fall back to the link whose href is a prefix of the current path.
-      if (!activeLink) {
-        const links = Array.from(document.querySelectorAll('.sidebar-sublink[href^="/settings"]'));
-        let bestMatch = null;
-        let bestLength = 0;
-
-        links.forEach(link => {
-          const href = link.getAttribute('href');
-          if (href && currentPath.startsWith(href) && href.length > bestLength) {
-            bestMatch = link;
-            bestLength = href.length;
-          }
-        });
-
-        activeLink = bestMatch;
+    // Highlight main sidebar links based on current path
+    const mainLinks = document.querySelectorAll('.sidebar-link[href]');
+    mainLinks.forEach(link => {
+      const href = link.getAttribute('href');
+      if (!href) return;
+      
+      // Dashboard: root or /dashboard
+      if (href === '/dashboard' && (currentPath === '/' || currentPath === '/dashboard')) {
+        link.classList.add('active');
+        return;
       }
 
-      if (activeLink) {
-        activeLink.classList.add('active');
+      // Trainings: any /training path
+      if (href === '/training' && currentPath.startsWith('/training')) {
+        link.classList.add('active');
+        return;
       }
-    }
+
+      // Trainees: any /trainees path
+      if (href === '/trainees' && currentPath.startsWith('/trainees')) {
+        link.classList.add('active');
+        return;
+      }
+
+      // Questions: any /questions path
+      if (href === '/questions' && currentPath.startsWith('/questions')) {
+        link.classList.add('active');
+        return;
+      }
+
+      // Profile (if we ever link it from sidebar)
+      if (href === '/profile' && currentPath.startsWith('/profile')) {
+        link.classList.add('active');
+        return;
+      }
+    });
   });
 
   // Mobile sidebar toggle functionality

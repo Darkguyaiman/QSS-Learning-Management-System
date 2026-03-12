@@ -251,6 +251,21 @@ CREATE TABLE test_answers (
   FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
 );
 
+-- Objective understanding scores for tests
+CREATE TABLE objective_scores (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  enrollment_id INT NOT NULL,
+  objective_id INT NOT NULL,
+  test_type ENUM('post_test', 'refresher_training', 'certificate_enrolment') NOT NULL,
+  questions_answered INT NOT NULL DEFAULT 0,
+  questions_correct INT NOT NULL DEFAULT 0,
+  understanding_percentage DECIMAL(5,2) NOT NULL DEFAULT 0,
+  calculated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE,
+  FOREIGN KEY (objective_id) REFERENCES objectives(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_objective_score (enrollment_id, objective_id, test_type)
+);
+
 -- Training tests (pre/post/certificate/refresher definitions per training)
 CREATE TABLE training_tests (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -285,6 +300,20 @@ CREATE TABLE practical_learning_outcome_scores (
   FOREIGN KEY (aspect_id) REFERENCES practical_learning_outcomes(id) ON DELETE CASCADE,
   FOREIGN KEY (evaluated_by) REFERENCES users(id) ON DELETE SET NULL,
   UNIQUE KEY unique_hands_on_score (enrollment_id, aspect_id)
+);
+
+-- Final grades summary per enrollment
+CREATE TABLE final_grades (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  enrollment_id INT NOT NULL,
+  training_grade DECIMAL(5,2) NULL,
+  endorsement_grade DECIMAL(5,2) NULL,
+  objective_understanding_percentage DECIMAL(5,2) NULL,
+  hands_on_grade DECIMAL(5,2) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_final_grades (enrollment_id)
 );
 
 -- Training Healthcare (many-to-many relationship)

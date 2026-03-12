@@ -6,82 +6,309 @@
   <title>Take Test - LMS</title>
   <link rel="stylesheet" href="/css/styles.css">
 </head>
-<body>
-  <%- include('../partials/navbar', { user }) %>
-  
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
   <main class="main-content">
     <div class="container">
       <div class="dashboard-header">
         <h1><%= enrollment.title %> - <%= testType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %></h1>
       </div>
-      
-      <div class="auth-card" style="max-width: 900px; margin: 0 auto;">
-        <form action="/tests/submit/<%= attemptId %>" method="POST" id="testForm">
-          <% questions.forEach((question, index) => { %>
-            <div class="training-card" style="margin-bottom: var(--spacing-xl);">
-              <h3 style="margin-bottom: var(--spacing-md);">
-                Question <%= index + 1 %> of <%= questions.length %>
-              </h3>
-              <p style="font-size: 1.1rem; margin-bottom: var(--spacing-lg);"><%= question.question_text %></p>
-              
-              <div class="form-group" style="margin-bottom: 0;">
-                <label style="display: flex; align-items: center; padding: var(--spacing-sm); cursor: pointer; border-radius: var(--border-radius); transition: background-color 0.2s;" 
-                       onmouseover="this.style.backgroundColor='var(--color-gray-light)'" 
-                       onmouseout="this.style.backgroundColor='transparent'">
-                  <input type="radio" name="<%= question.id %>" value="A" required style="margin-right: var(--spacing-sm);">
-                  <span><strong>A:</strong> <%= question.option_a %></span>
-                </label>
-                
-                <label style="display: flex; align-items: center; padding: var(--spacing-sm); cursor: pointer; border-radius: var(--border-radius); transition: background-color 0.2s;" 
-                       onmouseover="this.style.backgroundColor='var(--color-gray-light)'" 
-                       onmouseout="this.style.backgroundColor='transparent'">
-                  <input type="radio" name="<%= question.id %>" value="B" required style="margin-right: var(--spacing-sm);">
-                  <span><strong>B:</strong> <%= question.option_b %></span>
-                </label>
-                
-                <label style="display: flex; align-items: center; padding: var(--spacing-sm); cursor: pointer; border-radius: var(--border-radius); transition: background-color 0.2s;" 
-                       onmouseover="this.style.backgroundColor='var(--color-gray-light)'" 
-                       onmouseout="this.style.backgroundColor='transparent'">
-                  <input type="radio" name="<%= question.id %>" value="C" required style="margin-right: var(--spacing-sm);">
-                  <span><strong>C:</strong> <%= question.option_c %></span>
-                </label>
-                
-                <label style="display: flex; align-items: center; padding: var(--spacing-sm); cursor: pointer; border-radius: var(--border-radius); transition: background-color 0.2s;" 
-                       onmouseover="this.style.backgroundColor='var(--color-gray-light)'" 
-                       onmouseout="this.style.backgroundColor='transparent'">
-                  <input type="radio" name="<%= question.id %>" value="D" required style="margin-right: var(--spacing-sm);">
-                  <span><strong>D:</strong> <%= question.option_d %></span>
-                </label>
-              </div>
+
+      <div class="auth-card test-shell">
+        <div class="test-take-layout">
+          <!-- Progress + Navigation -->
+          <div class="test-progress-shell">
+          <div class="test-progress-header">
+            <div>
+              <h2 class="test-progress-title">Test Progress</h2>
+              <p class="test-progress-subtitle">
+                Question <span id="current-question-number">1</span> of <span id="total-questions"><%= questions.length %></span>
+              </p>
             </div>
-          <% }); %>
-          
-          <div style="text-align: center; margin-top: var(--spacing-2xl); padding-top: var(--spacing-xl); border-top: 2px solid var(--color-gray-light);">
-            <button type="submit" class="btn btn-primary btn-lg" style="padding: var(--spacing-md) var(--spacing-xl); font-size: 1.1rem;" data-confirm="Submit your test now? Your answers will be final and you won’t be able to edit them afterwards." data-confirm-danger="false">
-              Submit Test
-            </button>
-            <p class="text-muted" style="margin-top: var(--spacing-md);">Please review all answers before submitting.</p>
+            <div class="test-progress-counts">
+              <span class="badge badge-neutral">
+                Completed: <span id="completed-count">0</span>
+              </span>
+              <span class="badge badge-muted">
+                Remaining: <span id="remaining-count"><%= questions.length %></span>
+              </span>
+            </div>
+          </div>
+
+          <div class="test-progress-grid" id="question-grid">
+            <% questions.forEach((question, index) => { %>
+              <button 
+                type="button" 
+                class="test-progress-item" 
+                data-question-index="<%= index %>"
+                aria-label="Question <%= index + 1 %>"
+              >
+                <span class="test-progress-label"><%= index + 1 %></span>
+              </button>
+            <% }); %>
+          </div>
+          <div class="test-progress-legend">
+            <span class="test-progress-legend-title">Legend</span>
+            <div class="test-progress-legend-item">
+              <span class="legend-dot legend-dot-completed"></span>
+              Completed
+            </div>
+            <div class="test-progress-legend-item">
+              <span class="legend-dot legend-dot-unattempted"></span>
+              Unattempted
+            </div>
+          </div>
+        </div>
+
+        <!-- Test Form -->
+        <form action="/tests/submit/<%= attemptId %>" method="POST" id="testForm">
+          <div id="questions-container">
+            <% questions.forEach((question, index) => { %>
+              <div 
+                class="training-card test-question-card" 
+                data-question-index="<%= index %>" 
+                data-question-id="<%= question.id %>"
+                style="margin-bottom: var(--spacing-xl); display: <%= index === 0 ? 'block' : 'none' %>;"
+              >
+                <h3 style="margin-bottom: var(--spacing-md);">
+                  Question <span class="question-number"><%= index + 1 %></span> of <%= questions.length %>
+                </h3>
+                <p style="font-size: 1.1rem; margin-bottom: var(--spacing-lg);"><%= question.question_text %></p>
+                
+                <div class="form-group" style="margin-bottom: 0;">
+                  <% ['A','B','C','D'].forEach(function(optionLetter) { %>
+                    <% const optionKey = 'option_' + optionLetter.toLowerCase(); %>
+                    <label class="test-option-row">
+                      <input 
+                        type="radio" 
+                        name="<%= question.id %>" 
+                        value="<%= optionLetter %>" 
+                        class="test-option-input"
+                      >
+                      <span>
+                        <strong><%= optionLetter %>:</strong> <%= question[optionKey] %>
+                      </span>
+                    </label>
+                  <% }); %>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+
+          <!-- Navigation + Submit -->
+          <div class="test-navigation-footer">
+            <div class="test-navigation-buttons">
+              <button type="button" class="btn btn-outline" id="prev-question-btn">
+                <i class="fas fa-arrow-left"></i> Previous
+              </button>
+              <button type="button" class="btn btn-primary" id="next-question-btn">
+                Next <i class="fas fa-arrow-right"></i>
+              </button>
+            </div>
+            <div class="test-submit-wrapper">
+              <button 
+                type="submit" 
+                class="btn btn-primary" 
+                id="submit-test-btn"
+                data-confirm="Submit your test now? Your answers will be final and you won’t be able to edit them afterwards." 
+                data-confirm-danger="false"
+                disabled
+              >
+                Submit Test
+              </button>
+              <p class="text-muted" style="margin-top: var(--spacing-sm);">
+                You can submit only after all questions are answered. Use the grid above to jump between questions.
+              </p>
+            </div>
           </div>
         </form>
+        </div>
       </div>
     </div>
   </main>
   
   <script src="/js/main.js"></script>
   <script>
-    // Prevent accidental navigation
-    window.addEventListener('beforeunload', function (e) {
-      e.preventDefault();
-      e.returnValue = '';
-    });
-    
-    // Remove warning when form is submitted
-    document.getElementById('testForm').addEventListener('submit', function() {
-      window.removeEventListener('beforeunload', arguments.callee);
-    });
+    (function () {
+      const attemptId = '<%= attemptId %>';
+      const storageKey = 'qss_test_attempt_' + attemptId;
+
+      const questionCards = Array.from(document.querySelectorAll('.test-question-card'));
+      const gridItems = Array.from(document.querySelectorAll('.test-progress-item'));
+      const totalQuestions = questionCards.length;
+      const currentNumberEl = document.getElementById('current-question-number');
+      const completedCountEl = document.getElementById('completed-count');
+      const remainingCountEl = document.getElementById('remaining-count');
+      const prevBtn = document.getElementById('prev-question-btn');
+      const nextBtn = document.getElementById('next-question-btn');
+      const submitBtn = document.getElementById('submit-test-btn');
+      const form = document.getElementById('testForm');
+
+      let currentIndex = 0;
+      let answers = {};
+
+      // Load saved answers from localStorage
+      try {
+        const saved = window.localStorage.getItem(storageKey);
+        if (saved) {
+          answers = JSON.parse(saved) || {};
+        }
+      } catch (err) {
+        console.warn('Unable to load saved test state:', err);
+      }
+
+      function applyAnswersToDOM() {
+        questionCards.forEach(card => {
+          const qid = card.getAttribute('data-question-id');
+          const value = answers[qid];
+          if (!value) return;
+          const input = card.querySelector('input[type="radio"][value="' + value + '"]');
+          if (input) {
+            input.checked = true;
+          }
+        });
+      }
+
+      function saveAnswersToStorage() {
+        try {
+          window.localStorage.setItem(storageKey, JSON.stringify(answers));
+        } catch (err) {
+          console.warn('Unable to save test state:', err);
+        }
+      }
+
+      function updateCountsAndGrid() {
+        let completed = 0;
+        questionCards.forEach((card, index) => {
+          const qid = card.getAttribute('data-question-id');
+          const hasAnswer = !!answers[qid];
+          if (hasAnswer) completed++;
+
+          const gridItem = gridItems[index];
+          if (!gridItem) return;
+          const stateEl = gridItem.querySelector('.test-progress-state');
+
+          gridItem.classList.toggle('is-completed', hasAnswer);
+          gridItem.classList.toggle('is-current', index === currentIndex);
+
+          if (stateEl) {
+            stateEl.textContent = hasAnswer ? 'Completed' : 'Not answered';
+          }
+        });
+
+        if (completedCountEl) completedCountEl.textContent = completed;
+        if (remainingCountEl) remainingCountEl.textContent = Math.max(totalQuestions - completed, 0);
+
+        // Enable submit only when all answered
+        if (completed === totalQuestions) {
+          submitBtn.disabled = false;
+        } else {
+          submitBtn.disabled = true;
+        }
+      }
+
+      function showQuestion(index) {
+        if (index < 0 || index >= totalQuestions) return;
+        currentIndex = index;
+
+        questionCards.forEach((card, i) => {
+          card.style.display = i === index ? 'block' : 'none';
+        });
+
+        if (currentNumberEl) {
+          currentNumberEl.textContent = index + 1;
+        }
+
+        prevBtn.disabled = index === 0;
+        nextBtn.disabled = index === totalQuestions - 1;
+
+        updateCountsAndGrid();
+      }
+
+      function captureAnswerForIndex(index) {
+        const card = questionCards[index];
+        if (!card) return;
+        const qid = card.getAttribute('data-question-id');
+        const selected = card.querySelector('input[type="radio"]:checked');
+        if (selected && qid) {
+          answers[qid] = selected.value;
+        }
+      }
+
+      // Attach change listeners to options to update immediately
+      questionCards.forEach((card, index) => {
+        card.addEventListener('change', function (e) {
+          if (e.target && e.target.matches('input[type="radio"]')) {
+            captureAnswerForIndex(index);
+            saveAnswersToStorage();
+            updateCountsAndGrid();
+          }
+        });
+      });
+
+      // Grid click navigation
+      gridItems.forEach(item => {
+        item.addEventListener('click', function () {
+          const idx = parseInt(this.getAttribute('data-question-index'), 10);
+          if (Number.isNaN(idx)) return;
+          // Save current answer before jumping
+          captureAnswerForIndex(currentIndex);
+          saveAnswersToStorage();
+          showQuestion(idx);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+      });
+
+      // Prev / Next navigation
+      prevBtn.addEventListener('click', function () {
+        captureAnswerForIndex(currentIndex);
+        saveAnswersToStorage();
+        showQuestion(currentIndex - 1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      nextBtn.addEventListener('click', function () {
+        captureAnswerForIndex(currentIndex);
+        saveAnswersToStorage();
+        showQuestion(currentIndex + 1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      // Before submit: enforce all answered and clear storage
+      form.addEventListener('submit', function (e) {
+        // Final capture for current card
+        captureAnswerForIndex(currentIndex);
+        saveAnswersToStorage();
+
+        const unansweredIndex = questionCards.findIndex(card => {
+          const qid = card.getAttribute('data-question-id');
+          return !answers[qid];
+        });
+
+        if (unansweredIndex !== -1) {
+          e.preventDefault();
+          if (window.qssShowWarning) {
+            window.qssShowWarning('Almost there! Please answer all questions before submitting. We’ll jump you to the first unanswered one.', 'Incomplete Test');
+          } else {
+            alert('Almost there! Please answer all questions before submitting. We will take you to the first unanswered question.');
+          }
+          showQuestion(unansweredIndex);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return false;
+        }
+
+        // All good: clear saved state and allow submit
+        try {
+          window.localStorage.removeItem(storageKey);
+        } catch (err) {
+          console.warn('Unable to clear saved test state:', err);
+        }
+      });
+
+      // Initialize UI
+      applyAnswersToDOM();
+      showQuestion(0);
+    })();
   </script>
 </body>
 </html>
-
-
-

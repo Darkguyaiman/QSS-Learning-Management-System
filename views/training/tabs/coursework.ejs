@@ -108,6 +108,9 @@
       <h2 style="margin: 0; font-size: 1.25rem; font-weight: 400; color: #202124;">Training Materials</h2>
       <% if (['admin', 'trainer'].includes(user.userRole)) { %>
         <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-outline" onclick="openImportSectionsModal()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+            <i class="fas fa-file-import"></i> Import Sections
+          </button>
           <button class="btn btn-outline" onclick="openCreateSectionModal()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
             <i class="fas fa-folder-plus"></i> Create Section
           </button>
@@ -334,6 +337,8 @@
                 <span style="color: #137333; font-weight: 500;"><i class="fas fa-check-circle"></i> Completed</span>
               <% } else if (testType === 'post_test' && !enrollment.pre_test_completed) { %>
                 <span style="color: #5F6368;">Complete Pre-Test first</span>
+              <% } else if (testType === 'certificate_enrolment' && training.type === 'main' && !enrollment.pre_test_completed) { %>
+                <span style="color: #5F6368;">Complete Pre-Test first</span>
               <% } else { %>
                 <a href="/tests/start/<%= enrollment.id %>/<%= testType %>" class="btn btn-sm btn-primary">Take Test</a>
               <% } %>
@@ -353,6 +358,236 @@
       <p style="color: #5F6368; margin: 0;">No tests available for this training.</p>
     <% } %>
   </div>
+
+  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+    <!-- Import Sections Modal -->
+    <div id="importSectionsModal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 720px;">
+        <div class="modal-header">
+          <h2>Import Sections</h2>
+          <button class="modal-close" onclick="closeImportSectionsModal()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="form-group">
+          <label for="import-training-select">
+            <i class="fas fa-chalkboard-teacher"></i>
+            Source Training
+          </label>
+          <select id="import-training-select" class="form-input">
+            <option value="">Select a training...</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-top: 1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
+            <label style="margin: 0; display:flex; align-items:center; gap:0.5rem;">
+              <input type="checkbox" id="import-sections-select-all">
+              Select all sections
+            </label>
+            <div style="color:#5F6368; font-size:0.9rem;">
+              <span id="import-sections-selected-count">0</span> selected
+            </div>
+          </div>
+          <div id="import-sections-list" style="margin-top: 0.75rem; max-height: 260px; overflow: auto; border: 1px solid #E8EAED; border-radius: 10px; padding: 0.5rem;">
+            <div style="color:#5F6368; font-size:0.9rem; padding:0.5rem;">Select a training to load sections.</div>
+          </div>
+          <div style="margin-top: 0.5rem; color:#5F6368; font-size:0.85rem;">
+            Imported materials reuse existing files/links to keep the process fast.
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 2rem; padding-top: 1.5rem; border-top: 2px solid #E8EAED;">
+          <button type="button" class="btn btn-secondary" onclick="closeImportSectionsModal()">Cancel</button>
+          <button type="button" id="import-sections-submit" class="btn btn-primary" disabled>
+            <i class="fas fa-file-import"></i> Import Selected
+          </button>
+        </div>
+      </div>
+    </div>
+  <% } %>
+
+  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+    <script>
+      (function () {
+        const TRAINING_ID = <%- JSON.stringify(training.id) %>;
+        const modal = document.getElementById('importSectionsModal');
+        const trainingSelect = document.getElementById('import-training-select');
+        const sectionsList = document.getElementById('import-sections-list');
+        const selectAll = document.getElementById('import-sections-select-all');
+        const selectedCountEl = document.getElementById('import-sections-selected-count');
+        const submitBtn = document.getElementById('import-sections-submit');
+
+        let trainingsLoaded = false;
+        let loadingSections = false;
+
+        function formatDate(value) {
+          if (!value) return '';
+          const d = new Date(value);
+          if (Number.isNaN(d.valueOf())) return '';
+          return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function setListMessage(message) {
+          if (!sectionsList) return;
+          sectionsList.innerHTML = `<div style="color:#5F6368; font-size:0.9rem; padding:0.5rem;">${message}</div>`;
+        }
+
+        function updateSelectedCount() {
+          if (!sectionsList || !selectedCountEl || !submitBtn) return;
+          const checked = sectionsList.querySelectorAll('input.import-section-checkbox:checked').length;
+          selectedCountEl.textContent = String(checked);
+          submitBtn.disabled = checked === 0 || loadingSections;
+          if (selectAll) {
+            const total = sectionsList.querySelectorAll('input.import-section-checkbox').length;
+            selectAll.checked = total > 0 && checked === total;
+            selectAll.indeterminate = checked > 0 && checked < total;
+          }
+        }
+
+        async function loadTrainings() {
+          if (trainingsLoaded || !trainingSelect) return;
+          trainingSelect.innerHTML = '<option value="">Loading trainings...</option>';
+          try {
+            const resp = await fetch(`/training/${TRAINING_ID}/import-sections/trainings`);
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data.success) {
+              throw new Error(data.error || 'Failed to load trainings');
+            }
+            const rows = data.trainings || [];
+            const options = ['<option value="">Select a training...</option>'];
+            for (const t of rows) {
+              const start = formatDate(t.start_datetime);
+              const end = formatDate(t.end_datetime);
+              const range = start || end ? ` (${[start, end].filter(Boolean).join(' - ')})` : '';
+              const counts = ` • ${t.section_count || 0} sections • ${t.material_count || 0} materials`;
+              options.push(`<option value="${t.id}">${t.title}${range}${counts}</option>`);
+            }
+            trainingSelect.innerHTML = options.join('');
+            if (rows.length === 0) {
+              trainingSelect.innerHTML = '<option value="">No other trainings available</option>';
+            }
+            trainingsLoaded = true;
+          } catch (e) {
+            trainingSelect.innerHTML = '<option value="">Unable to load trainings</option>';
+            qssShowError(String(e.message || e));
+          }
+        }
+
+        async function loadSections(sourceId) {
+          if (!sectionsList) return;
+          if (!sourceId) {
+            setListMessage('Select a training to load sections.');
+            updateSelectedCount();
+            return;
+          }
+          loadingSections = true;
+          submitBtn.disabled = true;
+          setListMessage('Loading sections...');
+          try {
+            const resp = await fetch(`/training/${TRAINING_ID}/import-sections/source/${sourceId}`);
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data.success) {
+              throw new Error(data.error || 'Failed to load sections');
+            }
+            const rows = data.sections || [];
+            if (rows.length === 0) {
+              setListMessage('No sections found in this training.');
+              updateSelectedCount();
+              return;
+            }
+
+            sectionsList.innerHTML = rows.map(section => {
+              const label = `${section.title} (${section.material_count || 0} materials)`;
+              return `
+                <label style="display:flex; align-items:center; gap:0.5rem; padding:0.5rem; border-bottom:1px solid #F1F3F4;">
+                  <input type="checkbox" class="import-section-checkbox" value="${section.id}">
+                  <span>${label}</span>
+                </label>
+              `;
+            }).join('');
+
+            sectionsList.querySelectorAll('input.import-section-checkbox').forEach(input => {
+              input.addEventListener('change', updateSelectedCount);
+            });
+
+            updateSelectedCount();
+          } catch (e) {
+            setListMessage('Unable to load sections.');
+            qssShowError(String(e.message || e));
+          } finally {
+            loadingSections = false;
+            updateSelectedCount();
+          }
+        }
+
+        window.openImportSectionsModal = async function () {
+          if (!modal) return;
+          modal.classList.add('active');
+          if (selectAll) selectAll.checked = false;
+          if (selectedCountEl) selectedCountEl.textContent = '0';
+          await loadTrainings();
+        };
+
+        window.closeImportSectionsModal = function () {
+          if (!modal) return;
+          modal.classList.remove('active');
+          if (trainingSelect) trainingSelect.value = '';
+          setListMessage('Select a training to load sections.');
+          updateSelectedCount();
+        };
+
+        if (trainingSelect) {
+          trainingSelect.addEventListener('change', (e) => {
+            const value = e.target.value || '';
+            if (selectAll) selectAll.checked = false;
+            loadSections(value);
+          });
+        }
+
+        if (selectAll) {
+          selectAll.addEventListener('change', () => {
+            const checked = selectAll.checked;
+            sectionsList?.querySelectorAll('input.import-section-checkbox').forEach(input => {
+              input.checked = checked;
+            });
+            updateSelectedCount();
+          });
+        }
+
+        if (submitBtn) {
+          submitBtn.addEventListener('click', async () => {
+            if (!trainingSelect || !sectionsList) return;
+            const sourceId = trainingSelect.value;
+            const selected = Array.from(sectionsList.querySelectorAll('input.import-section-checkbox:checked')).map(i => i.value);
+            if (!sourceId || selected.length === 0) {
+              qssShowWarning('Please select a training and at least one section.');
+              return;
+            }
+
+            submitBtn.disabled = true;
+            try {
+              const resp = await fetch(`/training/${TRAINING_ID}/import-sections`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sourceTrainingId: sourceId, sectionIds: selected })
+              });
+              const data = await resp.json().catch(() => ({}));
+              if (!resp.ok || !data.success) {
+                throw new Error(data.error || 'Import failed');
+              }
+              qssShowSuccess(`Imported ${data.sectionsImported || 0} section(s) and ${data.materialsImported || 0} material(s).`);
+              window.location.reload();
+            } catch (e) {
+              qssShowError(String(e.message || e));
+              submitBtn.disabled = false;
+            }
+          });
+        }
+      })();
+    </script>
+  <% } %>
 
 
   <!-- Training Media (Photos) -->

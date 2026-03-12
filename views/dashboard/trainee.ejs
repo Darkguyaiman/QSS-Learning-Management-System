@@ -7,46 +7,45 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
-<body>
-  <%- include('../partials/navbar', { user }) %>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
 
   <main class="main-content trainee-dashboard">
-    <!-- Welcome Hero Section -->
-    <div class="welcome-hero">
-      <div class="container">
-        <div class="hero-content">
-          <div class="hero-content-centered">
-            <h1>Welcome back, <%= user.userName %> <span class="emoji-wave">👋</span></h1>
-            <p>Continue your learning journey and track your progress</p>
+    <div class="container">
+      <!-- Top Grid: Welcome + Quick Actions -->
+      <div class="dashboard-top-grid">
+        <!-- Welcome Hero Section -->
+        <div class="welcome-hero">
+          <div class="hero-content">
+            <div class="hero-content-centered">
+              <h1>Welcome back, <%= user.userName %> <span class="emoji-wave">👋</span></h1>
+              <p>Continue your learning journey and track your progress</p>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
 
-    <div class="container">
-      <!-- Quick Actions Section -->
-      <div class="quick-actions-section">
-        <div class="section-header">
-          <h2><i class="fas fa-bolt"></i> Quick Actions</h2>
-          <p>Get started with your training</p>
-        </div>
-        <div class="action-cards-grid">
-          <a href="/training" class="action-card-primary">
-            <div class="action-card-bg">
-              <div class="action-card-content">
-                <div class="action-card-text">
-                  <h3>Browse Trainings</h3>
-                  <p>Explore available training programs and enroll in new courses</p>
-                  <div class="action-card-arrow">
-                    <i class="fas fa-arrow-right"></i>
+        <!-- Quick Actions + Profile Section -->
+        <div class="quick-actions-section">
+          <div class="section-header">
+            <h2><i class="fas fa-bolt"></i> Quick Actions</h2>
+            <p>Get started with your training</p>
+          </div>
+          <div class="quick-actions-grid">
+            <a href="/training" class="action-card-primary">
+              <div class="action-card-bg">
+                <div class="action-card-content">
+                  <div class="action-card-text">
+                    <h3>Browse Trainings</h3>
+                    <p>Explore available training programs and enroll in new courses</p>
+                    <div class="action-card-arrow">
+                      <i class="fas fa-arrow-right"></i>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </a>
+            </a>
 
-          <div class="action-cards-secondary">
-            <a href="/profile" class="action-card-secondary">
+            <a href="/profile" class="action-card-secondary quick-profile-card">
               <div class="action-card-secondary-header">
                 <h4><i class="fas fa-id-card"></i> Your Profile</h4>
               </div>
@@ -314,78 +313,74 @@
   </main>
 
   <style>
-    /* Welcome Hero Section */
+    /* Top grid layout: hero + quick actions */
+    .dashboard-top-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.6fr);
+      gap: var(--spacing-xl);
+      align-items: stretch;
+      margin-top: var(--spacing-lg);
+    }
+
+    /* Compact welcome header card with background image */
     .welcome-hero {
-      background: linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.6)), url('/images/Dashboard Images/Hero.webp');
+      background: linear-gradient(135deg, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.75)), url('/images/Dashboard Images/Hero.webp');
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
-      background-attachment: fixed;
       color: white;
-      padding: var(--spacing-xl) 0;
-      margin-top: -2rem;
-      position: relative;
-      width: calc(100% + (var(--page-padding) * 2));
-      margin-left: calc(-1 * var(--page-padding));
-      margin-right: calc(-1 * var(--page-padding));
-      min-height: 400px;
+      border-radius: 18px;
+      min-height: 140px;
       display: flex;
       align-items: center;
-      border-radius: 0 0 30px 30px;
+      justify-content: center;
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.35);
+      border: 1px solid rgba(15, 23, 42, 0.45);
       overflow: hidden;
-      transition: all 0.3s ease;
     }
 
     .hero-content {
       width: 100%;
       display: flex;
-      justify-content: flex-start;
+      justify-content: center;
     }
 
     .welcome-hero::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(135deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%);
-      border-radius: 0 0 30px 30px;
-      transition: all 0.3s ease;
+      content: none;
     }
 
     .hero-content-centered {
-      position: absolute;
-      left: 5%;
-      top: 50%;
-      transform: translateY(-50%);
-      z-index: 2;
+      position: relative;
+      left: 0;
+      top: 0;
+      transform: none;
+      z-index: 1;
       text-align: left;
-      max-width: 600px;
+      max-width: 520px;
       width: 100%;
-      padding: 0 var(--spacing-lg);
+      padding: var(--spacing-sm) var(--spacing-md);
       box-sizing: border-box;
     }
 
     .hero-content-centered h1 {
-      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-size: clamp(1.75rem, 3vw, 2.4rem);
       font-weight: 700;
       margin: 0 0 var(--spacing-sm) 0;
       color: white;
       text-shadow: 0 3px 6px rgba(0, 0, 0, 0.7);
-      line-height: 1.1;
+      line-height: 1.2;
       letter-spacing: -0.02em;
     }
 
 
     .hero-content-centered p {
-      font-size: clamp(1rem, 2.5vw, 1.375rem);
+      font-size: clamp(0.95rem, 2vw, 1.15rem);
       opacity: 0.95;
       margin: 0;
       color: rgba(255, 255, 255, 0.95);
       text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
       line-height: 1.4;
-      max-width: 500px;
+      max-width: 520px;
     }
 
     .emoji-wave {
@@ -448,14 +443,14 @@
 
     /* Quick Actions Section */
     .quick-actions-section {
-      margin-bottom: var(--spacing-2xl);
+      margin-top: 0;
+      margin-bottom: var(--spacing-xl);
     }
 
-    .action-cards-grid {
+    .quick-actions-grid {
       display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: var(--spacing-xl);
-      margin-top: var(--spacing-xl);
+      grid-template-rows: auto auto;
+      gap: var(--spacing-md);
       align-items: stretch;
     }
 
@@ -609,7 +604,7 @@
 
     /* Analytics Section */
     .analytics-section {
-      margin-bottom: var(--spacing-2xl);
+      margin-bottom: var(--spacing-xl);
     }
 
     .analytics-grid {
@@ -795,7 +790,7 @@
     }
 
     .main-content.trainee-dashboard {
-      padding-top: var(--spacing-md);
+      padding-top: var(--spacing-lg);
     }
 
     .main-content > .container {
@@ -805,6 +800,21 @@
 
     /* Trainings Section */
     .trainings-section {
+      margin-bottom: var(--spacing-xl);
+    }
+
+    /* Tighter spacing under Quick Actions heading */
+    .quick-actions-section .section-header {
+      margin-bottom: var(--spacing-md);
+    }
+
+    /* Extra space above Learning Progress heading */
+    .analytics-section .section-header h2 {
+      margin-top: var(--spacing-lg);
+    }
+
+    .profile-row {
+      margin-top: var(--spacing-lg);
       margin-bottom: var(--spacing-2xl);
     }
 
@@ -1045,35 +1055,6 @@
     }
 
     /* Responsive Design */
-    @media (min-width: 1440px) {
-      .welcome-hero {
-        min-height: 450px;
-      }
-
-      .hero-content-centered {
-        max-width: 700px;
-        left: 6%;
-      }
-
-      .hero-content-centered h1 {
-        font-size: 4rem;
-      }
-
-      .hero-content-centered p {
-        font-size: 1.5rem;
-      }
-    }
-
-    @media (max-width: 1200px) {
-      .welcome-hero {
-        min-height: 350px;
-      }
-
-      .hero-content-centered h1 {
-        font-size: 2.75rem;
-      }
-    }
-
     @media (max-width: 1024px) {
       .analytics-grid {
         grid-template-columns: 1fr;
@@ -1088,58 +1069,21 @@
         gap: var(--spacing-md);
       }
 
-      .welcome-hero {
-        min-height: 320px;
-      }
-
-      .hero-content-centered {
-        left: 6%;
-        max-width: 450px;
-      }
-
-      .hero-content-centered h1 {
-        font-size: 2.5rem;
-      }
-
-      .hero-content-centered p {
-        font-size: 1.25rem;
+      .dashboard-top-grid {
+        grid-template-columns: minmax(0, 1fr);
       }
     }
 
     @media (max-width: 900px) {
-      .welcome-hero {
-        min-height: 300px;
-        padding: var(--spacing-xl) 0;
-      }
-
-      .hero-content-centered {
-        left: 7%;
-        max-width: 400px;
-      }
-
-      .hero-content-centered h1 {
-        font-size: 2.25rem;
-      }
-
-      .hero-content-centered p {
-        font-size: 1.125rem;
+      .dashboard-top-grid {
+        grid-template-columns: minmax(0, 1fr);
       }
     }
 
     @media (max-width: 768px) {
-      .welcome-hero {
-        min-height: 280px;
-        padding: var(--spacing-lg) 0;
-        background-position: center center;
-        background-size: cover;
-      }
-
       .hero-content-centered {
-        left: 5%;
-        top: 50%;
-        transform: translateY(-50%);
-        max-width: 85%;
-        text-align: left;
+        max-width: 100%;
+        padding: var(--spacing-md);
       }
 
       .hero-content-centered h1 {

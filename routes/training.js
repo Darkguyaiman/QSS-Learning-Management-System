@@ -1522,6 +1522,175 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// List trainings available for import (admin/trainer only)
+router.get('/:id/import-sections/trainings', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+
+  try {
+    const [trainings] = await req.db.query(`
+      SELECT 
+        t.id,
+        t.title,
+        t.start_datetime,
+        t.end_datetime,
+        t.created_at,
+        COUNT(DISTINCT s.id) AS section_count,
+        COUNT(m.id) AS material_count
+      FROM trainings t
+      LEFT JOIN training_sections s ON s.training_id = t.id
+      LEFT JOIN training_materials m ON m.section_id = s.id
+      WHERE t.id != ?
+      GROUP BY t.id
+      ORDER BY t.start_datetime DESC, t.created_at DESC
+      LIMIT 100
+    `, [req.params.id]);
+
+    res.json({ success: true, trainings: trainings || [] });
+  } catch (error) {
+    console.error('Import trainings list error:', error);
+    res.status(500).json({ success: false, error: 'Error loading trainings' });
+  }
+});
+
+// List sections for a source training (admin/trainer only)
+router.get('/:id/import-sections/source/:sourceId', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+
+  try {
+    const [sections] = await req.db.query(`
+      SELECT 
+        s.id,
+        s.title,
+        s.section_order,
+        COUNT(m.id) AS material_count
+      FROM training_sections s
+      LEFT JOIN training_materials m ON m.section_id = s.id
+      WHERE s.training_id = ?
+      GROUP BY s.id
+      ORDER BY s.section_order ASC
+    `, [req.params.sourceId]);
+
+    res.json({ success: true, sections: sections || [] });
+  } catch (error) {
+    console.error('Import sections list error:', error);
+    res.status(500).json({ success: false, error: 'Error loading sections' });
+  }
+});
+
+// Import sections + materials from a previous training (admin/trainer only)
+router.post('/:id/import-sections', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+
+  const trainingId = req.params.id;
+  const sourceTrainingId = String(req.body?.sourceTrainingId || '').trim();
+  const rawSectionIds = req.body?.sectionIds;
+  const sectionIds = Array.isArray(rawSectionIds)
+    ? rawSectionIds.map(id => String(id)).filter(Boolean)
+    : (rawSectionIds ? [String(rawSectionIds)] : []);
+
+  if (!sourceTrainingId || sectionIds.length === 0) {
+    return res.status(400).json({ success: false, error: 'Please select a source training and at least one section.' });
+  }
+
+  if (String(sourceTrainingId) === String(trainingId)) {
+    return res.status(400).json({ success: false, error: 'Cannot import from the same training.' });
+  }
+
+  const connection = await req.db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [targetRows] = await connection.query('SELECT id, status FROM trainings WHERE id = ?', [trainingId]);
+    if (!targetRows || targetRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, error: 'Target training not found' });
+    }
+    if (targetRows[0].status === 'completed') {
+      await connection.rollback();
+      return res.status(400).json({ success: false, error: 'Training is locked' });
+    }
+
+    const placeholders = sectionIds.map(() => '?').join(',');
+    const [sourceSections] = await connection.query(`
+      SELECT id, title, section_order
+      FROM training_sections
+      WHERE training_id = ? AND id IN (${placeholders})
+      ORDER BY section_order ASC
+    `, [sourceTrainingId, ...sectionIds]);
+
+    if (!sourceSections || sourceSections.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, error: 'No matching sections found to import' });
+    }
+
+    const [maxSectionRows] = await connection.query(
+      'SELECT COALESCE(MAX(section_order), 0) as max_order FROM training_sections WHERE training_id = ?',
+      [trainingId]
+    );
+    let nextSectionOrder = maxSectionRows?.[0]?.max_order || 0;
+
+    const [generalRows] = await connection.query(
+      'SELECT id FROM training_sections WHERE training_id = ? AND title = ? LIMIT 1',
+      [trainingId, 'General Materials']
+    );
+    let generalSectionId = generalRows?.[0]?.id || null;
+
+    let sectionsImported = 0;
+    let materialsImported = 0;
+
+    for (const sourceSection of sourceSections) {
+      let targetSectionId = null;
+      const isGeneral = sourceSection.title === 'General Materials';
+
+      if (isGeneral && generalSectionId) {
+        targetSectionId = generalSectionId;
+      } else {
+        nextSectionOrder += 1;
+        const [insertSection] = await connection.query(
+          'INSERT INTO training_sections (training_id, title, section_order) VALUES (?, ?, ?)',
+          [trainingId, sourceSection.title, nextSectionOrder]
+        );
+        targetSectionId = insertSection.insertId;
+        if (isGeneral) {
+          generalSectionId = targetSectionId;
+        }
+        sectionsImported += 1;
+      }
+
+      const [maxMatRows] = await connection.query(
+        'SELECT COALESCE(MAX(material_order), 0) as max_order FROM training_materials WHERE section_id = ?',
+        [targetSectionId]
+      );
+      const materialOffset = maxMatRows?.[0]?.max_order || 0;
+
+      const [insertMaterials] = await connection.query(`
+        INSERT INTO training_materials (section_id, title, type, file_path, url, material_order, uploaded_by)
+        SELECT ?, title, type, file_path, url, material_order + ?, uploaded_by
+        FROM training_materials
+        WHERE section_id = ?
+        ORDER BY material_order ASC
+      `, [targetSectionId, materialOffset, sourceSection.id]);
+
+      materialsImported += insertMaterials?.affectedRows || 0;
+    }
+
+    await connection.commit();
+    res.json({ success: true, sectionsImported, materialsImported });
+  } catch (error) {
+    try { await connection.rollback(); } catch (e) {}
+    console.error('Import sections error:', error);
+    res.status(500).json({ success: false, error: 'Error importing sections' });
+  } finally {
+    connection.release();
+  }
+});
+
 // Create material (can be with or without section)
 router.post('/:id/materials/create', upload.single('file'), async (req, res) => {
   if (!['admin', 'trainer'].includes(req.session.userRole)) {
@@ -2660,6 +2829,4 @@ router.post('/:id/enrollment/:enrollmentId/hands-on/save', async (req, res) => {
 });
 
 module.exports = router;
-
-
 

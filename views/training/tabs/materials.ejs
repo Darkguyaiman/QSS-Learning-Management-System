@@ -1,0 +1,89 @@
+<!-- Materials Tab (Trainee-focused) -->
+<div id="materials-tab" class="tab-content">
+  <div class="materials-section">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem;">
+      <h2 style="margin: 0; font-size: 1.25rem; font-weight: 400; color: #202124;">Training Materials</h2>
+    </div>
+
+    <% 
+      let generalMaterialsSectionMaterials = null;
+      let materialsWithoutSectionMaterials = [];
+      if (sections.length > 0) {
+        generalMaterialsSectionMaterials = sections.find(s => s.title === 'General Materials');
+      }
+      if (generalMaterialsSectionMaterials && generalMaterialsSectionMaterials.materials && generalMaterialsSectionMaterials.materials.length > 0) {
+        materialsWithoutSectionMaterials = generalMaterialsSectionMaterials.materials;
+      }
+    %>
+
+    <% if (materialsWithoutSectionMaterials.length > 0) { %>
+      <div class="section-card">
+        <h3 class="section-title">General Materials</h3>
+        <% materialsWithoutSectionMaterials.forEach(material => { %>
+          <div class="material-item">
+            <a href="/training/<%= training.id %>/materials/<%= material.id %>" class="material-item-link">
+              <div class="material-icon <%= material.type %>">
+                <% if (material.type === 'document') { %>
+                  <i class="fas fa-file-alt"></i>
+                <% } else if (material.type === 'video') { %>
+                  <i class="fas fa-video"></i>
+                <% } else if (material.type === 'link') { %>
+                  <i class="fas fa-link"></i>
+                <% } else { %>
+                  <i class="fas fa-file"></i>
+                <% } %>
+              </div>
+              <div class="material-info">
+                <h4><%= material.title %></h4>
+                <p>Uploaded by <%= material.uploaded_by %></p>
+              </div>
+            </a>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+
+    <% 
+      const sectionsToShowMaterials = sections.filter(s => s.title !== 'General Materials');
+    %>
+    <% if (sectionsToShowMaterials.length > 0) { %>
+      <% sectionsToShowMaterials.forEach(section => { %>
+        <div class="section-card">
+          <h3 class="section-title"><%= section.title %></h3>
+          <% if (section.materials && section.materials.length > 0) { %>
+            <% section.materials.forEach(material => { %>
+              <div class="material-item">
+                <a href="/training/<%= training.id %>/materials/<%= material.id %>" class="material-item-link">
+                  <div class="material-icon <%= material.type %>">
+                    <% if (material.type === 'document') { %>
+                      <i class="fas fa-file-alt"></i>
+                    <% } else if (material.type === 'video') { %>
+                      <i class="fas fa-video"></i>
+                    <% } else if (material.type === 'link') { %>
+                      <i class="fas fa-link"></i>
+                    <% } else { %>
+                      <i class="fas fa-file"></i>
+                    <% } %>
+                  </div>
+                  <div class="material-info">
+                    <h4><%= material.title %></h4>
+                    <p>Uploaded by <%= material.uploaded_by %></p>
+                  </div>
+                </a>
+              </div>
+            <% }); %>
+          <% } else { %>
+            <p style="color: #5F6368; font-size: 0.875rem; margin: 0;">No materials in this section yet.</p>
+          <% } %>
+        </div>
+      <% }); %>
+    <% } %>
+
+    <% if (sections.length === 0 && materialsWithoutSectionMaterials.length === 0) { %>
+      <div class="empty-state">
+        <p>No materials added yet.</p>
+      </div>
+    <% } %>
+  </div>
+</div>
+

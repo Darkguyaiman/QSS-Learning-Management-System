@@ -167,12 +167,8 @@
     }
   </style>
 </head>
-<body class="<%= ['admin', 'trainer'].includes(user.userRole) ? 'has-sidebar' : 'has-navbar' %>">
-  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-    <%- include('../partials/sidebar', { user }) %>
-  <% } else { %>
-    <%- include('../partials/navbar', { user }) %>
-  <% } %>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
   
   <main class="main-content">
     <div class="material-view-container">
@@ -187,9 +183,16 @@
           <% } %>
           <%= material.title %>
         </h1>
-        <a href="/training/<%= training.id %>?tab=coursework" class="btn btn-outline">
-          <i class="fas fa-arrow-left"></i> Back to Course
-        </a>
+        <div class="btn-group">
+          <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+            <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="btn btn-outline">
+              <i class="fas fa-edit"></i> Edit Material
+            </a>
+          <% } %>
+          <a href="/training/<%= training.id %>?tab=coursework" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Course
+          </a>
+        </div>
       </div>
       
       <div class="section-card">
@@ -309,18 +312,6 @@
         </div>
       </div>
       
-      <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-        <div class="section-card">
-          <div class="btn-group">
-            <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="btn btn-outline">
-              <i class="fas fa-edit"></i> Edit Material
-            </a>
-            <a href="/training/<%= training.id %>?tab=coursework" class="btn btn-secondary">
-              <i class="fas fa-arrow-left"></i> Back to Course
-            </a>
-          </div>
-        </div>
-      <% } %>
     </div>
   </main>
   

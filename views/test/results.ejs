@@ -6,14 +6,13 @@
   <title>Test Results - LMS</title>
   <link rel="stylesheet" href="/css/styles.css">
 </head>
-<body>
-  <%- include('../partials/navbar', { user }) %>
-  
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
   <main class="main-content">
     <div class="container">
       <div class="dashboard-header">
         <h1>Test Results</h1>
-        <a href="/dashboard" class="btn btn-outline">Back to Dashboard</a>
+        <a href="/training/<%= attempt.training_id %>?tab=tests" class="btn btn-outline">Back to Training Tests</a>
       </div>
       
       <div class="results-summary-card">
@@ -129,9 +128,9 @@
           </div>
         <% }); %>
         
-        <div class="results-review-footer">
-          <a href="/dashboard" class="btn btn-primary">Back to Dashboard</a>
-        </div>
+      <div class="results-review-footer">
+          <a href="/training/<%= attempt.training_id %>?tab=tests" class="btn btn-primary">Back to Training Tests</a>
+      </div>
       </div>
     </div>
   </main>

@@ -1030,12 +1030,8 @@
     }
   </style>
 </head>
-<body class="<%= ['admin', 'trainer'].includes(user.userRole) ? 'has-sidebar' : 'has-navbar' %>">
-  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-    <%- include('../partials/sidebar', { user }) %>
-  <% } else { %>
-    <%- include('../partials/navbar', { user }) %>
-  <% } %>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
   
   <main class="main-content">
     <div class="container">
@@ -1044,6 +1040,16 @@
         <button class="tab-button active" onclick="switchTab('stream')">
           <i class="fas fa-stream"></i> Stream
         </button>
+
+        <% if (user.userRole === 'trainee') { %>
+          <button class="tab-button" onclick="switchTab('materials')">
+            <i class="fas fa-folder-open"></i> Materials
+          </button>
+          <button class="tab-button" onclick="switchTab('tests')">
+            <i class="fas fa-question-circle"></i> Tests
+          </button>
+        <% } %>
+
         <button class="tab-button" onclick="switchTab('coursework')">
           <i class="fas fa-book"></i> Course
         </button>
@@ -1077,9 +1083,15 @@
       
       <!-- Stream Tab -->
       <%- include('./tabs/stream', { training, trainers, trainer, sections }) %>
+
+      <!-- Materials & Tests Tabs (Trainee only) -->
+      <% if (user.userRole === 'trainee') { %>
+        <%- include('./tabs/materials', { training, sections }) %>
+        <%- include('./tabs/tests', { training, user, trainingTests, enrollment }) %>
+      <% } %>
       
       <!-- Course Tab -->
-      <%- include('./tabs/coursework', { training, user, sections, trainingTests, enrollment }) %>
+      <%- include('./tabs/coursework', { training, user, sections, trainingTests, enrollment, trainingMedia }) %>
       
       <!-- People Tab -->
       <%- include('./tabs/people', { trainers, trainer, enrolledTrainees }) %>

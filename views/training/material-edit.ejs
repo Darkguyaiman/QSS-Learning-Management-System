@@ -7,28 +7,6 @@
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    .edit-material-container {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 2rem;
-    }
-    
-    .edit-material-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 2rem;
-      padding-bottom: 1.5rem;
-      border-bottom: 2px solid #E8EAED;
-    }
-    
-    .edit-material-header h1 {
-      margin: 0;
-      font-size: 1.75rem;
-      font-weight: 500;
-      color: #202124;
-    }
-    
     .form-card {
       background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
       border-radius: 20px;
@@ -267,10 +245,6 @@
     }
     
     @media (max-width: 768px) {
-      .edit-material-container {
-        padding: 1rem;
-      }
-      
       .form-card {
         padding: 1.5rem;
         border-radius: 12px;
@@ -286,15 +260,16 @@
   <%- include('../partials/sidebar', { user }) %>
   
   <main class="main-content">
-    <div class="edit-material-container">
-      <div class="edit-material-header">
-        <h1><i class="fas fa-edit"></i> Edit Material</h1>
+    <div class="container">
+      <div class="dashboard-header">
+        <h1>Edit Material</h1>
         <a href="/training/<%= training.id %>?tab=coursework" class="btn btn-outline">
           <i class="fas fa-times"></i> Cancel
         </a>
       </div>
       
-      <div class="form-card">
+      <div class="form-container">
+        <div class="form-card">
         <form id="editMaterialForm" action="/training/<%= training.id %>/materials/<%= material.id %>/edit" method="POST" enctype="multipart/form-data">
           <input type="hidden" name="training_id" value="<%= training.id %>">
           
@@ -417,6 +392,7 @@
             </button>
           </div>
         </form>
+        </div>
       </div>
     </div>
   </main>
