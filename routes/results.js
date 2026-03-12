@@ -146,9 +146,12 @@ async function calculateFinalGrades(db, enrollmentId) {
     
     const enrollment = enrollments[0];
     
-    // Get test scores
+    // Get best (highest) score per test type
     const [testAttempts] = await db.query(
-      'SELECT test_type, score FROM test_attempts WHERE enrollment_id = ? AND status = "completed"',
+      `SELECT test_type, MAX(score) as max_score
+       FROM test_attempts
+       WHERE enrollment_id = ? AND status = "completed"
+       GROUP BY test_type`,
       [enrollmentId]
     );
     
@@ -158,11 +161,12 @@ async function calculateFinalGrades(db, enrollmentId) {
     let refresherScore = null;
     
     for (const attempt of testAttempts) {
+      const scoreValue = attempt.max_score !== null ? attempt.max_score : null;
       if (attempt.test_type === 'refresher_training') {
-        refresherScore = attempt.score;
+        refresherScore = scoreValue;
       } else if (attempt.test_type === 'certificate_enrolment') {
-        certificateScore = attempt.score;
-        endorsementGrade = attempt.score;
+        certificateScore = scoreValue;
+        endorsementGrade = scoreValue;
       }
     }
     

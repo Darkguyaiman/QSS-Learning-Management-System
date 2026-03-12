@@ -15,6 +15,18 @@
         <h1>Training Results</h1>
         <a href="/dashboard" class="btn btn-outline">Back to Dashboard</a>
       </div>
+
+      <%
+        const getBestTest = (testsList, type) => {
+          const candidates = (testsList || []).filter(t => t.test_type === type);
+          if (!candidates.length) return null;
+          return candidates.reduce((best, t) => {
+            const bestScore = parseFloat(best.score) || 0;
+            const currScore = parseFloat(t.score) || 0;
+            return currScore > bestScore ? t : best;
+          }, candidates[0]);
+        };
+      %>
       
       <div class="training-card results-info-card">
         <h2><%= enrollment.title %></h2>
@@ -33,6 +45,10 @@
             <p>No test results available yet.</p>
           </div>
         <% } else { %>
+          <%
+            const testTypes = Array.from(new Set(tests.map(t => t.test_type)));
+            const bestTests = testTypes.map(type => getBestTest(tests, type)).filter(Boolean);
+          %>
           <div class="table-responsive">
             <table class="data-table">
               <thead>
@@ -45,7 +61,7 @@
                 </tr>
               </thead>
               <tbody>
-                <% tests.forEach(test => { %>
+                <% bestTests.forEach(test => { %>
                   <tr>
                     <td>
                       <span class="badge badge-<%= test.test_type === 'pre_test' || test.test_type === 'post_test' ? 'main' : 'refresher_training' %>">
@@ -107,34 +123,48 @@
       <% if (gradesReleased && finalGrades) { %>
         <div class="dashboard-section">
           <h2>Final Grades</h2>
-          <div class="stats-grid">
-            <% if (finalGrades.training_grade !== null) { %>
-              <div class="stat-card">
-                <h3><%= finalGrades.training_grade.toFixed(1) %>%</h3>
-                <p>
-                  Training Grade
-                  <%= enrollment.type === 'main' ? '(60% Practical Learning Outcome + 40% Certificate Enrolment)' : '(Refresher Training Test)' %>
-                </p>
-              </div>
-            <% } %>
-            <% if (finalGrades.endorsement_grade !== null) { %>
-              <div class="stat-card">
-                <h3><%= finalGrades.endorsement_grade.toFixed(1) %>%</h3>
-                <p>Endorsement Test Grade</p>
-              </div>
-            <% } %>
-            <% if (finalGrades.objective_understanding_percentage !== null) { %>
-              <div class="stat-card">
-                <h3><%= finalGrades.objective_understanding_percentage.toFixed(1) %>%</h3>
-                <p>Objective Understanding</p>
-              </div>
-            <% } %>
-            <% if (finalGrades.hands_on_grade !== null) { %>
-              <div class="stat-card">
-                <h3><%= finalGrades.hands_on_grade.toFixed(1) %>%</h3>
-                <p>Practical Learning Outcome Grade</p>
-              </div>
-            <% } %>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>Score</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (finalGrades.training_grade !== null) { %>
+                  <tr>
+                    <td><strong>Training Grade</strong></td>
+                    <td><%= finalGrades.training_grade.toFixed(1) %>%</td>
+                    <td>
+                      <%= enrollment.type === 'main' ? '60% Practical Learning Outcome + 40% Certificate Enrolment' : 'Refresher Training Test' %>
+                    </td>
+                  </tr>
+                <% } %>
+                <% if (finalGrades.endorsement_grade !== null) { %>
+                  <tr>
+                    <td><strong>Endorsement Test Grade</strong></td>
+                    <td><%= finalGrades.endorsement_grade.toFixed(1) %>%</td>
+                    <td>-</td>
+                  </tr>
+                <% } %>
+                <% if (finalGrades.objective_understanding_percentage !== null) { %>
+                  <tr>
+                    <td><strong>Objective Understanding</strong></td>
+                    <td><%= finalGrades.objective_understanding_percentage.toFixed(1) %>%</td>
+                    <td>-</td>
+                  </tr>
+                <% } %>
+                <% if (finalGrades.hands_on_grade !== null) { %>
+                  <tr>
+                    <td><strong>Practical Learning Outcome Grade</strong></td>
+                    <td><%= finalGrades.hands_on_grade.toFixed(1) %>%</td>
+                    <td>-</td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
           </div>
         </div>
       <% } %>
@@ -204,20 +234,7 @@
         </div>
       <% } %>
       
-      <!-- Admin/Trainer Actions -->
-      <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-        <div class="results-actions results-actions--admin">
-          <% if (!gradesReleased) { %>
-            <button onclick="calculateGrades(<%= enrollment.id %>)" class="btn btn-secondary">Calculate Grades</button>
-            <button onclick="releaseGrades(<%= enrollment.id %>)" class="btn btn-primary">Release Grades</button>
-          <% } else { %>
-            <span class="badge badge-success results-badge-success">Grades Released</span>
-          <% } %>
-          <% if (!enrollment.can_download_results) { %>
-            <button onclick="allowDownload(<%= enrollment.id %>)" class="btn btn-outline">Allow Trainee to Download Results</button>
-          <% } %>
-        </div>
-      <% } %>
+      <!-- Admin/Trainer Actions removed -->
     </div>
   </main>
   

@@ -193,7 +193,13 @@ router.get('/training/:id/certificate/:enrollmentId', async (req, res, next) => 
       [enrollmentId]
     );
 
-    const certAttempt = (testAttempts || []).find(attempt => attempt.test_type === 'certificate_enrolment');
+    const certAttempts = (testAttempts || []).filter(attempt => attempt.test_type === 'certificate_enrolment');
+    const certAttempt = certAttempts.reduce((best, attempt) => {
+      if (!best) return attempt;
+      const bestScore = parseFloat(best.score) || 0;
+      const currScore = parseFloat(attempt.score) || 0;
+      return currScore > bestScore ? attempt : best;
+    }, null);
     const certOutstanding = certAttempt && parseFloat(certAttempt.score) >= 80;
     if (!enrollment.can_download_results && !certAttempt) {
       return res.status(403).send('Scores have not been released yet. Please contact your administrator.');
@@ -247,8 +253,7 @@ router.get('/training/:id/certificate/:enrollmentId', async (req, res, next) => 
     const location = enrollment.healthcare || 'N/A';
     const date = formatDate(enrollment.end_datetime || enrollment.start_datetime || enrollment.enrolled_at);
 
-    const certificateAttempt = (testAttempts || []).find(attempt => attempt.test_type === 'certificate_enrolment');
-    const validityStartRaw = certificateAttempt?.completed_at || enrollment.end_datetime || enrollment.start_datetime || enrollment.enrolled_at || new Date();
+    const validityStartRaw = certAttempt?.completed_at || enrollment.end_datetime || enrollment.start_datetime || enrollment.enrolled_at || new Date();
     const validityStart = new Date(validityStartRaw);
     const validityEnd = new Date(validityStart);
     if (!isNaN(validityEnd.valueOf())) {

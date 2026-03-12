@@ -2316,11 +2316,6 @@ body.has-sidebar .main-content {
   margin-top: var(--spacing-xl);
 }
 
-.results-actions--admin {
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
 .results-badge-success {
   padding: 0.75rem 1.5rem;
   font-size: 1rem;

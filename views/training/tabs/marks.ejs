@@ -1,6 +1,17 @@
 <!-- Marks Tab (Admin/Trainer Only) -->
 <% if (['admin', 'trainer'].includes(user.userRole)) { %>
   <div id="marks-tab" class="tab-content">
+    <%
+      const getBestTest = (tests, type) => {
+        const candidates = (tests || []).filter(t => t.test_type === type);
+        if (!candidates.length) return null;
+        return candidates.reduce((best, t) => {
+          const bestScore = parseFloat(best.score) || 0;
+          const currScore = parseFloat(t.score) || 0;
+          return currScore > bestScore ? t : best;
+        }, candidates[0]);
+      };
+    %>
     <% if (marksData.length === 0) { %>
       <div class="empty-state">
         <p>No marks available yet.</p>
@@ -18,24 +29,14 @@
                 <i class="fas fa-chevron-down" style="margin-left: 0.25rem; transition: transform 0.3s ease; font-size: 0.75rem;"></i>
               </button>
             <% } %>
-            <% if (user.userRole === 'admin' && training.status === 'completed') { %>
-              <button class="btn btn-success btn-sm" onclick="showScoreReleaseModal()" id="release-scores-btn">
-                <i class="fas fa-unlock"></i>
-                <span>Release Scores</span>
-              </button>
-            <% } %>
           </div>
         </div>
         
         <!-- Desktop Table View -->
+        <div class="table-responsive">
         <table class="marks-table marks-table-desktop">
           <thead>
             <tr>
-              <% if (user.userRole === 'admin' && training.status === 'completed') { %>
-                <th style="width: 40px;">
-                  <input type="checkbox" id="select-all-trainees" onchange="toggleAllTrainees(this)">
-                </th>
-              <% } %>
               <th>Trainee</th>
               <th>Pre-Test</th>
               <% if (training.type === 'main') { %>
@@ -52,17 +53,12 @@
           <tbody>
             <% marksData.forEach(data => { %>
               <tr>
-                <% if (user.userRole === 'admin' && training.status === 'completed') { %>
-                  <td>
-                    <input type="checkbox" class="trainee-checkbox" value="<%= data.enrollment_id %>" data-trainee-name="<%= data.trainee_name %>" <%= data.can_download_results ? 'disabled title="Scores already released"' : '' %>>
-                  </td>
-                <% } %>
                 <td><strong><%= data.trainee_name %></strong><br><span style="color: #5F6368; font-size: 0.75rem;"><%= data.trainee_id %></span></td>
                 <% 
-                  const preTest = data.tests.find(t => t.test_type === 'pre_test');
-                  const postTest = data.tests.find(t => t.test_type === 'post_test');
-                  const certificateEnrolmentTest = data.tests.find(t => t.test_type === 'certificate_enrolment');
-                  const refresher_trainingTest = data.tests.find(t => t.test_type === 'refresher_training');
+                  const preTest = getBestTest(data.tests, 'pre_test');
+                  const postTest = getBestTest(data.tests, 'post_test');
+                  const certificateEnrolmentTest = getBestTest(data.tests, 'certificate_enrolment');
+                  const refresher_trainingTest = getBestTest(data.tests, 'refresher_training');
                 %>
                 <td>
                   <% if (preTest) { %>
@@ -134,6 +130,14 @@
                       <a class="btn btn-sm btn-secondary" href="/training/<%= training.id %>/enrollment/<%= data.enrollment_id %>/test-answers">
                         <i class="fas fa-eye"></i> View Test Answers
                       </a>
+                      <a class="btn btn-sm btn-outline" href="/results/enrollment/<%= data.enrollment_id %>">
+                        <i class="fas fa-list"></i> All Attempts
+                      </a>
+                    <% } %>
+                    <% if (user.userRole === 'admin' && training.status === 'completed' && !data.can_download_results) { %>
+                      <button class="btn btn-sm btn-primary" onclick="releaseScores([<%= data.enrollment_id %>], this)">
+                        <i class="fas fa-unlock"></i> Release
+                      </button>
                     <% } %>
                     <% if (data.can_download_results) { %>
                       <a href="/training/<%= training.id %>/certificate/<%= data.enrollment_id %>" target="_blank" class="btn btn-sm btn-success">
@@ -146,6 +150,7 @@
             <% }); %>
           </tbody>
         </table>
+        </div>
 
         <!-- Mobile Card View -->
         <div class="marks-cards-mobile">
@@ -153,9 +158,6 @@
             <div class="marks-card-mobile">
               <div class="marks-card-header">
                 <div style="flex: 1;">
-                  <% if (user.userRole === 'admin' && training.status === 'completed') { %>
-                    <input type="checkbox" class="trainee-checkbox" value="<%= data.enrollment_id %>" data-trainee-name="<%= data.trainee_name %>" style="margin-right: 0.5rem;" <%= data.can_download_results ? 'disabled title="Scores already released"' : '' %>>
-                  <% } %>
                   <strong><%= data.trainee_name %></strong>
                   <span class="trainee-id-badge"><%= data.trainee_id %></span>
                 </div>
@@ -171,10 +173,10 @@
               </div>
               <div class="marks-card-body">
                 <% 
-                  const preTest = data.tests.find(t => t.test_type === 'pre_test');
-                  const postTest = data.tests.find(t => t.test_type === 'post_test');
-                  const certificateEnrolmentTest = data.tests.find(t => t.test_type === 'certificate_enrolment');
-                  const refresher_trainingTest = data.tests.find(t => t.test_type === 'refresher_training');
+                  const preTest = getBestTest(data.tests, 'pre_test');
+                  const postTest = getBestTest(data.tests, 'post_test');
+                  const certificateEnrolmentTest = getBestTest(data.tests, 'certificate_enrolment');
+                  const refresher_trainingTest = getBestTest(data.tests, 'refresher_training');
                 %>
                 
                 <div class="marks-card-row">
@@ -244,6 +246,14 @@
                     <a class="btn btn-sm btn-secondary" href="/training/<%= training.id %>/enrollment/<%= data.enrollment_id %>/test-answers">
                       <i class="fas fa-eye"></i> View Test Answers
                     </a>
+                    <a class="btn btn-sm btn-outline" href="/results/enrollment/<%= data.enrollment_id %>">
+                      <i class="fas fa-list"></i> All Attempts
+                    </a>
+                  <% } %>
+                  <% if (user.userRole === 'admin' && training.status === 'completed' && !data.can_download_results) { %>
+                    <button class="btn btn-sm btn-primary" onclick="releaseScores([<%= data.enrollment_id %>], this)">
+                      <i class="fas fa-unlock"></i> Release
+                    </button>
                   <% } %>
                   <% if (data.can_download_results) { %>
                     <a href="/training/<%= training.id %>/certificate/<%= data.enrollment_id %>" target="_blank" class="btn btn-sm btn-success">
@@ -1059,43 +1069,13 @@
   <% if (user.userRole === 'admin' && training.status === 'completed') { %>
   <script>
     // Score release functionality
-    function toggleAllTrainees(checkbox) {
-      const checkboxes = document.querySelectorAll('.trainee-checkbox:not(:disabled)');
-      checkboxes.forEach(cb => {
-        cb.checked = checkbox.checked;
-      });
-    }
-    
-    async function showScoreReleaseModal() {
-      const selected = Array.from(document.querySelectorAll('.trainee-checkbox:checked:not(:disabled)')).map(cb => ({
-        id: cb.value,
-        name: cb.dataset.traineeName
-      }));
-      
-      if (selected.length === 0) {
-        window.qssShowWarning && window.qssShowWarning('Please select at least one trainee to release scores for.', 'No Selection');
-        return;
+    async function releaseScores(enrollmentIds, buttonEl) {
+      const btn = buttonEl || null;
+      const originalText = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Releasing...';
       }
-      
-      const names = selected.map(s => s.name).join(', ');
-      if (typeof window.qssConfirm !== 'function') return;
-      const ok = await window.qssConfirm({
-        title: 'Release Scores?',
-        message: `Release scores for ${selected.length} trainee(s)?\n\n${names}\n\nThis will allow them to view their final results and download certificates.`,
-        confirmText: 'Release',
-        cancelText: 'Cancel',
-        danger: true
-      });
-      if (!ok) return;
-      
-      releaseScores(selected.map(s => s.id));
-    }
-    
-    async function releaseScores(enrollmentIds) {
-      const btn = document.getElementById('release-scores-btn');
-      const originalText = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Releasing...';
       
       try {
         const response = await fetch(`/training/<%= training.id %>/release-scores`, {
@@ -1117,14 +1097,18 @@
           });
         } else {
           qssShowError('Error releasing scores: ' + (data.error || 'Unknown error'));
-          btn.disabled = false;
-          btn.innerHTML = originalText;
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+          }
         }
       } catch (error) {
         console.error('Error:', error);
         qssShowError('Error releasing scores');
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
       }
     }
   </script>

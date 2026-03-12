@@ -18,13 +18,23 @@
               <% 
                 const testType = test.test_type;
                 let completed = false;
+                let score = null;
                 if (testType === 'pre_test') completed = enrollment.pre_test_completed;
                 else if (testType === 'post_test') completed = enrollment.post_test_completed;
                 else if (testType === 'refresher_training') completed = enrollment.refresher_training_test_completed;
                 else if (testType === 'certificate_enrolment') completed = enrollment.certificate_enrolment_test_completed;
+                
+                if (testType === 'pre_test') score = enrollment.pre_test_score;
+                else if (testType === 'post_test') score = enrollment.post_test_score;
+                else if (testType === 'refresher_training') score = enrollment.refresher_training_score;
+                else if (testType === 'certificate_enrolment') score = enrollment.certificate_enrolment_score;
+
+                const passed = score !== null && Number(score) >= 80;
               %>
-              <% if (completed) { %>
+              <% if (passed) { %>
                 <span style="color: #137333; font-weight: 500;"><i class="fas fa-check-circle"></i> Completed</span>
+              <% } else if (completed) { %>
+                <a href="/tests/start/<%= enrollment.id %>/<%= testType %>" class="btn btn-sm btn-primary">Retake Test</a>
               <% } else if (testType === 'post_test' && !enrollment.pre_test_completed) { %>
                 <span style="color: #5F6368;">Complete Pre-Test first</span>
               <% } else if (testType === 'certificate_enrolment' && training.type === 'main' && !enrollment.pre_test_completed) { %>

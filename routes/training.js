@@ -1351,9 +1351,13 @@ router.get('/:id', async (req, res) => {
       const [enrollments] = await req.db.query(`
         SELECT e.*,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') > 0 as pre_test_completed,
+          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') as pre_test_score,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') > 0 as post_test_completed,
+          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') as post_test_score,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed') > 0 as refresher_training_test_completed,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') > 0 as certificate_enrolment_test_completed
+          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed') as refresher_training_score,
+          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') > 0 as certificate_enrolment_test_completed,
+          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') as certificate_enrolment_score
         FROM enrollments e
         WHERE e.trainee_id = ? AND e.training_id = ?
       `, [req.session.userId, req.params.id]);
@@ -2829,4 +2833,3 @@ router.post('/:id/enrollment/:enrollmentId/hands-on/save', async (req, res) => {
 });
 
 module.exports = router;
-

@@ -22,10 +22,20 @@
         
         <div class="test-scores-grid">
           <% 
-            const preTest = marksData && marksData.tests ? marksData.tests.find(t => t.test_type === 'pre_test') : null;
-            const postTest = marksData && marksData.tests ? marksData.tests.find(t => t.test_type === 'post_test') : null;
-            const certificateEnrolmentTest = marksData && marksData.tests ? marksData.tests.find(t => t.test_type === 'certificate_enrolment') : null;
-            const refresher_trainingTest = marksData && marksData.tests ? marksData.tests.find(t => t.test_type === 'refresher_training') : null;
+            const getBestTest = (testsList, type) => {
+              const candidates = (testsList || []).filter(t => t.test_type === type);
+              if (!candidates.length) return null;
+              return candidates.reduce((best, t) => {
+                const bestScore = parseFloat(best.score) || 0;
+                const currScore = parseFloat(t.score) || 0;
+                return currScore > bestScore ? t : best;
+              }, candidates[0]);
+            };
+
+            const preTest = getBestTest(marksData && marksData.tests, 'pre_test');
+            const postTest = getBestTest(marksData && marksData.tests, 'post_test');
+            const certificateEnrolmentTest = getBestTest(marksData && marksData.tests, 'certificate_enrolment');
+            const refresher_trainingTest = getBestTest(marksData && marksData.tests, 'refresher_training');
           %>
           
           <% if (preTest) { %>
@@ -104,27 +114,36 @@
             <h2>Practical Learning Outcome Evaluation</h2>
           </div>
           
-          <div class="hands-on-grid">
-            <% marksData.handsOnScores.forEach(score => { %>
-              <div class="hands-on-card">
-                <div class="hands-on-header">
-                  <h4><%= score.aspect_name %></h4>
-                  <div class="hands-on-score">
-                    <span class="score-numerator"><%= parseFloat(score.score).toFixed(1) %></span>
-                    <span class="score-divider">/</span>
-                    <span class="score-denominator"><%= score.max_score %></span>
-                  </div>
-                </div>
-                <p class="hands-on-description"><%= score.description || 'No description available' %></p>
-                <% const handsOnPercent = ((parseFloat(score.score) / parseInt(score.max_score)) * 100); %>
-                <div class="hands-on-percentage">
-                  <%= handsOnPercent.toFixed(1) %>%
-                  <span class="hands-on-status <%= handsOnPercent >= 80 ? 'status-outstanding' : 'status-not-passed' %>">
-                    <%= handsOnPercent >= 80 ? 'Outstanding' : 'Not Passed' %>
-                  </span>
-                </div>
-              </div>
-            <% }); %>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Aspect</th>
+                  <th>Description</th>
+                  <th>Score</th>
+                  <th>Max Score</th>
+                  <th>Percentage</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% marksData.handsOnScores.forEach(score => { %>
+                  <% const handsOnPercent = ((parseFloat(score.score) / parseInt(score.max_score)) * 100); %>
+                  <tr>
+                    <td><strong><%= score.aspect_name %></strong></td>
+                    <td><%= score.description || 'No description available' %></td>
+                    <td><%= parseFloat(score.score).toFixed(1) %></td>
+                    <td><%= score.max_score %></td>
+                    <td><%= handsOnPercent.toFixed(1) %>%</td>
+                    <td>
+                      <span class="hands-on-status <%= handsOnPercent >= 80 ? 'status-outstanding' : 'status-not-passed' %>">
+                        <%= handsOnPercent >= 80 ? 'Outstanding' : 'Not Passed' %>
+                      </span>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
           </div>
         </div>
       <% } %>
@@ -149,7 +168,7 @@
       
       <!-- Certificate Download Section -->
       <% 
-        const certTest = marksData && marksData.tests ? marksData.tests.find(t => t.test_type === 'certificate_enrolment') : null;
+        const certTest = getBestTest(marksData && marksData.tests, 'certificate_enrolment');
         const certOutstanding = certTest && certTest.score >= 80;
         let practicalOutstanding = true;
         if (training.type === 'main' && marksData && marksData.handsOnScores && marksData.handsOnScores.length > 0) {
