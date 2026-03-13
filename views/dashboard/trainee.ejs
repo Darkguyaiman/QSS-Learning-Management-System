@@ -12,6 +12,56 @@
 
   <main class="main-content trainee-dashboard">
     <div class="container">
+      <style>
+        .cert-status {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0.35rem 0.75rem;
+          border-radius: 999px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+        .cert-status--safe {
+          background: rgba(16, 185, 129, 0.15);
+          color: #047857;
+        }
+        .cert-status--warn {
+          background: rgba(245, 158, 11, 0.18);
+          color: #B45309;
+        }
+        .cert-status--urgent {
+          background: rgba(239, 68, 68, 0.18);
+          color: #B91C1C;
+        }
+        .recert-list {
+          display: grid;
+          gap: 0.75rem;
+        }
+        .recert-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.75rem 1rem;
+          border: 1px solid #E8EAED;
+          border-radius: 12px;
+          background: #fff;
+        }
+        .recert-name {
+          font-weight: 600;
+          color: #202124;
+        }
+        .recert-meta {
+          color: #5F6368;
+          font-size: 0.85rem;
+        }
+        .recert-badge {
+          white-space: nowrap;
+        }
+      </style>
       <!-- Top Grid: Welcome + Quick Actions -->
       <div class="dashboard-top-grid">
         <!-- Welcome Hero Section -->
@@ -156,158 +206,77 @@
         </div>
       </div>
 
-      <!-- Recent Trainings Section -->
+      <!-- Certificates Section -->
       <div class="trainings-section">
         <div class="section-header">
-          <h2><i class="fas fa-list"></i> Recent Trainings</h2>
-          <p>Continue where you left off</p>
-          <a href="/training" class="section-link">
-            <span>View All Trainings</span>
-            <i class="fas fa-arrow-right"></i>
-          </a>
+          <h2><i class="fas fa-certificate"></i> My Certificates</h2>
+          <p>Track validity and view certificates</p>
         </div>
 
-        <% if (enrollments.length === 0) { %>
+        <% if (!certificates || certificates.length === 0) { %>
           <div class="empty-trainings">
             <div class="empty-trainings-icon">
-              <i class="fas fa-book-open"></i>
+              <i class="fas fa-certificate"></i>
             </div>
             <div class="empty-trainings-content">
-              <h3>No trainings yet</h3>
-              <p>Start your learning journey by exploring available training programs</p>
-              <a href="/training" class="btn btn-primary">
-                <i class="fas fa-search"></i>
-                Explore Trainings
-              </a>
+              <h3>No certificates yet</h3>
+              <p>Complete your training to earn certificates.</p>
             </div>
           </div>
         <% } else { %>
-          <div class="trainings-grid">
-            <% enrollments.forEach(enrollment => { %>
-              <%
-                // Calculate completion percentage
-                let totalActivities = 1; // Pre-test always required
-                let completedActivities = enrollment.pre_test_completed ? 1 : 0;
-
-                if (enrollment.type === 'main') {
-                  totalActivities += 2; // Post-test + Practical learning outcome assessment
-                  completedActivities += enrollment.post_test_completed ? 1 : 0;
-                  // Note: Practical learning outcome assessment completion would need to be calculated from attendance/marks
-                } else {
-                  totalActivities += 1; // refresher training test
-                  completedActivities += enrollment.refresher_training_test_completed ? 1 : 0;
-                }
-
-                const completionPercentage = Math.round((completedActivities / totalActivities) * 100);
-                const isCompleted = completionPercentage === 100;
-                const isInProgress = completionPercentage > 0 && completionPercentage < 100;
-                const isNotStarted = completionPercentage === 0;
-              %>
-              <div class="training-card-modern">
-                <div class="training-card-header">
-                  <div class="training-badge">
-                    <span class="badge badge-<%= enrollment.type %>">
-                      <i class="fas fa-<%= enrollment.type === 'main' ? 'star' : 'refresh' %>"></i>
-                      <%= enrollment.type %>
-                    </span>
-                  </div>
-                  <div class="training-status">
-                    <% if (isCompleted) { %>
-                      <span class="status-completed">
-                        <i class="fas fa-check"></i>
-                        Completed
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Training</th>
+                  <th>Certificate No.</th>
+                  <th>Valid Until</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% certificates.forEach(cert => { %>
+                  <%
+                    const daysLeft = cert.days_remaining;
+                    const statusClass = (daysLeft !== null && daysLeft <= 30)
+                      ? 'cert-status--urgent'
+                      : (daysLeft !== null && daysLeft <= 60)
+                        ? 'cert-status--warn'
+                        : 'cert-status--safe';
+                    const statusText = (daysLeft !== null && daysLeft <= 30)
+                      ? 'Expiring Soon'
+                      : (daysLeft !== null && daysLeft <= 60)
+                        ? 'Renewal Window'
+                        : 'Active';
+                  %>
+                  <tr>
+                    <td><strong><%= cert.training_title %></strong></td>
+                    <td><%= cert.certificate_number %></td>
+                    <td><%= cert.validity_end ? new Date(cert.validity_end).toLocaleDateString() : 'N/A' %></td>
+                    <td>
+                      <span class="cert-status <%= statusClass %>">
+                        <%= statusText %>
+                        <% if (daysLeft !== null && daysLeft >= 0) { %>
+                          (<%= daysLeft %>d)
+                        <% } %>
                       </span>
-                    <% } else if (isInProgress) { %>
-                      <span class="status-in-progress">
-                        <i class="fas fa-play"></i>
-                        In Progress
-                      </span>
-                    <% } else { %>
-                      <span class="status-not-started">
-                        <i class="fas fa-clock"></i>
-                        Not Started
-                      </span>
-                    <% } %>
-                  </div>
-                </div>
-
-                <div class="training-card-content">
-                  <h3 class="training-title"><%= enrollment.title %></h3>
-
-                  <!-- Progress Visualization -->
-                  <div class="training-progress">
-                    <div class="progress-circle">
-                      <svg width="80" height="80" viewBox="0 0 80 80">
-                        <circle cx="40" cy="40" r="35" stroke="rgba(87, 63, 215, 0.2)" stroke-width="6" fill="none"/>
-                        <circle cx="40" cy="40" r="35" stroke="url(#trainingProgress<%= enrollment.id %>)" stroke-width="6" fill="none"
-                                stroke-dasharray="<%= 2 * Math.PI * 35 %>"
-                                stroke-dashoffset="<%= 2 * Math.PI * 35 * (1 - completionPercentage / 100) %>"
-                                transform="rotate(-90 40 40)"/>
-                        <defs>
-                          <linearGradient id="trainingProgress<%= enrollment.id %>" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:<%= isCompleted ? '#10B981' : isInProgress ? '#F59E0B' : '#6B7280' %>"/>
-                            <stop offset="100%" style="stop-color:<%= isCompleted ? '#059669' : isInProgress ? '#D97706' : '#4B5563' %>"/>
-                          </linearGradient>
-                        </defs>
-                      </svg>
-                      <div class="progress-circle-text">
-                        <span class="progress-circle-number" data-target="<%= completionPercentage %>">0%</span>
-                      </div>
-                    </div>
-
-                    <div class="progress-details">
-                      <div class="progress-stats">
-                        <div class="progress-stat">
-                          <span class="progress-stat-number"><%= completedActivities %></span>
-                          <span class="progress-stat-label">Done</span>
-                        </div>
-                        <div class="progress-stat">
-                          <span class="progress-stat-number"><%= totalActivities - completedActivities %></span>
-                          <span class="progress-stat-label">Left</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Quick Progress Checklist -->
-                  <div class="training-checklist">
-                    <div class="checklist-item <%= enrollment.pre_test_completed ? 'completed' : 'pending' %>">
-                      <i class="fas fa-<%= enrollment.pre_test_completed ? 'check-circle' : 'circle' %>"></i>
-                      <span>Pre-Test</span>
-                    </div>
-
-                    <% if (enrollment.type === 'main') { %>
-                      <div class="checklist-item pending">
-                        <i class="fas fa-circle"></i>
-                        <span>Practical Learning Outcome</span>
-                      </div>
-                      <div class="checklist-item <%= enrollment.post_test_completed ? 'completed' : 'pending' %>">
-                        <i class="fas fa-<%= enrollment.post_test_completed ? 'check-circle' : 'circle' %>"></i>
-                        <span>Post-Test</span>
-                      </div>
-                    <% } else { %>
-                      <div class="checklist-item <%= enrollment.refresher_training_test_completed ? 'completed' : 'pending' %>">
-                        <i class="fas fa-<%= enrollment.refresher_training_test_completed ? 'check-circle' : 'circle' %>"></i>
-                        <span>Assessment</span>
-                      </div>
-                    <% } %>
-                  </div>
-                </div>
-
-                <div class="training-card-actions">
-                  <a href="/training/<%= enrollment.training_id %>" class="btn btn-primary">
-                    <i class="fas fa-play"></i>
-                    <%= isCompleted ? 'Review' : 'Continue' %>
-                  </a>
-                  <a href="/results/enrollment/<%= enrollment.id %>" class="btn btn-outline">
-                    <i class="fas fa-chart-bar"></i>
-                    Results
-                  </a>
-                </div>
-              </div>
-            <% }); %>
+                    </td>
+                    <td>
+                      <a class="btn btn-sm btn-primary" href="/training/<%= cert.training_id %>/certificate/<%= cert.enrollment_id %>" target="_blank">
+                        View Certificate
+                      </a>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
           </div>
         <% } %>
+      </div>
+      <!-- Upcoming Recertifications and Recent Trainings removed for trainees -->
+      <!-- Recent Trainings removed for trainees -->
+
       </div>
     </div>
   </main>
@@ -1349,3 +1318,4 @@
   </script>
 </body>
 </html>
+

@@ -52,11 +52,27 @@ router.get('/', async (req, res) => {
 
       const traineeProfile = traineeData[0] || {};
 
+      // Certificates for this trainee
+      const [certificateRows] = await req.db.query(`
+        SELECT ci.*, t.title as training_title, t.type as training_type,
+          DATEDIFF(ci.validity_end, CURDATE()) as days_remaining
+        FROM certificate_issues ci
+        JOIN trainings t ON ci.training_id = t.id
+        WHERE ci.trainee_id = ?
+        ORDER BY ci.validity_end DESC, ci.issued_at DESC
+      `, [userId]);
+
+      const certificates = (certificateRows || []).map(row => ({
+        ...row,
+        days_remaining: Number.isFinite(row.days_remaining) ? row.days_remaining : null
+      }));
+
       res.render('dashboard/trainee', {
         user: req.session,
         enrollments,
         analytics: analyticsData,
-        traineeProfile
+        traineeProfile,
+        certificates
       });
     } else if (role === 'trainer' || role === 'admin') {
       // Get training statistics
@@ -151,6 +167,33 @@ router.get('/', async (req, res) => {
         ORDER BY created_at DESC
         LIMIT 10
       `);
+
+      // Upcoming recertifications (next 60 days), grouped by hospital
+      const [recertRows] = await req.db.query(`
+        SELECT ci.training_id, ci.enrollment_id, ci.validity_end,
+          DATEDIFF(ci.validity_end, CURDATE()) as days_remaining,
+          tr.first_name, tr.last_name, tr.trainee_id as trainee_public_id,
+          tr.healthcare,
+          t.title as training_title
+        FROM certificate_issues ci
+        JOIN trainees tr ON ci.trainee_id = tr.id
+        JOIN trainings t ON ci.training_id = t.id
+        WHERE ci.validity_end IS NOT NULL
+          AND DATEDIFF(ci.validity_end, CURDATE()) BETWEEN 0 AND 60
+        ORDER BY tr.healthcare, days_remaining ASC
+      `);
+
+      const recertMap = new Map();
+      (recertRows || []).forEach(row => {
+        const key = row.healthcare || 'Unknown Hospital';
+        if (!recertMap.has(key)) recertMap.set(key, []);
+        recertMap.get(key).push(row);
+      });
+
+      const recertificationsByHospital = Array.from(recertMap.entries()).map(([hospital, trainees]) => ({
+        hospital,
+        trainees
+      }));
       
       res.render('dashboard/trainer', { 
         user: req.session,
@@ -159,7 +202,8 @@ router.get('/', async (req, res) => {
         traineeStats: traineeStats[0] || { total: 0, active: 0, inactive: 0, suspended: 0, registered: 0 },
         trainers,
         recentRegistrations,
-        isAdmin: role === 'admin'
+        isAdmin: role === 'admin',
+        recertificationsByHospital
       });
     }
   } catch (error) {

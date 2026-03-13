@@ -256,6 +256,91 @@
       background: #FFF3E0;
       color: #F57C00;
     }
+
+    .recert-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.3rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .recert-badge--warn {
+      background: rgba(245, 158, 11, 0.18);
+      color: #B45309;
+    }
+    .recert-badge--urgent {
+      background: rgba(239, 68, 68, 0.18);
+      color: #B91C1C;
+    }
+    .recert-list {
+      display: grid;
+      gap: 0.75rem;
+    }
+    .recert-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      border: 1px solid #E8EAED;
+      border-radius: 12px;
+      background: #fff;
+    }
+    .recert-name {
+      font-weight: 600;
+      color: #202124;
+    }
+    .recert-meta {
+      color: #5F6368;
+      font-size: 0.85rem;
+    }
+
+    .recert-details {
+      border: 1px solid #E8EAED;
+      border-radius: 12px;
+      background: #fff;
+      padding: 0.25rem 0.75rem;
+    }
+
+    .recert-summary {
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.85rem 0.25rem;
+      font-weight: 600;
+      color: #202124;
+    }
+
+    .recert-summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .recert-summary .recert-count {
+      font-size: 0.85rem;
+      color: #5F6368;
+      font-weight: 600;
+    }
+
+    .recert-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.5rem 0 0.75rem 0;
+    }
+
+    .recert-table th,
+    .recert-table td {
+      text-align: left;
+      padding: 0.6rem 0.5rem;
+      border-top: 1px solid #E8EAED;
+      font-size: 0.875rem;
+    }
     
     /* Chip styles for healthcare and devices */
     .chip-container {
@@ -1052,6 +1137,64 @@
             <% } %>
           </div>
         </div>
+      </section>
+
+      <!-- Upcoming Recertifications -->
+      <section class="dashboard-section">
+        <h2><i class="fas fa-bell" style="color: #573FD7;"></i> Upcoming Recertifications</h2>
+        <p style="color:#5F6368; margin: -0.5rem 0 1.25rem 0;">Certificates expiring within 60 days</p>
+
+        <% if (!recertificationsByHospital || recertificationsByHospital.length === 0) { %>
+          <div class="empty-state">
+            <p>No upcoming recertifications.</p>
+          </div>
+        <% } else { %>
+          <% recertificationsByHospital.forEach(group => { %>
+            <details class="recert-details" style="margin-bottom: 1rem;">
+              <summary class="recert-summary">
+                <span><i class="fas fa-hospital"></i> <%= group.hospital %></span>
+                <span class="recert-count"><%= group.trainees.length %> trainee(s)</span>
+              </summary>
+              <div class="table-responsive">
+                <table class="recert-table">
+                  <thead>
+                    <tr>
+                      <th>Trainee</th>
+                      <th>Latest Training</th>
+                      <th>Valid Certificate</th>
+                      <th>Days Left</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% group.trainees.forEach(t => { %>
+                      <%
+                        const daysLeft = t.days_remaining;
+                        const badgeClass = (daysLeft !== null && daysLeft <= 30)
+                          ? 'recert-badge--urgent'
+                          : 'recert-badge--warn';
+                        const badgeText = (daysLeft !== null && daysLeft <= 30)
+                          ? 'Urgent'
+                          : 'Upcoming';
+                      %>
+                      <tr>
+                        <td><%= t.first_name %> <%= t.last_name %> (<%= t.trainee_public_id %>)</td>
+                        <td><%= t.training_title %></td>
+                        <td>
+                          <a class="btn btn-sm btn-outline" href="/training/<%= t.training_id %>/certificate/<%= t.enrollment_id %>" target="_blank">
+                            View Certificate
+                          </a>
+                        </td>
+                        <td><%= daysLeft %> days</td>
+                        <td><span class="recert-badge <%= badgeClass %>"><%= badgeText %></span></td>
+                      </tr>
+                    <% }); %>
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          <% }); %>
+        <% } %>
       </section>
       
       <!-- Trainees Section -->
