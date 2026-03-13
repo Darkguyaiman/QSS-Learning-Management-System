@@ -1999,7 +1999,7 @@ body.has-sidebar .main-content {
 }
 
 .action-card:hover {
-  transform: translateY(-6px);
+  transform: none;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
   border-color: rgba(87, 63, 215, 0.2);
   color: var(--color-dark);

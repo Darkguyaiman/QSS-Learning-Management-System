@@ -12,7 +12,10 @@ router.get('/', async (req, res) => {
         SELECT e.*, t.title, t.type, t.description,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') as pre_test_completed,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') as post_test_completed,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed') as refresher_training_test_completed
+          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') as certificate_enrolment_test_completed,
+          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed') as refresher_training_test_completed,
+          (SELECT COUNT(*) FROM practical_learning_outcome_scores WHERE enrollment_id = e.id) as hands_on_completed,
+          (SELECT COUNT(*) FROM practical_learning_outcomes WHERE training_id = e.training_id) as hands_on_total
         FROM enrollments e
         JOIN trainings t ON e.training_id = t.id
         WHERE e.trainee_id = ? AND e.status = 'active'
@@ -29,25 +32,49 @@ router.get('/', async (req, res) => {
         WHERE t.id = ?
       `, [userId]);
 
-      // Get analytics data
+      // Get analytics data (completed + active courses)
       const [analytics] = await req.db.query(`
         SELECT
-          -- Total trainings completed
-          (SELECT COUNT(*) FROM enrollments WHERE trainee_id = ? AND status = 'completed') as trainings_completed,
+          (SELECT COUNT(*)
+           FROM enrollments e
+           JOIN trainings t ON e.training_id = t.id
+           WHERE e.trainee_id = ? AND t.status = 'completed') as trainings_completed,
+          (SELECT COUNT(*)
+           FROM enrollments e
+           JOIN trainings t ON e.training_id = t.id
+           WHERE e.trainee_id = ? AND t.status = 'in_progress') as total_enrolled
+      `, [userId, userId]);
 
-          -- Total activities completed (all test types)
-          (SELECT COUNT(*) FROM test_attempts ta
-           JOIN enrollments e ON ta.enrollment_id = e.id
-           WHERE e.trainee_id = ? AND ta.status = 'completed') as activities_completed,
+      // Activities completed = unique passed tests + hands-on (all time)
+      const [activityRows] = await req.db.query(`
+        SELECT e.id as enrollment_id, t.type as training_type,
+          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') as pre_max,
+          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') as post_max,
+          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') as cert_max,
+          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed') as refresher_max,
+          (SELECT COUNT(*) FROM practical_learning_outcome_scores WHERE enrollment_id = e.id) as hands_on_completed,
+          (SELECT COUNT(*) FROM practical_learning_outcomes WHERE training_id = e.training_id) as hands_on_total
+        FROM enrollments e
+        JOIN trainings t ON e.training_id = t.id
+        WHERE e.trainee_id = ?
+      `, [userId]);
 
-          -- Total enrolled trainings
-          (SELECT COUNT(*) FROM enrollments WHERE trainee_id = ? AND status = 'active') as total_enrolled
-      `, [userId, userId, userId]);
+      const activitiesCompleted = (activityRows || []).reduce((sum, row) => {
+        let count = 0;
+        if (parseFloat(row.pre_max) >= 80) count += 1;
+        if (parseFloat(row.post_max) >= 80) count += 1;
+        if (parseFloat(row.cert_max) >= 80) count += 1;
+        if (parseFloat(row.refresher_max) >= 80) count += 1;
+        if (row.training_type === 'main' && row.hands_on_total > 0 && row.hands_on_completed >= row.hands_on_total) {
+          count += 1;
+        }
+        return sum + count;
+      }, 0);
 
-      const analyticsData = analytics[0] || {
-        trainings_completed: 0,
-        activities_completed: 0,
-        total_enrolled: 0
+      const analyticsData = {
+        trainings_completed: analytics[0]?.trainings_completed || 0,
+        activities_completed: activitiesCompleted,
+        total_enrolled: analytics[0]?.total_enrolled || 0
       };
 
       const traineeProfile = traineeData[0] || {};

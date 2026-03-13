@@ -103,9 +103,7 @@
               <thead>
                 <tr>
                   <th>Aspect</th>
-                  <th>Description</th>
                   <th>Score</th>
-                  <th>Max Score</th>
                   <th>Evaluated By</th>
                 </tr>
               </thead>
@@ -113,9 +111,7 @@
                 <% handsOnScores.forEach(score => { %>
                   <tr>
                     <td><strong><%= score.aspect_name %></strong></td>
-                    <td><%= score.description || 'No description' %></td>
-                    <td><strong><%= score.score %></strong></td>
-                    <td><%= score.max_score %></td>
+                    <td><strong><%= score.score %></strong> / <%= score.max_score %></td>
                     <td><%= score.first_name %> <%= score.last_name %></td>
                   </tr>
                 <% }); %>
@@ -233,14 +229,7 @@
         </div>
       <% } %>
       
-      <!-- Download Results (if allowed) -->
-      <% if (enrollment.can_download_results && user.userRole === 'trainee') { %>
-        <div class="results-actions">
-          <a href="/results/download/<%= enrollment.id %>" class="btn btn-primary">Download Results (PDF)</a>
-        </div>
-      <% } %>
-      
-      <!-- Admin/Trainer Actions removed -->
+      <!-- Download Results removed -->
     </div>
   </main>
   
