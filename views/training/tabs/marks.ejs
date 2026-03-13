@@ -275,7 +275,7 @@
               <h3 class="section-title" style="margin: 0 0 0.25rem 0;">Practical Learning Outcome Grading</h3>
               <p class="header-subtitle">Enter scores for each trainee and aspect</p>
             </div>
-            <button class="btn-save-all" onclick="saveAllHandsOnScores()" id="save-all-hands-on-btn">
+            <button class="btn-save-all" onclick="saveAllHandsOnScores()" id="save-all-hands-on-btn" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
               <i class="fas fa-save"></i>
               <span>Save All Scores</span>
             </button>
@@ -295,6 +295,7 @@
                       </div>
                     </th>
                   <% }); %>
+                  <th>Comment</th>
                   <th>Total</th>
                 </tr>
               </thead>
@@ -305,28 +306,37 @@
                       <strong><%= data.trainee_name %></strong><br>
                       <span style="color: #5F6368; font-size: 0.75rem;"><%= data.trainee_id %></span>
                     </td>
-                    <% aspects.forEach(aspect => { %>
-                      <% 
-                        const existingScore = data.handsOnScores.find(s => s.aspect_id === aspect.id);
-                        const scoreValue = existingScore ? parseFloat(existingScore.score) : '';
-                      %>
-                      <td>
-                        <div class="score-input-wrapper">
-                          <input 
-                            type="number" 
-                            class="hands-on-score-input" 
-                            data-enrollment-id="<%= data.enrollment_id %>"
-                            data-aspect-id="<%= aspect.id %>"
-                            data-max-score="<%= aspect.max_score %>"
-                            min="0" 
-                            max="<%= aspect.max_score %>" 
-                            step="0.1"
-                            value="<%= scoreValue %>"
-                            placeholder="0">
-                          <span class="score-max">/<%= aspect.max_score %></span>
-                        </div>
-                      </td>
-                    <% }); %>
+                  <% aspects.forEach(aspect => { %>
+                    <% 
+                      const existingScore = data.handsOnScores.find(s => s.aspect_id === aspect.id);
+                      const scoreValue = existingScore ? parseFloat(existingScore.score) : '';
+                    %>
+                    <td>
+                      <div class="score-input-wrapper">
+                        <input 
+                          type="number" 
+                          class="hands-on-score-input" 
+                          data-enrollment-id="<%= data.enrollment_id %>"
+                          data-aspect-id="<%= aspect.id %>"
+                          data-max-score="<%= aspect.max_score %>"
+                          min="0" 
+                          max="<%= aspect.max_score %>" 
+                          step="0.1"
+                          value="<%= scoreValue %>"
+                          placeholder="0"
+                          <%= training.status === 'completed' ? 'disabled' : '' %>>
+                        <span class="score-max">/<%= aspect.max_score %></span>
+                      </div>
+                    </td>
+                  <% }); %>
+                  <td>
+                      <textarea
+                        class="hands-on-comment"
+                        data-enrollment-id="<%= data.enrollment_id %>"
+                        rows="2"
+                        placeholder="One comment for all outcomes"
+                        <%= training.status === 'completed' ? 'disabled' : '' %>><%= (data.handsOnScores.find(s => s.comments && s.comments.trim().length > 0) || {}).comments || '' %></textarea>
+                    </td>
                     <td>
                       <span class="hands-on-total" data-enrollment-id="<%= data.enrollment_id %>">
                         <% 
@@ -373,11 +383,23 @@
                           max="<%= aspect.max_score %>" 
                           step="0.1"
                           value="<%= scoreValue %>"
-                          placeholder="0">
+                          placeholder="0"
+                          <%= training.status === 'completed' ? 'disabled' : '' %>>
                         <span class="score-max">/<%= aspect.max_score %></span>
                       </div>
                     </div>
                   <% }); %>
+                  <div class="card-score-field">
+                    <label>
+                      <span class="field-label">Comment</span>
+                    </label>
+                    <textarea
+                      class="hands-on-comment"
+                      data-enrollment-id="<%= data.enrollment_id %>"
+                      rows="2"
+                      placeholder="One comment for all outcomes"
+                      <%= training.status === 'completed' ? 'disabled' : '' %>><%= (data.handsOnScores.find(s => s.comments && s.comments.trim().length > 0) || {}).comments || '' %></textarea>
+                  </div>
                   <div class="card-total">
                     <strong>Total: </strong>
                     <span class="hands-on-total" data-enrollment-id="<%= data.enrollment_id %>">
@@ -734,6 +756,34 @@
       font-size: 0.8125rem;
     }
 
+    .hands-on-comment {
+      width: 100%;
+      min-width: 180px;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #DADCE0;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      resize: vertical;
+      background: white;
+      color: #202124;
+    }
+
+    .hands-on-comment:focus {
+      outline: none;
+      border-color: #573FD7;
+      box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.1);
+    }
+
+    .hands-on-grading-table th:last-child,
+    .hands-on-grading-table td:last-child {
+      min-width: 120px;
+    }
+
+    .hands-on-grading-table th:nth-last-child(2),
+    .hands-on-grading-table td:nth-last-child(2) {
+      min-width: 220px;
+    }
+
     .hands-on-total {
       font-weight: 500;
       color: #202124;
@@ -1019,6 +1069,11 @@
         // Save scores for each enrollment
         const savePromises = [];
         for (const [enrollmentId, scores] of enrollmentMap) {
+          const commentEl = document.querySelector(`.hands-on-comment[data-enrollment-id="${enrollmentId}"]`);
+          const commentText = commentEl ? commentEl.value.trim() : '';
+          scores.forEach(s => {
+            s.comments = commentText;
+          });
           if (scores.length > 0) {
             savePromises.push(
               fetch(`/training/<%= training.id %>/enrollment/${enrollmentId}/hands-on/save`, {
@@ -1026,7 +1081,7 @@
                 headers: {
                   'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ scores })
+                body: JSON.stringify({ scores, comment: commentText })
               })
             );
           }

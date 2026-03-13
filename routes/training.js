@@ -2788,7 +2788,7 @@ router.post('/:id/enrollment/:enrollmentId/hands-on/save', async (req, res) => {
   
   try {
     const { enrollmentId } = req.params;
-    const { scores } = req.body;
+    const { scores, comment } = req.body;
     
     // Verify enrollment belongs to this training
     const [enrollments] = await req.db.query(
@@ -2807,7 +2807,11 @@ router.post('/:id/enrollment/:enrollmentId/hands-on/save', async (req, res) => {
     }
     
     // Save each score
+    const sharedComment = typeof comment === 'string' ? comment : '';
     for (const scoreData of scores) {
+      const commentValue = (scoreData.comments && String(scoreData.comments).trim().length > 0)
+        ? String(scoreData.comments)
+        : sharedComment;
       await req.db.query(
         `INSERT INTO practical_learning_outcome_scores (enrollment_id, aspect_id, score, evaluated_by, comments) 
          VALUES (?, ?, ?, ?, ?) 
@@ -2817,10 +2821,10 @@ router.post('/:id/enrollment/:enrollmentId/hands-on/save', async (req, res) => {
           scoreData.aspect_id,
           scoreData.score,
           req.session.userId,
-          scoreData.comments || '',
+          commentValue || '',
           scoreData.score,
           req.session.userId,
-          scoreData.comments || ''
+          commentValue || ''
         ]
       );
     }

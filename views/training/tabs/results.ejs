@@ -113,16 +113,22 @@
             <i class="fas fa-hand-paper"></i>
             <h2>Practical Learning Outcome Evaluation</h2>
           </div>
+
+          <% 
+            const handsOnComment = (marksData.handsOnScores.find(s => s.comments && s.comments.trim().length > 0) || {}).comments;
+          %>
+          <% if (handsOnComment) { %>
+            <p class="text-muted" style="margin: 0 0 1rem 0;">
+              <strong>Trainer Comment:</strong> <%= handsOnComment %>
+            </p>
+          <% } %>
           
           <div class="table-responsive">
             <table class="data-table">
               <thead>
                 <tr>
                   <th>Aspect</th>
-                  <th>Description</th>
                   <th>Score</th>
-                  <th>Max Score</th>
-                  <th>Percentage</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -131,10 +137,7 @@
                   <% const handsOnPercent = ((parseFloat(score.score) / parseInt(score.max_score)) * 100); %>
                   <tr>
                     <td><strong><%= score.aspect_name %></strong></td>
-                    <td><%= score.description || 'No description available' %></td>
-                    <td><%= parseFloat(score.score).toFixed(1) %></td>
-                    <td><%= score.max_score %></td>
-                    <td><%= handsOnPercent.toFixed(1) %>%</td>
+                    <td><%= parseFloat(score.score).toFixed(1) %> / <%= score.max_score %></td>
                     <td>
                       <span class="hands-on-status <%= handsOnPercent >= 80 ? 'status-outstanding' : 'status-not-passed' %>">
                         <%= handsOnPercent >= 80 ? 'Outstanding' : 'Not Passed' %>
@@ -149,7 +152,16 @@
       <% } %>
       
       <!-- Final Grade Section -->
-      <% if (marksData && marksData.finalGrade) { %>
+      <%
+        const bestCert = getBestTest(marksData && marksData.tests, 'certificate_enrolment');
+        const certScore = bestCert ? (parseFloat(bestCert.score) || 0) : 0;
+        const practicalTotal = (marksData && marksData.handsOnScores || []).reduce((sum, s) => sum + (parseFloat(s.score) || 0), 0);
+        const practicalMax = (marksData && marksData.handsOnScores || []).reduce((sum, s) => sum + (parseFloat(s.max_score) || 0), 0);
+        const practicalPercent = practicalMax > 0 ? (practicalTotal / practicalMax) * 100 : 0;
+        const overallPerformance = (certScore / 100) * 40 + (practicalPercent / 100) * 60;
+        const hasOverall = bestCert && practicalMax > 0;
+      %>
+      <% if (marksData && (marksData.finalGrade || hasOverall)) { %>
         <div class="results-section">
           <div class="section-header">
             <i class="fas fa-trophy"></i>
@@ -159,7 +171,11 @@
           <div class="final-grade-card">
             <div class="final-grade-content">
               <div class="final-grade-label">Overall Performance</div>
-              <div class="final-grade-value"><%= parseFloat(marksData.finalGrade.training_grade || 0).toFixed(1) %>%</div>
+              <div class="final-grade-value">
+                <%= (marksData.finalGrade && marksData.finalGrade.training_grade !== null)
+                  ? parseFloat(marksData.finalGrade.training_grade).toFixed(1)
+                  : overallPerformance.toFixed(1) %>%
+              </div>
               <div class="final-grade-subtitle">Training Grade</div>
             </div>
           </div>

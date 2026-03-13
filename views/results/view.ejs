@@ -90,6 +90,14 @@
       <% if (enrollment.type === 'main' && handsOnScores.length > 0) { %>
         <div class="dashboard-section">
           <h2>Practical Learning Outcome Assessment Scores</h2>
+          <% 
+            const handsOnComment = (handsOnScores.find(s => s.comments && s.comments.trim().length > 0) || {}).comments;
+          %>
+          <% if (handsOnComment) { %>
+            <p class="text-muted" style="margin: 0 0 1rem 0;">
+              <strong>Trainer Comment:</strong> <%= handsOnComment %>
+            </p>
+          <% } %>
           <div class="table-responsive">
             <table class="data-table">
               <thead>
@@ -99,7 +107,6 @@
                   <th>Score</th>
                   <th>Max Score</th>
                   <th>Evaluated By</th>
-                  <th>Comments</th>
                 </tr>
               </thead>
               <tbody>
@@ -110,7 +117,6 @@
                     <td><strong><%= score.score %></strong></td>
                     <td><%= score.max_score %></td>
                     <td><%= score.first_name %> <%= score.last_name %></td>
-                    <td><%= score.comments || 'No comments' %></td>
                   </tr>
                 <% }); %>
               </tbody>
