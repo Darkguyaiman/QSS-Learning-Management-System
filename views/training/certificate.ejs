@@ -22,6 +22,33 @@
             min-height: 100vh;
             padding: 20px;
         }
+
+        .print-toolbar {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 50;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .print-btn {
+            appearance: none;
+            border: none;
+            background: #1a1a1a;
+            color: #fff;
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 0.6rem 0.9rem;
+            border-radius: 999px;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        .print-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+        }
         
         .certificate-container {
             width: 100%;
@@ -249,19 +276,48 @@
         
         /* Print styles */
         @media print {
+            @page {
+                size: A4 landscape;
+                margin: 0;
+            }
+
+            html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+            }
+
             body {
                 background: white;
                 padding: 0;
+                display: block;
             }
             .certificate-container {
                 box-shadow: none;
                 max-width: 100%;
+                width: 100%;
+                height: 100vh;
+                min-height: 100vh;
+                aspect-ratio: auto;
+                overflow: visible;
+            }
+            .print-toolbar {
+                display: none;
+            }
+            .bg-shape-left,
+            .bg-shape-bottom,
+            .dot-pattern {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
         }
     </style>
 <base target="_blank">
 </head>
 <body>
+    <div class="print-toolbar">
+        <button class="print-btn" onclick="window.print()">Print / Save PDF</button>
+    </div>
     <div class="certificate-container">
         <!-- Background elements -->
         <div class="bg-shape-left"></div>
@@ -283,7 +339,7 @@
                     <div class="certificate-title">Certificate</div>
                     <div class="title-underline"></div>
                     <div class="validity-box">
-                        The validity of the certification is <%= validityPeriod %>.
+                        The validity of the cert is 2 years from the date issued.
                     </div>
                 </div>
             </div>

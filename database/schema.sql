@@ -316,6 +316,26 @@ CREATE TABLE final_grades (
   UNIQUE KEY unique_final_grades (enrollment_id)
 );
 
+-- Certificate issuance records (static certificate details per enrollment)
+CREATE TABLE certificate_issues (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  enrollment_id INT NOT NULL,
+  training_id INT NOT NULL,
+  trainee_id INT NOT NULL,
+  certificate_number VARCHAR(64) NOT NULL,
+  issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  validity_start DATE NULL,
+  validity_end DATE NULL,
+  participant_name VARCHAR(255) NOT NULL,
+  course_name VARCHAR(255) NOT NULL,
+  location VARCHAR(255) NOT NULL,
+  date_display VARCHAR(64) NOT NULL,
+  UNIQUE KEY unique_certificate_enrollment (enrollment_id),
+  FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE,
+  FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE CASCADE,
+  FOREIGN KEY (trainee_id) REFERENCES trainees(id) ON DELETE CASCADE
+);
+
 -- Training Healthcare (many-to-many relationship)
 CREATE TABLE training_healthcare (
   id INT AUTO_INCREMENT PRIMARY KEY,

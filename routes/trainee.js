@@ -168,13 +168,14 @@ router.get('/training/:id/certificate/:enrollmentId', async (req, res, next) => 
 
     const [enrollments] = await req.db.query(`
       SELECT e.*,
+        e.trainee_id as trainee_id_int,
         t.title as training_title,
         t.type as training_type,
         t.start_datetime,
         t.end_datetime,
         tr.first_name,
         tr.last_name,
-        tr.trainee_id,
+        tr.trainee_id as trainee_public_id,
         tr.healthcare
       FROM enrollments e
       JOIN trainings t ON e.training_id = t.id
@@ -248,20 +249,53 @@ router.get('/training/:id/certificate/:enrollmentId', async (req, res, next) => 
       return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     };
 
-    const participantName = `${enrollment.first_name} ${enrollment.last_name}`;
-    const courseName = enrollment.training_title;
-    const location = enrollment.healthcare || 'N/A';
-    const date = formatDate(enrollment.end_datetime || enrollment.start_datetime || enrollment.enrolled_at);
+    const [certificateRows] = await req.db.query(
+      'SELECT * FROM certificate_issues WHERE enrollment_id = ?',
+      [enrollmentId]
+    );
 
-    const validityStartRaw = certAttempt?.completed_at || enrollment.end_datetime || enrollment.start_datetime || enrollment.enrolled_at || new Date();
-    const validityStart = new Date(validityStartRaw);
-    const validityEnd = new Date(validityStart);
+    let participantName = `${enrollment.first_name} ${enrollment.last_name}`;
+    let courseName = enrollment.training_title;
+    let location = enrollment.healthcare || 'N/A';
+    let date = formatDate(enrollment.end_datetime || enrollment.start_datetime || enrollment.enrolled_at);
+
+    let certificateNumber = `1000-${trainingId}-${enrollmentId}`;
+    let validityStart = certAttempt?.completed_at || enrollment.end_datetime || enrollment.start_datetime || enrollment.enrolled_at || new Date();
+    let validityEnd = new Date(validityStart);
     if (!isNaN(validityEnd.valueOf())) {
       validityEnd.setFullYear(validityEnd.getFullYear() + 2);
     }
-    const validityPeriod = `${formatDate(validityStart)} to ${formatDate(validityEnd)}`;
 
-    const certificateNumber = `QSS-${trainingId}-${enrollmentId}`;
+    if (certificateRows.length > 0) {
+      const issued = certificateRows[0];
+      certificateNumber = issued.certificate_number;
+      validityStart = issued.validity_start || validityStart;
+      validityEnd = issued.validity_end || validityEnd;
+      participantName = issued.participant_name || participantName;
+      courseName = issued.course_name || courseName;
+      location = issued.location || location;
+      date = issued.date_display || date;
+    } else {
+      await req.db.query(
+        `INSERT INTO certificate_issues 
+         (enrollment_id, training_id, trainee_id, certificate_number, validity_start, validity_end, participant_name, course_name, location, date_display)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          enrollmentId,
+          trainingId,
+          enrollment.trainee_id_int,
+          certificateNumber,
+          new Date(validityStart),
+          new Date(validityEnd),
+          participantName,
+          courseName,
+          location,
+          date
+        ]
+      );
+    }
+
+    const validityPeriod = `${formatDate(validityStart)} to ${formatDate(validityEnd)}`;
     const signerName = 'Administrator';
     const signerTitle = 'Authorized Signatory';
     const signerCompany = 'Quick Stop Solution';
