@@ -12,6 +12,7 @@ router.get('/results/enrollment/:enrollmentId', async (req, res, next) => {
       JOIN trainings t ON e.training_id = t.id
       JOIN trainees tr ON e.trainee_id = tr.id
       WHERE e.id = ? AND e.trainee_id = ?
+        AND t.status IN ('completed', 'in_progress')
     `, [req.params.enrollmentId, req.session.userId]);
 
     if (enrollment.length === 0) {
@@ -91,6 +92,7 @@ router.get('/attendance/trainee/:enrollmentId', async (req, res, next) => {
       JOIN trainings t ON e.training_id = t.id
       JOIN trainees tr ON e.trainee_id = tr.id
       WHERE e.id = ? AND e.trainee_id = ?
+        AND t.status IN ('completed', 'in_progress')
     `, [req.params.enrollmentId, req.session.userId]);
     
     if (enrollment.length === 0) {
@@ -181,6 +183,7 @@ router.get('/training/:id/certificate/:enrollmentId', async (req, res, next) => 
       JOIN trainings t ON e.training_id = t.id
       JOIN trainees tr ON e.trainee_id = tr.id
       WHERE e.id = ? AND e.training_id = ? AND e.trainee_id = ?
+        AND t.status IN ('completed', 'in_progress')
     `, [enrollmentId, trainingId, req.session.userId]);
     
     if (enrollments.length === 0) {

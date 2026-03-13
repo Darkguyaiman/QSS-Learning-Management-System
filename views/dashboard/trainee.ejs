@@ -36,6 +36,10 @@
           background: rgba(239, 68, 68, 0.18);
           color: #B91C1C;
         }
+        .cert-status--expired {
+          background: rgba(107, 114, 128, 0.18);
+          color: #374151;
+        }
         .recert-list {
           display: grid;
           gap: 0.75rem;
@@ -239,16 +243,20 @@
                 <% certificates.forEach(cert => { %>
                   <%
                     const daysLeft = cert.days_remaining;
-                    const statusClass = (daysLeft !== null && daysLeft <= 30)
-                      ? 'cert-status--urgent'
-                      : (daysLeft !== null && daysLeft <= 60)
-                        ? 'cert-status--warn'
-                        : 'cert-status--safe';
-                    const statusText = (daysLeft !== null && daysLeft <= 30)
-                      ? 'Expiring Soon'
-                      : (daysLeft !== null && daysLeft <= 60)
-                        ? 'Renewal Window'
-                        : 'Active';
+                    const statusClass = (daysLeft !== null && daysLeft < 0)
+                      ? 'cert-status--expired'
+                      : (daysLeft !== null && daysLeft <= 30)
+                        ? 'cert-status--urgent'
+                        : (daysLeft !== null && daysLeft <= 60)
+                          ? 'cert-status--warn'
+                          : 'cert-status--safe';
+                    const statusText = (daysLeft !== null && daysLeft < 0)
+                      ? 'Expired'
+                      : (daysLeft !== null && daysLeft <= 30)
+                        ? 'Expiring Soon'
+                        : (daysLeft !== null && daysLeft <= 60)
+                          ? 'Renewal Window'
+                          : 'Active';
                   %>
                   <tr>
                     <td><strong><%= cert.training_title %></strong></td>
@@ -304,7 +312,7 @@
             <% enrollments.forEach(enrollment => { %>
               <%
                 // Calculate completion percentage
-                let totalActivities = 1; // Pre-test always required
+                let totalActivities = 1; // Pre-test always required for main trainings
                 let completedActivities = enrollment.pre_test_completed ? 1 : 0;
                 const handsOnDone = enrollment.hands_on_total > 0
                   ? enrollment.hands_on_completed >= enrollment.hands_on_total
@@ -316,8 +324,10 @@
                   completedActivities += handsOnDone ? 1 : 0;
                   completedActivities += enrollment.certificate_enrolment_test_completed ? 1 : 0;
                 } else {
-                  totalActivities += 1; // refresher training test
-                  completedActivities += enrollment.refresher_training_test_completed ? 1 : 0;
+                  // Refresher: 100% when both certificate enrolment + refresher test are completed
+                  totalActivities = 2;
+                  completedActivities = (enrollment.certificate_enrolment_test_completed ? 1 : 0)
+                    + (enrollment.refresher_training_test_completed ? 1 : 0);
                 }
 
                 const completionPercentage = Math.round((completedActivities / totalActivities) * 100);
@@ -393,12 +403,11 @@
 
                   <!-- Quick Progress Checklist -->
                   <div class="training-checklist">
-                    <div class="checklist-item <%= enrollment.pre_test_completed ? 'completed' : 'pending' %>">
-                      <i class="fas fa-<%= enrollment.pre_test_completed ? 'check-circle' : 'circle' %>"></i>
-                      <span>Pre-Test</span>
-                    </div>
-
                     <% if (enrollment.type === 'main') { %>
+                      <div class="checklist-item <%= enrollment.pre_test_completed ? 'completed' : 'pending' %>">
+                        <i class="fas fa-<%= enrollment.pre_test_completed ? 'check-circle' : 'circle' %>"></i>
+                        <span>Pre-Test</span>
+                      </div>
                       <div class="checklist-item <%= handsOnDone ? 'completed' : 'pending' %>">
                         <i class="fas fa-<%= handsOnDone ? 'check-circle' : 'circle' %>"></i>
                         <span>Practical Learning Outcome</span>
@@ -414,7 +423,11 @@
                     <% } else { %>
                       <div class="checklist-item <%= enrollment.refresher_training_test_completed ? 'completed' : 'pending' %>">
                         <i class="fas fa-<%= enrollment.refresher_training_test_completed ? 'check-circle' : 'circle' %>"></i>
-                        <span>Assessment</span>
+                        <span>Refresher Training Test</span>
+                      </div>
+                      <div class="checklist-item <%= enrollment.certificate_enrolment_test_completed ? 'completed' : 'pending' %>">
+                        <i class="fas fa-<%= enrollment.certificate_enrolment_test_completed ? 'check-circle' : 'circle' %>"></i>
+                        <span>Certificate Enrolment</span>
                       </div>
                     <% } %>
                   </div>

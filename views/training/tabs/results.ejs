@@ -102,6 +102,22 @@
                 </div>
               </div>
             <% } %>
+            
+            <% if (certificateEnrolmentTest) { %>
+              <div class="test-card certificate-test">
+                <div class="test-icon">
+                  <i class="fas fa-certificate"></i>
+                </div>
+                <div class="test-content">
+                  <h3>Certificate Enrolment Test</h3>
+                  <p class="test-description">Certification Assessment</p>
+                  <div class="test-score <%= certificateEnrolmentTest.score >= 80 ? 'passed' : 'failed' %>">
+                    <span class="score-value"><%= certificateEnrolmentTest.score.toFixed(1) %>%</span>
+                    <span class="score-status"><%= certificateEnrolmentTest.score >= 80 ? 'Outstanding' : 'Not Passed' %></span>
+                  </div>
+                </div>
+              </div>
+            <% } %>
           <% } %>
         </div>
       </div>
@@ -158,8 +174,11 @@
         const practicalTotal = (marksData && marksData.handsOnScores || []).reduce((sum, s) => sum + (parseFloat(s.score) || 0), 0);
         const practicalMax = (marksData && marksData.handsOnScores || []).reduce((sum, s) => sum + (parseFloat(s.max_score) || 0), 0);
         const practicalPercent = practicalMax > 0 ? (practicalTotal / practicalMax) * 100 : 0;
-        const overallPerformance = (certScore / 100) * 40 + (practicalPercent / 100) * 60;
-        const hasOverall = bestCert && practicalMax > 0;
+        const isMainTraining = training.type === 'main';
+        const overallPerformance = isMainTraining
+          ? (certScore / 100) * 40 + (practicalPercent / 100) * 60
+          : certScore;
+        const hasOverall = isMainTraining ? (bestCert && practicalMax > 0) : !!bestCert;
       %>
       <% if (marksData && (marksData.finalGrade || hasOverall)) { %>
         <div class="results-section">
@@ -172,7 +191,7 @@
             <div class="final-grade-content">
               <div class="final-grade-label">Overall Performance</div>
               <div class="final-grade-value">
-                <%= (marksData.finalGrade && marksData.finalGrade.training_grade !== null)
+                <%= (isMainTraining && marksData.finalGrade && marksData.finalGrade.training_grade !== null)
                   ? parseFloat(marksData.finalGrade.training_grade).toFixed(1)
                   : overallPerformance.toFixed(1) %>%
               </div>
@@ -206,7 +225,11 @@
             Download Certificate
           </a>
         <% } else { %>
-          <p>Certificate becomes available after both Certificate Enrolment Test and Practical Learning Outcome are Outstanding (80%+).</p>
+          <% if (training.type === 'main') { %>
+            <p>Certificate becomes available after both Certificate Enrolment Test and Practical Learning Outcome are Outstanding (80%+).</p>
+          <% } else { %>
+            <p>Certificate becomes available after the Certificate Enrolment Test is Outstanding (80%+).</p>
+          <% } %>
           <button class="btn-certificate" style="opacity: 0.6; cursor: not-allowed;" disabled>
             <i class="fas fa-lock"></i>
             Certificate Locked
@@ -216,4 +239,5 @@
     </div>
   </div>
 <% } %>
+
 

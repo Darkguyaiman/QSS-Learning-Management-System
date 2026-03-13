@@ -7,7 +7,7 @@ router.get('/', async (req, res) => {
     const userId = req.session.userId;
     
     if (role === 'trainee') {
-      // Get enrolled trainings (limit to 4 most recent)
+      // Get enrolled trainings (limit to 6 most recent)
       const [enrollments] = await req.db.query(`
         SELECT e.*, t.title, t.type, t.description,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') as pre_test_completed,
@@ -18,9 +18,11 @@ router.get('/', async (req, res) => {
           (SELECT COUNT(*) FROM practical_learning_outcomes WHERE training_id = e.training_id) as hands_on_total
         FROM enrollments e
         JOIN trainings t ON e.training_id = t.id
-        WHERE e.trainee_id = ? AND e.status = 'active'
+        WHERE e.trainee_id = ?
+          AND e.status = 'active'
+          AND t.status IN ('completed', 'in_progress')
         ORDER BY e.enrolled_at DESC
-        LIMIT 4
+        LIMIT 6
       `, [userId]);
 
       // Get trainee profile data for welcome section
@@ -32,7 +34,7 @@ router.get('/', async (req, res) => {
         WHERE t.id = ?
       `, [userId]);
 
-      // Get analytics data (completed + active courses)
+      // Get analytics data (completed + in-progress courses only)
       const [analytics] = await req.db.query(`
         SELECT
           (SELECT COUNT(*)
@@ -42,7 +44,7 @@ router.get('/', async (req, res) => {
           (SELECT COUNT(*)
            FROM enrollments e
            JOIN trainings t ON e.training_id = t.id
-           WHERE e.trainee_id = ? AND t.status = 'in_progress') as total_enrolled
+           WHERE e.trainee_id = ? AND t.status IN ('completed', 'in_progress')) as total_enrolled
       `, [userId, userId]);
 
       // Activities completed = unique passed tests + hands-on (all time)

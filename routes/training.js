@@ -169,31 +169,37 @@ async function validateTestQuestions(db, trainingType, deviceModelId) {
       }
     }
   } else if (trainingType === 'refresher_training') {
-    // Refresher training: only refresher test (10)
-    if (10 < requiredPerObjective) {
-      errors.push(`refresher_training: Need at least ${requiredPerObjective} questions (2 per objective for ${objectives.length} objectives), but only 10 requested.`);
-    } else {
-      // Check each objective has enough questions
+    // Refresher training: refresher test (10) + certificate enrolment (40)
+    const tests = [
+      { type: 'refresher_training', count: 10 },
+      { type: 'certificate_enrolment', count: 40 }
+    ];
+
+    for (const test of tests) {
+      if (test.count < requiredPerObjective) {
+        errors.push(`${test.type}: Need at least ${requiredPerObjective} questions (2 per objective for ${objectives.length} objectives), but only ${test.count} requested.`);
+        continue;
+      }
+
       for (const objective of objectives) {
         const [questions] = await db.query(
           'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND objective_id = ? AND device_model_id = ?',
-          ['refresher_training', objective.id, deviceModelId]
+          [test.type, objective.id, deviceModelId]
         );
-        
+
         const questionCount = questions[0].count;
         if (questionCount < minPerObjective) {
-          errors.push(`refresher_training: Not enough questions for objective ID ${objective.id}. Need at least ${minPerObjective}, found ${questionCount}.`);
+          errors.push(`${test.type}: Not enough questions for objective ID ${objective.id}. Need at least ${minPerObjective}, found ${questionCount}.`);
         }
       }
-      
-      // Check total available questions
+
       const [totalQuestions] = await db.query(
         'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND device_model_id = ?',
-        ['refresher_training', deviceModelId]
+        [test.type, deviceModelId]
       );
-      
-      if (totalQuestions[0].count < 10) {
-        errors.push(`refresher_training: Not enough total questions available. Need 10, found ${totalQuestions[0].count}.`);
+
+      if (totalQuestions[0].count < test.count) {
+        errors.push(`${test.type}: Not enough total questions available. Need ${test.count}, found ${totalQuestions[0].count}.`);
       }
     }
   }
@@ -344,23 +350,26 @@ async function createTrainingTests(db, trainingId, trainingType, deviceModelId) 
         }
       }
     } else if (trainingType === 'refresher_training') {
-      // Refresher training: only refresher test (10)
-      const questionIds = await selectQuestionsForTest(db, 'refresher_training', 10, deviceModelId);
-      
-      // Create training_test record
-      const [testResult] = await db.query(
-        'INSERT INTO training_tests (training_id, test_type, total_questions) VALUES (?, ?, ?)',
-        [trainingId, 'refresher_training', 10]
-      );
-      
-      const trainingTestId = testResult.insertId;
-      
-      // Insert selected questions
-      for (let i = 0; i < questionIds.length; i++) {
-        await db.query(
-          'INSERT INTO training_test_questions (training_test_id, question_id, question_order) VALUES (?, ?, ?)',
-          [trainingTestId, questionIds[i], i + 1]
+      // Refresher training: refresher test (10) + certificate enrolment (40)
+      const tests = [
+        { type: 'refresher_training', count: 10 },
+        { type: 'certificate_enrolment', count: 40 }
+      ];
+
+      for (const test of tests) {
+        const questionIds = await selectQuestionsForTest(db, test.type, test.count, deviceModelId);
+        const [testResult] = await db.query(
+          'INSERT INTO training_tests (training_id, test_type, total_questions) VALUES (?, ?, ?)',
+          [trainingId, test.type, test.count]
         );
+
+        const trainingTestId = testResult.insertId;
+        for (let i = 0; i < questionIds.length; i++) {
+          await db.query(
+            'INSERT INTO training_test_questions (training_test_id, question_id, question_order) VALUES (?, ?, ?)',
+            [trainingTestId, questionIds[i], i + 1]
+          );
+        }
       }
     }
   } catch (error) {
@@ -639,6 +648,11 @@ router.get('/', async (req, res) => {
       queryParams.push(req.session.userId);
     }
     // Admins can see all trainings (no additional WHERE clause)
+
+    // Non-admins should only see in progress, completed, or rescheduled trainings
+    if (req.session.userRole !== 'admin') {
+      query += ` AND t.status IN ('in_progress', 'completed', 'rescheduled')`;
+    }
     
     // Apply status filter
     if (statusFilter.length > 0) {
@@ -1183,6 +1197,14 @@ router.get('/:id', async (req, res) => {
     }
 
     const training = trainings[0];
+
+    // Restrict visibility for non-admins (trainee/trainer)
+    if (req.session.userRole !== 'admin') {
+      const allowedStatuses = ['in_progress', 'completed', 'rescheduled'];
+      if (!allowedStatuses.includes(training.status)) {
+        return res.status(403).send('You are not authorized to access this training. Please contact your administrator.');
+      }
+    }
 
     // Check authorization based on user role
     if (req.session.userRole === 'trainee') {
@@ -2192,24 +2214,43 @@ router.post('/:id/update', async (req, res) => {
       await connection.query('DELETE FROM training_devices WHERE training_id = ?', [trainingId]);
       
       // Handle device arrays - express.urlencoded may parse bracket notation differently
-      const deviceTypes = req.body['device_type[]'] || [];
-      const deviceIds = req.body['device_ids[]'] || [];
-      const deviceCustoms = req.body['device_customs[]'] || [];
+      const deviceTypes = req.body['device_type[]'] || req.body.device_type || [];
+      const deviceIds = req.body['device_ids[]'] || req.body.device_ids || [];
+      const deviceCustoms = req.body['device_customs[]'] || req.body.device_customs || [];
       
       const deviceTypesArray = Array.isArray(deviceTypes) ? deviceTypes : [deviceTypes].filter(Boolean);
-      const deviceIdsArray = Array.isArray(deviceIds) ? deviceIds : [deviceIds].filter(Boolean);
-      const deviceCustomsArray = Array.isArray(deviceCustoms) ? deviceCustoms : [deviceCustoms].filter(Boolean);
+      const deviceIdsArray = (Array.isArray(deviceIds) ? deviceIds : [deviceIds])
+        .map(value => String(value || '').trim())
+        .filter(Boolean);
+      const deviceCustomsArray = (Array.isArray(deviceCustoms) ? deviceCustoms : [deviceCustoms])
+        .map(value => String(value || '').trim())
+        .filter(Boolean);
       
-      for (let i = 0; i < deviceTypesArray.length; i++) {
-        if (deviceTypesArray[i] === 'existing' && deviceIdsArray[i]) {
+      if (deviceTypesArray.length > 0) {
+        for (let i = 0; i < deviceTypesArray.length; i++) {
+          if (deviceTypesArray[i] === 'existing' && deviceIdsArray[i]) {
+            await connection.query(
+              'INSERT INTO training_devices (training_id, device_serial_number_id) VALUES (?, ?)',
+              [trainingId, deviceIdsArray[i]]
+            );
+          } else if (deviceTypesArray[i] === 'custom' && deviceCustomsArray[i]) {
+            await connection.query(
+              'INSERT INTO training_devices (training_id, custom_serial_number) VALUES (?, ?)',
+              [trainingId, deviceCustomsArray[i]]
+            );
+          }
+        }
+      } else {
+        for (const deviceId of deviceIdsArray) {
           await connection.query(
             'INSERT INTO training_devices (training_id, device_serial_number_id) VALUES (?, ?)',
-            [trainingId, deviceIdsArray[i]]
+            [trainingId, deviceId]
           );
-        } else if (deviceTypesArray[i] === 'custom' && deviceCustomsArray[i]) {
+        }
+        for (const customSerial of deviceCustomsArray) {
           await connection.query(
             'INSERT INTO training_devices (training_id, custom_serial_number) VALUES (?, ?)',
-            [trainingId, deviceCustomsArray[i]]
+            [trainingId, customSerial]
           );
         }
       }
@@ -2388,37 +2429,84 @@ router.post('/:id/unlock', async (req, res) => {
   }
 });
 
-// Release scores for trainees (admin only, after training is locked)
+// Release scores for trainees
 router.post('/:id/release-scores', async (req, res) => {
-  if (req.session.userRole !== 'admin') {
-    return res.status(403).json({ success: false, error: 'Access denied. Only admins can release scores.' });
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied. Only admins or trainers can release scores.' });
   }
-  
+
   try {
     const { enrollment_ids } = req.body;
-    
-    // Verify training is locked (completed)
-    const [trainings] = await req.db.query('SELECT status FROM trainings WHERE id = ?', [req.params.id]);
+
+    // Verify training
+    const [trainings] = await req.db.query('SELECT status, type FROM trainings WHERE id = ?', [req.params.id]);
     if (trainings.length === 0) {
       return res.status(404).json({ success: false, error: 'Training not found' });
     }
-    
-    if (trainings[0].status !== 'completed') {
-      return res.status(400).json({ success: false, error: 'Training must be locked (completed) before releasing scores' });
+
+    const training = trainings[0];
+
+    if (training.type === 'main') {
+      if (req.session.userRole !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Access denied. Only admins can release scores for main training.' });
+      }
+      if (training.status !== 'completed') {
+        return res.status(400).json({ success: false, error: 'Training must be locked (completed) before releasing scores' });
+      }
     }
-    
+
     if (!enrollment_ids || !Array.isArray(enrollment_ids) || enrollment_ids.length === 0) {
       return res.status(400).json({ success: false, error: 'Please select at least one trainee' });
     }
-    
+
+    let eligibleEnrollmentIds = enrollment_ids;
+
+    if (training.type !== 'main') {
+      const placeholders = enrollment_ids.map(() => '?').join(',');
+      const [scoreRows] = await req.db.query(
+        `SELECT enrollment_id, test_type, MAX(score) as score
+         FROM test_attempts
+         WHERE enrollment_id IN (${placeholders})
+           AND status = "completed"
+           AND test_type IN ('refresher_training', 'certificate_enrolment')
+         GROUP BY enrollment_id, test_type`,
+        enrollment_ids
+      );
+
+      const scoresByEnrollment = scoreRows.reduce((acc, row) => {
+        if (!acc[row.enrollment_id]) acc[row.enrollment_id] = {};
+        acc[row.enrollment_id][row.test_type] = parseFloat(row.score) || 0;
+        return acc;
+      }, {});
+
+      eligibleEnrollmentIds = enrollment_ids.filter(id => {
+        const entry = scoresByEnrollment[id] || {};
+        return (entry.refresher_training || 0) >= 80 && (entry.certificate_enrolment || 0) >= 80;
+      });
+
+      if (eligibleEnrollmentIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Scores can be released only after both Refresher Training Test and Certificate Enrolment Test are Outstanding (80%+).'
+        });
+      }
+
+      if (eligibleEnrollmentIds.length !== enrollment_ids.length) {
+        return res.status(400).json({
+          success: false,
+          error: 'Some trainees have not passed both Refresher Training and Certificate Enrolment tests yet.'
+        });
+      }
+    }
+
     // Update can_download_results for selected enrollments
-    const placeholders = enrollment_ids.map(() => '?').join(',');
+    const placeholders = eligibleEnrollmentIds.map(() => '?').join(',');
     await req.db.query(
       `UPDATE enrollments SET can_download_results = TRUE WHERE id IN (${placeholders}) AND training_id = ?`,
-      [...enrollment_ids, req.params.id]
+      [...eligibleEnrollmentIds, req.params.id]
     );
-    
-    res.json({ success: true, message: `Scores released for ${enrollment_ids.length} trainee(s)` });
+
+    res.json({ success: true, message: `Scores released for ${eligibleEnrollmentIds.length} trainee(s)` });
   } catch (error) {
     console.error('Score release error:', error);
     res.status(500).json({ success: false, error: 'Error releasing scores' });

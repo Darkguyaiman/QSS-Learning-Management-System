@@ -38,13 +38,14 @@
           <thead>
             <tr>
               <th>Trainee</th>
-              <th>Pre-Test</th>
               <% if (training.type === 'main') { %>
+                <th>Pre-Test</th>
                 <th>Post-Test</th>
                 <th>Practical Learning Outcome</th>
                 <th>Certificate Enrolment</th>
               <% } else { %>
                 <th>Refresher Training Test</th>
+                <th>Certificate Enrolment</th>
               <% } %>
               <th>Status</th>
               <th>Actions</th>
@@ -60,16 +61,16 @@
                   const certificateEnrolmentTest = getBestTest(data.tests, 'certificate_enrolment');
                   const refresher_trainingTest = getBestTest(data.tests, 'refresher_training');
                 %>
-                <td>
-                  <% if (preTest) { %>
-                    <span class="test-score <%= preTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
-                      <%= preTest.score %>% (<%= preTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
-                    </span>
-                  <% } else { %>
-                    <span style="color: #5F6368;">Not taken</span>
-                  <% } %>
-                </td>
                 <% if (training.type === 'main') { %>
+                  <td>
+                    <% if (preTest) { %>
+                      <span class="test-score <%= preTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
+                        <%= preTest.score %>% (<%= preTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
+                      </span>
+                    <% } else { %>
+                      <span style="color: #5F6368;">Not taken</span>
+                    <% } %>
+                  </td>
                   <td>
                     <% if (postTest) { %>
                       <span class="test-score <%= postTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
@@ -112,6 +113,15 @@
                       <span style="color: #5F6368;">Not taken</span>
                     <% } %>
                   </td>
+                  <td>
+                    <% if (certificateEnrolmentTest) { %>
+                      <span class="test-score <%= certificateEnrolmentTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
+                        <%= certificateEnrolmentTest.score %>% (<%= certificateEnrolmentTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
+                      </span>
+                    <% } else { %>
+                      <span style="color: #5F6368;">Not taken</span>
+                    <% } %>
+                  </td>
                 <% } %>
                 <td>
                   <% if (data.can_download_results) { %>
@@ -134,10 +144,23 @@
                         <i class="fas fa-list"></i> All Attempts
                       </a>
                     <% } %>
-                    <% if (user.userRole === 'admin' && training.status === 'completed' && !data.can_download_results) { %>
-                      <button class="btn btn-sm btn-primary" onclick="releaseScores([<%= data.enrollment_id %>], this)">
-                        <i class="fas fa-unlock"></i> Release
-                      </button>
+                    <% 
+                      const refresherPassed = refresher_trainingTest && refresher_trainingTest.score >= 80;
+                      const certPassed = certificateEnrolmentTest && certificateEnrolmentTest.score >= 80;
+                      const canReleaseRefresher = !data.can_download_results && refresherPassed && certPassed;
+                    %>
+                    <% if (training.type === 'main') { %>
+                      <% if (user.userRole === 'admin' && training.status === 'completed' && !data.can_download_results) { %>
+                        <button class="btn btn-sm btn-primary" onclick="releaseScores([<%= data.enrollment_id %>], this)">
+                          <i class="fas fa-unlock"></i> Release
+                        </button>
+                      <% } %>
+                    <% } else { %>
+                      <% if (['admin', 'trainer'].includes(user.userRole) && canReleaseRefresher) { %>
+                        <button class="btn btn-sm btn-primary" onclick="releaseScores([<%= data.enrollment_id %>], this)">
+                          <i class="fas fa-unlock"></i> Release
+                        </button>
+                      <% } %>
                     <% } %>
                     <% if (data.can_download_results) { %>
                       <a href="/training/<%= training.id %>/certificate/<%= data.enrollment_id %>" target="_blank" class="btn btn-sm btn-success">
@@ -179,18 +202,17 @@
                   const refresher_trainingTest = getBestTest(data.tests, 'refresher_training');
                 %>
                 
-                <div class="marks-card-row">
-                  <span class="marks-label">Pre-Test</span>
-                  <% if (preTest) { %>
-                    <span class="test-score <%= preTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
-                      <%= preTest.score %>% (<%= preTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
-                    </span>
-                  <% } else { %>
-                    <span style="color: #5F6368;">Not taken</span>
-                  <% } %>
-                </div>
-
                 <% if (training.type === 'main') { %>
+                  <div class="marks-card-row">
+                    <span class="marks-label">Pre-Test</span>
+                    <% if (preTest) { %>
+                      <span class="test-score <%= preTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
+                        <%= preTest.score %>% (<%= preTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
+                      </span>
+                    <% } else { %>
+                      <span style="color: #5F6368;">Not taken</span>
+                    <% } %>
+                  </div>
                   <div class="marks-card-row">
                     <span class="marks-label">Post-Test</span>
                     <% if (postTest) { %>
@@ -239,6 +261,16 @@
                       <span style="color: #5F6368;">Not taken</span>
                     <% } %>
                   </div>
+                  <div class="marks-card-row">
+                    <span class="marks-label">Certificate Enrolment</span>
+                    <% if (certificateEnrolmentTest) { %>
+                      <span class="test-score <%= certificateEnrolmentTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
+                        <%= certificateEnrolmentTest.score %>% (<%= certificateEnrolmentTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
+                      </span>
+                    <% } else { %>
+                      <span style="color: #5F6368;">Not taken</span>
+                    <% } %>
+                  </div>
                 <% } %>
 
                 <div class="marks-card-actions">
@@ -250,10 +282,23 @@
                       <i class="fas fa-list"></i> All Attempts
                     </a>
                   <% } %>
-                  <% if (user.userRole === 'admin' && training.status === 'completed' && !data.can_download_results) { %>
-                    <button class="btn btn-sm btn-primary" onclick="releaseScores([<%= data.enrollment_id %>], this)">
-                      <i class="fas fa-unlock"></i> Release
-                    </button>
+                  <% 
+                    const refresherPassed = refresher_trainingTest && refresher_trainingTest.score >= 80;
+                    const certPassed = certificateEnrolmentTest && certificateEnrolmentTest.score >= 80;
+                    const canReleaseRefresher = !data.can_download_results && refresherPassed && certPassed;
+                  %>
+                  <% if (training.type === 'main') { %>
+                    <% if (user.userRole === 'admin' && training.status === 'completed' && !data.can_download_results) { %>
+                      <button class="btn btn-sm btn-primary" onclick="releaseScores([<%= data.enrollment_id %>], this)">
+                        <i class="fas fa-unlock"></i> Release
+                      </button>
+                    <% } %>
+                  <% } else { %>
+                    <% if (['admin', 'trainer'].includes(user.userRole) && canReleaseRefresher) { %>
+                      <button class="btn btn-sm btn-primary" onclick="releaseScores([<%= data.enrollment_id %>], this)">
+                        <i class="fas fa-unlock"></i> Release
+                      </button>
+                    <% } %>
                   <% } %>
                   <% if (data.can_download_results) { %>
                     <a href="/training/<%= training.id %>/certificate/<%= data.enrollment_id %>" target="_blank" class="btn btn-sm btn-success">
@@ -1121,7 +1166,7 @@
   </script>
   <% } %>
   
-  <% if (user.userRole === 'admin' && training.status === 'completed') { %>
+  <% if (['admin', 'trainer'].includes(user.userRole) && (training.type !== 'main' || training.status === 'completed')) { %>
   <script>
     // Score release functionality
     async function releaseScores(enrollmentIds, buttonEl) {
