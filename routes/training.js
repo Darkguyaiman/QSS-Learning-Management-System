@@ -1374,12 +1374,16 @@ router.get('/:id', async (req, res) => {
         SELECT e.*,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') > 0 as pre_test_completed,
           (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') as pre_test_score,
+          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed' AND score < 80) as pre_test_failed_attempts,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') > 0 as post_test_completed,
           (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') as post_test_score,
+          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed' AND score < 80) as post_test_failed_attempts,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed') > 0 as refresher_training_test_completed,
           (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed') as refresher_training_score,
+          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed' AND score < 80) as refresher_training_failed_attempts,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') > 0 as certificate_enrolment_test_completed,
-          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') as certificate_enrolment_score
+          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') as certificate_enrolment_score,
+          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed' AND score < 80) as certificate_enrolment_failed_attempts
         FROM enrollments e
         WHERE e.trainee_id = ? AND e.training_id = ?
       `, [req.session.userId, req.params.id]);
@@ -2554,6 +2558,21 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
       'SELECT * FROM test_attempts WHERE enrollment_id = ? AND status = "completed" ORDER BY test_type',
       [enrollmentId]
     );
+
+    const attemptStatsByType = (testAttempts || []).reduce((acc, attempt) => {
+      const testType = attempt.test_type;
+      const score = parseFloat(attempt.score) || 0;
+      if (!acc[testType]) {
+        acc[testType] = { failed: 0, hasPass: false };
+      }
+      if (score >= 80) acc[testType].hasPass = true;
+      else acc[testType].failed += 1;
+      return acc;
+    }, {});
+    const hasLockedTestPart = Object.values(attemptStatsByType).some(stat => stat.failed >= 3 && !stat.hasPass);
+    if (hasLockedTestPart) {
+      return res.status(403).send('Certificate is not available because one or more test parts reached 3 failed attempts. This trainee has failed the training.');
+    }
 
     // Check if scores are released (for trainees) or certificate enrolment completed
     if (req.session.userRole === 'trainee' && !enrollment.can_download_results) {

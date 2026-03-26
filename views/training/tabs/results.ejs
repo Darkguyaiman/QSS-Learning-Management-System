@@ -205,13 +205,24 @@
       <% 
         const certTest = getBestTest(marksData && marksData.tests, 'certificate_enrolment');
         const certOutstanding = certTest && certTest.score >= 80;
+        const attemptStatsByType = ((marksData && marksData.tests) || []).reduce((acc, attempt) => {
+          const testType = attempt.test_type;
+          const score = parseFloat(attempt.score) || 0;
+          if (!acc[testType]) {
+            acc[testType] = { failed: 0, hasPass: false };
+          }
+          if (score >= 80) acc[testType].hasPass = true;
+          else acc[testType].failed += 1;
+          return acc;
+        }, {});
+        const hasLockedTestPart = Object.values(attemptStatsByType).some(stat => stat.failed >= 3 && !stat.hasPass);
         let practicalOutstanding = true;
         if (training.type === 'main' && marksData && marksData.handsOnScores && marksData.handsOnScores.length > 0) {
           const total = marksData.handsOnScores.reduce((sum, s) => sum + (parseFloat(s.score) / parseFloat(s.max_score) * 100), 0);
           const avg = total / marksData.handsOnScores.length;
           practicalOutstanding = avg >= 80;
         }
-        const canDownloadCertificate = certOutstanding && practicalOutstanding;
+        const canDownloadCertificate = certOutstanding && practicalOutstanding && !hasLockedTestPart;
       %>
       <div class="certificate-download-section">
         <div class="certificate-icon">
@@ -225,7 +236,9 @@
             Download Certificate
           </a>
         <% } else { %>
-          <% if (training.type === 'main') { %>
+          <% if (hasLockedTestPart) { %>
+            <p>Certificate is not available because one or more test parts reached 3 failed attempts.</p>
+          <% } else if (training.type === 'main') { %>
             <p>Certificate becomes available after both Certificate Enrolment Test and Practical Learning Outcome are Outstanding (80%+).</p>
           <% } else { %>
             <p>Certificate becomes available after the Certificate Enrolment Test is Outstanding (80%+).</p>

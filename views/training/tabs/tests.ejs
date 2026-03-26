@@ -29,18 +29,37 @@
                 else if (testType === 'refresher_training') score = enrollment.refresher_training_score;
                 else if (testType === 'certificate_enrolment') score = enrollment.certificate_enrolment_score;
 
+                let failedAttempts = 0;
+                if (testType === 'pre_test') failedAttempts = Number(enrollment.pre_test_failed_attempts || 0);
+                else if (testType === 'post_test') failedAttempts = Number(enrollment.post_test_failed_attempts || 0);
+                else if (testType === 'refresher_training') failedAttempts = Number(enrollment.refresher_training_failed_attempts || 0);
+                else if (testType === 'certificate_enrolment') failedAttempts = Number(enrollment.certificate_enrolment_failed_attempts || 0);
+
                 const passed = score !== null && Number(score) >= 80;
+                const maxAttemptsReached = failedAttempts >= 3;
               %>
               <% if (passed) { %>
                 <span style="color: #137333; font-weight: 500;"><i class="fas fa-check-circle"></i> Completed</span>
+              <% } else if (maxAttemptsReached) { %>
+                <span style="color: #C5221F; font-weight: 500;">Max attempts reached (3/3).</span>
               <% } else if (completed) { %>
-                <a href="/tests/start/<%= enrollment.id %>/<%= testType %>" class="btn btn-sm btn-primary">Retake Test</a>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <a href="/tests/start/<%= enrollment.id %>/<%= testType %>" class="btn btn-sm btn-primary">Retake Test</a>
+                  <% if (failedAttempts > 0) { %>
+                    <span style="color: #5F6368; font-size: 0.8125rem;">Failed attempts: <%= failedAttempts %>/3</span>
+                  <% } %>
+                </div>
               <% } else if (testType === 'post_test' && !enrollment.pre_test_completed) { %>
                 <span style="color: #5F6368;">Complete Pre-Test first</span>
               <% } else if (testType === 'certificate_enrolment' && training.type === 'main' && !enrollment.pre_test_completed) { %>
                 <span style="color: #5F6368;">Complete Pre-Test first</span>
               <% } else { %>
-                <a href="/tests/start/<%= enrollment.id %>/<%= testType %>" class="btn btn-sm btn-primary">Take Test</a>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <a href="/tests/start/<%= enrollment.id %>/<%= testType %>" class="btn btn-sm btn-primary">Take Test</a>
+                  <% if (failedAttempts > 0) { %>
+                    <span style="color: #5F6368; font-size: 0.8125rem;">Failed attempts: <%= failedAttempts %>/3</span>
+                  <% } %>
+                </div>
               <% } %>
             <% } %>
           </li>

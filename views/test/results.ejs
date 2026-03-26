@@ -32,6 +32,10 @@
         <% 
           const correctCount = answers.filter(a => a.is_correct).length;
           const passState = (typeof passed !== 'undefined' && passed) ? 'passed' : 'failed';
+          const stickerImage = passState === 'passed'
+            ? '/images/Test%20Stickers/good%20mark.webp'
+            : '/images/Test%20Stickers/bad%20mark.webp';
+          const stickerLabel = passState === 'passed' ? 'Passed Sticker' : 'Failed Sticker';
         %>
         <div class="results-scorebox results-scorebox--<%= passState %>">
           <div class="results-scorebox-main">
@@ -54,11 +58,20 @@
               <span class="results-summary-value"><%= ((correctCount / attempt.total_questions) * 100).toFixed(1) %>%</span>
             </div>
           </div>
+          <div class="results-scorebox-sticker results-scorebox-sticker--<%= passState %>" aria-hidden="true">
+            <img src="<%= stickerImage %>" alt="<%= stickerLabel %>">
+          </div>
           <% if (typeof canRetake !== 'undefined' && canRetake) { %>
             <div class="results-scorebox-actions">
               <a href="/tests/start/<%= enrollmentId %>/<%= testType %>" class="btn btn-primary">
                 <i class="fas fa-redo"></i> Retake Test
               </a>
+            </div>
+          <% } else if (typeof maxAttemptsReached !== 'undefined' && maxAttemptsReached) { %>
+            <div class="results-scorebox-actions">
+              <p style="margin: 0; color: #C5221F; font-weight: 500;">
+                Maximum attempts reached (<%= failedAttempts %>/<%= maxFailedAttempts %>). You cannot retake this test part anymore.
+              </p>
             </div>
           <% } %>
         </div>

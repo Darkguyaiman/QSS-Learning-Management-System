@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 
+const PASSING_SCORE = 80;
+const MAX_FAILED_ATTEMPTS = 3;
+
 // Start test
 router.get('/start/:enrollmentId/:testType', async (req, res) => {
   try {
@@ -20,8 +23,8 @@ router.get('/start/:enrollmentId/:testType', async (req, res) => {
     
     // Check if test already passed (score >= 80%) - if passed, show results
     const [passed] = await req.db.query(
-      'SELECT id, score FROM test_attempts WHERE enrollment_id = ? AND test_type = ? AND status = "completed" AND score >= 80',
-      [enrollmentId, testType]
+      'SELECT id, score FROM test_attempts WHERE enrollment_id = ? AND test_type = ? AND status = "completed" AND score >= ?',
+      [enrollmentId, testType, PASSING_SCORE]
     );
     
     if (passed.length > 0) {
@@ -38,13 +41,15 @@ router.get('/start/:enrollmentId/:testType', async (req, res) => {
       }
     }
     
-    // If failed, allow retake - delete old failed attempts to allow new attempt
-    const [failed] = await req.db.query(
-      'SELECT id FROM test_attempts WHERE enrollment_id = ? AND test_type = ? AND status = "completed" AND score < 50',
-      [enrollmentId, testType]
+    // Enforce max failed attempts per test type
+    const [failedAttemptsRows] = await req.db.query(
+      'SELECT COUNT(*) as failed_count FROM test_attempts WHERE enrollment_id = ? AND test_type = ? AND status = "completed" AND score < ?',
+      [enrollmentId, testType, PASSING_SCORE]
     );
-    
-    // Note: We'll keep failed attempts for record keeping, but allow new attempts
+    const failedAttempts = Number(failedAttemptsRows?.[0]?.failed_count || 0);
+    if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
+      return res.status(403).send('Maximum attempts reached for this test (3 failed attempts). You cannot retake this part and have failed this training.');
+    }
     
     // Check if there's an in-progress attempt
     const [inProgress] = await req.db.query(
@@ -292,7 +297,14 @@ router.get('/results/:attemptId', async (req, res) => {
     `, [attempt.enrollment_id, attempt.test_type]);
     
     // Check if test passed (score >= 80%)
-    const passed = attempt.score >= 80;
+    const passed = attempt.score >= PASSING_SCORE;
+
+    const [failedAttemptsRows] = await req.db.query(
+      'SELECT COUNT(*) as failed_count FROM test_attempts WHERE enrollment_id = ? AND test_type = ? AND status = "completed" AND score < ?',
+      [attempt.enrollment_id, attempt.test_type, PASSING_SCORE]
+    );
+    const failedAttempts = Number(failedAttemptsRows?.[0]?.failed_count || 0);
+    const maxAttemptsReached = !passed && failedAttempts >= MAX_FAILED_ATTEMPTS;
     
     // Get enrollment to check if can retake
     const [enrollments] = await req.db.query(
@@ -308,7 +320,10 @@ router.get('/results/:attemptId', async (req, res) => {
       answers,
       objectiveScores,
       passed,
-      canRetake: !passed && !trainingLocked,
+      canRetake: !passed && !trainingLocked && !maxAttemptsReached,
+      failedAttempts,
+      maxFailedAttempts: MAX_FAILED_ATTEMPTS,
+      maxAttemptsReached,
       enrollmentId: attempt.enrollment_id,
       testType: attempt.test_type
     });

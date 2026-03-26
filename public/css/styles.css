@@ -1750,8 +1750,8 @@ body.has-sidebar .main-content {
   
   /* Ensure sidebar-layout pages don't keep desktop paddings on mobile (specificity fix) */
   body.has-sidebar .main-content {
-    padding-left: var(--spacing-md);
-    padding-right: var(--spacing-md);
+    padding-left: 0;
+    padding-right: 0;
   }
   
   /* Show mobile toggle button */
@@ -1938,8 +1938,8 @@ body.has-sidebar .main-content {
   }
   
   .main-content {
-    padding-left: var(--spacing-md);
-    padding-right: var(--spacing-md);
+    padding-left: 0;
+    padding-right: 0;
     padding-bottom: var(--spacing-xl);
   }
   
@@ -2122,6 +2122,8 @@ body.has-sidebar .main-content {
   border: 2px solid transparent;
   display: grid;
   gap: var(--spacing-lg);
+  position: relative;
+  overflow: visible;
 }
 
 .results-scorebox--passed {
@@ -2174,6 +2176,50 @@ body.has-sidebar .main-content {
 .results-scorebox-actions {
   display: flex;
   justify-content: center;
+  position: relative;
+  z-index: 2;
+}
+
+.results-scorebox-sticker {
+  position: absolute;
+  right: -16px;
+  top: -20px;
+  width: clamp(142px, 18vw, 210px);
+  --sticker-angle: 0deg;
+  transform-origin: 50% 50%;
+  animation: resultsStickerPaste 760ms cubic-bezier(0.18, 0.78, 0.28, 1) 80ms both;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.results-scorebox-sticker img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.18));
+}
+
+.results-scorebox-sticker--passed {
+  --sticker-angle: 10deg;
+}
+
+.results-scorebox-sticker--failed {
+  --sticker-angle: -8deg;
+}
+
+@keyframes resultsStickerPaste {
+  0% {
+    opacity: 0;
+    transform: translate(26px, -34px) scale(1.65) rotate(calc(var(--sticker-angle) - 24deg));
+  }
+  62% {
+    opacity: 1;
+    transform: translate(-3px, 3px) scale(0.9) rotate(calc(var(--sticker-angle) + 6deg));
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(var(--sticker-angle));
+  }
 }
 
 .results-review-card {
@@ -2660,6 +2706,11 @@ body.has-sidebar .main-content {
   }
   .results-scorebox {
     padding: var(--spacing-lg);
+  }
+  .results-scorebox-sticker {
+    right: -8px;
+    top: -14px;
+    width: clamp(124px, 36vw, 172px);
   }
   .results-header {
     padding: 2rem 1.5rem;

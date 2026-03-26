@@ -197,6 +197,21 @@ router.get('/training/:id/certificate/:enrollmentId', async (req, res, next) => 
       [enrollmentId]
     );
 
+    const attemptStatsByType = (testAttempts || []).reduce((acc, attempt) => {
+      const testType = attempt.test_type;
+      const score = parseFloat(attempt.score) || 0;
+      if (!acc[testType]) {
+        acc[testType] = { failed: 0, hasPass: false };
+      }
+      if (score >= 80) acc[testType].hasPass = true;
+      else acc[testType].failed += 1;
+      return acc;
+    }, {});
+    const hasLockedTestPart = Object.values(attemptStatsByType).some(stat => stat.failed >= 3 && !stat.hasPass);
+    if (hasLockedTestPart) {
+      return res.status(403).send('Certificate is not available because one or more test parts reached 3 failed attempts. You have failed this training.');
+    }
+
     const certAttempts = (testAttempts || []).filter(attempt => attempt.test_type === 'certificate_enrolment');
     const certAttempt = certAttempts.reduce((best, attempt) => {
       if (!best) return attempt;

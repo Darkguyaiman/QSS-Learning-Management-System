@@ -1,6 +1,6 @@
 <!-- Attendance Report Sub-tab -->
 <div id="attendance-report" class="attendance-sub-content">
-  <div class="attendance-update-container">
+  <div class="attendance-update-container attendance-report-shell">
     <div class="form-group">
       <label for="report-session-select">Select Session <span class="required">*</span></label>
       <div class="select-wrapper">
@@ -12,35 +12,375 @@
     </div>
 
     <div id="report-preview" style="display:none;">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
+      <div class="attendance-report-toolbar">
         <div>
-          <div style="font-weight:600; color:#202124; font-size: 1.1rem;">Attendance Report Preview</div>
-          <div id="report-session-meta" style="color:#5F6368; margin-top: 0.25rem;"></div>
+          <div class="attendance-report-toolbar-title">Professional Attendance Report</div>
+          <div id="report-session-meta" class="attendance-report-toolbar-subtitle"></div>
         </div>
         <button type="button" id="btn-generate-report" class="btn btn-primary">
           <i class="fas fa-file-pdf"></i> Generate PDF
         </button>
       </div>
 
-      <div class="attendance-summary-table-container" style="margin-top: 1rem;">
-        <div class="table-wrapper">
-          <table class="attendance-summary-table" id="report-table">
-            <thead>
-              <tr>
-                <th style="width: 50px;">#</th>
-                <th>Trainee</th>
-                <th>Trainee ID</th>
-                <th class="text-center" style="width: 120px;">Status</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody id="report-table-body"></tbody>
-          </table>
+      <article class="attendance-report-document">
+        <header class="attendance-report-letterhead">
+          <div class="attendance-report-brand">
+            <img src="/qsslogo.svg" alt="Quick Stop Solution" class="attendance-report-logo">
+            <div>
+              <h3>Quick Stop Solution</h3>
+              <p>Learning Management System</p>
+            </div>
+          </div>
+          <div class="attendance-report-title-wrap">
+            <h2>Attendance Report</h2>
+            <p id="report-generated-at"></p>
+          </div>
+        </header>
+
+        <section class="attendance-report-meta-grid">
+          <div class="attendance-report-meta-item">
+            <span class="label">Training Title</span>
+            <span class="value" id="report-field-training">-</span>
+          </div>
+          <div class="attendance-report-meta-item">
+            <span class="label">Session Date</span>
+            <span class="value" id="report-field-date">-</span>
+          </div>
+          <div class="attendance-report-meta-item">
+            <span class="label">Session Time</span>
+            <span class="value" id="report-field-time">-</span>
+          </div>
+          <div class="attendance-report-meta-item">
+            <span class="label">Duration</span>
+            <span class="value" id="report-field-duration">-</span>
+          </div>
+          <div class="attendance-report-meta-item">
+            <span class="label">Prepared By</span>
+            <span class="value" id="report-field-generated-by">-</span>
+          </div>
+          <div class="attendance-report-meta-item">
+            <span class="label">Report Reference</span>
+            <span class="value" id="report-field-reference">-</span>
+          </div>
+        </section>
+
+        <div class="attendance-summary-table-container attendance-report-table-wrap">
+          <div class="table-wrapper">
+            <table class="attendance-summary-table attendance-report-table" id="report-table">
+              <thead>
+                <tr>
+                  <th style="width: 56px;">No.</th>
+                  <th>Trainee Name</th>
+                  <th style="width: 140px;">Trainee ID</th>
+                  <th class="text-center" style="width: 130px;">Status</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="report-table-body"></tbody>
+            </table>
+          </div>
         </div>
-      </div>
+
+        <section class="attendance-report-summary-section">
+          <h4>Attendance Summary</h4>
+          <div class="attendance-summary-table-container">
+            <div class="table-wrapper">
+              <table class="attendance-summary-table attendance-report-summary-table">
+                <thead>
+                  <tr>
+                    <th>Total Trainees</th>
+                    <th>Present</th>
+                    <th>Absent</th>
+                    <th>Late</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td id="report-total-count">0</td>
+                    <td id="report-present-count">0</td>
+                    <td id="report-absent-count">0</td>
+                    <td id="report-late-count">0</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <footer class="attendance-report-signatures">
+          <div class="signature-block">
+            <div class="signature-role">Prepared By (Trainer)</div>
+            <div class="signature-field">
+              <div class="signature-line"></div>
+              <div class="signature-label">Signature</div>
+            </div>
+            <div class="signature-field">
+              <div class="signature-line"></div>
+              <div class="signature-label">Name</div>
+            </div>
+            <div class="signature-field">
+              <div class="signature-line date-line"></div>
+              <div class="signature-label">Date</div>
+            </div>
+          </div>
+          <div class="signature-block">
+            <div class="signature-role">Verified By</div>
+            <div class="signature-field">
+              <div class="signature-line"></div>
+              <div class="signature-label">Signature</div>
+            </div>
+            <div class="signature-field">
+              <div class="signature-line"></div>
+              <div class="signature-label">Name</div>
+            </div>
+            <div class="signature-field">
+              <div class="signature-line date-line"></div>
+              <div class="signature-label">Date</div>
+            </div>
+          </div>
+          <div class="signature-block">
+            <div class="signature-role">Approved By</div>
+            <div class="signature-field">
+              <div class="signature-line"></div>
+              <div class="signature-label">Signature</div>
+            </div>
+            <div class="signature-field">
+              <div class="signature-line"></div>
+              <div class="signature-label">Name</div>
+            </div>
+            <div class="signature-field">
+              <div class="signature-line date-line"></div>
+              <div class="signature-label">Date</div>
+            </div>
+          </div>
+        </footer>
+      </article>
     </div>
   </div>
 </div>
+
+<style>
+  .attendance-report-shell {
+    background: #ffffff;
+  }
+
+  .attendance-report-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+  }
+
+  .attendance-report-toolbar-title {
+    font-weight: 700;
+    color: #111827;
+    font-size: 1.08rem;
+  }
+
+  .attendance-report-toolbar-subtitle {
+    color: #4b5563;
+    margin-top: 0.3rem;
+    font-size: 0.9rem;
+  }
+
+  .attendance-report-document {
+    margin-top: 1rem;
+    border: 1px solid #d9dee5;
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 1rem;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  }
+
+  .attendance-report-letterhead {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 2px solid #d9dee5;
+    padding-bottom: 0.85rem;
+    flex-wrap: wrap;
+  }
+
+  .attendance-report-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+  }
+
+  .attendance-report-logo {
+    width: 74px;
+    height: 74px;
+    object-fit: contain;
+    border-radius: 10px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    padding: 0.4rem;
+  }
+
+  .attendance-report-brand h3 {
+    margin: 0;
+    color: #0b1f44;
+    font-size: 1.08rem;
+    font-weight: 800;
+  }
+
+  .attendance-report-brand p {
+    margin: 0.2rem 0 0;
+    color: #4b5563;
+    font-size: 0.86rem;
+  }
+
+  .attendance-report-title-wrap {
+    text-align: right;
+  }
+
+  .attendance-report-title-wrap h2 {
+    margin: 0;
+    color: #0b1f44;
+    font-size: 1.26rem;
+    font-weight: 800;
+  }
+
+  .attendance-report-title-wrap p {
+    margin: 0.35rem 0 0;
+    color: #4b5563;
+    font-size: 0.86rem;
+  }
+
+  .attendance-report-meta-grid {
+    margin-top: 1rem;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .attendance-report-meta-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 0.6rem 0.72rem;
+    background: #f8fafc;
+  }
+
+  .attendance-report-meta-item .label {
+    display: block;
+    font-size: 0.72rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.2rem;
+  }
+
+  .attendance-report-meta-item .value {
+    display: block;
+    color: #111827;
+    font-size: 0.92rem;
+    font-weight: 600;
+  }
+
+  .attendance-report-summary-section {
+    margin-top: 1rem;
+  }
+
+  .attendance-report-summary-section h4 {
+    margin: 0 0 0.6rem;
+    color: #0f172a;
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+
+  .attendance-report-summary-table thead th {
+    text-align: center;
+    background: #edf2f7;
+    color: #1f2937;
+    font-weight: 700;
+  }
+
+  .attendance-report-summary-table tbody td {
+    text-align: center;
+    font-weight: 700;
+    color: #0b1f44;
+    font-size: 1rem;
+    background: #ffffff;
+  }
+
+  .attendance-report-table-wrap {
+    margin-top: 1rem;
+  }
+
+  .attendance-report-table thead th {
+    background: #eef2f7;
+    color: #1f2937;
+    border-color: #d6dee8;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.76rem;
+    letter-spacing: 0.03em;
+  }
+
+  .attendance-report-table tbody td {
+    vertical-align: top;
+  }
+
+  .attendance-report-signatures {
+    margin-top: 1.2rem;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px dashed #cbd5e1;
+  }
+
+  .signature-block {
+    min-height: 260px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 1.2rem;
+  }
+
+  .signature-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .signature-role {
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 0.88rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .signature-line {
+    border-bottom: 2px dotted #111827;
+    height: 36px;
+  }
+
+  .signature-line.date-line {
+    width: 62%;
+  }
+
+  .signature-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+  }
+
+  @media (max-width: 900px) {
+    .attendance-report-meta-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .attendance-report-signatures {
+      grid-template-columns: 1fr;
+    }
+
+    .attendance-report-title-wrap {
+      text-align: left;
+    }
+  }
+  </style>
 
 <!-- jsPDF (UMD) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -53,54 +393,94 @@
     return Number.isFinite(n) ? n : null;
   }
 
+  function formatFriendlyDate(dateStr) {
+    if (!dateStr) return 'N/A';
+    const d = new Date(dateStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-US', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  }
+
+  function formatFriendlyTime(timeStr) {
+    if (!timeStr) return 'N/A';
+    let s = String(timeStr);
+    if (s.split(':').length === 3) s = s.substring(0, 5);
+    const [hoursRaw, minutesRaw] = s.split(':');
+    const hours = parseInt(hoursRaw, 10);
+    const minutes = minutesRaw || '00';
+    if (!Number.isFinite(hours)) return s;
+    const hour12 = hours % 12 || 12;
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    return `${hour12}:${minutes} ${ampm}`;
+  }
+
+  function formatFriendlyDuration(duration) {
+    const d = parseFloat(duration);
+    if (!Number.isFinite(d)) return 'N/A';
+    const rounded = Math.round(d * 100) / 100;
+    return `${rounded} ${rounded === 1 ? 'hour' : 'hours'}`;
+  }
+
+  function updateReportHeaderFields({ trainingTitle, date, time, duration, generatedByName, generatedByPosition, reference }) {
+    const generated = generatedByPosition ? `${generatedByName} (${generatedByPosition})` : generatedByName || '-';
+    const now = new Date();
+    const generatedAt = now.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    document.getElementById('report-generated-at').textContent = `Generated on ${generatedAt}`;
+    document.getElementById('report-field-training').textContent = trainingTitle || '-';
+    document.getElementById('report-field-date').textContent = formatFriendlyDate(date);
+    document.getElementById('report-field-time').textContent = formatFriendlyTime(time);
+    document.getElementById('report-field-duration').textContent = formatFriendlyDuration(duration);
+    document.getElementById('report-field-generated-by').textContent = generated || '-';
+    document.getElementById('report-field-reference').textContent = reference || '-';
+  }
+
+  function updateSummaryCounts(records) {
+    const total = records.length;
+    const present = records.filter(r => (r.status || '').toLowerCase() === 'present').length;
+    const absent = records.filter(r => (r.status || '').toLowerCase() === 'absent').length;
+    const late = records.filter(r => (r.status || '').toLowerCase() === 'late').length;
+
+    document.getElementById('report-total-count').textContent = String(total);
+    document.getElementById('report-present-count').textContent = String(present);
+    document.getElementById('report-absent-count').textContent = String(absent);
+    document.getElementById('report-late-count').textContent = String(late);
+  }
+
   async function loadReportSessions() {
     const trainingId = getAttendanceTrainingIdForReport();
     if (!trainingId) return;
-    
+
     try {
       const response = await fetch(`/attendance/sessions/${trainingId}`);
       const sessions = await response.json();
-      
+
       const select = document.getElementById('report-session-select');
       if (!select) return;
-      
+
       select.innerHTML = '<option value="">-- Select a session --</option>';
       sessions.forEach(session => {
         let dateStr = session.date;
         if (dateStr && dateStr.includes('T')) dateStr = dateStr.split('T')[0];
-        
+
         const option = document.createElement('option');
         option.value = session.id;
         option.dataset.date = dateStr || '';
         option.dataset.time = session.time || '';
         option.dataset.duration = session.duration || '';
-        
-        // Friendly label (re-use the same formatting logic used in update dropdown)
-        const dateObj = dateStr ? new Date(dateStr + 'T00:00:00') : null;
-        let formattedDate = dateStr || 'N/A';
-        if (dateObj && !isNaN(dateObj.getTime())) {
-          formattedDate = dateObj.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
-        }
-        
-        let formattedTime = 'N/A';
-        if (session.time) {
-          let timeStr = session.time;
-          if (timeStr.split(':').length === 3) timeStr = timeStr.substring(0, 5);
-          const [hours, minutes] = timeStr.split(':');
-          const hour24 = parseInt(hours);
-          const hour12 = hour24 % 12 || 12;
-          const ampm = hour24 >= 12 ? 'PM' : 'AM';
-          formattedTime = `${hour12}:${minutes} ${ampm}`;
-        }
-        
-        let formattedDuration = 'N/A';
-        if (session.duration) {
-          const d = parseFloat(session.duration);
-          const d2 = Math.round(d * 100) / 100;
-          formattedDuration = `${d2} ${d2 == 1 ? 'hour' : 'hours'}`;
-        }
-        
-        option.textContent = `${formattedDate} • ${formattedTime} • ${formattedDuration}`;
+
+        const label = `${formatFriendlyDate(dateStr)} | ${formatFriendlyTime(session.time)} | ${formatFriendlyDuration(session.duration)}`;
+        option.textContent = label;
         select.appendChild(option);
       });
     } catch (error) {
@@ -117,21 +497,25 @@
           document.getElementById('report-preview').style.display = 'none';
           return;
         }
-        
+
         const trainingId = getAttendanceTrainingIdForReport();
         const date = selectedOption.dataset.date;
         const time = selectedOption.dataset.time || '';
         const duration = selectedOption.dataset.duration || '';
-        
+        const trainingTitle = <%- JSON.stringify(typeof training !== 'undefined' ? training.title : '') %>;
+        const generatedByName = <%- JSON.stringify(user.userName || '') %>;
+        const generatedByPosition = <%- JSON.stringify(user.userPosition || '') %>;
+        const reference = `QSS-ATT-${trainingId || 'NA'}-${date || 'NA'}`;
+
         try {
           const response = await fetch(`/attendance/session-details/${trainingId}?date=${encodeURIComponent(date)}`);
           const data = await response.json();
-          
+
           const meta = document.getElementById('report-session-meta');
           if (meta) {
-            meta.textContent = `Date: ${date || 'N/A'} • Time: ${time ? time.substring(0, 5) : 'N/A'} • Duration: ${duration || 'N/A'} hour(s)`;
+            meta.textContent = `Date: ${formatFriendlyDate(date)} | Time: ${formatFriendlyTime(time)} | Duration: ${formatFriendlyDuration(duration)}`;
           }
-          
+
           const tbody = document.getElementById('report-table-body');
           tbody.innerHTML = '';
           (data.records || []).forEach((r, idx) => {
@@ -140,33 +524,48 @@
             const statusBadge =
               status === 'present' ? `<span class="badge badge-present"><i class="fas fa-check"></i> Present</span>` :
               status === 'absent' ? `<span class="badge badge-absent"><i class="fas fa-times"></i> Absent</span>` :
-              `<span class="badge" style="background: rgba(249,171,0,0.12); color:#B06000;"><i class="fas fa-clock"></i> ${status || 'N/A'}</span>`;
-            
+              status === 'late' ? `<span class="badge" style="background: rgba(249,171,0,0.12); color:#8a5b00;"><i class="fas fa-clock"></i> Late</span>` :
+              `<span class="badge" style="background: #edf2f7; color:#4b5563;">${status || 'N/A'}</span>`;
+
             const fullName = (((r.first_name || '') + ' ' + (r.last_name || '')).trim());
-            
+
             tr.innerHTML = `
-              <td data-label="#">${idx + 1}</td>
-              <td data-label="Trainee"><strong>${escapeHtml(fullName)}</strong></td>
+              <td data-label="No.">${idx + 1}</td>
+              <td data-label="Trainee Name"><strong>${escapeHtml(fullName)}</strong></td>
               <td data-label="Trainee ID"><span class="trainee-id-cell">${escapeHtml(r.trainee_id || '')}</span></td>
               <td class="text-center" data-label="Status">${statusBadge}</td>
               <td data-label="Notes">${escapeHtml(r.notes || '')}</td>
             `;
             tbody.appendChild(tr);
           });
-          
+
+          updateSummaryCounts(data.records || []);
+          updateReportHeaderFields({
+            trainingTitle,
+            date,
+            time,
+            duration,
+            generatedByName,
+            generatedByPosition,
+            reference
+          });
+
           document.getElementById('report-preview').style.display = 'block';
-          
+
           const btn = document.getElementById('btn-generate-report');
           if (btn) {
-            btn.onclick = () => generateAttendancePdfReport({
-              trainingTitle: <%- JSON.stringify(typeof training !== 'undefined' ? training.title : '') %>,
-              sessionDate: date,
-              sessionTime: time ? time.substring(0, 5) : '',
-              sessionDuration: duration,
-              records: data.records || [],
-              generatedByName: <%- JSON.stringify(user.userName || '') %>,
-              generatedByPosition: <%- JSON.stringify(user.userPosition || '') %>
-            });
+            btn.onclick = async () => {
+              await generateAttendancePdfReport({
+                trainingTitle,
+                sessionDate: date,
+                sessionTime: time,
+                sessionDuration: duration,
+                records: data.records || [],
+                generatedByName,
+                generatedByPosition,
+                reportReference: reference
+              });
+            };
           }
         } catch (error) {
           console.error('Error loading report session details:', error);
@@ -185,140 +584,299 @@
       .replace(/'/g, '&#039;');
   }
 
-  function generateAttendancePdfReport({ trainingTitle, sessionDate, sessionTime, sessionDuration, records, generatedByName, generatedByPosition }) {
+  function loadLogoPngDataUrl() {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = function() {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || 256;
+          canvas.height = img.naturalHeight || 256;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve({
+            dataUrl: canvas.toDataURL('image/png'),
+            width: canvas.width,
+            height: canvas.height
+          });
+        } catch (err) {
+          resolve(null);
+        }
+      };
+      img.onerror = function() {
+        resolve(null);
+      };
+      img.src = '/qsslogo.svg';
+    });
+  }
+
+  async function generateAttendancePdfReport({
+    trainingTitle,
+    sessionDate,
+    sessionTime,
+    sessionDuration,
+    records,
+    generatedByName,
+    generatedByPosition,
+    reportReference
+  }) {
     if (!window.jspdf || !window.jspdf.jsPDF) {
       qssShowError('jsPDF failed to load. Please refresh the page and try again.');
       return;
     }
-    
+
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-    
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 40;
-    
+    const logoImage = await loadLogoPngDataUrl();
+
+    const summary = {
+      total: records.length,
+      present: records.filter(r => (r.status || '').toLowerCase() === 'present').length,
+      absent: records.filter(r => (r.status || '').toLowerCase() === 'absent').length,
+      late: records.filter(r => (r.status || '').toLowerCase() === 'late').length
+    };
+
+    const generatedBy = generatedByPosition ? `${generatedByName} (${generatedByPosition})` : (generatedByName || '-');
+    const generatedAt = new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
     let y = margin;
-    
-    // Header
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.text('Attendance Report', margin, y);
-    y += 18;
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    doc.text(`Training: ${trainingTitle || '-'}`, margin, y);
-    y += 14;
-    doc.text(`Session Date: ${sessionDate || '-'}   Time: ${sessionTime || '-'}   Duration: ${sessionDuration || '-'} hour(s)`, margin, y);
-    y += 14;
-    
-    const generatedLine = generatedByPosition ? `${generatedByName} (${generatedByPosition})` : generatedByName;
-    doc.text(`Generated by: ${generatedLine || '-'}`, margin, y);
-    y += 16;
-    
-    // Summary
-    const presentCount = records.filter(r => (r.status || '').toLowerCase() === 'present').length;
-    const absentCount = records.filter(r => (r.status || '').toLowerCase() === 'absent').length;
-    const total = records.length;
-    doc.text(`Summary: Total ${total}   Present ${presentCount}   Absent ${absentCount}`, margin, y);
-    y += 18;
-    
-    // Table
-    const colNo = margin;
-    const colName = margin + 35;
-    const colId = margin + 250;
-    const colStatus = margin + 340;
-    const colNotes = margin + 430;
-    const rowHeight = 16;
-    
-    function drawTableHeader() {
+
+    function drawHeader() {
+      doc.setDrawColor(203, 213, 225);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(margin, y, pageWidth - margin * 2, 92, 8, 8, 'FD');
+
+      if (logoImage && logoImage.dataUrl) {
+        const boxW = 64;
+        const boxH = 58;
+        const safeW = logoImage.width || boxW;
+        const safeH = logoImage.height || boxH;
+        const scale = Math.min(boxW / safeW, boxH / safeH);
+        const drawW = safeW * scale;
+        const drawH = safeH * scale;
+        const drawX = margin + 12 + (boxW - drawW) / 2;
+        const drawY = y + 12 + (boxH - drawH) / 2;
+        doc.addImage(logoImage.dataUrl, 'PNG', drawX, drawY, drawW, drawH);
+      }
+
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('#', colNo, y);
-      doc.text('Trainee', colName, y);
-      doc.text('Trainee ID', colId, y);
-      doc.text('Status', colStatus, y);
-      doc.text('Notes', colNotes, y);
-      y += 10;
-      doc.setDrawColor(200);
-      doc.line(margin, y, pageWidth - margin, y);
-      y += 10;
+      doc.setFontSize(14);
+      doc.setTextColor(15, 23, 42);
+      doc.text('Quick Stop Solution', margin + 82, y + 28);
+
       doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105);
+      doc.text('Learning Management System', margin + 82, y + 44);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(11, 31, 68);
+      doc.text('Attendance Report', pageWidth - margin - 12, y + 30, { align: 'right' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Generated: ${generatedAt}`, pageWidth - margin - 12, y + 48, { align: 'right' });
+      doc.text(`Ref: ${reportReference || '-'}`, pageWidth - margin - 12, y + 62, { align: 'right' });
     }
-    
-    function ensureSpace(needed) {
-      const reservedForSignatures = 140;
-      if (y + needed > pageHeight - reservedForSignatures) {
+
+    drawHeader();
+    y += 108;
+
+    doc.setDrawColor(209, 213, 219);
+    doc.roundedRect(margin, y, pageWidth - margin * 2, 86, 6, 6);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(31, 41, 55);
+    doc.text('Training Title', margin + 12, y + 20);
+    doc.text('Session Date', margin + 12, y + 42);
+    doc.text('Session Time', margin + 12, y + 64);
+
+    doc.text('Duration', margin + 290, y + 20);
+    doc.text('Prepared By', margin + 290, y + 42);
+    doc.text('Prepared By', margin + 290, y + 64);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(17, 24, 39);
+    doc.text(trainingTitle || '-', margin + 110, y + 20);
+    doc.text(formatFriendlyDate(sessionDate), margin + 110, y + 42);
+    doc.text(formatFriendlyTime(sessionTime), margin + 110, y + 64);
+
+    doc.text(formatFriendlyDuration(sessionDuration), margin + 365, y + 20);
+    doc.text(generatedBy || '-', margin + 365, y + 64);
+
+    y += 104;
+
+    const columns = [
+      { label: 'No.', width: 28 },
+      { label: 'Trainee Name', width: 170 },
+      { label: 'Trainee ID', width: 95 },
+      { label: 'Status', width: 70 },
+      { label: 'Notes', width: pageWidth - margin * 2 - (28 + 170 + 95 + 70) - 16 }
+    ];
+
+    const tableX = margin;
+    const tableWidth = pageWidth - margin * 2;
+    const rowPadding = 4;
+
+    function drawTableHeader() {
+      doc.setFillColor(238, 242, 247);
+      doc.rect(tableX, y, tableWidth, 22, 'F');
+      doc.setDrawColor(214, 222, 232);
+      doc.rect(tableX, y, tableWidth, 22);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(31, 41, 55);
+      let x = tableX + 8;
+      columns.forEach(col => {
+        doc.text(col.label, x, y + 14);
+        x += col.width;
+      });
+      y += 24;
+    }
+
+    function hasSpace(neededHeight) {
+      const signatureReserved = 150;
+      return (y + neededHeight) <= (pageHeight - margin - signatureReserved);
+    }
+
+    drawTableHeader();
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+
+    records.forEach((r, idx) => {
+      const rowData = [
+        String(idx + 1),
+        `${r.first_name || ''} ${r.last_name || ''}`.trim() || '-',
+        String(r.trainee_id || '-'),
+        String((r.status || '-')).toUpperCase(),
+        String(r.notes || '-')
+      ];
+
+      const wrapped = rowData.map((v, i) => doc.splitTextToSize(v, columns[i].width - 10));
+      const maxLines = Math.max(...wrapped.map(lines => Math.max(lines.length, 1)));
+      const rowHeight = Math.max(18, maxLines * 11 + rowPadding * 2);
+
+      if (!hasSpace(rowHeight + 8)) {
         doc.addPage();
         y = margin;
+        drawHeader();
+        y += 108;
         drawTableHeader();
       }
-    }
-    
-    drawTableHeader();
-    
-    doc.setFontSize(10);
-    records.forEach((r, idx) => {
-      const name = `${r.first_name || ''} ${r.last_name || ''}`.trim();
-      const traineeId = r.trainee_id || '';
-      const status = (r.status || '').toUpperCase();
-      const notes = (r.notes || '').toString();
-      
-      const notesLines = doc.splitTextToSize(notes, pageWidth - margin - colNotes);
-      const linesNeeded = Math.max(1, notesLines.length);
-      const blockHeight = linesNeeded * rowHeight;
-      
-      ensureSpace(blockHeight + 6);
-      
-      doc.text(String(idx + 1), colNo, y);
-      doc.text(doc.splitTextToSize(name, colId - colName - 10), colName, y);
-      doc.text(String(traineeId), colId, y);
-      doc.text(status || '-', colStatus, y);
-      doc.text(notesLines.length ? notesLines : [''], colNotes, y);
-      
-      y += blockHeight;
-      y += 6;
-      doc.setDrawColor(240);
-      doc.line(margin, y, pageWidth - margin, y);
-      y += 10;
+
+      doc.setDrawColor(230, 235, 241);
+      doc.rect(tableX, y, tableWidth, rowHeight);
+
+      let x = tableX + 8;
+      wrapped.forEach((lines, i) => {
+        doc.text(lines, x, y + 12 + rowPadding);
+        x += columns[i].width;
+      });
+
+      y += rowHeight;
     });
-    
-    // Signatures (bottom)
-    ensureSpace(150);
-    y = Math.max(y, pageHeight - 130);
-    
-    const mid = (pageWidth) / 2;
-    const leftX = margin;
-    const rightX = mid + 10;
-    const lineW = mid - margin - 20;
-    
+
+    const summaryTableHeight = 62;
+    if (y + summaryTableHeight > pageHeight - margin - 170) {
+      doc.addPage();
+      y = margin;
+      drawHeader();
+      y += 110;
+    } else {
+      y += 12;
+    }
+
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('Generated by (Trainer)', leftX, y);
-    doc.text('Confirmed by', rightX, y);
-    y += 18;
-    
-    doc.setDrawColor(0);
-    doc.line(leftX, y, leftX + lineW, y);
-    doc.line(rightX, y, rightX + lineW, y);
-    y += 14;
-    
-    doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text('Signature', leftX, y);
-    doc.text('Signature', rightX, y);
-    y += 20;
-    
-    doc.line(leftX, y, leftX + lineW, y);
-    doc.line(rightX, y, rightX + lineW, y);
-    y += 14;
-    doc.text('Name (print)', leftX, y);
-    doc.text('Name (print)', rightX, y);
-    
+    doc.setTextColor(15, 23, 42);
+    doc.text('Attendance Summary', margin, y);
+    y += 10;
+
+    const sumX = margin;
+    const sumW = pageWidth - margin * 2;
+    const sumHeadH = 20;
+    const sumRowH = 24;
+    const sumCols = [sumW * 0.28, sumW * 0.24, sumW * 0.24, sumW * 0.24];
+    const sumLabels = ['Total Trainees', 'Present', 'Absent', 'Late'];
+    const sumValues = [String(summary.total), String(summary.present), String(summary.absent), String(summary.late)];
+
+    doc.setFillColor(237, 242, 247);
+    doc.setDrawColor(203, 213, 225);
+    doc.rect(sumX, y, sumW, sumHeadH, 'FD');
+    doc.rect(sumX, y + sumHeadH, sumW, sumRowH);
+
+    let sx = sumX;
+    for (let i = 0; i < sumCols.length; i++) {
+      if (i > 0) {
+        doc.line(sx, y, sx, y + sumHeadH + sumRowH);
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(31, 41, 55);
+      doc.text(sumLabels[i], sx + sumCols[i] / 2, y + 13, { align: 'center' });
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(11, 31, 68);
+      doc.text(sumValues[i], sx + sumCols[i] / 2, y + sumHeadH + 16, { align: 'center' });
+      sx += sumCols[i];
+    }
+
+    y += sumHeadH + sumRowH + 16;
+
+    const neededForSignatures = 154;
+    if (y + neededForSignatures > pageHeight - margin) {
+      doc.addPage();
+      y = margin;
+      drawHeader();
+      y += 110;
+    } else {
+      y += 16;
+    }
+
+    doc.setDrawColor(203, 213, 225);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 16;
+
+    const blockGap = 14;
+    const signBlockWidth = (pageWidth - margin * 2 - blockGap * 2) / 3;
+    const labels = ['Prepared By (Trainer)', 'Verified By', 'Approved By'];
+
+    labels.forEach((label, i) => {
+      const sx = margin + (signBlockWidth + blockGap) * i;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+      doc.text(label, sx, y);
+
+      doc.setDrawColor(17, 24, 39);
+      doc.setLineDashPattern([2, 2], 0);
+      doc.line(sx, y + 34, sx + signBlockWidth - 8, y + 34);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Signature', sx, y + 48);
+
+      doc.line(sx, y + 78, sx + signBlockWidth - 8, y + 78);
+      doc.text('Name', sx, y + 92);
+
+      doc.line(sx, y + 114, sx + (signBlockWidth - 8) * 0.62, y + 114);
+      doc.text('Date', sx, y + 128);
+      doc.setLineDashPattern([], 0);
+    });
+
     const safeDate = (sessionDate || 'session').replaceAll('/', '-');
     doc.save(`Attendance_Report_${safeDate}.pdf`);
   }
 </script>
-
-
