@@ -12,6 +12,39 @@ const TEST_TYPE_LABELS = {
   certificate_enrolment: 'Certificate Enrolment Test'
 };
 
+async function getNonActiveTrainees(db, traineeIds) {
+  const normalizedIds = [...new Set(
+    (Array.isArray(traineeIds) ? traineeIds : [traineeIds])
+      .map(id => String(id || '').trim())
+      .filter(Boolean)
+  )];
+
+  if (normalizedIds.length === 0) {
+    return [];
+  }
+
+  const placeholders = normalizedIds.map(() => '?').join(',');
+  const [rows] = await db.query(
+    `SELECT id, first_name, last_name, trainee_status
+     FROM trainees
+     WHERE id IN (${placeholders})`,
+    normalizedIds
+  );
+
+  const byId = new Map(rows.map(row => [String(row.id), row]));
+  const invalid = [];
+
+  for (const id of normalizedIds) {
+    const trainee = byId.get(id);
+    const status = String(trainee?.trainee_status || '').toLowerCase().trim();
+    if (!trainee || status !== 'active') {
+      invalid.push(trainee || { id, first_name: 'Unknown', last_name: `ID ${id}`, trainee_status: 'unknown' });
+    }
+  }
+
+  return invalid;
+}
+
 /**
  * Helper function to randomly select questions for a test
  * Ensures at least 2 questions from each objective
@@ -948,6 +981,12 @@ router.post('/create', async (req, res) => {
       });
     }
     
+    const traineeIdsArray = trainee_ids ? (Array.isArray(trainee_ids) ? trainee_ids : [trainee_ids]) : [];
+    const nonActiveTrainees = await getNonActiveTrainees(req.db, traineeIdsArray);
+    if (nonActiveTrainees.length > 0) {
+      throw new Error('Only active trainees can be added to trainings. Registered, inactive, and suspended trainees are not allowed.');
+    }
+
     // Get a connection from the pool for transaction
     const connection = await req.db.getConnection();
     
@@ -1058,8 +1097,8 @@ router.post('/create', async (req, res) => {
       }
       
       // Insert trainee relationships and create enrollments
-      if (trainee_ids && Array.isArray(trainee_ids)) {
-        for (const traineeId of trainee_ids) {
+      if (traineeIdsArray.length > 0) {
+        for (const traineeId of traineeIdsArray) {
           // Insert into training_trainees
           await connection.query(
             'INSERT INTO training_trainees (training_id, trainee_id) VALUES (?, ?)',
@@ -2094,6 +2133,15 @@ router.post('/:id/enroll', async (req, res) => {
   }
   
   try {
+    const [trainees] = await req.db.query(
+      'SELECT trainee_status FROM trainees WHERE id = ?',
+      [req.session.userId]
+    );
+    const traineeStatus = String(trainees?.[0]?.trainee_status || '').toLowerCase().trim();
+    if (trainees.length === 0 || traineeStatus !== 'active') {
+      return res.status(403).send('Only active trainees can be enrolled in trainings.');
+    }
+
     await req.db.query(
       'INSERT INTO enrollments (trainee_id, training_id) VALUES (?, ?)',
       [req.session.userId, req.params.id]
@@ -2118,9 +2166,18 @@ router.post('/:id/update', async (req, res) => {
   try {
     const trainingId = req.params.id;
     const { title, status, start_datetime, end_datetime, healthcare_ids, trainer_ids, trainee_ids, device_model_id } = req.body;
+    const traineeArray = trainee_ids ? (Array.isArray(trainee_ids) ? trainee_ids.map(String) : [String(trainee_ids)]) : [];
     
     if (!device_model_id) {
       return res.json({ success: false, error: 'Device model is required.' });
+    }
+
+    const nonActiveTrainees = await getNonActiveTrainees(req.db, traineeArray);
+    if (nonActiveTrainees.length > 0) {
+      return res.json({
+        success: false,
+        error: 'Only active trainees can be added to trainings. Registered, inactive, and suspended trainees are not allowed.'
+      });
     }
     
     // Helper function to convert AM/PM format to MySQL datetime
@@ -2279,7 +2336,6 @@ router.post('/:id/update', async (req, res) => {
       );
       const currentTraineeIds = currentEnrollments.map(e => e.trainee_id);
       
-      const traineeArray = trainee_ids ? (Array.isArray(trainee_ids) ? trainee_ids.map(String) : [String(trainee_ids)]) : [];
       const currentTraineeIdsStr = currentTraineeIds.map(String);
       
       // Remove trainees not in the new list

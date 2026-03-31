@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const PASSING_SCORE = 80;
-const MAX_FAILED_ATTEMPTS = 3;
+const MAX_FAILED_ATTEMPTS = 4;
 
 // Start test
 router.get('/start/:enrollmentId/:testType', async (req, res) => {
@@ -48,7 +48,7 @@ router.get('/start/:enrollmentId/:testType', async (req, res) => {
     );
     const failedAttempts = Number(failedAttemptsRows?.[0]?.failed_count || 0);
     if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
-      return res.status(403).send('Maximum attempts reached for this test (3 failed attempts). You cannot retake this part and have failed this training.');
+      return res.status(403).send('Maximum attempts reached for this test (4 failed attempts). You cannot retake this part and have failed this training.');
     }
     
     // Check if there's an in-progress attempt

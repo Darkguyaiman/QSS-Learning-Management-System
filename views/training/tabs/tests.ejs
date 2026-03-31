@@ -36,17 +36,17 @@
                 else if (testType === 'certificate_enrolment') failedAttempts = Number(enrollment.certificate_enrolment_failed_attempts || 0);
 
                 const passed = score !== null && Number(score) >= 80;
-                const maxAttemptsReached = failedAttempts >= 3;
+                const maxAttemptsReached = failedAttempts >= 4;
               %>
               <% if (passed) { %>
                 <span style="color: #137333; font-weight: 500;"><i class="fas fa-check-circle"></i> Completed</span>
               <% } else if (maxAttemptsReached) { %>
-                <span style="color: #C5221F; font-weight: 500;">Max attempts reached (3/3).</span>
+                <span style="color: #C5221F; font-weight: 500;">Max attempts reached (4/4).</span>
               <% } else if (completed) { %>
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                   <a href="/tests/start/<%= enrollment.id %>/<%= testType %>" class="btn btn-sm btn-primary">Retake Test</a>
                   <% if (failedAttempts > 0) { %>
-                    <span style="color: #5F6368; font-size: 0.8125rem;">Failed attempts: <%= failedAttempts %>/3</span>
+                    <span style="color: #5F6368; font-size: 0.8125rem;">Failed attempts: <%= failedAttempts %>/4</span>
                   <% } %>
                 </div>
               <% } else if (testType === 'post_test' && !enrollment.pre_test_completed) { %>
@@ -57,7 +57,7 @@
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                   <a href="/tests/start/<%= enrollment.id %>/<%= testType %>" class="btn btn-sm btn-primary">Take Test</a>
                   <% if (failedAttempts > 0) { %>
-                    <span style="color: #5F6368; font-size: 0.8125rem;">Failed attempts: <%= failedAttempts %>/3</span>
+                    <span style="color: #5F6368; font-size: 0.8125rem;">Failed attempts: <%= failedAttempts %>/4</span>
                   <% } %>
                 </div>
               <% } %>

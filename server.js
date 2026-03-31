@@ -122,6 +122,35 @@ app.use((req, res, next) => {
   next();
 });
 
+// Keep trainee sessions valid only while status is active/registered
+app.use(async (req, res, next) => {
+  if (!req.session.userId || req.session.userRole !== 'trainee') {
+    return next();
+  }
+
+  try {
+    const [rows] = await req.db.query(
+      'SELECT trainee_status FROM trainees WHERE id = ?',
+      [req.session.userId]
+    );
+
+    const traineeStatus = String(rows?.[0]?.trainee_status || '').toLowerCase().trim();
+    const canStaySignedIn = traineeStatus === 'active' || traineeStatus === 'registered';
+
+    if (!rows.length || !canStaySignedIn) {
+      return req.session.destroy(() => {
+        res.clearCookie(SESSION_COOKIE_NAME);
+        return res.redirect('/login');
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Trainee status session check error:', error);
+    next(error);
+  }
+});
+
 // Routes
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
@@ -149,7 +178,7 @@ app.use('/settings', requireAuth, requireRole(['admin', 'trainer']), settingsRou
 
 // Favicon route
 app.get('/favicon.ico', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'QSS.ico'));
+  res.sendFile(path.join(__dirname, 'public', 'favicon.ico'));
 });
 
 // Home route

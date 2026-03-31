@@ -56,6 +56,11 @@ router.post('/login', async (req, res) => {
       if (!validPassword) {
         return res.render('auth/login', { error: 'Invalid email or password' });
       }
+
+      const traineeStatus = String(trainee.trainee_status || '').toLowerCase().trim();
+      if (!['active', 'registered'].includes(traineeStatus)) {
+        return res.render('auth/login', { error: 'Your account is not allowed to sign in. Please contact your administrator.' });
+      }
       
       req.session.userId = trainee.id;
       req.session.userRole = 'trainee';
