@@ -204,8 +204,8 @@
             </a>
             <div style="display: flex; gap: 0.5rem; align-items: center;" onclick="event.stopPropagation();">
               <% if (material.file_path) { %>
-                <a href="<%= material.file_path %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
-                  <i class="fas fa-download"></i> Download
+                <a href="/training/<%= training.id %>/materials/<%= material.id %>" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
+                  <i class="fas fa-eye"></i> View
                 </a>
               <% } %>
               <% if (material.url) { %>
@@ -250,8 +250,8 @@
                 </a>
             <div style="display: flex; gap: 0.5rem; align-items: center;" onclick="event.stopPropagation();">
               <% if (material.file_path) { %>
-                <a href="<%= material.file_path %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
-                  <i class="fas fa-download"></i> Download
+                <a href="/training/<%= training.id %>/materials/<%= material.id %>" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
+                  <i class="fas fa-eye"></i> View
                 </a>
               <% } %>
               <% if (material.url) { %>
@@ -284,8 +284,8 @@
 
       <div class="training-media-grid">
         <% trainingMedia.forEach(m => { %>
-          <a class="training-media-item" href="<%= m.file_path %>" target="_blank" rel="noopener">
-            <img src="<%= m.file_path %>" alt="<%= m.original_name || 'Training media' %>">
+          <a class="training-media-item" href="/training/<%= training.id %>/media/<%= m.id %>/content" target="_blank" rel="noopener">
+            <img src="/training/<%= training.id %>/media/<%= m.id %>/content" alt="<%= m.original_name || 'Training media' %>">
           </a>
         <% }); %>
       </div>

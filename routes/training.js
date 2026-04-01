@@ -566,16 +566,23 @@ router.post('/:id/media/upload-chunk', mediaChunkUpload.single('chunk'), async (
     const finalRel = `/uploads/training_media/${trainingId}/${finalName}`;
     const [orderRows] = await req.db.query('SELECT COALESCE(MAX(sort_order), -1) as max_order FROM training_media WHERE training_id = ?', [trainingId]);
     const nextOrder = (orderRows?.[0]?.max_order ?? -1) + 1;
+    const mediaVisibility = 'public';
+    const mediaAccessExpiry = getDefaultExpiryDateTime();
 
     const [ins] = await req.db.query(
-      'INSERT INTO training_media (training_id, file_path, original_name, uploaded_by, sort_order) VALUES (?, ?, ?, ?, ?)',
-      [trainingId, finalRel, String(file_name || ''), req.session.userId, nextOrder]
+      'INSERT INTO training_media (training_id, file_path, original_name, uploaded_by, visibility, access_expires_at, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [trainingId, finalRel, String(file_name || ''), req.session.userId, mediaVisibility, mediaAccessExpiry, nextOrder]
     );
 
     return res.json({
       success: true,
       completed: true,
-      media: { id: ins.insertId, file_path: finalRel, original_name: String(file_name || '') }
+      media: {
+        id: ins.insertId,
+        file_path: finalRel,
+        content_url: `/training/${trainingId}/media/${ins.insertId}/content`,
+        original_name: String(file_name || '')
+      }
     });
   } catch (error) {
     console.error('Media chunk upload error:', error);
@@ -635,6 +642,144 @@ function moveFileSafe(srcAbs, destAbs) {
   }
 }
 
+async function getMaterialWithTraining(db, materialId, trainingId) {
+  const [rows] = await db.query(`
+    SELECT m.*, s.title as section_title, s.training_id, t.status AS training_status,
+           CONCAT(u.first_name, ' ', u.last_name) as uploaded_by_name
+    FROM training_materials m
+    LEFT JOIN training_sections s ON m.section_id = s.id
+    LEFT JOIN trainings t ON s.training_id = t.id
+    LEFT JOIN users u ON m.uploaded_by = u.id
+    WHERE m.id = ? AND s.training_id = ?
+  `, [materialId, trainingId]);
+  return rows[0] || null;
+}
+
+function normalizeAssetVisibility(value, defaultValue = 'private') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'public' || normalized === 'private') {
+    return normalized;
+  }
+  return defaultValue;
+}
+
+function normalizeAccessExpiryInput(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const match = raw.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (!match) return null;
+  return `${match[1]} ${match[2]}:${match[3]}:${match[4] || '00'}`;
+}
+
+function formatSqlDateTime(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return null;
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function getDefaultExpiryDateTime() {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 2);
+  return formatSqlDateTime(d);
+}
+
+function isAssetAccessibleAfterLock(visibilityValue, accessExpiresAt, defaultVisibility = 'private') {
+  const visibility = normalizeAssetVisibility(visibilityValue, defaultVisibility);
+  if (visibility !== 'public') {
+    return false;
+  }
+  if (!accessExpiresAt) {
+    return true;
+  }
+  const expiry = new Date(accessExpiresAt);
+  if (Number.isNaN(expiry.getTime())) {
+    return false;
+  }
+  return expiry.getTime() >= Date.now();
+}
+
+async function authorizeTrainingAccess(req, trainingId) {
+  if (req.session.userRole === 'admin') {
+    return { allowed: true, enrollmentId: null };
+  }
+
+  if (req.session.userRole === 'trainer') {
+    const [trainerAssignments] = await req.db.query(
+      'SELECT id FROM training_trainers WHERE training_id = ? AND trainer_id = ?',
+      [trainingId, req.session.userId]
+    );
+    return { allowed: trainerAssignments.length > 0, enrollmentId: null };
+  }
+
+  if (req.session.userRole === 'trainee') {
+    const [enrollments] = await req.db.query(
+      'SELECT id FROM enrollments WHERE training_id = ? AND trainee_id = ?',
+      [trainingId, req.session.userId]
+    );
+    return { allowed: enrollments.length > 0, enrollmentId: enrollments[0]?.id || null };
+  }
+
+  return { allowed: false, enrollmentId: null };
+}
+
+async function trackMaterialAccess(db, materialId, enrollmentId) {
+  if (!enrollmentId) return;
+
+  await db.query(
+    `INSERT INTO training_material_access (material_id, enrollment_id, first_accessed_at, last_accessed_at, access_count)
+     VALUES (?, ?, NOW(), NOW(), 1)
+     ON DUPLICATE KEY UPDATE
+       last_accessed_at = NOW(),
+       access_count = access_count + 1`,
+    [materialId, enrollmentId]
+  );
+}
+
+function resolveMaterialAbsolutePath(relativeFilePath) {
+  const rel = String(relativeFilePath || '').replace(/^\//, '');
+  const normalizedRel = path.normalize(rel);
+  const requiredPrefix = path.join('uploads', 'materials') + path.sep;
+
+  if (!normalizedRel.startsWith(requiredPrefix)) {
+    return null;
+  }
+
+  return path.join(__dirname, '..', 'public', normalizedRel);
+}
+
+function resolveTrainingMediaAbsolutePath(relativeFilePath) {
+  const rel = String(relativeFilePath || '').replace(/^\//, '');
+  const normalizedRel = path.normalize(rel);
+  const requiredPrefix = path.join('uploads', 'training_media') + path.sep;
+
+  if (!normalizedRel.startsWith(requiredPrefix)) {
+    return null;
+  }
+
+  return path.join(__dirname, '..', 'public', normalizedRel);
+}
+
+function getFileContentType(filePathValue) {
+  const ext = path.extname(String(filePathValue || '')).toLowerCase();
+  if (ext === '.pdf') return 'application/pdf';
+  if (ext === '.txt') return 'text/plain; charset=utf-8';
+  if (ext === '.html' || ext === '.htm') return 'text/html; charset=utf-8';
+  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  if (ext === '.png') return 'image/png';
+  if (ext === '.webp') return 'image/webp';
+  return 'application/octet-stream';
+}
+
+function isInlinePreviewSupported(filePathValue) {
+  const ext = path.extname(String(filePathValue || '')).toLowerCase();
+  return ['.pdf', '.txt', '.html', '.htm', '.jpg', '.jpeg', '.png', '.webp'].includes(ext);
+}
+
+function isPdfFile(filePathValue) {
+  return path.extname(String(filePathValue || '')).toLowerCase() === '.pdf';
+}
+
 // (Old create-time media attachment removed; media is uploaded during training via course tab.)
 
 // List all trainings
@@ -680,8 +825,11 @@ router.get('/', async (req, res) => {
     }
     // Admins can see all trainings (no additional WHERE clause)
 
-    // Non-admins should only see in progress, completed, or rescheduled trainings
-    if (req.session.userRole !== 'admin') {
+    // Status visibility by role
+    if (req.session.userRole === 'trainee') {
+      // Trainees should not see locked trainings
+      query += ` AND t.status IN ('in_progress', 'rescheduled')`;
+    } else if (req.session.userRole !== 'admin') {
       query += ` AND t.status IN ('in_progress', 'completed', 'rescheduled')`;
     }
     
@@ -1235,8 +1383,13 @@ router.get('/:id', async (req, res) => {
 
     const training = trainings[0];
 
-    // Restrict visibility for non-admins (trainee/trainer)
-    if (req.session.userRole !== 'admin') {
+    // Restrict visibility by role and status
+    if (req.session.userRole === 'trainee') {
+      const traineeAllowedStatuses = ['in_progress', 'rescheduled'];
+      if (!traineeAllowedStatuses.includes(training.status)) {
+        return res.status(403).send('This training is locked. You can only view your certificate.');
+      }
+    } else if (req.session.userRole !== 'admin') {
       const allowedStatuses = ['in_progress', 'completed', 'rescheduled'];
       if (!allowedStatuses.includes(training.status)) {
         return res.status(403).send('You are not authorized to access this training. Please contact your administrator.');
@@ -1269,6 +1422,10 @@ router.get('/:id', async (req, res) => {
     if (!training.header_image) {
       training.header_image = '/images/Training Headers/Header 2.jpg';
     }
+    const isTrainingLocked = training.status === 'completed';
+    const materialVisibilityFilter = isTrainingLocked
+      ? ` AND (COALESCE(m.visibility, 'private') = 'public' AND (m.access_expires_at IS NULL OR m.access_expires_at >= NOW()))`
+      : '';
     
     // Get sections and materials
     const [sections] = await req.db.query(`
@@ -1279,11 +1436,14 @@ router.get('/:id', async (req, res) => {
           'type', m.type,
           'file_path', m.file_path,
           'url', m.url,
+          'visibility', COALESCE(m.visibility, 'private'),
+          'access_expires_at', m.access_expires_at,
           'uploaded_by', CONCAT(u.first_name, ' ', u.last_name)
         ))
         FROM training_materials m
         LEFT JOIN users u ON m.uploaded_by = u.id
         WHERE m.section_id = s.id
+        ${materialVisibilityFilter}
         ORDER BY m.material_order) as materials
       FROM training_sections s
       WHERE s.training_id = ?
@@ -1299,6 +1459,7 @@ router.get('/:id', async (req, res) => {
       WHERE m.section_id IN (
         SELECT id FROM training_sections WHERE training_id = ?
       )
+      ${materialVisibilityFilter}
       ORDER BY m.material_order
     `, [req.params.id]);
     
@@ -1478,8 +1639,15 @@ router.get('/:id', async (req, res) => {
     // Training Media (gallery)
     let trainingMedia = [];
     try {
+      const mediaVisibilityFilter = isTrainingLocked
+        ? ` AND (COALESCE(visibility, 'public') = 'public' AND (access_expires_at IS NULL OR access_expires_at >= NOW()))`
+        : '';
       const [mediaRows] = await req.db.query(
-        'SELECT id, file_path, original_name FROM training_media WHERE training_id = ? ORDER BY sort_order ASC, id ASC',
+        `SELECT id, file_path, original_name, visibility, access_expires_at
+         FROM training_media
+         WHERE training_id = ?
+         ${mediaVisibilityFilter}
+         ORDER BY sort_order ASC, id ASC`,
         [req.params.id]
       );
       trainingMedia = mediaRows || [];
@@ -1737,8 +1905,8 @@ router.post('/:id/import-sections', async (req, res) => {
       const materialOffset = maxMatRows?.[0]?.max_order || 0;
 
       const [insertMaterials] = await connection.query(`
-        INSERT INTO training_materials (section_id, title, type, file_path, url, material_order, uploaded_by)
-        SELECT ?, title, type, file_path, url, material_order + ?, uploaded_by
+        INSERT INTO training_materials (section_id, title, type, file_path, url, material_order, uploaded_by, visibility, access_expires_at)
+        SELECT ?, title, type, file_path, url, material_order + ?, uploaded_by, COALESCE(visibility, 'private'), access_expires_at
         FROM training_materials
         WHERE section_id = ?
         ORDER BY material_order ASC
@@ -1765,7 +1933,7 @@ router.post('/:id/materials/create', upload.single('file'), async (req, res) => 
   }
   
   try {
-    const { title, type, section_id, url, document_url } = req.body;
+    const { title, type, section_id, url, document_url, visibility, access_expires_at } = req.body;
     const trainingId = req.params.id;
     
     // Determine file path and URL
@@ -1814,10 +1982,15 @@ router.post('/:id/materials/create', upload.single('file'), async (req, res) => 
       'SELECT COALESCE(MAX(material_order), 0) as max_order FROM training_materials WHERE section_id = ?',
       [finalSectionId]
     );
+    const materialVisibility = normalizeAssetVisibility(visibility, 'private');
+    const requestedExpiry = normalizeAccessExpiryInput(access_expires_at);
+    const materialAccessExpiry = materialVisibility === 'public' ? (requestedExpiry || getDefaultExpiryDateTime()) : null;
     
     await req.db.query(
-      'INSERT INTO training_materials (section_id, title, type, file_path, url, material_order, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [finalSectionId, title, type, filePath, materialUrl, maxOrder[0].max_order + 1, req.session.userId]
+      `INSERT INTO training_materials
+        (section_id, title, type, file_path, url, material_order, uploaded_by, visibility, access_expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [finalSectionId, title, type, filePath, materialUrl, maxOrder[0].max_order + 1, req.session.userId, materialVisibility, materialAccessExpiry]
     );
     
     res.json({ success: true });
@@ -1830,55 +2003,232 @@ router.post('/:id/materials/create', upload.single('file'), async (req, res) => 
 // View material
 router.get('/:id/materials/:materialId', async (req, res) => {
   try {
-    const [materials] = await req.db.query(`
-      SELECT m.*, s.title as section_title, s.training_id,
-             CONCAT(u.first_name, ' ', u.last_name) as uploaded_by_name
-      FROM training_materials m
-      LEFT JOIN training_sections s ON m.section_id = s.id
-      LEFT JOIN users u ON m.uploaded_by = u.id
-      WHERE m.id = ?
-    `, [req.params.materialId]);
-    
-    if (materials.length === 0) {
+    const trainingId = Number(req.params.id);
+    const materialId = Number(req.params.materialId);
+    const material = await getMaterialWithTraining(req.db, materialId, trainingId);
+
+    if (!material) {
       return res.status(404).send('Material not found');
     }
-    
-    const material = materials[0];
 
     // Get training info
     const [trainings] = await req.db.query('SELECT * FROM trainings WHERE id = ?', [material.training_id]);
+    if (trainings.length === 0) {
+      return res.status(404).send('Training not found');
+    }
     const training = trainings[0];
+    if (training.status === 'completed' && !isAssetAccessibleAfterLock(material.visibility, material.access_expires_at, 'private')) {
+      return res.status(403).send('This material is no longer accessible after training lock.');
+    }
 
-    // Check authorization based on user role
-    if (req.session.userRole === 'trainee') {
-      // Check if trainee is enrolled in this training
-      const [enrollments] = await req.db.query(
-        'SELECT id FROM enrollments WHERE training_id = ? AND trainee_id = ?',
-        [material.training_id, req.session.userId]
-      );
-      if (enrollments.length === 0) {
-        return res.status(403).send('You are not authorized to access this material. Please contact your administrator.');
-      }
-    } else if (req.session.userRole === 'trainer') {
-      // Check if trainer is assigned to this training
-      const [trainerAssignments] = await req.db.query(
-        'SELECT id FROM training_trainers WHERE training_id = ? AND trainer_id = ?',
-        [material.training_id, req.session.userId]
-      );
-      if (trainerAssignments.length === 0) {
-        return res.status(403).send('You are not authorized to access this material. Please contact your administrator.');
+    const access = await authorizeTrainingAccess(req, training.id);
+    if (!access.allowed) {
+      return res.status(403).send('You are not authorized to access this material. Please contact your administrator.');
+    }
+
+    if (req.session.userRole === 'trainee' && access.enrollmentId) {
+      try {
+        await trackMaterialAccess(req.db, material.id, access.enrollmentId);
+      } catch (trackError) {
+        console.warn('Material access tracking failed:', trackError.message);
       }
     }
-    // Admins can access all materials
-    
+
+    const canPreviewInline = Boolean(material.file_path) && isInlinePreviewSupported(material.file_path);
+
     res.render('training/material-view', {
       user: req.session,
       training,
-      material
+      material,
+      canPreviewInline
     });
   } catch (error) {
     console.error('Material view error:', error);
     res.status(500).send('Error loading material');
+  }
+});
+
+// View training media (inline image only)
+router.get('/:id/media/:mediaId/content', async (req, res) => {
+  try {
+    const trainingId = Number(req.params.id);
+    const mediaId = Number(req.params.mediaId);
+
+    const [rows] = await req.db.query(
+      `SELECT tm.id, tm.file_path, tm.visibility, tm.access_expires_at, t.status AS training_status
+       FROM training_media tm
+       INNER JOIN trainings t ON t.id = tm.training_id
+       WHERE tm.id = ? AND tm.training_id = ?`,
+      [mediaId, trainingId]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).send('Media not found');
+    }
+
+    const media = rows[0];
+    const access = await authorizeTrainingAccess(req, trainingId);
+    if (!access.allowed) {
+      return res.status(403).send('You are not authorized to access this media. Please contact your administrator.');
+    }
+
+    if (media.training_status === 'completed' && !isAssetAccessibleAfterLock(media.visibility, media.access_expires_at, 'public')) {
+      return res.status(403).send('This media is no longer accessible after training lock.');
+    }
+
+    const absolutePath = resolveTrainingMediaAbsolutePath(media.file_path);
+    if (!absolutePath || !fs.existsSync(absolutePath)) {
+      return res.status(404).send('Media file not found');
+    }
+
+    res.setHeader('Content-Type', getFileContentType(media.file_path));
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+    return res.sendFile(absolutePath);
+  } catch (error) {
+    console.error('Training media content error:', error);
+    return res.status(500).send('Error loading media content');
+  }
+});
+
+// Material document/content view (inline only)
+router.get('/:id/materials/:materialId/content', async (req, res) => {
+  try {
+    const trainingId = Number(req.params.id);
+    const materialId = Number(req.params.materialId);
+    const material = await getMaterialWithTraining(req.db, materialId, trainingId);
+
+    if (!material) {
+      return res.status(404).send('Material not found');
+    }
+    if (!material.file_path) {
+      return res.status(404).send('No file available for this material');
+    }
+    if (material.training_status === 'completed' && !isAssetAccessibleAfterLock(material.visibility, material.access_expires_at, 'private')) {
+      return res.status(403).send('This material is no longer accessible after training lock.');
+    }
+
+    const access = await authorizeTrainingAccess(req, trainingId);
+    if (!access.allowed) {
+      return res.status(403).send('You are not authorized to access this material. Please contact your administrator.');
+    }
+
+    const absolutePath = resolveMaterialAbsolutePath(material.file_path);
+    if (!absolutePath || !fs.existsSync(absolutePath)) {
+      return res.status(404).send('Material file not found');
+    }
+    if (!isInlinePreviewSupported(material.file_path)) {
+      return res.status(403).send('This file type cannot be previewed inline. Download is disabled for training materials.');
+    }
+    if (isPdfFile(material.file_path) && req.get('X-Material-Viewer') !== '1') {
+      return res.status(403).send('Direct PDF access is disabled. Please use the in-app viewer.');
+    }
+
+    res.setHeader('Content-Type', getFileContentType(material.file_path));
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+
+    return res.sendFile(absolutePath);
+  } catch (error) {
+    console.error('Material content view error:', error);
+    return res.status(500).send('Error loading material content');
+  }
+});
+
+// Material access report (admin/trainer only)
+router.get('/:id/materials/:materialId/access', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).send('Access denied');
+  }
+
+  try {
+    const trainingId = Number(req.params.id);
+    const materialId = Number(req.params.materialId);
+    const material = await getMaterialWithTraining(req.db, materialId, trainingId);
+
+    if (!material) {
+      return res.status(404).send('Material not found');
+    }
+
+    if (req.session.userRole === 'trainer') {
+      const [trainerAssignments] = await req.db.query(
+        'SELECT id FROM training_trainers WHERE training_id = ? AND trainer_id = ?',
+        [trainingId, req.session.userId]
+      );
+      if (trainerAssignments.length === 0) {
+        return res.status(403).send('Access denied');
+      }
+    }
+
+    const [trainings] = await req.db.query('SELECT id, title FROM trainings WHERE id = ?', [trainingId]);
+    if (trainings.length === 0) {
+      return res.status(404).send('Training not found');
+    }
+    const training = trainings[0];
+
+    let accessRows = [];
+    try {
+      const [rows] = await req.db.query(
+        `SELECT
+           e.id AS enrollment_id,
+           t.id AS trainee_id,
+           t.trainee_id,
+           t.first_name,
+           t.last_name,
+           t.email,
+           a.first_accessed_at,
+           a.last_accessed_at,
+           a.access_count
+         FROM enrollments e
+         INNER JOIN trainees t ON t.id = e.trainee_id
+         LEFT JOIN training_material_access a ON a.enrollment_id = e.id AND a.material_id = ?
+         WHERE e.training_id = ?
+         ORDER BY t.first_name ASC, t.last_name ASC`,
+        [materialId, trainingId]
+      );
+      accessRows = rows;
+    } catch (queryError) {
+      if (queryError.code !== 'ER_NO_SUCH_TABLE') {
+        throw queryError;
+      }
+      const [fallbackRows] = await req.db.query(
+        `SELECT
+           e.id AS enrollment_id,
+           t.id AS trainee_id,
+           t.trainee_id,
+           t.first_name,
+           t.last_name,
+           t.email,
+           NULL AS first_accessed_at,
+           NULL AS last_accessed_at,
+           0 AS access_count
+         FROM enrollments e
+         INNER JOIN trainees t ON t.id = e.trainee_id
+         WHERE e.training_id = ?
+         ORDER BY t.first_name ASC, t.last_name ASC`,
+        [trainingId]
+      );
+      accessRows = fallbackRows;
+    }
+
+    const accessedCount = accessRows.filter(row => row.last_accessed_at).length;
+
+    res.render('training/material-access', {
+      user: req.session,
+      training,
+      material,
+      accessRows,
+      summary: {
+        total: accessRows.length,
+        accessed: accessedCount,
+        notAccessed: accessRows.length - accessedCount
+      }
+    });
+  } catch (error) {
+    console.error('Material access report error:', error);
+    res.status(500).send('Error loading material access report');
   }
 });
 
@@ -1927,7 +2277,7 @@ router.post('/:id/materials/:materialId/edit', upload.single('file'), async (req
   }
   
   try {
-    const { title, type, section_id, url, document_url } = req.body;
+    const { title, type, section_id, url, document_url, visibility, access_expires_at } = req.body;
     
     // Get current material
     const [materials] = await req.db.query('SELECT * FROM training_materials WHERE id = ?', [req.params.materialId]);
@@ -1985,10 +2335,15 @@ router.post('/:id/materials/:materialId/edit', upload.single('file'), async (req
         finalSectionId = newSection.insertId;
       }
     }
+    const materialVisibility = normalizeAssetVisibility(visibility, 'private');
+    const requestedExpiry = normalizeAccessExpiryInput(access_expires_at);
+    const materialAccessExpiry = materialVisibility === 'public' ? (requestedExpiry || getDefaultExpiryDateTime()) : null;
     
     await req.db.query(
-      'UPDATE training_materials SET section_id = ?, title = ?, type = ?, file_path = ?, url = ? WHERE id = ?',
-      [finalSectionId, title, type, filePath, materialUrl, req.params.materialId]
+      `UPDATE training_materials
+       SET section_id = ?, title = ?, type = ?, file_path = ?, url = ?, visibility = ?, access_expires_at = ?
+       WHERE id = ?`,
+      [finalSectionId, title, type, filePath, materialUrl, materialVisibility, materialAccessExpiry, req.params.materialId]
     );
     
     res.json({ success: true });
@@ -2101,7 +2456,7 @@ router.post('/section/:sectionId/material', upload.single('file'), async (req, r
     return res.status(403).send('Access denied');
   }
   
-  const { title, type, url } = req.body;
+  const { title, type, url, visibility, access_expires_at } = req.body;
   const filePath = req.file ? `/uploads/materials/${req.file.filename}` : null;
   
   try {
@@ -2111,10 +2466,15 @@ router.post('/section/:sectionId/material', upload.single('file'), async (req, r
       'SELECT COALESCE(MAX(material_order), 0) as max_order FROM training_materials WHERE section_id = ?',
       [req.params.sectionId]
     );
+    const materialVisibility = normalizeAssetVisibility(visibility, 'private');
+    const requestedExpiry = normalizeAccessExpiryInput(access_expires_at);
+    const materialAccessExpiry = materialVisibility === 'public' ? (requestedExpiry || getDefaultExpiryDateTime()) : null;
     
     await req.db.query(
-      'INSERT INTO training_materials (section_id, title, type, file_path, url, material_order, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [req.params.sectionId, title, type, filePath, url, maxOrder[0].max_order + 1, req.session.userId]
+      `INSERT INTO training_materials
+        (section_id, title, type, file_path, url, material_order, uploaded_by, visibility, access_expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.params.sectionId, title, type, filePath, url, maxOrder[0].max_order + 1, req.session.userId, materialVisibility, materialAccessExpiry]
     );
     
     res.redirect(`/training/${section[0].training_id}`);

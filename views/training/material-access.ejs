@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Material Access - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .access-page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .access-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .access-title {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 500;
+      color: #202124;
+    }
+    .access-subtitle {
+      margin: 0.35rem 0 0 0;
+      color: #5F6368;
+      font-size: 0.9rem;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .summary-card {
+      background: #fff;
+      border: 1px solid #E8EAED;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .summary-label {
+      margin: 0;
+      color: #5F6368;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .summary-value {
+      margin: 0.35rem 0 0 0;
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: #202124;
+    }
+    .table-wrap {
+      background: #fff;
+      border: 1px solid #E8EAED;
+      border-radius: 8px;
+      overflow: auto;
+    }
+    .access-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+    }
+    .access-table th,
+    .access-table td {
+      text-align: left;
+      padding: 0.8rem 1rem;
+      border-bottom: 1px solid #E8EAED;
+      font-size: 0.9rem;
+    }
+    .access-table th {
+      background: #F8F9FA;
+      color: #5F6368;
+      font-weight: 600;
+    }
+    .status-pill {
+      display: inline-block;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .status-pill.accessed {
+      color: #137333;
+      background: #E6F4EA;
+    }
+    .status-pill.not-accessed {
+      color: #B3261E;
+      background: #FCE8E6;
+    }
+    @media (max-width: 768px) {
+      .access-page {
+        padding: 1rem;
+      }
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+      .access-header {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
+
+  <main class="main-content">
+    <div class="access-page">
+      <div class="access-header">
+        <div>
+          <h1 class="access-title">Material Access Report</h1>
+          <p class="access-subtitle">
+            <strong>Training:</strong> <%= training.title %> |
+            <strong>Material:</strong> <%= material.title %>
+          </p>
+        </div>
+        <a href="/training/<%= training.id %>/materials/<%= material.id %>" class="btn btn-secondary">
+          <i class="fas fa-arrow-left"></i> Back to Material
+        </a>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-card">
+          <p class="summary-label">Total Trainees</p>
+          <p class="summary-value"><%= summary.total %></p>
+        </div>
+        <div class="summary-card">
+          <p class="summary-label">Accessed</p>
+          <p class="summary-value"><%= summary.accessed %></p>
+        </div>
+        <div class="summary-card">
+          <p class="summary-label">Not Accessed</p>
+          <p class="summary-value"><%= summary.notAccessed %></p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="access-table">
+          <thead>
+            <tr>
+              <th>Trainee</th>
+              <th>Trainee ID</th>
+              <th>Email</th>
+              <th>Status</th>
+              <th>Last Accessed</th>
+              <th>Access Count</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (accessRows.length === 0) { %>
+              <tr>
+                <td colspan="6">No enrolled trainees found for this training.</td>
+              </tr>
+            <% } %>
+            <% accessRows.forEach(row => { %>
+              <tr>
+                <td><%= row.first_name %> <%= row.last_name %></td>
+                <td><%= row.trainee_id || '-' %></td>
+                <td><%= row.email || '-' %></td>
+                <td>
+                  <% if (row.last_accessed_at) { %>
+                    <span class="status-pill accessed">Accessed</span>
+                  <% } else { %>
+                    <span class="status-pill not-accessed">Not Accessed</span>
+                  <% } %>
+                </td>
+                <td>
+                  <%= row.last_accessed_at ? new Date(row.last_accessed_at).toLocaleString() : '-' %>
+                </td>
+                <td><%= row.access_count || 0 %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/main.js"></script>
+</body>
+</html>

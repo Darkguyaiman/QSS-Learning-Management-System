@@ -7,6 +7,7 @@ const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { pool, dbConfig, initializeDatabase } = require('./config/database');
 
 const app = express();
@@ -23,6 +24,7 @@ const SESSION_MAX_AGE = Math.max(1, SESSION_MAX_AGE_HOURS) * 60 * 60 * 1000;
 const SESSION_COOKIE_SECURE = process.env.SESSION_COOKIE_SECURE
   ? process.env.SESSION_COOKIE_SECURE === 'true'
   : isProduction;
+const INIT_DB_ON_STARTUP = process.env.INIT_DB_ON_STARTUP === 'true';
 
 if (isProduction) {
   if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
@@ -79,6 +81,12 @@ const profileUpload = multer({ storage: profileStorage });
 // Middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use('/uploads/materials', (req, res) => {
+  return res.status(403).send('Direct access to training material files is disabled');
+});
+app.use('/uploads/training_media', (req, res) => {
+  return res.status(403).send('Direct access to training media files is disabled');
+});
 app.use(express.static('public'));
 app.use(session({
   name: SESSION_COOKIE_NAME,
@@ -195,14 +203,52 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something went wrong!');
 });
 
-// Initialize database and start server
-initializeDatabase()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`LMS Server running on port ${PORT}`);
-    });
-  })
-  .catch((error) => {
-    console.error('Failed to initialize database:', error);
-    process.exit(1);
+function getLocalNetworkUrls(port) {
+  const networkInterfaces = os.networkInterfaces();
+  const urls = [];
+
+  for (const ifaceEntries of Object.values(networkInterfaces)) {
+    if (!Array.isArray(ifaceEntries)) continue;
+    for (const iface of ifaceEntries) {
+      if (!iface) continue;
+      if (iface.family !== 'IPv4') continue;
+      if (iface.internal) continue;
+      urls.push(`http://${iface.address}:${port}`);
+    }
+  }
+
+  return Array.from(new Set(urls));
+}
+
+// Start server (database schema initialization is opt-in)
+function startServer() {
+  app.listen(PORT, () => {
+    const localUrl = `http://localhost:${PORT}`;
+    const loopbackUrl = `http://127.0.0.1:${PORT}`;
+    const networkUrls = getLocalNetworkUrls(PORT);
+
+    console.log('\nLMS Server is running');
+    console.log(`Local:    ${localUrl}`);
+    console.log(`Loopback: ${loopbackUrl}`);
+    if (networkUrls.length > 0) {
+      console.log('Network:');
+      networkUrls.forEach((url) => console.log(`  - ${url}`));
+    } else {
+      console.log('Network:  No external IPv4 address detected');
+    }
+    console.log('');
   });
+}
+
+if (INIT_DB_ON_STARTUP) {
+  initializeDatabase()
+    .then(() => {
+      startServer();
+    })
+    .catch((error) => {
+      console.error('Failed to initialize database:', error);
+      process.exit(1);
+    });
+} else {
+  startServer();
+}

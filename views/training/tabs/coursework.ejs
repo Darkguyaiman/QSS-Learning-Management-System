@@ -82,6 +82,14 @@
         font-size: 0.9375rem;
       }
 
+      #coursework-tab a.material-menu-item,
+      #coursework-tab a.material-menu-item:hover,
+      #coursework-tab a.material-menu-item:focus,
+      #coursework-tab a.material-menu-item:active,
+      #coursework-tab a.material-menu-item:visited {
+        text-decoration: none;
+      }
+
       #coursework-tab .material-menu-item:hover {
         background-color: #F8F9FA;
       }
@@ -173,8 +181,8 @@
             </a>
             <div style="display: flex; gap: 0.5rem; align-items: center;" onclick="event.stopPropagation();">
               <% if (material.file_path) { %>
-                <a href="<%= material.file_path %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
-                  <i class="fas fa-download"></i> Download
+                <a href="/training/<%= training.id %>/materials/<%= material.id %>" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
+                  <i class="fas fa-eye"></i> View
                 </a>
               <% } %>
               <% if (material.url) { %>
@@ -189,6 +197,10 @@
                   </button>
                   <% if (training.status !== 'completed') { %>
                     <div id="material-<%= material.id %>" class="material-menu-dropdown">
+                      <a href="/training/<%= training.id %>/materials/<%= material.id %>/access" class="material-menu-item">
+                        <i class="fas fa-user-check"></i>
+                        <span>View Access</span>
+                      </a>
                       <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="material-menu-item">
                         <i class="fas fa-edit"></i>
                         <span>Edit</span>
@@ -259,8 +271,8 @@
                 </a>
                 <div style="display: flex; gap: 0.5rem; align-items: center;" onclick="event.stopPropagation();">
                   <% if (material.file_path) { %>
-                    <a href="<%= material.file_path %>" target="_blank" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
-                      <i class="fas fa-download"></i> Download
+                    <a href="/training/<%= training.id %>/materials/<%= material.id %>" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();">
+                      <i class="fas fa-eye"></i> View
                     </a>
                   <% } %>
                   <% if (material.url) { %>
@@ -275,6 +287,10 @@
                       </button>
                       <% if (training.status !== 'completed') { %>
                         <div id="material-<%= material.id %>" class="material-menu-dropdown">
+                          <a href="/training/<%= training.id %>/materials/<%= material.id %>/access" class="material-menu-item">
+                            <i class="fas fa-user-check"></i>
+                            <span>View Access</span>
+                          </a>
                           <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="material-menu-item">
                             <i class="fas fa-edit"></i>
                             <span>Edit</span>
@@ -625,7 +641,7 @@
 
     <p style="margin: 0.75rem 0 0 0; color:#5F6368; font-size: 0.9rem; line-height:1.4;">
       <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-        Photos only • Max <strong>20</strong> • <strong>5MB</strong> each.
+        Photos only - Max <strong>20</strong> - <strong>5MB</strong> each - default is <strong>public</strong> with <strong>2 years</strong> expiry.
       <% } %>
     </p>
 
@@ -662,8 +678,8 @@
       <% if (typeof trainingMedia !== 'undefined' && trainingMedia && trainingMedia.length > 0) { %>
         <% trainingMedia.forEach(m => { %>
           <div class="training-media-item" data-media-id="<%= m.id %>">
-            <a href="<%= m.file_path %>" target="_blank" rel="noopener">
-              <img src="<%= m.file_path %>" alt="<%= m.original_name || 'Training media' %>">
+            <a href="/training/<%= training.id %>/media/<%= m.id %>/content" target="_blank" rel="noopener">
+              <img src="/training/<%= training.id %>/media/<%= m.id %>/content" alt="<%= m.original_name || 'Training media' %>">
             </a>
             <% if (['admin', 'trainer'].includes(user.userRole) && training.status !== 'completed') { %>
               <button type="button" class="training-media-delete" onclick="deleteTrainingMedia(<%= m.id %>)" title="Delete">
@@ -950,8 +966,8 @@
               card.className = 'training-media-item';
               card.dataset.mediaId = data.media.id;
               card.innerHTML = `
-                <a href="${data.media.file_path}" target="_blank" rel="noopener">
-                  <img src="${data.media.file_path}" alt="${(data.media.original_name || 'Training media').replace(/"/g, '&quot;')}">
+                <a href="/training/${TRAINING_ID}/media/${data.media.id}/content" target="_blank" rel="noopener">
+                  <img src="/training/${TRAINING_ID}/media/${data.media.id}/content" alt="${(data.media.original_name || 'Training media').replace(/"/g, '&quot;')}">
                 </a>
                 <button type="button" class="training-media-delete" onclick="deleteTrainingMedia(${data.media.id})" title="Delete">
                   <i class="fas fa-trash"></i>
@@ -1079,8 +1095,8 @@
                   card.className = 'training-media-item';
                   card.dataset.mediaId = data.media.id;
                   card.innerHTML = `
-                    <a href="${data.media.file_path}" target="_blank" rel="noopener">
-                      <img src="${data.media.file_path}" alt="${(data.media.original_name || 'Training media').replace(/"/g, '&quot;')}">
+                    <a href="/training/${TRAINING_ID}/media/${data.media.id}/content" target="_blank" rel="noopener">
+                      <img src="/training/${TRAINING_ID}/media/${data.media.id}/content" alt="${(data.media.original_name || 'Training media').replace(/"/g, '&quot;')}">
                     </a>
                     <button type="button" class="training-media-delete" onclick="deleteTrainingMedia(${data.media.id})" title="Delete">
                       <i class="fas fa-trash"></i>
@@ -1109,4 +1125,5 @@
   </div>
   
 </div>
+
 

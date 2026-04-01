@@ -183,6 +183,8 @@
       transition: all 0.2s;
       border: 1px solid transparent;
       cursor: pointer;
+      position: relative;
+      overflow: visible;
     }
     
     .material-item:hover {
@@ -190,6 +192,12 @@
       border-color: #573FD7;
       box-shadow: 0 2px 8px rgba(87, 63, 215, 0.1);
       transform: translateY(-1px);
+    }
+
+    .material-item.menu-open,
+    .material-item.menu-open:hover {
+      transform: none;
+      z-index: 60;
     }
     
     .material-item-link {
@@ -924,6 +932,7 @@
     /* 3-Dot Menu Styles */
     .material-actions {
       position: relative;
+      z-index: 70;
     }
     
     .material-menu-btn {
@@ -953,7 +962,7 @@
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       min-width: 150px;
-      z-index: 100;
+      z-index: 9999;
       margin-top: 0.25rem;
       overflow: hidden;
     }
@@ -975,6 +984,15 @@
       background: none;
       width: 100%;
       text-align: left;
+      text-decoration: none;
+    }
+
+    a.material-menu-item,
+    a.material-menu-item:hover,
+    a.material-menu-item:focus,
+    a.material-menu-item:active,
+    a.material-menu-item:visited {
+      text-decoration: none;
     }
     
     .material-menu-item:hover {
@@ -1398,13 +1416,18 @@
       document.querySelectorAll('.material-menu-dropdown').forEach(menu => {
         if (menu.id !== menuId) {
           menu.classList.remove('active');
+          const row = menu.closest('.material-item');
+          if (row) row.classList.remove('menu-open');
         }
       });
       
       // Toggle current menu
       const menu = document.getElementById(menuId);
       if (menu) {
-        menu.classList.toggle('active');
+        const willOpen = !menu.classList.contains('active');
+        menu.classList.toggle('active', willOpen);
+        const row = menu.closest('.material-item');
+        if (row) row.classList.toggle('menu-open', willOpen);
       }
     }
     
@@ -1413,6 +1436,8 @@
       if (!event.target.closest('.material-actions')) {
         document.querySelectorAll('.material-menu-dropdown').forEach(menu => {
           menu.classList.remove('active');
+          const row = menu.closest('.material-item');
+          if (row) row.classList.remove('menu-open');
         });
       }
     });
@@ -1430,6 +1455,35 @@
     
     // Material Management Functions
     let currentMaterialType = 'video';
+
+    function toDateTimeLocalValue(dateObj) {
+      const d = dateObj instanceof Date ? dateObj : new Date(dateObj);
+      if (Number.isNaN(d.getTime())) return '';
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function defaultTwoYearsFromNowLocalValue() {
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2);
+      return toDateTimeLocalValue(d);
+    }
+
+    function toggleMaterialAccessExpiry() {
+      const visibilityEl = document.getElementById('material-visibility');
+      const expiryGroup = document.getElementById('material-access-expiry-group');
+      const expiryInput = document.getElementById('material-access-expiry');
+      if (!visibilityEl || !expiryGroup || !expiryInput) return;
+
+      const isPublic = visibilityEl.value === 'public';
+      expiryGroup.style.display = isPublic ? 'block' : 'none';
+      if (isPublic && !expiryInput.value) {
+        expiryInput.value = defaultTwoYearsFromNowLocalValue();
+      }
+      if (!isPublic) {
+        expiryInput.value = '';
+      }
+    }
     
     function openCreateMaterialModal() {
       document.getElementById('createMaterialModal').classList.add('active');
@@ -1446,6 +1500,11 @@
       document.getElementById('file-selected-display').style.display = 'none';
       document.getElementById('document-link-url').style.display = 'none';
       document.getElementById('use-document-link').checked = false;
+      const visibilityEl = document.getElementById('material-visibility');
+      const expiryInput = document.getElementById('material-access-expiry');
+      if (visibilityEl) visibilityEl.value = 'private';
+      if (expiryInput) expiryInput.value = '';
+      toggleMaterialAccessExpiry();
       switchMaterialType('video');
     }
     
@@ -2114,4 +2173,3 @@
   </script>
 </body>
 </html>
-

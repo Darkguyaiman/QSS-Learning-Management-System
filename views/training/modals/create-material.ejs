@@ -50,6 +50,31 @@
               <% } %>
             </select>
           </div>
+
+          <div class="form-group">
+            <label for="material-visibility">
+              <i class="fas fa-user-shield"></i>
+              Visibility After Training Is Locked
+            </label>
+            <select id="material-visibility" name="visibility" class="form-select" onchange="toggleMaterialAccessExpiry()">
+              <option value="private" selected>Private (hidden after lock)</option>
+              <option value="public">Public (visible after lock)</option>
+            </select>
+            <small style="color: #5F6368; font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+              Public materials remain visible after lock until expiry.
+            </small>
+          </div>
+
+          <div class="form-group" id="material-access-expiry-group" style="display: none;">
+            <label for="material-access-expiry">
+              <i class="fas fa-hourglass-end"></i>
+              Access Expiry (Public Only)
+            </label>
+            <input type="datetime-local" id="material-access-expiry" name="access_expires_at" class="form-input">
+            <small style="color: #5F6368; font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+              If empty, default is 2 years from posting date.
+            </small>
+          </div>
           
           <!-- Video Type Content -->
           <div id="video-content" class="material-type-content active">

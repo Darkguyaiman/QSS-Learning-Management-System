@@ -72,6 +72,57 @@ async function seedDefaultUsers(connection) {
   }
 }
 
+async function addColumnIfMissing(connection, tableName, columnName, columnDefinition) {
+  const [rows] = await connection.query(
+    `SELECT COUNT(*) AS cnt
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND COLUMN_NAME = ?`,
+    [tableName, columnName]
+  );
+
+  const exists = Number(rows?.[0]?.cnt || 0) > 0;
+  if (exists) return;
+
+  await connection.query(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`);
+  console.log(`✓ Added column ${tableName}.${columnName}`);
+}
+
+async function ensureTrainingAssetVisibilityColumns(connection) {
+  await addColumnIfMissing(
+    connection,
+    'training_materials',
+    'visibility',
+    "ENUM('public','private') NOT NULL DEFAULT 'private' AFTER uploaded_by"
+  );
+  await addColumnIfMissing(
+    connection,
+    'training_materials',
+    'access_expires_at',
+    "DATETIME NULL AFTER visibility"
+  );
+
+  await addColumnIfMissing(
+    connection,
+    'training_media',
+    'visibility',
+    "ENUM('public','private') NOT NULL DEFAULT 'public' AFTER uploaded_by"
+  );
+  await addColumnIfMissing(
+    connection,
+    'training_media',
+    'access_expires_at',
+    "DATETIME NULL AFTER visibility"
+  );
+
+  await connection.query(
+    `UPDATE training_media
+     SET access_expires_at = COALESCE(access_expires_at, DATE_ADD(created_at, INTERVAL 2 YEAR))
+     WHERE COALESCE(visibility, 'public') = 'public'`
+  );
+}
+
 // Initialize database: create DB, run schema only, seed default users
 async function initializeDatabase() {
   let connection;
@@ -132,6 +183,8 @@ async function initializeDatabase() {
         }
       }
     }
+
+    await ensureTrainingAssetVisibilityColumns(connection);
 
     await seedDefaultUsers(connection);
 

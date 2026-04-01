@@ -91,6 +91,41 @@
       height: 100%;
       border: none;
     }
+
+    .document-frame {
+      width: 100%;
+      min-height: 70vh;
+      border: 1px solid #E8EAED;
+      border-radius: 8px;
+      background: #fff;
+      margin-bottom: 1rem;
+    }
+
+    .pdf-viewer-shell {
+      border: 1px solid #E8EAED;
+      border-radius: 8px;
+      background: #fff;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      max-height: 75vh;
+      overflow: auto;
+    }
+
+    .pdf-page-canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      margin: 0 auto 1rem;
+      border: 1px solid #E8EAED;
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    .pdf-viewer-status {
+      color: #5F6368;
+      font-size: 0.875rem;
+      margin: 0.5rem 0 1rem;
+    }
     
     .preview-card {
       background: #F8F9FA;
@@ -185,6 +220,9 @@
         </h1>
         <div class="btn-group">
           <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+            <a href="/training/<%= training.id %>/materials/<%= material.id %>/access" class="btn btn-secondary">
+              <i class="fas fa-user-check"></i> View Access
+            </a>
             <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="btn btn-outline">
               <i class="fas fa-edit"></i> Edit Material
             </a>
@@ -272,15 +310,23 @@
               </div>
               <h3>Document</h3>
               <% if (material.file_path) { %>
-                <p>Click the button below to download or view the document.</p>
-                <div class="btn-group">
-                  <a href="<%= material.file_path %>" target="_blank" class="btn btn-primary">
-                    <i class="fas fa-download"></i> Download Document
-                  </a>
-                  <a href="<%= material.file_path %>" target="_blank" class="btn btn-secondary">
-                    <i class="fas fa-external-link-alt"></i> Open in New Tab
-                  </a>
-                </div>
+                <% if (canPreviewInline) { %>
+                  <% const isPdfFile = material.file_path.toLowerCase().endsWith('.pdf'); %>
+                  <p>Document preview is shown below. Download is disabled for training materials.</p>
+                  <% if (isPdfFile) { %>
+                    <div id="pdf-viewer-status" class="pdf-viewer-status">Loading document preview...</div>
+                    <div id="pdf-viewer-shell" class="pdf-viewer-shell" aria-label="PDF document preview"></div>
+                  <% } else { %>
+                    <iframe
+                      src="/training/<%= training.id %>/materials/<%= material.id %>/content"
+                      class="document-frame"
+                      title="Document preview for <%= material.title %>">
+                    </iframe>
+                  <% } %>
+                <% } else { %>
+                  <p>This file type cannot be previewed inline, and download is disabled for training materials.</p>
+                  <p>Please ask a trainer/admin to upload a PDF or provide an external link instead.</p>
+                <% } %>
               <% } else if (material.url) { %>
                 <p>This document is available via a link. Click below to open it.</p>
                 <div class="btn-group">
@@ -315,6 +361,59 @@
     </div>
   </main>
   
+  <% if (material.type === 'document' && material.file_path && canPreviewInline && material.file_path.toLowerCase().endsWith('.pdf')) { %>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+      (function initPdfCanvasViewer() {
+        const shell = document.getElementById('pdf-viewer-shell');
+        const statusEl = document.getElementById('pdf-viewer-status');
+        if (!shell || !statusEl || !window['pdfjsLib']) return;
+
+        const contentUrl = '/training/<%= training.id %>/materials/<%= material.id %>/content';
+        const pdfjsLib = window['pdfjsLib'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        async function renderPdf() {
+          try {
+            const response = await fetch(contentUrl, {
+              credentials: 'same-origin',
+              headers: { 'X-Material-Viewer': '1' }
+            });
+            if (!response.ok) {
+              throw new Error('Unable to load PDF preview');
+            }
+
+            const pdfData = await response.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+            statusEl.textContent = 'Showing ' + pdf.numPages + ' page(s).';
+
+            for (let pageNo = 1; pageNo <= pdf.numPages; pageNo++) {
+              const page = await pdf.getPage(pageNo);
+              const baseViewport = page.getViewport({ scale: 1 });
+              const targetWidth = Math.max(640, shell.clientWidth - 16);
+              const scale = targetWidth / baseViewport.width;
+              const viewport = page.getViewport({ scale });
+
+              const canvas = document.createElement('canvas');
+              canvas.className = 'pdf-page-canvas';
+              canvas.width = Math.floor(viewport.width);
+              canvas.height = Math.floor(viewport.height);
+              canvas.setAttribute('aria-label', 'PDF page ' + pageNo);
+
+              const ctx = canvas.getContext('2d', { alpha: false });
+              await page.render({ canvasContext: ctx, viewport }).promise;
+              shell.appendChild(canvas);
+            }
+          } catch (err) {
+            console.error('PDF preview error:', err);
+            statusEl.textContent = 'Unable to preview this PDF. Please contact your administrator.';
+          }
+        }
+
+        renderPdf();
+      })();
+    </script>
+  <% } %>
   <script src="/js/main.js"></script>
 </body>
 </html>

@@ -146,6 +146,8 @@ CREATE TABLE training_materials (
   url VARCHAR(500),
   material_order INT NOT NULL,
   uploaded_by INT,
+  visibility ENUM('public', 'private') NOT NULL DEFAULT 'private',
+  access_expires_at DATETIME NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (section_id) REFERENCES training_sections(id) ON DELETE CASCADE,
   FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL
@@ -158,6 +160,8 @@ CREATE TABLE training_media (
   file_path VARCHAR(500) NOT NULL,
   original_name VARCHAR(255),
   uploaded_by INT,
+  visibility ENUM('public', 'private') NOT NULL DEFAULT 'public',
+  access_expires_at DATETIME NULL,
   sort_order INT DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE CASCADE,
@@ -208,6 +212,21 @@ CREATE TABLE enrollments (
   FOREIGN KEY (trainee_id) REFERENCES trainees(id) ON DELETE CASCADE,
   FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE CASCADE,
   UNIQUE KEY unique_enrollment (trainee_id, training_id)
+);
+
+-- Material access tracking (per trainee enrollment)
+CREATE TABLE training_material_access (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  material_id INT NOT NULL,
+  enrollment_id INT NOT NULL,
+  first_accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  last_accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  access_count INT NOT NULL DEFAULT 1,
+  FOREIGN KEY (material_id) REFERENCES training_materials(id) ON DELETE CASCADE,
+  FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_material_enrollment (material_id, enrollment_id),
+  INDEX idx_material_access_material (material_id),
+  INDEX idx_material_access_enrollment (enrollment_id)
 );
 
 -- Attendance records
