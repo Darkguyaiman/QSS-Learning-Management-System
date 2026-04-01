@@ -44,7 +44,6 @@
                 <th>Practical Learning Outcome</th>
                 <th>Certificate Enrolment</th>
               <% } else { %>
-                <th>Refresher Training Test</th>
                 <th>Certificate Enrolment</th>
               <% } %>
               <th>Status</th>
@@ -59,7 +58,6 @@
                   const preTest = getBestTest(data.tests, 'pre_test');
                   const postTest = getBestTest(data.tests, 'post_test');
                   const certificateEnrolmentTest = getBestTest(data.tests, 'certificate_enrolment');
-                  const refresher_trainingTest = getBestTest(data.tests, 'refresher_training');
                 %>
                 <% if (training.type === 'main') { %>
                   <td>
@@ -105,15 +103,6 @@
                   </td>
                 <% } else { %>
                   <td>
-                    <% if (refresher_trainingTest) { %>
-                      <span class="test-score <%= refresher_trainingTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
-                        <%= refresher_trainingTest.score %>% (<%= refresher_trainingTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
-                      </span>
-                    <% } else { %>
-                      <span style="color: #5F6368;">Not taken</span>
-                    <% } %>
-                  </td>
-                  <td>
                     <% if (certificateEnrolmentTest) { %>
                       <span class="test-score <%= certificateEnrolmentTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
                         <%= certificateEnrolmentTest.score %>% (<%= certificateEnrolmentTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
@@ -145,9 +134,8 @@
                       </a>
                     <% } %>
                     <% 
-                      const refresherPassed = refresher_trainingTest && refresher_trainingTest.score >= 80;
                       const certPassed = certificateEnrolmentTest && certificateEnrolmentTest.score >= 80;
-                      const canReleaseRefresher = !data.can_download_results && refresherPassed && certPassed;
+                      const canReleaseRefresher = !data.can_download_results && certPassed;
                     %>
                     <% if (training.type === 'main') { %>
                       <% if (user.userRole === 'admin' && training.status === 'completed' && !data.can_download_results) { %>
@@ -199,7 +187,6 @@
                   const preTest = getBestTest(data.tests, 'pre_test');
                   const postTest = getBestTest(data.tests, 'post_test');
                   const certificateEnrolmentTest = getBestTest(data.tests, 'certificate_enrolment');
-                  const refresher_trainingTest = getBestTest(data.tests, 'refresher_training');
                 %>
                 
                 <% if (training.type === 'main') { %>
@@ -252,16 +239,6 @@
                   </div>
                 <% } else { %>
                   <div class="marks-card-row">
-                    <span class="marks-label">Refresher Training Test</span>
-                    <% if (refresher_trainingTest) { %>
-                      <span class="test-score <%= refresher_trainingTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
-                        <%= refresher_trainingTest.score %>% (<%= refresher_trainingTest.score >= 80 ? 'Outstanding' : 'Not Passed' %>)
-                      </span>
-                    <% } else { %>
-                      <span style="color: #5F6368;">Not taken</span>
-                    <% } %>
-                  </div>
-                  <div class="marks-card-row">
                     <span class="marks-label">Certificate Enrolment</span>
                     <% if (certificateEnrolmentTest) { %>
                       <span class="test-score <%= certificateEnrolmentTest.score >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
@@ -283,9 +260,8 @@
                     </a>
                   <% } %>
                   <% 
-                    const refresherPassed = refresher_trainingTest && refresher_trainingTest.score >= 80;
                     const certPassed = certificateEnrolmentTest && certificateEnrolmentTest.score >= 80;
-                    const canReleaseRefresher = !data.can_download_results && refresherPassed && certPassed;
+                    const canReleaseRefresher = !data.can_download_results && certPassed;
                   %>
                   <% if (training.type === 'main') { %>
                     <% if (user.userRole === 'admin' && training.status === 'completed' && !data.can_download_results) { %>
@@ -1214,4 +1190,3 @@
   </script>
   <% } %>
 <% } %>
-

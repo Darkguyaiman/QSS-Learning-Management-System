@@ -202,9 +202,8 @@ async function validateTestQuestions(db, trainingType, deviceModelId) {
       }
     }
   } else if (trainingType === 'refresher_training') {
-    // Refresher training: refresher test (10) + certificate enrolment (40)
+    // Refresher training: certificate enrolment only (40)
     const tests = [
-      { type: 'refresher_training', count: 10 },
       { type: 'certificate_enrolment', count: 40 }
     ];
 
@@ -383,9 +382,8 @@ async function createTrainingTests(db, trainingId, trainingType, deviceModelId) 
         }
       }
     } else if (trainingType === 'refresher_training') {
-      // Refresher training: refresher test (10) + certificate enrolment (40)
+      // Refresher training: certificate enrolment only (40)
       const tests = [
-        { type: 'refresher_training', count: 10 },
         { type: 'certificate_enrolment', count: 40 }
       ];
 
@@ -2528,7 +2526,7 @@ router.post('/:id/release-scores', async (req, res) => {
          FROM test_attempts
          WHERE enrollment_id IN (${placeholders})
            AND status = "completed"
-           AND test_type IN ('refresher_training', 'certificate_enrolment')
+           AND test_type = 'certificate_enrolment'
          GROUP BY enrollment_id, test_type`,
         enrollment_ids
       );
@@ -2541,20 +2539,20 @@ router.post('/:id/release-scores', async (req, res) => {
 
       eligibleEnrollmentIds = enrollment_ids.filter(id => {
         const entry = scoresByEnrollment[id] || {};
-        return (entry.refresher_training || 0) >= 80 && (entry.certificate_enrolment || 0) >= 80;
+        return (entry.certificate_enrolment || 0) >= 80;
       });
 
       if (eligibleEnrollmentIds.length === 0) {
         return res.status(400).json({
           success: false,
-          error: 'Scores can be released only after both Refresher Training Test and Certificate Enrolment Test are Outstanding (80%+).'
+          error: 'Scores can be released only after the Certificate Enrolment Test is Outstanding (80%+).'
         });
       }
 
       if (eligibleEnrollmentIds.length !== enrollment_ids.length) {
         return res.status(400).json({
           success: false,
-          error: 'Some trainees have not passed both Refresher Training and Certificate Enrolment tests yet.'
+          error: 'Some trainees have not passed the Certificate Enrolment Test yet.'
         });
       }
     }

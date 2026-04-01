@@ -9,6 +9,34 @@ const requireStaff = (req, res) => {
   return true;
 };
 
+function normalizeTimeInput(time) {
+  if (!time) return null;
+  const value = String(time).trim();
+  if (!value || value === 'null' || value === 'undefined') return null;
+  if (/^\d{1,2}:\d{2}:\d{2}$/.test(value)) return value.substring(0, 5);
+  if (/^\d{1,2}:\d{2}$/.test(value)) return value;
+  return null;
+}
+
+function calculateDurationHours(startTime, endTime) {
+  const start = normalizeTimeInput(startTime);
+  const end = normalizeTimeInput(endTime);
+  if (!start || !end) return null;
+
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  if ([sh, sm, eh, em].some(n => Number.isNaN(n))) return null;
+
+  let startMinutes = (sh * 60) + sm;
+  let endMinutes = (eh * 60) + em;
+  if (endMinutes < startMinutes) {
+    endMinutes += 24 * 60; // allow overnight sessions
+  }
+
+  const durationHours = (endMinutes - startMinutes) / 60;
+  return Math.round(durationHours * 100) / 100;
+}
+
 // View attendance for a training
 router.get('/training/:trainingId', async (req, res) => {
   try {
@@ -146,11 +174,15 @@ router.post('/mark-bulk', async (req, res) => {
     await connection.beginTransaction();
     
     try {
-      // Get the date, time, and duration from the first record (all should be the same)
+      // Get the date, start time, and end time from the first record (all should be the same)
       const firstRecord = records[0];
       const date = firstRecord.date;
-      const time = firstRecord.time || null;
-      const duration = firstRecord.duration ? parseFloat(firstRecord.duration) : null;
+      const time = normalizeTimeInput(firstRecord.time);
+      const endTime = normalizeTimeInput(firstRecord.end_time);
+      const duration = calculateDurationHours(time, endTime);
+      if (!time || !endTime || duration === null || duration <= 0) {
+        throw new Error('Valid start time and end time are required, and end time must be after start time');
+      }
       
       // Extract date only (YYYY-MM-DD format)
       let dateOnly = date;
@@ -159,16 +191,7 @@ router.post('/mark-bulk', async (req, res) => {
       }
       
       // Convert time format if needed (HH:mm to TIME format)
-      let timeValue = null;
-      if (time) {
-        // If time is in HH:mm format, use it directly
-        if (time.match(/^\d{1,2}:\d{2}$/)) {
-          timeValue = time;
-        } else {
-          // Try to parse other formats
-          timeValue = time;
-        }
-      }
+      const timeValue = time;
       
       for (const record of records) {
         const { enrollment_id, status, notes } = record;
@@ -209,6 +232,7 @@ router.get('/sessions/:trainingId', async (req, res) => {
       SELECT DISTINCT 
         DATE_FORMAT(a.date, '%Y-%m-%d') as date,
         TIME_FORMAT(a.time, '%H:%i:%s') as time,
+        TIME_FORMAT(ADDTIME(a.time, SEC_TO_TIME(ROUND(a.duration * 3600))), '%H:%i:%s') as end_time,
         a.duration,
         CONCAT(DATE_FORMAT(a.date, '%Y-%m-%d'), '_', COALESCE(TIME_FORMAT(a.time, '%H:%i:%s'), '')) as id
       FROM attendance a
@@ -222,6 +246,7 @@ router.get('/sessions/:trainingId', async (req, res) => {
       ...session,
       date: session.date ? session.date.toString().split('T')[0] : null, // Ensure YYYY-MM-DD format
       time: session.time ? session.time.toString() : null,
+      end_time: session.end_time ? session.end_time.toString() : null,
       duration: session.duration ? parseFloat(session.duration) : null
     }));
     
@@ -276,27 +301,20 @@ router.post('/update-bulk', async (req, res) => {
     await connection.beginTransaction();
     
     try {
-      // Get time and duration from the first record (all should be the same for a session)
+      // Get start/end time from the first record (all should be the same for a session)
       const firstRecord = records[0];
-      let time = firstRecord.time || null;
-      const duration = firstRecord.duration ? parseFloat(firstRecord.duration) : null;
-      
-      // Convert time format if needed
-      let timeValue = null;
-      if (time && time.trim() !== '' && time !== 'null' && time !== 'undefined') {
-        // Remove seconds if present (HH:mm:ss -> HH:mm)
-        if (time.split(':').length === 3) {
-          timeValue = time.substring(0, 5);
-        } else if (time.match(/^\d{1,2}:\d{2}$/)) {
-          timeValue = time;
-        } else {
-          // Try to parse and format the time
-          timeValue = time.trim();
-        }
+      const time = normalizeTimeInput(firstRecord.time);
+      const endTime = normalizeTimeInput(firstRecord.end_time);
+      const duration = calculateDurationHours(time, endTime);
+      if (!time || !endTime || duration === null || duration <= 0) {
+        throw new Error('Valid start time and end time are required, and end time must be after start time');
       }
       
+      // Convert time format if needed
+      const timeValue = time;
+      
       // Log for debugging
-      console.log('Update attendance - Time received:', time, 'Formatted:', timeValue);
+      console.log('Update attendance - Time received:', time, 'End time received:', endTime, 'Formatted:', timeValue);
       
       // Extract date only
       let dateOnly = date;

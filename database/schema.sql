@@ -174,7 +174,7 @@ CREATE TABLE questions (
   option_c VARCHAR(500) NULL,
   option_d VARCHAR(500) NULL,
   correct_answer ENUM('A', 'B', 'C', 'D') NOT NULL,
-  test_type ENUM('pre_test', 'post_test', 'refresher_training', 'certificate_enrolment') NOT NULL,
+  test_type ENUM('pre_test', 'post_test', 'certificate_enrolment') NOT NULL,
   device_model_id INT NOT NULL,
   objective_id INT,
   training_id INT,
@@ -266,7 +266,7 @@ CREATE TABLE objective_scores (
   UNIQUE KEY unique_objective_score (enrollment_id, objective_id, test_type)
 );
 
--- Training tests (pre/post/certificate/refresher definitions per training)
+-- Training tests (main: pre/post/certificate, refresher: certificate only)
 CREATE TABLE training_tests (
   id INT AUTO_INCREMENT PRIMARY KEY,
   training_id INT NOT NULL,

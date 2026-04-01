@@ -158,13 +158,10 @@ async function calculateFinalGrades(db, enrollmentId) {
     let trainingGrade = null; // Overall grade (60% hands-on + 40% certificate enrolment)
     let endorsementGrade = null; // From certificate_enrolment
     let certificateScore = null;
-    let refresherScore = null;
     
     for (const attempt of testAttempts) {
       const scoreValue = attempt.max_score !== null ? attempt.max_score : null;
-      if (attempt.test_type === 'refresher_training') {
-        refresherScore = scoreValue;
-      } else if (attempt.test_type === 'certificate_enrolment') {
+      if (attempt.test_type === 'certificate_enrolment') {
         certificateScore = scoreValue;
         endorsementGrade = scoreValue;
       }
@@ -197,8 +194,8 @@ async function calculateFinalGrades(db, enrollmentId) {
       if (handsOnGrade !== null && certificateScore !== null) {
         trainingGrade = (handsOnGrade * 0.6) + (certificateScore * 0.4);
       }
-    } else if (refresherScore !== null) {
-      trainingGrade = refresherScore;
+    } else if (certificateScore !== null) {
+      trainingGrade = certificateScore;
     }
     
     // Insert or update final grades

@@ -163,21 +163,21 @@
         </div>
       <% } else { %>
         <div class="attendance-form-container">
-          <form id="add-attendance-form" class="attendance-form">
+          <form id="add-attendance-form" class="attendance-form" autocomplete="off">
             <div class="form-row">
               <div class="form-group form-group-inline">
                 <label for="attendance-date">Date <span class="required">*</span></label>
-                <input type="text" id="attendance-date" name="date" class="form-input date-picker" required>
+                <input type="text" id="attendance-date" name="date" class="form-input date-picker" required autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
               </div>
               
               <div class="form-group form-group-inline">
                 <label for="attendance-time">Time <span class="required">*</span></label>
-                <input type="text" id="attendance-time" name="time" class="form-input time-picker" required>
+                <input type="text" id="attendance-time" name="time" class="form-input time-picker" required autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
               </div>
               
               <div class="form-group form-group-inline">
-                <label for="attendance-duration">Duration (hours) <span class="required">*</span></label>
-                <input type="number" id="attendance-duration" name="duration" class="form-input" step="0.5" min="0.5" max="24" required placeholder="e.g., 2.5">
+                <label for="attendance-end-time">End Time <span class="required">*</span></label>
+                <input type="text" id="attendance-end-time" name="end_time" class="form-input time-picker" required autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
               </div>
             </div>
 
@@ -248,7 +248,7 @@
         </div>
 
         <div id="update-attendance-form-container" style="display: none;">
-          <form id="update-attendance-form" class="attendance-form">
+          <form id="update-attendance-form" class="attendance-form" autocomplete="off">
             <input type="hidden" id="update-attendance-id" name="attendance_id">
             <input type="hidden" id="update-attendance-date" name="date">
             <input type="hidden" id="update-attendance-time" name="time">
@@ -261,12 +261,12 @@
               
               <div class="form-group form-group-inline">
                 <label for="update-time">Time <span class="required">*</span></label>
-                <input type="text" id="update-time" name="time" class="form-input time-picker" required>
+                <input type="text" id="update-time" name="time" class="form-input time-picker" required autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
               </div>
               
               <div class="form-group form-group-inline">
-                <label for="update-duration">Duration (hours) <span class="required">*</span></label>
-                <input type="number" id="update-duration" name="duration" class="form-input" step="0.5" min="0.5" max="24" required>
+                <label for="update-end-time">End Time <span class="required">*</span></label>
+                <input type="text" id="update-end-time" name="end_time" class="form-input time-picker" required autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
               </div>
             </div>
 
@@ -1355,6 +1355,18 @@
           minuteIncrement: 1
         });
       }
+
+      const endTimeInput = document.getElementById('attendance-end-time');
+      if (endTimeInput && !endTimeInput._flatpickr) {
+        flatpickr(endTimeInput, {
+          enableTime: true,
+          noCalendar: true,
+          dateFormat: 'H:i',
+          time_24hr: false,
+          allowInput: true,
+          minuteIncrement: 1
+        });
+      }
     }
 
     function initializeUpdatePickers() {
@@ -1369,6 +1381,42 @@
           minuteIncrement: 1
         });
       }
+
+      const endTimeInput = document.getElementById('update-end-time');
+      if (endTimeInput && !endTimeInput._flatpickr) {
+        flatpickr(endTimeInput, {
+          enableTime: true,
+          noCalendar: true,
+          dateFormat: 'H:i',
+          time_24hr: false,
+          allowInput: true,
+          minuteIncrement: 1
+        });
+      }
+    }
+
+    function getTimeFromInput(inputId, fallbackValue) {
+      let value = fallbackValue;
+      const input = document.getElementById(inputId);
+
+      if (input && input._flatpickr) {
+        const selectedDate = input._flatpickr.selectedDates[0];
+        if (selectedDate) {
+          const hours = String(selectedDate.getHours()).padStart(2, '0');
+          const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
+          value = `${hours}:${minutes}`;
+        } else {
+          value = input.value || value;
+        }
+      } else {
+        value = input ? (input.value || value) : value;
+      }
+
+      if (value && value.split(':').length === 3) {
+        value = value.substring(0, 5);
+      }
+
+      return value;
     }
 
     // Handle add attendance form submission
@@ -1461,8 +1509,17 @@
           
           const formData = new FormData(addForm);
           const date = formData.get('date');
-          const time = formData.get('time');
-          const duration = parseFloat(formData.get('duration'));
+          const time = getTimeFromInput('attendance-time', formData.get('time'));
+          const endTime = getTimeFromInput('attendance-end-time', formData.get('end_time'));
+
+          if (!time || !time.match(/^\d{1,2}:\d{2}$/)) {
+            qssShowWarning('Please enter a valid start time');
+            return;
+          }
+          if (!endTime || !endTime.match(/^\d{1,2}:\d{2}$/)) {
+            qssShowWarning('Please enter a valid end time');
+            return;
+          }
           
           // Collect attendance for all trainees
           const attendanceRecords = [];
@@ -1479,7 +1536,7 @@
               enrollment_id: enrollmentId,
               date: date,
               time: time,
-              duration: duration,
+              end_time: endTime,
               status: status,
               notes: notes
             });
@@ -1540,40 +1597,17 @@
           const formData = new FormData(updateForm);
           const attendanceId = formData.get('attendance_id');
           const date = formData.get('date');
-          
-          // Get time from flatpickr instance if available, otherwise from form input value
-          let time = formData.get('time');
-          const timeInput = document.getElementById('update-time');
-          
-          // Try to get time from flatpickr first
-          if (timeInput && timeInput._flatpickr) {
-            const selectedDate = timeInput._flatpickr.selectedDates[0];
-            if (selectedDate) {
-              // Format as HH:mm (24-hour format)
-              const hours = String(selectedDate.getHours()).padStart(2, '0');
-              const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
-              time = `${hours}:${minutes}`;
-            } else {
-              // If no selected date, use the input value directly
-              time = timeInput.value || time;
-            }
-          } else {
-            // Fallback to input value if flatpickr not initialized
-            time = timeInput ? (timeInput.value || time) : time;
-          }
-          
-          // Ensure time is in HH:mm format (remove seconds if present)
-          if (time && time.split(':').length === 3) {
-            time = time.substring(0, 5);
-          }
-          
-          // Validate time format
+          const time = getTimeFromInput('update-time', formData.get('time'));
+          const endTime = getTimeFromInput('update-end-time', formData.get('end_time'));
+
           if (!time || !time.match(/^\d{1,2}:\d{2}$/)) {
-            qssShowWarning('Please enter a valid time');
+            qssShowWarning('Please enter a valid start time');
             return;
           }
-          
-          const duration = parseFloat(formData.get('duration'));
+          if (!endTime || !endTime.match(/^\d{1,2}:\d{2}$/)) {
+            qssShowWarning('Please enter a valid end time');
+            return;
+          }
           
           // Collect updated attendance for all trainees
           const attendanceRecords = [];
@@ -1590,7 +1624,7 @@
               enrollment_id: enrollmentId,
               date: date,
               time: time,
-              duration: duration,
+              end_time: endTime,
               status: status,
               notes: notes
             });
@@ -1697,19 +1731,25 @@
               formattedTime = `${hour12}:${minutes} ${ampm}`;
             }
             
-            // Format duration nicely - remove trailing zeros
-            let formattedDuration = 'N/A';
-            if (session.duration) {
-              const duration = parseFloat(session.duration);
-              const durationRounded = Math.round(duration * 100) / 100; // Round to 2 decimal places
-              formattedDuration = `${durationRounded} ${durationRounded == 1 ? 'hour' : 'hours'}`;
+            // Format end time nicely - handle both HH:mm and HH:mm:ss formats
+            let formattedEndTime = 'N/A';
+            if (session.end_time) {
+              let endTimeStr = session.end_time;
+              if (endTimeStr.split(':').length === 3) {
+                endTimeStr = endTimeStr.substring(0, 5);
+              }
+              const [endHours, endMinutes] = endTimeStr.split(':');
+              const endHour24 = parseInt(endHours);
+              const endHour12 = endHour24 % 12 || 12;
+              const endAmpm = endHour24 >= 12 ? 'PM' : 'AM';
+              formattedEndTime = `${endHour12}:${endMinutes} ${endAmpm}`;
             }
             
             option.value = session.id;
-            option.textContent = `${formattedDate} • ${formattedTime} • ${formattedDuration}`;
+            option.textContent = `${formattedDate} • ${formattedTime} - ${formattedEndTime}`;
             option.dataset.date = dateStr; // Store clean date string
             option.dataset.time = session.time || '';
-            option.dataset.duration = session.duration || '';
+            option.dataset.endTime = session.end_time || '';
             select.appendChild(option);
           });
         }
@@ -1754,7 +1794,7 @@
       
       const date = selectedOption.dataset.date;
       const time = selectedOption.dataset.time;
-      const duration = selectedOption.dataset.duration;
+      const endTime = selectedOption.dataset.endTime;
       
       try {
         const response = await fetch(`/attendance/session-details/${trainingId}?date=${date}`);
@@ -1803,12 +1843,23 @@
         }
       }
       
-      // Clean duration - remove unnecessary decimals
-      let cleanDuration = duration;
-      if (duration) {
-        cleanDuration = parseFloat(duration);
+      // Clean end time - remove seconds if present (HH:mm:ss -> HH:mm)
+      let cleanEndTime = endTime;
+      if (endTime && endTime.split(':').length === 3) {
+        cleanEndTime = endTime.substring(0, 5);
       }
-      document.getElementById('update-duration').value = cleanDuration || '';
+
+      // Set end time and update flatpickr if it exists
+      const endTimeInput = document.getElementById('update-end-time');
+      if (endTimeInput) {
+        endTimeInput.value = cleanEndTime || '';
+        if (endTimeInput._flatpickr && cleanEndTime) {
+          const [hours, minutes] = cleanEndTime.split(':');
+          const today = new Date();
+          today.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+          endTimeInput._flatpickr.setDate(today, false);
+        }
+      }
       
         // Populate trainees list
         const traineesList = document.getElementById('update-trainees-list');

@@ -922,7 +922,6 @@
                     <option value="">Select test type</option>
                     <option value="pre_test">Pre-Test</option>
                     <option value="post_test">Post-Test</option>
-                    <option value="refresher_training">Refresher Training Test</option>
                     <option value="certificate_enrolment">Certificate Enrolment Test</option>
                   </select>
                 </div>
@@ -1336,8 +1335,8 @@
             continue;
           }
           
-          if (!testType || !['pre_test', 'post_test', 'refresher_training', 'certificate_enrolment'].includes(testType)) {
-            errors.push(`Row ${rowNum}: Test Type must be one of: pre_test, post_test, refresher_training, certificate_enrolment`);
+          if (!testType || !['pre_test', 'post_test', 'certificate_enrolment'].includes(testType)) {
+            errors.push(`Row ${rowNum}: Test Type must be one of: pre_test, post_test, certificate_enrolment`);
             continue;
           }
           
@@ -1579,7 +1578,6 @@
       items: [
         { label: 'Pre-Test',              value: 'pre_test' },
         { label: 'Post-Test',             value: 'post_test' },
-        { label: 'Refresher Training Test',      value: 'refresher_training' },
         { label: 'Certificate Enrolment Test', value: 'certificate_enrolment' }
       ],
       placeholder: 'Select test type',
@@ -1678,7 +1676,7 @@
               <div><span class="column-tag">Column B</span></div>
               <div>
                 <div class="column-field">Test Type</div>
-                <div class="column-notes">Use: pre_test, post_test, refresher_training, or certificate_enrolment.</div>
+                <div class="column-notes">Use: pre_test, post_test, or certificate_enrolment.</div>
               </div>
               <div><span class="pill pill-required">Required</span></div>
             </div>
@@ -1758,7 +1756,7 @@
           </div>
           <div class="rule-card">
             <span class="rule-icon do"><i class="fas fa-check"></i></span>
-            <div class="rule-text">Use exact test type values: <strong>pre_test</strong>, <strong>post_test</strong>, <strong>refresher_training</strong>, or <strong>certificate_enrolment</strong>.</div>
+            <div class="rule-text">Use exact test type values: <strong>pre_test</strong>, <strong>post_test</strong>, or <strong>certificate_enrolment</strong>.</div>
           </div>
           <div class="rule-card">
             <span class="rule-icon do"><i class="fas fa-check"></i></span>
@@ -1820,7 +1818,7 @@
           </div>
           <div class="rule-card">
             <span class="rule-icon dont"><i class="fas fa-times"></i></span>
-            <div class="rule-text">Don't use invalid test types (must be exactly: pre_test, post_test, refresher_training, or certificate_enrolment).</div>
+            <div class="rule-text">Don't use invalid test types (must be exactly: pre_test, post_test, or certificate_enrolment).</div>
           </div>
           <div class="rule-card">
             <span class="rule-icon dont"><i class="fas fa-times"></i></span>

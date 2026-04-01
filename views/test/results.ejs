@@ -5,6 +5,58 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Test Results - LMS</title>
   <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    .results-scorebox-main-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      width: max-content;
+      margin: 0 auto;
+    }
+    .results-scorebox-main-row .results-scorebox-sticker {
+      position: absolute;
+      width: 210px;
+      height: 210px;
+      right: calc(100% - 10px);
+      top: -34px;
+      transform: rotate(-12deg);
+      z-index: 2;
+      filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.18));
+    }
+    .results-scorebox-main-row .results-scorebox-sticker img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .results-scorebox-main-row .results-scorebox-score {
+      position: relative;
+      z-index: 1;
+    }
+    .results-scorebox-cert {
+      margin: 0.75rem 0 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1a5d1a;
+      text-align: center;
+    }
+    @media (max-width: 640px) {
+      .results-scorebox-main-row .results-scorebox-sticker {
+        width: 160px;
+        height: 160px;
+        right: calc(100% - 6px);
+        top: -20px;
+      }
+    }
+    #celebration-confetti-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 9998;
+    }
+  </style>
 </head>
 <body class="has-sidebar">
   <%- include('../partials/sidebar', { user }) %>
@@ -36,10 +88,18 @@
             ? '/images/Test%20Stickers/good%20mark.webp'
             : '/images/Test%20Stickers/bad%20mark.webp';
           const stickerLabel = passState === 'passed' ? 'Passed Sticker' : 'Failed Sticker';
+          const isCertificatePass = user.userRole === 'trainee' && attempt.test_type === 'certificate_enrolment' && passState === 'passed';
         %>
         <div class="results-scorebox results-scorebox--<%= passState %>">
           <div class="results-scorebox-main">
-            <div class="results-scorebox-score"><%= attempt.score.toFixed(1) %>%</div>
+            <div class="results-scorebox-main-row">
+              <% if (isCertificatePass) { %>
+                <div class="results-scorebox-sticker results-scorebox-sticker--passed" aria-hidden="true">
+                  <img src="/images/Test%20Stickers/good%20mark.webp" alt="Passed Sticker">
+                </div>
+              <% } %>
+              <div class="results-scorebox-score"><%= attempt.score.toFixed(1) %>%</div>
+            </div>
             <div class="results-scorebox-status">
               <% if (typeof passed !== 'undefined' && passed) { %>
                 <i class="fas fa-check-circle"></i> Outstanding
@@ -47,6 +107,9 @@
                 <i class="fas fa-times-circle"></i> Not Passed
               <% } %>
             </div>
+            <% if (isCertificatePass) { %>
+              <p class="results-scorebox-cert">Congrats you are now a certified K-Laser therapist</p>
+            <% } %>
           </div>
           <div class="results-scorebox-details">
             <div class="results-scorebox-detail">
@@ -58,9 +121,11 @@
               <span class="results-summary-value"><%= ((correctCount / attempt.total_questions) * 100).toFixed(1) %>%</span>
             </div>
           </div>
-          <div class="results-scorebox-sticker results-scorebox-sticker--<%= passState %>" aria-hidden="true">
-            <img src="<%= stickerImage %>" alt="<%= stickerLabel %>">
-          </div>
+          <% if (!isCertificatePass) { %>
+            <div class="results-scorebox-sticker results-scorebox-sticker--<%= passState %>" aria-hidden="true">
+              <img src="<%= stickerImage %>" alt="<%= stickerLabel %>">
+            </div>
+          <% } %>
           <% if (typeof canRetake !== 'undefined' && canRetake) { %>
             <div class="results-scorebox-actions">
               <a href="/tests/start/<%= enrollmentId %>/<%= testType %>" class="btn btn-primary">
@@ -69,12 +134,15 @@
             </div>
           <% } else if (typeof maxAttemptsReached !== 'undefined' && maxAttemptsReached) { %>
             <div class="results-scorebox-actions">
-              <p style="margin: 0; color: #C5221F; font-weight: 500;">
-                Maximum attempts reached (<%= failedAttempts %>/<%= maxFailedAttempts %>). You cannot retake this test part anymore.
+              <p style="margin: 0; color: #C5221F; font-weight: 500; text-align: center;">
+                Maximum attempts reached (<%= failedAttempts %>/<%= maxFailedAttempts %>). Please refer to your trainer for further guidance.
               </p>
             </div>
           <% } %>
         </div>
+        <% if (isCertificatePass) { %>
+          <canvas id="celebration-confetti-canvas" aria-hidden="true"></canvas>
+        <% } %>
       </div>
       
       <div class="results-review-card">
@@ -147,5 +215,65 @@
       </div>
     </div>
   </main>
+  <% if (user.userRole === 'trainee' && attempt.test_type === 'certificate_enrolment' && typeof passed !== 'undefined' && passed) { %>
+    <script>
+      (function () {
+        const canvas = document.getElementById('celebration-confetti-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const DPR = Math.max(1, window.devicePixelRatio || 1);
+
+        function resize() {
+          canvas.width = Math.floor(window.innerWidth * DPR);
+          canvas.height = Math.floor(window.innerHeight * DPR);
+          canvas.style.width = window.innerWidth + 'px';
+          canvas.style.height = window.innerHeight + 'px';
+          ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        const colors = ['#fbbc04', '#34a853', '#4285f4', '#ea4335', '#ff7f50'];
+        const particles = Array.from({ length: 180 }, () => ({
+          x: Math.random() * window.innerWidth,
+          y: -20 - Math.random() * window.innerHeight,
+          r: 4 + Math.random() * 6,
+          c: colors[Math.floor(Math.random() * colors.length)],
+          vy: 1.5 + Math.random() * 3.5,
+          vx: -1 + Math.random() * 2,
+          rot: Math.random() * Math.PI,
+          vr: (Math.random() - 0.5) * 0.2
+        }));
+
+        let start = performance.now();
+        function frame(t) {
+          const elapsed = t - start;
+          ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+          particles.forEach(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.rot += p.vr;
+            if (p.y > window.innerHeight + 20) {
+              p.y = -20;
+              p.x = Math.random() * window.innerWidth;
+            }
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            ctx.fillStyle = p.c;
+            ctx.fillRect(-p.r / 2, -p.r / 2, p.r, p.r);
+            ctx.restore();
+          });
+          if (elapsed < 5000) {
+            requestAnimationFrame(frame);
+          } else {
+            ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+            canvas.remove();
+          }
+        }
+        requestAnimationFrame(frame);
+      })();
+    </script>
+  <% } %>
 </body>
 </html>

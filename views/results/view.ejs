@@ -5,6 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Results - LMS</title>
   <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    .celebration-banner {
+      margin: 1rem 0 0;
+      padding: 1.5rem;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #fff8e6 0%, #f6ffed 100%);
+      border: 2px solid #fbbc04;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .celebration-banner img {
+      width: min(340px, 90%);
+      height: auto;
+      display: block;
+      margin: 0 auto 1rem;
+    }
+    .celebration-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1a5d1a;
+      margin: 0;
+    }
+    #celebration-confetti-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 9998;
+    }
+  </style>
 </head>
 <body class="has-sidebar">
   <%- include('../partials/sidebar', { user }) %>
@@ -35,6 +67,17 @@
           Trainee: <%= enrollment.first_name %> <%= enrollment.last_name %> (<%= enrollment.trainee_id %>)
         </p>
       </div>
+      <%
+        const bestCertificate = getBestTest(tests, 'certificate_enrolment');
+        const showCertificationCelebration = user.userRole === 'trainee' && !!(bestCertificate && (parseFloat(bestCertificate.score) || 0) >= 80);
+      %>
+      <% if (showCertificationCelebration) { %>
+        <div class="celebration-banner">
+          <img src="/images/Test%20Stickers/good%20mark.webp" alt="Certificate pass">
+          <p class="celebration-title">Congrats you are now a certified K-Laser therapist</p>
+        </div>
+        <canvas id="celebration-confetti-canvas" aria-hidden="true"></canvas>
+      <% } %>
       
       <!-- Test Results -->
       <div class="dashboard-section">
@@ -310,6 +353,66 @@
       }
     }
   </script>
+  <% if (user.userRole === 'trainee' && tests && tests.some(t => t.test_type === 'certificate_enrolment' && (parseFloat(t.score) || 0) >= 80)) { %>
+    <script>
+      (function () {
+        const canvas = document.getElementById('celebration-confetti-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const DPR = Math.max(1, window.devicePixelRatio || 1);
+
+        function resize() {
+          canvas.width = Math.floor(window.innerWidth * DPR);
+          canvas.height = Math.floor(window.innerHeight * DPR);
+          canvas.style.width = window.innerWidth + 'px';
+          canvas.style.height = window.innerHeight + 'px';
+          ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        const colors = ['#fbbc04', '#34a853', '#4285f4', '#ea4335', '#ff7f50'];
+        const particles = Array.from({ length: 180 }, () => ({
+          x: Math.random() * window.innerWidth,
+          y: -20 - Math.random() * window.innerHeight,
+          r: 4 + Math.random() * 6,
+          c: colors[Math.floor(Math.random() * colors.length)],
+          vy: 1.5 + Math.random() * 3.5,
+          vx: -1 + Math.random() * 2,
+          rot: Math.random() * Math.PI,
+          vr: (Math.random() - 0.5) * 0.2
+        }));
+
+        let start = performance.now();
+        function frame(t) {
+          const elapsed = t - start;
+          ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+          particles.forEach(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.rot += p.vr;
+            if (p.y > window.innerHeight + 20) {
+              p.y = -20;
+              p.x = Math.random() * window.innerWidth;
+            }
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            ctx.fillStyle = p.c;
+            ctx.fillRect(-p.r / 2, -p.r / 2, p.r, p.r);
+            ctx.restore();
+          });
+          if (elapsed < 5000) {
+            requestAnimationFrame(frame);
+          } else {
+            ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+            canvas.remove();
+          }
+        }
+        requestAnimationFrame(frame);
+      })();
+    </script>
+  <% } %>
   <script src="/js/main.js"></script>
 </body>
 </html>
