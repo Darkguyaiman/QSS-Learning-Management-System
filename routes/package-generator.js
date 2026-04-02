@@ -482,7 +482,7 @@ function buildLetterHtml({ training, company, formData, attendanceSessionCount, 
       <div><strong>Date and Time:</strong> ${escapeHtml(trainingPeriodText(training))}</div>
       <div><strong>Device Model:</strong> ${escapeHtml(formData.deviceModel)}</div>
       <div><strong>Training Type:</strong> ${escapeHtml(trainingTypeLabel)}</div>
-      <div><strong>Group Report:</strong> please refer to Attachment 1</div>
+      <div><strong>Group Report:</strong> please refer to Group Report.pdf</div>
     </div>
     <div style="margin:14px 0;">
       <div style="font-weight:700;margin:0 0 6px 0;">Trained Staff Listing</div>
@@ -962,7 +962,7 @@ async function generatePackageZipBuffer({ db, training, formData, generatedByNam
   zip.file('In House Training Letter.pdf', letterBuffer);
 
   const groupHtml = buildGroupHtml({ training, company, attendanceRows, marksByTraineeId, objectives, handsOnAspects });
-  zip.file('Attachment 1.pdf', await htmlToPdfBuffer(groupHtml, 'landscape'));
+  zip.file('Group Report.pdf', await htmlToPdfBuffer(groupHtml, 'landscape'));
 
   const individualFolder = zip.folder('Individual Reports');
   for (const row of attendanceRows) {
