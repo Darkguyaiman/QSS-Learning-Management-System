@@ -402,6 +402,25 @@ CREATE TABLE training_trainers (
   UNIQUE KEY unique_training_trainer (training_id, trainer_id)
 );
 
+-- Background package generation jobs
+CREATE TABLE package_generation_jobs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  training_id INT NOT NULL,
+  created_by INT NOT NULL,
+  status ENUM('queued', 'processing', 'completed', 'failed') NOT NULL DEFAULT 'queued',
+  form_data_json LONGTEXT NOT NULL,
+  generated_by_name VARCHAR(255) NOT NULL DEFAULT '',
+  generated_by_position VARCHAR(255) NOT NULL DEFAULT '',
+  output_path VARCHAR(1024) NULL,
+  output_filename VARCHAR(255) NULL,
+  error_message TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  started_at DATETIME NULL,
+  completed_at DATETIME NULL,
+  FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- Indexes for better performance
 CREATE INDEX idx_user_role ON users(role);
 CREATE INDEX idx_training_type ON trainings(type);
@@ -413,3 +432,5 @@ CREATE INDEX idx_questions_training ON questions(training_id);
 CREATE INDEX idx_device_model ON device_serial_numbers(device_model_id);
 CREATE INDEX idx_questions_device_model ON questions(device_model_id);
 CREATE INDEX idx_trainings_device_model ON trainings(device_model_id);
+CREATE INDEX idx_package_generation_jobs_status ON package_generation_jobs(status, created_at);
+CREATE INDEX idx_package_generation_jobs_lookup ON package_generation_jobs(created_by, training_id, status, created_at);

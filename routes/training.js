@@ -5,6 +5,7 @@ const router = express.Router();
 const fs = require('fs');
 const sharp = require('sharp');
 const packageGenerator = require('./package-generator');
+const packageJobQueue = require('./package-job-queue');
 
 const TEST_TYPE_LABELS = {
   pre_test: 'Pre-Test',
@@ -3517,8 +3518,8 @@ router.post('/:id/enrollment/:enrollmentId/hands-on/save', async (req, res) => {
   }
 });
 
-// Generate full backend package zip (admin/trainer only)
-router.post('/:id/package/zip', async (req, res) => {
+// Queue package generation job (admin/trainer only)
+router.post('/:id/package/jobs', async (req, res) => {
   if (!['admin', 'trainer'].includes(req.session.userRole)) {
     return res.status(403).json({ success: false, error: 'Access denied' });
   }
@@ -3529,49 +3530,103 @@ router.post('/:id/package/zip', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid training id' });
     }
 
-    const [trainings] = await req.db.query(
-      'SELECT id, type, title, status, start_datetime, end_datetime, affiliated_company FROM trainings WHERE id = ? LIMIT 1',
-      [trainingId]
-    );
-    if (!trainings || trainings.length === 0) {
-      return res.status(404).json({ success: false, error: 'Training not found' });
-    }
-
-    const training = trainings[0];
-    if (training.status !== 'completed') {
-      return res.status(400).json({ success: false, error: 'Package is only available after training is locked.' });
-    }
-
-    const formDataRaw = req.body?.formData || {};
-    const formData = {
-      hospitalName: String(formDataRaw.hospitalName || '').trim(),
-      deviceModel: String(formDataRaw.deviceModel || '').trim(),
-      address: String(formDataRaw.address || '').trim(),
-      recipientName: String(formDataRaw.recipientName || '').trim(),
-      recipientPhone: String(formDataRaw.recipientPhone || '').trim()
-    };
-    if (!formData.hospitalName || !formData.deviceModel || !formData.address || !formData.recipientName || !formData.recipientPhone) {
-      return res.status(400).json({ success: false, error: 'Missing required form fields' });
-    }
-
-    const zipBuffer = await packageGenerator.generatePackageZipBuffer({
+    const job = await packageJobQueue.enqueuePackageJob({
       db: req.db,
-      training,
-      formData,
+      trainingId,
+      formData: req.body?.formData || {},
+      userId: req.session.userId,
       generatedByName: req.session.userName || '',
       generatedByPosition: req.session.userPosition || ''
     });
 
-    const packDateSource = String(training.start_datetime || training.end_datetime || new Date().toISOString().slice(0, 10)).split('T')[0].split(' ')[0];
-    const filename = `${packageGenerator.sanitizeFileName(training.title || 'Training')}_${packageGenerator.sanitizeFileName(packDateSource)}_Package.zip`;
-    res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    return res.send(zipBuffer);
+    return res.status(job.reused ? 200 : 202).json({
+      success: true,
+      jobId: job.jobId,
+      status: job.status
+    });
   } catch (error) {
-    console.error('Backend package generation error:', error);
+    console.error('Package job enqueue error:', error);
     const status = Number.isInteger(error?.statusCode) ? error.statusCode : 500;
-    const message = status === 500 ? 'Failed to generate package zip' : String(error.message || 'Package validation failed');
+    const message = status === 500 ? 'Failed to queue package generation' : String(error.message || 'Package validation failed');
     return res.status(status).json({ success: false, error: message });
+  }
+});
+
+// Package generation job status (admin/trainer only)
+router.get('/:id/package/jobs/:jobId', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+
+  try {
+    const trainingId = parseInt(req.params.id, 10);
+    const jobId = parseInt(req.params.jobId, 10);
+    if (!Number.isFinite(trainingId) || trainingId <= 0 || !Number.isFinite(jobId) || jobId <= 0) {
+      return res.status(400).json({ success: false, error: 'Invalid job request' });
+    }
+
+    const job = await packageJobQueue.getPackageJob({
+      db: req.db,
+      jobId,
+      trainingId,
+      userId: req.session.userId
+    });
+
+    if (!job) {
+      return res.status(404).json({ success: false, error: 'Package job not found' });
+    }
+
+    return res.json({
+      success: true,
+      jobId: job.id,
+      status: job.status,
+      error: job.status === 'failed' ? job.error_message : null,
+      downloadUrl: job.status === 'completed'
+        ? `/training/${encodeURIComponent(trainingId)}/package/jobs/${encodeURIComponent(job.id)}/download`
+        : null
+    });
+  } catch (error) {
+    console.error('Package job status error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to load package job status' });
+  }
+});
+
+// Download completed package generation job (admin/trainer only)
+router.get('/:id/package/jobs/:jobId/download', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+
+  try {
+    const trainingId = parseInt(req.params.id, 10);
+    const jobId = parseInt(req.params.jobId, 10);
+    if (!Number.isFinite(trainingId) || trainingId <= 0 || !Number.isFinite(jobId) || jobId <= 0) {
+      return res.status(400).json({ success: false, error: 'Invalid job request' });
+    }
+
+    const job = await packageJobQueue.getPackageJob({
+      db: req.db,
+      jobId,
+      trainingId,
+      userId: req.session.userId
+    });
+
+    if (!job) {
+      return res.status(404).json({ success: false, error: 'Package job not found' });
+    }
+    if (job.status !== 'completed') {
+      return res.status(409).json({ success: false, error: 'Package job is not ready yet' });
+    }
+    if (!job.output_path || !fs.existsSync(job.output_path)) {
+      return res.status(410).json({ success: false, error: 'Package file is no longer available' });
+    }
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${job.output_filename || 'training_package.zip'}"`);
+    return res.sendFile(path.resolve(job.output_path));
+  } catch (error) {
+    console.error('Package job download error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to download package zip' });
   }
 });
 

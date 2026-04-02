@@ -62,6 +62,7 @@
         <i class="fas fa-file-archive"></i> Generate ZIP Package
       </button>
     </div>
+    <p id="package-job-status" class="package-job-status" aria-live="polite"></p>
   </div>
 </div>
 
@@ -96,6 +97,12 @@
     margin-top: 1rem;
     display: flex;
     justify-content: flex-end;
+  }
+  .package-job-status {
+    margin: 0.75rem 0 0 0;
+    min-height: 1.2rem;
+    color: #475569;
+    font-size: 0.9rem;
   }
   @media (max-width: 768px) {
     .package-grid {
