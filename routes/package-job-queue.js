@@ -249,6 +249,37 @@ async function markJobFailed(db, jobId, error) {
   );
 }
 
+async function consumeCompletedJob({ db = pool, jobId, trainingId, userId }) {
+  await bootstrapQueue(db);
+
+  const job = await getPackageJob({ db, jobId, trainingId, userId });
+  if (!job) return null;
+
+  if (job.output_path) {
+    try {
+      await fs.promises.unlink(job.output_path);
+    } catch (error) {
+      if (error?.code !== 'ENOENT') {
+        console.error(`Failed to delete package output for job ${jobId}:`, error);
+      }
+    }
+
+    const outputDir = path.dirname(job.output_path);
+    try {
+      await fs.promises.rm(outputDir, { recursive: true, force: true });
+    } catch (error) {
+      console.error(`Failed to delete package job directory for job ${jobId}:`, error);
+    }
+  }
+
+  await db.query(
+    'DELETE FROM package_generation_jobs WHERE id = ? AND training_id = ? AND created_by = ?',
+    [jobId, trainingId, userId]
+  );
+
+  return true;
+}
+
 async function runWorker(db = pool) {
   await bootstrapQueue(db);
 
@@ -297,6 +328,7 @@ void schedulePackageJobs(pool);
 
 module.exports = {
   JOB_STATUS,
+  consumeCompletedJob,
   enqueuePackageJob,
   getPackageJob,
   normalizeFormData,

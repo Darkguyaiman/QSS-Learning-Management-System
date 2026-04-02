@@ -3623,7 +3623,25 @@ router.get('/:id/package/jobs/:jobId/download', async (req, res) => {
 
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${job.output_filename || 'training_package.zip'}"`);
-    return res.sendFile(path.resolve(job.output_path));
+    return res.sendFile(path.resolve(job.output_path), async (error) => {
+      if (error) {
+        if (!res.headersSent) {
+          res.status(error.statusCode || 500).json({ success: false, error: 'Failed to download package zip' });
+        }
+        return;
+      }
+
+      try {
+        await packageJobQueue.consumeCompletedJob({
+          db: req.db,
+          jobId,
+          trainingId,
+          userId: req.session.userId
+        });
+      } catch (cleanupError) {
+        console.error(`Package job cleanup error for job ${jobId}:`, cleanupError);
+      }
+    });
   } catch (error) {
     console.error('Package job download error:', error);
     return res.status(500).json({ success: false, error: 'Failed to download package zip' });
