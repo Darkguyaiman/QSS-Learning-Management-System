@@ -32,7 +32,7 @@
         <header class="attendance-report-letterhead">
           <div class="attendance-report-brand">
             <img id="attendance-report-brand-logo" src="<%= affiliatedBrand.logo %>" alt="<%= affiliatedBrand.name %>" class="attendance-report-logo">
-            <div>
+            <div class="attendance-report-brand-copy">
               <h3 id="attendance-report-brand-name"><%= affiliatedBrand.name %></h3>
               <p>Learning Management System</p>
             </div>
@@ -215,6 +215,13 @@
     gap: 0.85rem;
   }
 
+  .attendance-report-brand-copy {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 74px;
+  }
+
   .attendance-report-logo {
     width: 74px;
     height: 74px;
@@ -236,6 +243,7 @@
     margin: 0.2rem 0 0;
     color: #4b5563;
     font-size: 0.86rem;
+    line-height: 1.2;
   }
 
   .attendance-report-title-wrap {
@@ -752,12 +760,12 @@
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(14);
       doc.setTextColor(15, 23, 42);
-      doc.text(REPORT_COMPANY.name, margin + 82, y + 28);
+      doc.text(REPORT_COMPANY.name, margin + 82, y + 36);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
       doc.setTextColor(71, 85, 105);
-      doc.text('Learning Management System', margin + 82, y + 44);
+      doc.text('Learning Management System', margin + 82, y + 52);
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(16);
