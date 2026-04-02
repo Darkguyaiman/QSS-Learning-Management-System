@@ -64,6 +64,7 @@ CREATE TABLE objectives (
 CREATE TABLE healthcare (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(255) NOT NULL UNIQUE,
+  hospital_address TEXT,
   description TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -116,6 +117,7 @@ CREATE TABLE trainings (
   type ENUM('main', 'refresher_training') NOT NULL,
   device_model_id INT NOT NULL,
   created_by INT,
+  affiliated_company ENUM('QSS', 'PMS') NOT NULL DEFAULT 'QSS',
   status ENUM('in_progress', 'completed', 'canceled', 'rescheduled') DEFAULT 'in_progress',
   start_datetime DATETIME,
   end_datetime DATETIME,
@@ -355,7 +357,7 @@ CREATE TABLE certificate_issues (
   FOREIGN KEY (trainee_id) REFERENCES trainees(id) ON DELETE CASCADE
 );
 
--- Training Healthcare (many-to-many relationship)
+-- Training Healthcare (one healthcare per training)
 CREATE TABLE training_healthcare (
   id INT AUTO_INCREMENT PRIMARY KEY,
   training_id INT NOT NULL,
@@ -363,7 +365,7 @@ CREATE TABLE training_healthcare (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE CASCADE,
   FOREIGN KEY (healthcare_id) REFERENCES healthcare(id) ON DELETE CASCADE,
-  UNIQUE KEY unique_training_healthcare (training_id, healthcare_id)
+  UNIQUE KEY unique_training_healthcare_training (training_id)
 );
 
 -- Training Devices (many-to-many relationship)

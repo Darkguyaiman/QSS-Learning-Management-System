@@ -731,13 +731,24 @@
                       </td>
                     <% } else { %>
                       <td><strong><%= item[primaryField] %></strong></td>
-                      <td>
-                        <% if (item.description) { %>
-                          <%= item.description %>
-                        <% } else { %>
-                          <span style="color: var(--color-gray);">No description</span>
-                        <% } %>
-                      </td>
+                      <% if (typeof hasAddressField !== 'undefined' && hasAddressField) { %>
+                        <td>
+                          <% if (item.hospital_address) { %>
+                            <%= item.hospital_address %>
+                          <% } else { %>
+                            <span style="color: var(--color-gray);">No address</span>
+                          <% } %>
+                        </td>
+                      <% } %>
+                      <% if (typeof hasDescriptionField === 'undefined' || hasDescriptionField) { %>
+                        <td>
+                          <% if (item.description) { %>
+                            <%= item.description %>
+                          <% } else { %>
+                            <span style="color: var(--color-gray);">No description</span>
+                          <% } %>
+                        </td>
+                      <% } %>
                       <% if (typeof hasMaxScore !== 'undefined' && hasMaxScore) { %>
                         <td>
                           <%= item.max_score || 100 %>
@@ -792,16 +803,30 @@
                       </div>
                     </div>
                   <% } else { %>
-                    <div class="item-card-row">
-                      <div class="item-card-label">Description</div>
-                      <div class="item-card-value">
-                        <% if (item.description) { %>
-                          <%= item.description %>
-                        <% } else { %>
-                          <span style="color: var(--color-gray);">No description</span>
-                        <% } %>
+                    <% if (typeof hasAddressField !== 'undefined' && hasAddressField) { %>
+                      <div class="item-card-row">
+                        <div class="item-card-label">Hospital Address</div>
+                        <div class="item-card-value">
+                          <% if (item.hospital_address) { %>
+                            <%= item.hospital_address %>
+                          <% } else { %>
+                            <span style="color: var(--color-gray);">No address</span>
+                          <% } %>
+                        </div>
                       </div>
-                    </div>
+                    <% } %>
+                    <% if (typeof hasDescriptionField === 'undefined' || hasDescriptionField) { %>
+                      <div class="item-card-row">
+                        <div class="item-card-label">Description</div>
+                        <div class="item-card-value">
+                          <% if (item.description) { %>
+                            <%= item.description %>
+                          <% } else { %>
+                            <span style="color: var(--color-gray);">No description</span>
+                          <% } %>
+                        </div>
+                      </div>
+                    <% } %>
                     <% if (typeof hasMaxScore !== 'undefined' && hasMaxScore && item.max_score) { %>
                       <div class="item-card-row">
                         <div class="item-card-label">Max Score</div>

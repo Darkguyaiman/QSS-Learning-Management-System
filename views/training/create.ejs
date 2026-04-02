@@ -670,6 +670,17 @@
                 </label>
                 <textarea id="description" name="description" class="form-input" rows="6" placeholder="Describe the training program, its objectives, and what trainees will learn..."></textarea>
               </div>
+
+              <div class="form-group">
+                <label for="affiliated_company">
+                  <i class="fas fa-building"></i>
+                  Affiliated Company *
+                </label>
+                <select id="affiliated_company" name="affiliated_company" class="form-select" required>
+                  <option value="QSS" selected>QSS</option>
+                  <option value="PMS">PMS</option>
+                </select>
+              </div>
             </div>
             
             <div class="form-section">
@@ -808,20 +819,20 @@
             <div class="form-section">
               <div class="section-title">
                 <i class="fas fa-hospital"></i>
-                Participating Healthcare Centres
+                Participating Healthcare Centre
               </div>
               
               <div class="form-group">
                 <label>
                   <i class="fas fa-building"></i>
-                  Select Healthcare Centres
+                  Select Healthcare Centre *
                 </label>
                 <div class="multiselect-container">
                   <input type="text" class="multiselect-search" placeholder="Search healthcare centres..." id="healthcare-search">
                   <div class="multiselect-options" id="healthcare-options">
                     <% healthcare.forEach(hc => { %>
                       <label class="multiselect-option">
-                        <input type="checkbox" name="healthcare_ids[]" value="<%= hc.id %>">
+                        <input type="radio" name="healthcare_id" value="<%= hc.id %>" class="healthcare-radio" required>
                         <span><%= hc.name %></span>
                       </label>
                     <% }); %>
@@ -845,7 +856,7 @@
                   <input type="text" class="multiselect-search" placeholder="Search by name, email, healthcare, IC/Passport, or Trainee ID..." id="trainee-search">
                   <div class="multiselect-options" id="trainee-options">
                     <% trainees.forEach(trainee => { %>
-                      <label class="multiselect-option trainee-option" data-search-text="<%= (trainee.healthcare || '') + ' ' + trainee.first_name + ' ' + trainee.last_name + ' ' + trainee.email + ' ' + (trainee.ic_passport || '') + ' ' + (trainee.trainee_id || '') %>">
+                      <label class="multiselect-option trainee-option" data-healthcare-id="<%= trainee.healthcare_id || '' %>" data-search-text="<%= (trainee.healthcare || '') + ' ' + trainee.first_name + ' ' + trainee.last_name + ' ' + trainee.email + ' ' + (trainee.ic_passport || '') + ' ' + (trainee.trainee_id || '') %>">
                         <input type="checkbox" name="trainee_ids[]" value="<%= trainee.id %>" class="trainee-checkbox">
                         <div class="trainee-option-content">
                           <% if (trainee.healthcare) { %>
@@ -990,19 +1001,43 @@
     const traineeOptions = document.getElementById('trainee-options');
     if (traineeSearch && traineeOptions) {
       traineeSearch.addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase();
-        const options = traineeOptions.querySelectorAll('.trainee-option');
-        
-        options.forEach(option => {
-          const searchText = option.getAttribute('data-search-text').toLowerCase();
-          if (searchText.includes(searchTerm)) {
-            option.classList.remove('hidden');
-          } else {
-            option.classList.add('hidden');
-          }
-        });
+        filterCreateTraineesByHealthcareAndSearch();
       });
     }
+
+    function getSelectedHealthcareId() {
+      const selected = document.querySelector('input[name="healthcare_id"]:checked');
+      return selected ? String(selected.value) : '';
+    }
+
+    function filterCreateTraineesByHealthcareAndSearch() {
+      const traineeOptionsEl = document.getElementById('trainee-options');
+      const traineeSearchEl = document.getElementById('trainee-search');
+      if (!traineeOptionsEl) return;
+
+      const selectedHealthcareId = getSelectedHealthcareId();
+      const searchTerm = String(traineeSearchEl?.value || '').toLowerCase();
+      const options = traineeOptionsEl.querySelectorAll('.trainee-option');
+
+      options.forEach(option => {
+        const optionHealthcareId = String(option.getAttribute('data-healthcare-id') || '');
+        const searchText = String(option.getAttribute('data-search-text') || '').toLowerCase();
+        const matchesHealthcare = selectedHealthcareId && optionHealthcareId === selectedHealthcareId;
+        const matchesSearch = !searchTerm || searchText.includes(searchTerm);
+        const visible = matchesHealthcare && matchesSearch;
+
+        option.classList.toggle('hidden', !visible);
+
+        const checkbox = option.querySelector('.trainee-checkbox');
+        if (!visible && checkbox) {
+          checkbox.checked = false;
+        }
+      });
+    }
+
+    document.querySelectorAll('input[name="healthcare_id"]').forEach(radio => {
+      radio.addEventListener('change', filterCreateTraineesByHealthcareAndSearch);
+    });
     
     // Custom device management
     let customDeviceIndex = 0;
@@ -1155,12 +1190,20 @@
     }
 
     restoreFormState();
+    filterCreateTraineesByHealthcareAndSearch();
     
     // Form validation - ensure at least one trainee is selected
     document.querySelector('form').addEventListener('submit', function(e) {
+      const selectedHealthcare = document.querySelector('input[name="healthcare_id"]:checked');
       const traineeCheckboxes = document.querySelectorAll('.trainee-checkbox:checked');
       const traineeError = document.getElementById('trainee-error');
       
+      if (!selectedHealthcare) {
+        e.preventDefault();
+        qssShowError('Please select one healthcare centre.');
+        return false;
+      }
+
       if (traineeCheckboxes.length === 0) {
         e.preventDefault();
         if (traineeError) {

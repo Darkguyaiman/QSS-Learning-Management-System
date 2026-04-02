@@ -1,0 +1,665 @@
+<% if (['admin', 'trainer'].includes(user.userRole)) { %>
+<%
+  const affiliatedCompany = ((training && training.affiliated_company) ? String(training.affiliated_company) : 'QSS').toUpperCase() === 'PMS' ? 'PMS' : 'QSS';
+  const affiliatedBrand = affiliatedCompany === 'PMS'
+    ? { code: 'PMS', name: 'Photomedic Solutions Sdn. Bhd.', shortName: 'PMS', logo: '/images/Affiliated%20Companies/pmslogo.svg' }
+    : { code: 'QSS', name: 'Quick Stop Solution Sdn. Bhd.', shortName: 'QSS', logo: '/images/Affiliated%20Companies/qsslogo.svg' };
+  let defaultModelName = '';
+  if (Array.isArray(allDeviceModels)) {
+    const model = allDeviceModels.find(m => String(m.id) === String(training.device_model_id));
+    defaultModelName = model ? model.model_name : '';
+  }
+%>
+<div id="package-tab" class="tab-content">
+  <div class="package-shell">
+    <div class="package-head">
+      <h3>Generate Training Package</h3>
+      <p>Build a styled ZIP package containing the training letter, group report, and individual reports.</p>
+    </div>
+
+    <div class="package-grid">
+      <div class="form-group">
+        <label for="package-session-select">Attendance Session</label>
+        <select id="package-session-select" class="form-input" required>
+          <option value="">-- Select a session --</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Affiliated Company</label>
+        <input type="text" class="form-input" value="<%= affiliatedBrand.shortName %>" readonly>
+      </div>
+      <div class="form-group">
+        <label for="package-hospital-name">Hospital Name</label>
+        <input id="package-hospital-name" class="form-input" type="text" placeholder="Enter hospital name">
+      </div>
+      <div class="form-group">
+        <label for="package-klaser-model">K-Laser Model</label>
+        <input id="package-klaser-model" class="form-input" type="text" value="<%= defaultModelName %>" placeholder="Enter model">
+      </div>
+      <div class="form-group package-span-2">
+        <label for="package-address">Hospital Address</label>
+        <textarea id="package-address" class="form-input" rows="2" placeholder="Enter full address"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="package-recipient-name">Recipient Name</label>
+        <input id="package-recipient-name" class="form-input" type="text" placeholder="Mr/Mrs">
+      </div>
+      <div class="form-group">
+        <label for="package-recipient-phone">Recipient Phone</label>
+        <input id="package-recipient-phone" class="form-input" type="text" placeholder="+60...">
+      </div>
+    </div>
+
+    <div class="package-trainees-wrap">
+      <div class="package-trainees-head">
+        <h4>Select Trainees</h4>
+        <button type="button" class="btn btn-sm btn-outline" id="package-select-all">Select All</button>
+      </div>
+      <div id="package-trainees-list" class="package-trainees-list">
+        <div class="package-empty">Select a session to load trainees.</div>
+      </div>
+    </div>
+
+    <div class="package-actions">
+      <button type="button" id="btn-generate-package-tab" class="btn btn-primary">
+        <i class="fas fa-file-archive"></i> Generate ZIP Package
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .package-shell {
+    background: #fff;
+    border-radius: 14px;
+    padding: 1.25rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .package-head h3 {
+    margin: 0;
+    color: #0f172a;
+  }
+  .package-head p {
+    margin: 0.4rem 0 1rem 0;
+    color: #475569;
+    font-size: 0.92rem;
+  }
+  .package-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+  }
+  .package-span-2 {
+    grid-column: span 2;
+  }
+  .package-trainees-wrap {
+    margin-top: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0.8rem;
+    background: #f8fafc;
+  }
+  .package-trainees-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.55rem;
+  }
+  .package-trainees-head h4 {
+    margin: 0;
+    color: #0f172a;
+  }
+  .package-trainees-list {
+    max-height: 280px;
+    overflow: auto;
+    border-radius: 8px;
+  }
+  .package-trainee-item {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.55rem 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.45rem;
+  }
+  .package-trainee-meta {
+    color: #64748b;
+    font-size: 0.85rem;
+  }
+  .package-empty {
+    color: #64748b;
+    padding: 0.7rem;
+    font-size: 0.9rem;
+  }
+  .package-actions {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: flex-end;
+  }
+  @media (max-width: 768px) {
+    .package-grid {
+      grid-template-columns: 1fr;
+    }
+    .package-span-2 {
+      grid-column: span 1;
+    }
+  }
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+  (function() {
+    const PACKAGE_CONTEXT = {
+      trainingId: <%- JSON.stringify(training.id) %>,
+      trainingTitle: <%- JSON.stringify(training.title || '') %>,
+      trainingType: <%- JSON.stringify(training.type || '') %>,
+      isLocked: <%- JSON.stringify(training.status === 'completed') %>,
+      companyCode: <%- JSON.stringify(affiliatedBrand.code) %>,
+      companyName: <%- JSON.stringify(affiliatedBrand.name) %>,
+      companyShortName: <%- JSON.stringify(affiliatedBrand.shortName) %>,
+      companyLogo: <%- JSON.stringify(affiliatedBrand.logo) %>,
+      generatedByName: <%- JSON.stringify(user.userName || '') %>,
+      marksData: <%- JSON.stringify(Array.isArray(marksData) ? marksData : []) %>
+    };
+
+    let packageSessionRecords = [];
+    let packageSessionMeta = { date: '', time: '', duration: '' };
+
+    function formatFriendlyDate(dateStr) {
+      if (!dateStr) return 'N/A';
+      const d = new Date(dateStr + 'T00:00:00');
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function formatFriendlyTime(timeStr) {
+      if (!timeStr) return 'N/A';
+      const s = String(timeStr).substring(0, 5);
+      const [hoursRaw, minutesRaw] = s.split(':');
+      const hours = parseInt(hoursRaw, 10);
+      const minutes = minutesRaw || '00';
+      if (!Number.isFinite(hours)) return s;
+      const hour12 = hours % 12 || 12;
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      return `${hour12}:${minutes} ${ampm}`;
+    }
+
+    function formatFriendlyDuration(duration) {
+      const d = parseFloat(duration);
+      if (!Number.isFinite(d)) return 'N/A';
+      const rounded = Math.round(d * 100) / 100;
+      return `${rounded} ${rounded === 1 ? 'hour' : 'hours'}`;
+    }
+
+    function sanitizeFileName(name) {
+      return String(name || 'file').replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_');
+    }
+
+    function toDateRef(dateStr) {
+      const d = dateStr ? new Date(`${dateStr}T00:00:00`) : new Date();
+      const y = d.getFullYear();
+      return `${PACKAGE_CONTEXT.companyCode}/TRN/${y}/${String(PACKAGE_CONTEXT.trainingId).padStart(5, '0')}`;
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function getBestTestScore(tests, type) {
+      const rows = (tests || []).filter(t => t.test_type === type);
+      if (!rows.length) return null;
+      return rows.reduce((best, t) => (parseFloat(t.score) || 0) > (parseFloat(best.score) || 0) ? t : best, rows[0]);
+    }
+
+    function getPerformanceDescriptor(pct) {
+      const value = Number(pct) || 0;
+      if (value > 80) return 'Outstanding';
+      if (value > 60) return 'Above Average';
+      if (value > 40) return 'Average';
+      if (value > 20) return 'Below Average';
+      return 'Needs Improvement';
+    }
+
+    function getPerformanceClass(pct) {
+      const value = Number(pct) || 0;
+      if (value > 80) return 'outstanding';
+      if (value > 60) return 'above';
+      if (value > 40) return 'average';
+      if (value > 20) return 'below';
+      return 'needs';
+    }
+
+    function buildMarksMap() {
+      const map = new Map();
+      (PACKAGE_CONTEXT.marksData || []).forEach(item => {
+        map.set(String(item.trainee_id || '').trim(), item);
+      });
+      return map;
+    }
+
+    async function loadLogoAsDataUrl() {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function() {
+          try {
+            const c = document.createElement('canvas');
+            c.width = img.naturalWidth || 300;
+            c.height = img.naturalHeight || 120;
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            resolve(c.toDataURL('image/png'));
+          } catch (e) {
+            resolve(null);
+          }
+        };
+        img.onerror = () => resolve(null);
+        img.src = PACKAGE_CONTEXT.companyLogo;
+      });
+    }
+
+    async function htmlToPdfBlob(html, orientation = 'portrait') {
+      const mount = document.createElement('div');
+      mount.style.position = 'absolute';
+      mount.style.left = '-99999px';
+      mount.style.top = '0';
+      mount.style.visibility = 'hidden';
+      mount.style.pointerEvents = 'none';
+      mount.style.width = orientation === 'landscape' ? '1122px' : '794px';
+      mount.style.background = '#ffffff';
+      mount.style.overflow = 'visible';
+      mount.innerHTML = html;
+      document.body.appendChild(mount);
+      const root = mount.firstElementChild || mount;
+      root.style.background = '#ffffff';
+      root.style.overflow = 'visible';
+
+      const opt = {
+        margin: 0.2,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+          scale: 1.5,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          windowWidth: root.scrollWidth || (orientation === 'landscape' ? 1122 : 794),
+          windowHeight: root.scrollHeight || 1400
+        },
+        jsPDF: { unit: 'in', format: 'a4', orientation },
+        pagebreak: { mode: ['css', 'legacy'] }
+      };
+
+      try {
+        const worker = window.html2pdf().set(opt).from(root);
+        try {
+          return await worker.outputPdf('blob');
+        } catch (_) {
+          const pdf = await worker.toPdf().get('pdf');
+          return pdf.output('blob');
+        }
+      } finally {
+        document.body.removeChild(mount);
+      }
+    }
+
+    function buildTrainingLetterHtml(formData, selectedRows, logoDataUrl) {
+      const currentDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const docRef = toDateRef(packageSessionMeta.date);
+      const formattedDates = `${formatFriendlyDate(packageSessionMeta.date)} ${formatFriendlyTime(packageSessionMeta.time)}`;
+      const logoHtml = logoDataUrl
+        ? `<img src="${logoDataUrl}" alt="Company Logo" style="max-width:420px;max-height:92px;width:auto;height:auto;object-fit:contain;">`
+        : `<h1>${escapeHtml(PACKAGE_CONTEXT.companyShortName)}</h1>`;
+
+      return `
+      <div style="font-family:Calibri,'Segoe UI',Arial,sans-serif;color:#1a1a1a;line-height:1.5;font-size:10pt;background:#fff;padding:0.3in 0.5in;">
+        <div style="text-align:center;margin:0 0 15px 0;">${logoHtml}</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:15px;gap:20px;">
+          <div style="padding:15px;max-width:60%;font-size:10pt;">
+            <strong>${escapeHtml(formData.hospitalName)}</strong><br>
+            ${escapeHtml(formData.address).replace(/,/g, '<br>')}
+          </div>
+          <div style="text-align:right;padding:15px;font-size:10pt;">
+            <strong>Date:</strong> ${escapeHtml(currentDate)}<br>
+            <strong>Ref:</strong> ${escapeHtml(docRef)}
+          </div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <p style="margin:3px 0;"><strong>Attn to:</strong> Mr/Mrs ${escapeHtml(formData.recipientName)}</p>
+          <p style="margin:3px 0;"><strong>Phone num:</strong> ${escapeHtml(formData.recipientPhone)}</p>
+        </div>
+        <div style="font-weight:bold;font-size:11pt;margin:15px 0;text-align:center;background:#e8f4fc;padding:10px;border-radius:8px;">CONFIRMATION OF IN-HOUSE TRAINING FOR KLASER DEVICE</div>
+        <p>Dear ${escapeHtml(formData.recipientName)},</p>
+        <p>We are pleased to confirm that the following staff members have successfully attended the in-house training for the KLaser device. Details of the training are as below:</p>
+        <div style="background:#f9f9f9;border-radius:8px;padding:15px;margin:15px 0;">
+          <div><strong>Date and Time:</strong> ${escapeHtml(formattedDates)}</div>
+          <div><strong>KLaser Model:</strong> ${escapeHtml(formData.kLaserModel)}</div>
+          <div><strong>Training Type:</strong> ${PACKAGE_CONTEXT.trainingType === 'main' ? 'Main Training' : 'Refresher Training'}</div>
+          <div><strong>Group Report:</strong> please refer to Attachment 1</div>
+          <div><strong>Total Participants:</strong> ${selectedRows.length}</div>
+        </div>
+        <p>The training was conducted by ${escapeHtml(PACKAGE_CONTEXT.companyName)}, covering safety, technical, and clinical aspects of the device. The participants have demonstrated a satisfactory understanding of these key areas.</p>
+        <p>As a result of this training, these staff members are now qualified to perform laser treatments using the KLaser (${escapeHtml(formData.kLaserModel)}) device.</p>
+        <p>Should you require any further information or clarification, please do not hesitate to contact us. We appreciate your cooperation and look forward to continued collaboration.</p>
+        <p>Thank you.</p>
+        <p>Yours sincerely,</p>
+        <div style="margin-top:25px;">
+          <div style="border-top:1.5px solid #000;width:220px;"></div>
+          <p style="margin:6px 0 0 0;font-weight:700;">Shah Zarak Kahn Bin Ashiq Hussain</p>
+          <p style="margin:0;font-weight:700;">Group Managing Director,</p>
+          <p style="margin:0;font-weight:700;">${escapeHtml(PACKAGE_CONTEXT.companyName)}</p>
+        </div>
+      </div>`;
+    }
+
+    function buildGroupReportHtml(formData, rows, marksMap, logoDataUrl) {
+      const docRef = toDateRef(packageSessionMeta.date);
+      const currentDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const logoHtml = logoDataUrl
+        ? `<img src="${logoDataUrl}" style="max-width:420px;max-height:92px;width:auto;height:auto;object-fit:contain;" alt="Company Logo">`
+        : `<h2>${escapeHtml(PACKAGE_CONTEXT.companyShortName)}</h2>`;
+
+      const resultRows = rows.map(r => {
+        const marks = marksMap.get(String(r.trainee_id || '').trim());
+        const pre = marks ? getBestTestScore(marks.tests, 'pre_test') : null;
+        const post = marks ? (getBestTestScore(marks.tests, 'post_test') || getBestTestScore(marks.tests, 'refresher_training')) : null;
+        const cert = marks ? getBestTestScore(marks.tests, 'certificate_enrolment') : null;
+        const hands = Array.isArray(marks?.handsOnScores) ? marks.handsOnScores : [];
+        const handsMax = hands.reduce((s, x) => s + (parseFloat(x.max_score) || 0), 0);
+        const handsScore = hands.reduce((s, x) => s + (parseFloat(x.score) || 0), 0);
+        const handsPct = handsMax > 0 ? (handsScore / handsMax) * 100 : 0;
+        const avg = [pre?.score, post?.score, cert?.score, handsPct].filter(v => v !== undefined && v !== null).map(v => parseFloat(v) || 0);
+        const overall = avg.length ? avg.reduce((a, b) => a + b, 0) / avg.length : 0;
+        const descriptor = getPerformanceDescriptor(overall);
+        return `<tr>
+          <td>${escapeHtml(`${r.first_name || ''} ${r.last_name || ''}`.trim())}</td>
+          <td>${escapeHtml(r.trainee_id || '')}</td>
+          <td style="text-align:center;">${Math.round(parseFloat(pre?.score || 0))}%</td>
+          <td style="text-align:center;">${Math.round(parseFloat(post?.score || 0))}%</td>
+          <td style="text-align:center;">${Math.round(parseFloat(cert?.score || 0))}%</td>
+          <td style="text-align:center;">${Math.round(handsPct)}%</td>
+          <td class="performance-${getPerformanceClass(overall)}">${escapeHtml(descriptor)}</td>
+          <td style="font-style:italic;">${escapeHtml(r.notes || '')}</td>
+        </tr>`;
+      }).join('') || `<tr><td colspan="8" style="padding:10px;text-align:center;color:#475569;">No selected trainees found for this session.</td></tr>`;
+
+      return `
+      <div style="font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;font-size:10pt;color:#333;background:#fff;padding:0.45in;">
+        <div style="text-align:center;margin-bottom:12px;">${logoHtml}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#f8f9fa;border-radius:8px;padding:12px 14px;margin-bottom:16px;">
+          <div style="font-size:16pt;font-weight:700;color:#2c3e50;">Group Report</div>
+          <div style="text-align:right;font-size:9pt;"><strong>Date:</strong> ${escapeHtml(currentDate)}<br><strong>Ref:</strong> ${escapeHtml(docRef)}</div>
+        </div>
+        <h2 style="font-size:13pt;text-align:center;color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:6px;">Training Results</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:9pt;">
+          <thead>
+            <tr style="background:#3498db;color:#fff;">
+              <th style="padding:8px;text-align:left;">Name</th>
+              <th style="padding:8px;text-align:left;">IC/Passport</th>
+              <th style="padding:8px;text-align:center;">Pre</th>
+              <th style="padding:8px;text-align:center;">Post/Ref</th>
+              <th style="padding:8px;text-align:center;">Cert</th>
+              <th style="padding:8px;text-align:center;">Hands On</th>
+              <th style="padding:8px;text-align:left;">Performance</th>
+              <th style="padding:8px;text-align:left;">Remarks</th>
+            </tr>
+          </thead>
+          <tbody>${resultRows}</tbody>
+        </table>
+        <style>
+          tbody tr:nth-child(even){background:#f8f9fa;}
+          td{padding:7px;border-bottom:1px solid #eee;}
+          .performance-outstanding{color:#27ae60;font-weight:600;}
+          .performance-above{color:#2980b9;font-weight:600;}
+          .performance-average{color:#f39c12;font-weight:600;}
+          .performance-below{color:#e67e22;font-weight:600;}
+          .performance-needs{color:#c0392b;font-weight:600;}
+        </style>
+      </div>`;
+    }
+
+    function buildIndividualReportHtml(formData, row, marksMap, logoDataUrl) {
+      const marks = marksMap.get(String(row.trainee_id || '').trim());
+      const pre = marks ? getBestTestScore(marks.tests, 'pre_test') : null;
+      const post = marks ? (getBestTestScore(marks.tests, 'post_test') || getBestTestScore(marks.tests, 'refresher_training')) : null;
+      const cert = marks ? getBestTestScore(marks.tests, 'certificate_enrolment') : null;
+      const hands = Array.isArray(marks?.handsOnScores) ? marks.handsOnScores : [];
+      const handsMax = hands.reduce((s, x) => s + (parseFloat(x.max_score) || 0), 0);
+      const handsScore = hands.reduce((s, x) => s + (parseFloat(x.score) || 0), 0);
+      const handsPct = handsMax > 0 ? (handsScore / handsMax) * 100 : 0;
+      const overallValues = [pre?.score, post?.score, cert?.score, handsPct].filter(v => v !== undefined && v !== null).map(v => parseFloat(v) || 0);
+      const total = overallValues.length ? overallValues.reduce((a, b) => a + b, 0) / overallValues.length : 0;
+      const currentDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const logoHtml = logoDataUrl
+        ? `<img src="${logoDataUrl}" alt="Company Logo" style="max-width:420px;max-height:92px;width:auto;height:auto;object-fit:contain;">`
+        : `<h1>${escapeHtml(PACKAGE_CONTEXT.companyShortName)}</h1>`;
+
+      const handsRows = hands.map(h => {
+        const max = parseFloat(h.max_score) || 0;
+        const score = parseFloat(h.score) || 0;
+        const pct = max > 0 ? (score / max) * 100 : 0;
+        return `<tr>
+          <td>${escapeHtml(h.aspect_name || 'Aspect')}</td>
+          <td style="text-align:center;"><span class="badge badge-${getPerformanceClass(pct)}">${Math.round(pct)}%</span></td>
+          <td class="perf-${getPerformanceClass(pct)}">${escapeHtml(getPerformanceDescriptor(pct))}</td>
+        </tr>`;
+      }).join('');
+
+      return `
+      <div style="font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#333;font-size:10pt;background:#fff;padding:0.5in;">
+        <div style="text-align:center;margin-bottom:14px;">${logoHtml}</div>
+        <div style="background:#f8f9fa;border-radius:8px;padding:13px;margin-bottom:15px;display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;">
+          <div><strong>Ref:</strong> ${escapeHtml(toDateRef(packageSessionMeta.date))}</div>
+          <div><strong>Date:</strong> ${escapeHtml(currentDate)}</div>
+          <div><strong>Name:</strong> ${escapeHtml(`${row.first_name || ''} ${row.last_name || ''}`.trim())}</div>
+          <div><strong>IC/Passport:</strong> ${escapeHtml(row.trainee_id || '')}</div>
+          <div><strong>Hospital:</strong> ${escapeHtml(formData.hospitalName)}</div>
+          <div><strong>Attendance:</strong> ${escapeHtml(String(row.status || '').toUpperCase())}</div>
+        </div>
+        <h2 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:6px;font-size:14pt;">Training Result</h2>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:18px;">
+          <tr style="background:#3498db;color:#fff;">
+            <th style="padding:8px;text-align:left;">Grading Aspects</th>
+            <th style="padding:8px;text-align:center;">Marks (%)</th>
+            <th style="padding:8px;text-align:left;">Performance Descriptor</th>
+          </tr>
+          ${[
+            ['Pre-Test', parseFloat(pre?.score || 0)],
+            [post ? 'Post-Test' : 'Refresher Test', parseFloat(post?.score || 0)],
+            ['Certificate Enrolment', parseFloat(cert?.score || 0)],
+            ['Hands On', handsPct],
+            ['Total', total]
+          ].map(item => `<tr>
+            <td style="padding:8px;border-bottom:1px solid #eee;">${escapeHtml(item[0])}</td>
+            <td style="padding:8px;text-align:center;border-bottom:1px solid #eee;"><span class="badge badge-${getPerformanceClass(item[1])}">${Math.round(item[1])}%</span></td>
+            <td style="padding:8px;border-bottom:1px solid #eee;" class="perf-${getPerformanceClass(item[1])}">${escapeHtml(getPerformanceDescriptor(item[1]))}</td>
+          </tr>`).join('')}
+          ${row.notes ? `<tr><td style="padding:8px;"><strong>Remarks:</strong></td><td colspan="2" style="padding:8px;font-style:italic;">${escapeHtml(row.notes)}</td></tr>` : ''}
+        </table>
+        <h2 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:6px;font-size:14pt;">Hands On Results</h2>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr style="background:#3498db;color:#fff;">
+            <th style="padding:8px;text-align:left;">Hands On Aspects</th>
+            <th style="padding:8px;text-align:center;">Marks (%)</th>
+            <th style="padding:8px;text-align:left;">Performance Descriptor</th>
+          </tr>
+          ${handsRows || '<tr><td colspan="3" style="padding:8px;">No hands on scores recorded.</td></tr>'}
+        </table>
+        <style>
+          .badge{display:inline-block;padding:3px 8px;border-radius:12px;color:#fff;font-weight:600;font-size:8pt;min-width:44px;}
+          .badge-outstanding{background:#27ae60;}
+          .badge-above{background:#2980b9;}
+          .badge-average{background:#f39c12;}
+          .badge-below{background:#e67e22;}
+          .badge-needs{background:#c0392b;}
+          .perf-outstanding{color:#27ae60;font-weight:600;}
+          .perf-above{color:#2980b9;font-weight:600;}
+          .perf-average{color:#f39c12;font-weight:600;}
+          .perf-below{color:#e67e22;font-weight:600;}
+          .perf-needs{color:#c0392b;font-weight:600;}
+        </style>
+      </div>`;
+    }
+
+    async function downloadBlob(filename, blob) {
+      const a = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function renderTrainees(records) {
+      const list = document.getElementById('package-trainees-list');
+      if (!list) return;
+      if (!records.length) {
+        list.innerHTML = '<div class="package-empty">No attendance records found for this session.</div>';
+        return;
+      }
+      list.innerHTML = records.map((r, idx) => {
+        const fullName = `${r.first_name || ''} ${r.last_name || ''}`.trim();
+        return `<label class="package-trainee-item">
+          <div>
+            <div><strong>${escapeHtml(fullName)}</strong></div>
+            <div class="package-trainee-meta">ID: ${escapeHtml(r.trainee_id || '')} | Status: ${escapeHtml(String(r.status || '').toUpperCase())}</div>
+          </div>
+          <input type="checkbox" class="package-trainee-check" data-row-index="${idx}" checked>
+        </label>`;
+      }).join('');
+    }
+
+    async function loadSessions() {
+      const select = document.getElementById('package-session-select');
+      if (!select) return;
+      try {
+        const response = await fetch(`/attendance/sessions/${PACKAGE_CONTEXT.trainingId}`);
+        const sessions = await response.json();
+        select.innerHTML = '<option value="">-- Select a session --</option>';
+        sessions.forEach(s => {
+          let date = s.date;
+          if (date && date.includes('T')) date = date.split('T')[0];
+          const option = document.createElement('option');
+          option.value = s.id;
+          option.dataset.date = date || '';
+          option.dataset.time = s.time || '';
+          option.dataset.duration = s.duration || '';
+          option.textContent = `${formatFriendlyDate(date)} | ${formatFriendlyTime(s.time)} | ${formatFriendlyDuration(s.duration)}`;
+          select.appendChild(option);
+        });
+      } catch (e) {
+        console.error('Failed to load sessions', e);
+      }
+    }
+
+    async function onSessionChange() {
+      const select = document.getElementById('package-session-select');
+      const option = select?.options?.[select.selectedIndex];
+      if (!option || !option.value) {
+        packageSessionRecords = [];
+        renderTrainees([]);
+        return;
+      }
+      const date = option.dataset.date || '';
+      packageSessionMeta = { date, time: option.dataset.time || '', duration: option.dataset.duration || '' };
+      try {
+        const response = await fetch(`/attendance/session-details/${PACKAGE_CONTEXT.trainingId}?date=${encodeURIComponent(date)}`);
+        const data = await response.json();
+        packageSessionRecords = data.records || [];
+        renderTrainees(packageSessionRecords);
+      } catch (e) {
+        console.error('Failed to load session details', e);
+        packageSessionRecords = [];
+        renderTrainees([]);
+      }
+    }
+
+    function getSelectedRows() {
+      const checks = Array.from(document.querySelectorAll('.package-trainee-check:checked'));
+      const indices = checks
+        .map(c => parseInt(c.dataset.rowIndex || '-1', 10))
+        .filter(i => Number.isInteger(i) && i >= 0 && i < packageSessionRecords.length);
+      return indices.map(i => packageSessionRecords[i]);
+    }
+
+    function collectFormData() {
+      return {
+        hospitalName: (document.getElementById('package-hospital-name')?.value || '').trim(),
+        kLaserModel: (document.getElementById('package-klaser-model')?.value || '').trim(),
+        address: (document.getElementById('package-address')?.value || '').trim(),
+        recipientName: (document.getElementById('package-recipient-name')?.value || '').trim(),
+        recipientPhone: (document.getElementById('package-recipient-phone')?.value || '').trim()
+      };
+    }
+
+    async function generatePackage() {
+      if (!PACKAGE_CONTEXT.isLocked) {
+        return qssShowError('Package is only available after training is locked.');
+      }
+      const formData = collectFormData();
+      if (!packageSessionMeta.date) return qssShowError('Please select an attendance session.');
+      if (!formData.hospitalName || !formData.kLaserModel || !formData.address || !formData.recipientName || !formData.recipientPhone) {
+        return qssShowError('Please fill all package form fields.');
+      }
+      const selectedRows = getSelectedRows();
+      if (!selectedRows.length) return qssShowError('Please select at least one trainee.');
+      if (!window.JSZip || !window.html2pdf) return qssShowError('Package libraries failed to load.');
+
+      const btn = document.getElementById('btn-generate-package-tab');
+      const prev = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+
+      try {
+        const zip = new JSZip();
+        const marksMap = buildMarksMap();
+        const logoDataUrl = await loadLogoAsDataUrl();
+
+        const letterHtml = buildTrainingLetterHtml(formData, selectedRows, logoDataUrl);
+        const letterPdf = await htmlToPdfBlob(letterHtml, 'portrait');
+        zip.file('In House Training Letter.pdf', letterPdf);
+
+        const groupHtml = buildGroupReportHtml(formData, selectedRows, marksMap, logoDataUrl);
+        const groupPdf = await htmlToPdfBlob(groupHtml, 'landscape');
+        zip.file('Attachment 1.pdf', groupPdf);
+
+        const folder = zip.folder('Individual Reports');
+        for (const row of selectedRows) {
+          const html = buildIndividualReportHtml(formData, row, marksMap, logoDataUrl);
+          const pdf = await htmlToPdfBlob(html, 'portrait');
+          const fullName = `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Trainee';
+          const traineeId = String(row.trainee_id || 'NA');
+          folder.file(`${sanitizeFileName(fullName)}_${sanitizeFileName(traineeId)}.pdf`, pdf);
+        }
+
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const packDate = sanitizeFileName(packageSessionMeta.date || new Date().toISOString().slice(0, 10));
+        const name = sanitizeFileName(PACKAGE_CONTEXT.trainingTitle || 'Training');
+        await downloadBlob(`${name}_${packDate}_Package.zip`, zipBlob);
+      } catch (e) {
+        console.error(e);
+        qssShowError('Failed to generate package.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = prev;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      loadSessions();
+      document.getElementById('package-session-select')?.addEventListener('change', onSessionChange);
+      document.getElementById('package-select-all')?.addEventListener('click', function() {
+        document.querySelectorAll('.package-trainee-check').forEach(c => c.checked = true);
+      });
+      document.getElementById('btn-generate-package-tab')?.addEventListener('click', generatePackage);
+    });
+  })();
+</script>
+<% } %>

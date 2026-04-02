@@ -431,10 +431,18 @@
               <label for="item-name"><%= nameLabel %> *</label>
               <input type="text" id="item-name" name="<%= nameField %>" value="<%= typeof item !== 'undefined' && item ? item[nameField] : '' %>" required placeholder="<%= namePlaceholder %>">
             </div>
-            <div class="form-group">
-              <label for="item-description">Description</label>
-              <textarea id="item-description" name="description" placeholder="<%= descriptionPlaceholder %>"><%= typeof item !== 'undefined' && item ? (item.description || '') : '' %></textarea>
-            </div>
+            <% if (typeof hasAddressField !== 'undefined' && hasAddressField) { %>
+              <div class="form-group">
+                <label for="item-address"><%= typeof addressLabel !== 'undefined' && addressLabel ? addressLabel : 'Address' %></label>
+                <textarea id="item-address" name="hospital_address" placeholder="<%= typeof addressPlaceholder !== 'undefined' && addressPlaceholder ? addressPlaceholder : 'Enter address' %>"><%= typeof item !== 'undefined' && item ? (item.hospital_address || '') : '' %></textarea>
+              </div>
+            <% } %>
+            <% if (typeof hasDescriptionField === 'undefined' || hasDescriptionField) { %>
+              <div class="form-group">
+                <label for="item-description">Description</label>
+                <textarea id="item-description" name="description" placeholder="<%= descriptionPlaceholder %>"><%= typeof item !== 'undefined' && item ? (item.description || '') : '' %></textarea>
+              </div>
+            <% } %>
             <% if (hasMaxScore) { %>
               <div class="form-group">
                 <label for="item-max-score">Max Score *</label>

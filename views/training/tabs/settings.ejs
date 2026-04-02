@@ -42,6 +42,17 @@
               <option value="rescheduled" <%= training.status === 'rescheduled' ? 'selected' : '' %>>Rescheduled</option>
             </select>
           </div>
+
+          <div class="form-group">
+            <label for="settings-affiliated-company">
+              <i class="fas fa-building"></i>
+              Affiliated Company *
+            </label>
+            <select id="settings-affiliated-company" name="affiliated_company" class="form-select" required <%= training.status === 'completed' ? 'disabled' : '' %>>
+              <option value="QSS" <%= (training.affiliated_company || 'QSS') === 'QSS' ? 'selected' : '' %>>QSS</option>
+              <option value="PMS" <%= (training.affiliated_company || 'QSS') === 'PMS' ? 'selected' : '' %>>PMS</option>
+            </select>
+          </div>
           
           <div class="form-group">
             <label for="settings-device-model">
@@ -80,13 +91,13 @@
         <div class="form-section">
           <div class="section-title">
             <i class="fas fa-hospital"></i>
-            Participating Healthcare Centres
+            Participating Healthcare Centre
           </div>
           
           <div class="form-group">
             <label>
               <i class="fas fa-building"></i>
-              Select Healthcare Centres
+              Select Healthcare Centre *
             </label>
             <div class="multiselect-container">
               <input type="text" class="multiselect-search" placeholder="Search healthcare centres..." id="settings-healthcare-search">
@@ -95,7 +106,7 @@
                   <% allHealthcare.forEach(hc => { %>
                     <% const isSelected = typeof trainingHealthcare !== 'undefined' && trainingHealthcare.some(th => th.healthcare_id === hc.id); %>
                     <label class="multiselect-option">
-                      <input type="checkbox" name="healthcare_ids[]" value="<%= hc.id %>" <%= isSelected ? 'checked' : '' %>>
+                      <input type="radio" name="healthcare_id" value="<%= hc.id %>" class="settings-healthcare-radio" <%= isSelected ? 'checked' : '' %> <%= training.status === 'completed' ? 'disabled' : '' %> required>
                       <span><%= hc.name %></span>
                     </label>
                   <% }); %>
@@ -213,7 +224,7 @@
                 <% if (typeof allTrainees !== 'undefined' && allTrainees) { %>
                   <% allTrainees.forEach(t => { %>
                     <% const isSelected = typeof enrolledTrainees !== 'undefined' && enrolledTrainees.some(tr => tr.id === t.id); %>
-                    <label class="multiselect-option trainee-option" data-search-text="<%= (t.healthcare || '') + ' ' + t.first_name + ' ' + t.last_name + ' ' + t.email + ' ' + (t.ic_passport || '') + ' ' + (t.trainee_id || '') %>">
+                    <label class="multiselect-option trainee-option" data-healthcare-id="<%= t.healthcare_id || '' %>" data-search-text="<%= (t.healthcare || '') + ' ' + t.first_name + ' ' + t.last_name + ' ' + t.email + ' ' + (t.ic_passport || '') + ' ' + (t.trainee_id || '') %>">
                       <input type="checkbox" name="trainee_ids[]" value="<%= t.id %>" <%= isSelected ? 'checked' : '' %>>
                       <div class="trainee-option-content">
                         <% if (t.healthcare) { %>

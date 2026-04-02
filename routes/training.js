@@ -671,6 +671,59 @@ function normalizeAccessExpiryInput(value) {
   return `${match[1]} ${match[2]}:${match[3]}:${match[4] || '00'}`;
 }
 
+function normalizeAffiliatedCompany(value) {
+  const normalized = String(value || '').trim().toUpperCase();
+  return normalized === 'PMS' ? 'PMS' : 'QSS';
+}
+
+async function getHealthcareById(db, rawHealthcareId) {
+  const healthcareId = parseInt(String(rawHealthcareId || '').trim(), 10);
+  if (!Number.isFinite(healthcareId) || healthcareId <= 0) {
+    return null;
+  }
+
+  const [rows] = await db.query(
+    'SELECT id, name FROM healthcare WHERE id = ? LIMIT 1',
+    [healthcareId]
+  );
+
+  return rows?.[0] || null;
+}
+
+async function getTraineesOutsideHealthcare(db, traineeIds, healthcareName) {
+  const normalizedIds = [...new Set(
+    (Array.isArray(traineeIds) ? traineeIds : [traineeIds])
+      .map(id => String(id || '').trim())
+      .filter(Boolean)
+  )];
+
+  if (normalizedIds.length === 0) {
+    return [];
+  }
+
+  const placeholders = normalizedIds.map(() => '?').join(',');
+  const [rows] = await db.query(
+    `SELECT id, first_name, last_name, healthcare
+     FROM trainees
+     WHERE id IN (${placeholders})`,
+    normalizedIds
+  );
+
+  const byId = new Map(rows.map(row => [String(row.id), row]));
+  const invalid = [];
+  const normalizedHealthcare = String(healthcareName || '').trim().toLowerCase();
+
+  for (const id of normalizedIds) {
+    const trainee = byId.get(id);
+    const traineeHealthcare = String(trainee?.healthcare || '').trim().toLowerCase();
+    if (!trainee || traineeHealthcare !== normalizedHealthcare) {
+      invalid.push(trainee || { id, first_name: 'Unknown', last_name: `ID ${id}`, healthcare: null });
+    }
+  }
+
+  return invalid;
+}
+
 function formatSqlDateTime(date) {
   const d = date instanceof Date ? date : new Date(date);
   if (Number.isNaN(d.getTime())) return null;
@@ -957,7 +1010,13 @@ router.get('/create', async (req, res) => {
   try {
     // Fetch all necessary data for the form
     const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
-    const [trainees] = await req.db.query('SELECT id, first_name, last_name, email, healthcare, ic_passport, trainee_id FROM trainees WHERE trainee_status = "active" ORDER BY first_name, last_name ASC');
+    const [trainees] = await req.db.query(`
+      SELECT t.id, t.first_name, t.last_name, t.email, t.healthcare, t.ic_passport, t.trainee_id, h.id AS healthcare_id
+      FROM trainees t
+      LEFT JOIN healthcare h ON h.name = t.healthcare
+      WHERE t.trainee_status = "active"
+      ORDER BY t.first_name, t.last_name ASC
+    `);
     const [devices] = await req.db.query(`
       SELECT d.*, k.model_name 
       FROM device_serial_numbers d
@@ -995,14 +1054,15 @@ router.post('/create', async (req, res) => {
     return res.status(403).send('Access denied');
   }
   
-  const { 
-    title, 
-    description, 
+  const {
+    title,
+    description,
     type,
+    affiliated_company,
     device_model_id,
     start_datetime,
     end_datetime,
-    healthcare_ids, // Array of healthcare IDs
+    healthcare_id, // Single healthcare ID
     trainer_ids, // Array of trainer IDs
     trainee_ids, // Array of trainee IDs
     device_ids, // Array of device_serial_numbers IDs
@@ -1069,7 +1129,13 @@ router.post('/create', async (req, res) => {
     
     if (!device_model_id) {
       const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
-      const [trainees] = await req.db.query('SELECT id, first_name, last_name, email, healthcare, ic_passport, trainee_id FROM trainees WHERE trainee_status = "active" ORDER BY first_name, last_name ASC');
+      const [trainees] = await req.db.query(`
+        SELECT t.id, t.first_name, t.last_name, t.email, t.healthcare, t.ic_passport, t.trainee_id, h.id AS healthcare_id
+        FROM trainees t
+        LEFT JOIN healthcare h ON h.name = t.healthcare
+        WHERE t.trainee_status = "active"
+        ORDER BY t.first_name, t.last_name ASC
+      `);
       const [devices] = await req.db.query(`
         SELECT d.*, k.model_name 
         FROM device_serial_numbers d
@@ -1100,7 +1166,13 @@ router.post('/create', async (req, res) => {
     if (!validation.valid) {
       // Re-fetch data for form
       const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
-      const [trainees] = await req.db.query('SELECT id, first_name, last_name, email, healthcare, ic_passport, trainee_id FROM trainees WHERE trainee_status = "active" ORDER BY first_name, last_name ASC');
+      const [trainees] = await req.db.query(`
+        SELECT t.id, t.first_name, t.last_name, t.email, t.healthcare, t.ic_passport, t.trainee_id, h.id AS healthcare_id
+        FROM trainees t
+        LEFT JOIN healthcare h ON h.name = t.healthcare
+        WHERE t.trainee_status = "active"
+        ORDER BY t.first_name, t.last_name ASC
+      `);
       const [devices] = await req.db.query(`
         SELECT d.*, k.model_name 
         FROM device_serial_numbers d
@@ -1128,13 +1200,23 @@ router.post('/create', async (req, res) => {
     }
     
     const traineeIdsArray = trainee_ids ? (Array.isArray(trainee_ids) ? trainee_ids : [trainee_ids]) : [];
+    const selectedHealthcare = await getHealthcareById(req.db, healthcare_id);
+    if (!selectedHealthcare) {
+      throw new Error('Please select one healthcare centre for this training.');
+    }
+
     const nonActiveTrainees = await getNonActiveTrainees(req.db, traineeIdsArray);
     if (nonActiveTrainees.length > 0) {
       throw new Error('Only active trainees can be added to trainings. Registered, inactive, and suspended trainees are not allowed.');
     }
+    const invalidHealthcareTrainees = await getTraineesOutsideHealthcare(req.db, traineeIdsArray, selectedHealthcare.name);
+    if (invalidHealthcareTrainees.length > 0) {
+      throw new Error(`All selected trainees must belong to ${selectedHealthcare.name}.`);
+    }
 
     // Get a connection from the pool for transaction
     const connection = await req.db.getConnection();
+    const affiliatedCompany = normalizeAffiliatedCompany(affiliated_company);
     
     try {
       // Start transaction
@@ -1142,8 +1224,8 @@ router.post('/create', async (req, res) => {
       
       // Insert training
       const [result] = await connection.query(
-        'INSERT INTO trainings (title, description, type, device_model_id, created_by, status, start_datetime, end_datetime, header_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [title, description, type, device_model_id, req.session.userId, 'in_progress', startDatetime, endDatetime, headerImage]
+        'INSERT INTO trainings (title, description, type, affiliated_company, device_model_id, created_by, status, start_datetime, end_datetime, header_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [title, description, type, affiliatedCompany, device_model_id, req.session.userId, 'in_progress', startDatetime, endDatetime, headerImage]
       );
       
       const trainingId = result.insertId;
@@ -1175,15 +1257,11 @@ router.post('/create', async (req, res) => {
         }
       }
       
-      // Insert healthcare relationships
-      if (healthcare_ids && Array.isArray(healthcare_ids)) {
-        for (const healthcareId of healthcare_ids) {
-          await connection.query(
-            'INSERT INTO training_healthcare (training_id, healthcare_id) VALUES (?, ?)',
-            [trainingId, healthcareId]
-          );
-        }
-      }
+      // Insert healthcare relationship (exactly one healthcare per training)
+      await connection.query(
+        'INSERT INTO training_healthcare (training_id, healthcare_id) VALUES (?, ?)',
+        [trainingId, selectedHealthcare.id]
+      );
       
       // Insert device relationships (from settings)
       if (device_ids && Array.isArray(device_ids)) {
@@ -1294,7 +1372,13 @@ router.post('/create', async (req, res) => {
       // Re-fetch data for form
       try {
         const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
-        const [trainees] = await req.db.query('SELECT id, first_name, last_name, email, healthcare, ic_passport, trainee_id FROM trainees WHERE trainee_status = "active" ORDER BY first_name, last_name ASC');
+        const [trainees] = await req.db.query(`
+          SELECT t.id, t.first_name, t.last_name, t.email, t.healthcare, t.ic_passport, t.trainee_id, h.id AS healthcare_id
+          FROM trainees t
+          LEFT JOIN healthcare h ON h.name = t.healthcare
+          WHERE t.trainee_status = "active"
+          ORDER BY t.first_name, t.last_name ASC
+        `);
         const [devices] = await req.db.query(`
           SELECT d.*, k.model_name 
           FROM device_serial_numbers d
@@ -1338,7 +1422,13 @@ router.post('/create', async (req, res) => {
     // Re-fetch data for form
     try {
       const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
-      const [trainees] = await req.db.query('SELECT id, first_name, last_name, email, healthcare, ic_passport, trainee_id FROM trainees WHERE trainee_status = "active" ORDER BY first_name, last_name ASC');
+      const [trainees] = await req.db.query(`
+        SELECT t.id, t.first_name, t.last_name, t.email, t.healthcare, t.ic_passport, t.trainee_id, h.id AS healthcare_id
+        FROM trainees t
+        LEFT JOIN healthcare h ON h.name = t.healthcare
+        WHERE t.trainee_status = "active"
+        ORDER BY t.first_name, t.last_name ASC
+      `);
       const [devices] = await req.db.query(`
         SELECT d.*, k.model_name 
         FROM device_serial_numbers d
@@ -1699,12 +1789,16 @@ router.get('/:id', async (req, res) => {
         ORDER BY last_name, first_name
       `);
       
-      // Get all trainees
+      // Get trainees for the selected healthcare only
+      const selectedHealthcareId = trainingHealthcare[0]?.healthcare_id || null;
       [allTrainees] = await req.db.query(`
-        SELECT id, trainee_id, first_name, last_name, email 
-        FROM trainees 
-        ORDER BY last_name, first_name
-      `);
+        SELECT t.id, t.trainee_id, t.first_name, t.last_name, t.email, t.healthcare, t.ic_passport, h.id AS healthcare_id
+        FROM trainees t
+        LEFT JOIN healthcare h ON h.name = t.healthcare
+        WHERE t.trainee_status = 'active'
+          AND (? IS NULL OR h.id = ?)
+        ORDER BY t.last_name, t.first_name
+      `, [selectedHealthcareId, selectedHealthcareId]);
     }
     
     res.render('training/view', { 
@@ -2523,7 +2617,7 @@ router.post('/:id/update', async (req, res) => {
   
   try {
     const trainingId = req.params.id;
-    const { title, status, start_datetime, end_datetime, healthcare_ids, trainer_ids, trainee_ids, device_model_id } = req.body;
+    const { title, status, start_datetime, end_datetime, healthcare_id, trainer_ids, trainee_ids, device_model_id, affiliated_company } = req.body;
     const traineeArray = trainee_ids ? (Array.isArray(trainee_ids) ? trainee_ids.map(String) : [String(trainee_ids)]) : [];
     
     if (!device_model_id) {
@@ -2536,6 +2630,14 @@ router.post('/:id/update', async (req, res) => {
         success: false,
         error: 'Only active trainees can be added to trainings. Registered, inactive, and suspended trainees are not allowed.'
       });
+    }
+    const selectedHealthcare = await getHealthcareById(req.db, healthcare_id);
+    if (!selectedHealthcare) {
+      return res.json({ success: false, error: 'Please select one healthcare centre for this training.' });
+    }
+    const invalidHealthcareTrainees = await getTraineesOutsideHealthcare(req.db, traineeArray, selectedHealthcare.name);
+    if (invalidHealthcareTrainees.length > 0) {
+      return res.json({ success: false, error: `All selected trainees must belong to ${selectedHealthcare.name}.` });
     }
     
     // Helper function to convert AM/PM format to MySQL datetime
@@ -2612,22 +2714,18 @@ router.post('/:id/update', async (req, res) => {
       }
 
       // Update training basic info
+      const affiliatedCompany = normalizeAffiliatedCompany(affiliated_company);
       await connection.query(
-        'UPDATE trainings SET title = ?, status = ?, start_datetime = ?, end_datetime = ?, device_model_id = ? WHERE id = ?',
-        [title, status, startDatetime, endDatetime, device_model_id, trainingId]
+        'UPDATE trainings SET title = ?, status = ?, start_datetime = ?, end_datetime = ?, device_model_id = ?, affiliated_company = ? WHERE id = ?',
+        [title, status, startDatetime, endDatetime, device_model_id, affiliatedCompany, trainingId]
       );
       
-      // Update healthcare centres
+      // Update healthcare centre (exactly one healthcare per training)
       await connection.query('DELETE FROM training_healthcare WHERE training_id = ?', [trainingId]);
-      if (healthcare_ids) {
-        const healthcareArray = Array.isArray(healthcare_ids) ? healthcare_ids : [healthcare_ids];
-        for (const hcId of healthcareArray) {
-          await connection.query(
-            'INSERT INTO training_healthcare (training_id, healthcare_id) VALUES (?, ?)',
-            [trainingId, hcId]
-          );
-        }
-      }
+      await connection.query(
+        'INSERT INTO training_healthcare (training_id, healthcare_id) VALUES (?, ?)',
+        [trainingId, selectedHealthcare.id]
+      );
       
       // Update devices
       await connection.query('DELETE FROM training_devices WHERE training_id = ?', [trainingId]);

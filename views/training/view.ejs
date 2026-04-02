@@ -1087,6 +1087,11 @@
             <i class="fas fa-calendar-check"></i> Attendance
           </button>
         <% } %>
+        <% if (['admin', 'trainer'].includes(user.userRole) && training.status === 'completed') { %>
+          <button class="tab-button" onclick="switchTab('package')">
+            <i class="fas fa-box-archive"></i> Package
+          </button>
+        <% } %>
         <% if (training.type === 'main' && user.userRole === 'admin') { %>
           <button class="tab-button" onclick="switchTab('aspects')">
             <i class="fas fa-hand-paper"></i> Practical Learning Outcomes
@@ -1124,6 +1129,11 @@
       
       <!-- Attendance Tab (Admin/Trainer Only) -->
       <%- include('./tabs/attendance', { user, attendanceData, training }) %>
+
+      <!-- Package Tab (Admin/Trainer Only, Locked Training Only) -->
+      <% if (['admin', 'trainer'].includes(user.userRole) && training.status === 'completed') { %>
+        <%- include('./tabs/package', { user, training, attendanceData, marksData, allDeviceModels, allHealthcare, trainingHealthcare }) %>
+      <% } %>
       
       <!-- Practical Learning Outcomes Tab (Main Training, Admin Only) -->
       <%- include('./tabs/aspects', { training, user, aspects }) %>
@@ -1252,25 +1262,48 @@
       });
     }
     
+    function getSelectedSettingsHealthcareId() {
+      const selected = document.querySelector('#settings-form input[name="healthcare_id"]:checked');
+      return selected ? String(selected.value) : '';
+    }
+
+    function applySettingsTraineeFilter() {
+      const traineeSearch = document.getElementById('settings-trainee-search');
+      const traineeOptions = document.getElementById('settings-trainee-options');
+      if (!traineeOptions) return;
+
+      const selectedHealthcareId = getSelectedSettingsHealthcareId();
+      const searchTerm = String(traineeSearch?.value || '').toLowerCase();
+      const options = traineeOptions.querySelectorAll('.trainee-option');
+
+      options.forEach(option => {
+        const optionHealthcareId = String(option.getAttribute('data-healthcare-id') || '');
+        const searchText = String(option.getAttribute('data-search-text') || '').toLowerCase();
+        const matchesHealthcare = selectedHealthcareId && optionHealthcareId === selectedHealthcareId;
+        const matchesSearch = !searchTerm || searchText.includes(searchTerm);
+        const visible = matchesHealthcare && matchesSearch;
+
+        option.classList.toggle('hidden', !visible);
+
+        const checkbox = option.querySelector('input[name="trainee_ids[]"]');
+        if (!visible && checkbox) {
+          checkbox.checked = false;
+        }
+      });
+    }
+
     // Enhanced trainee search
     function setupTraineeSearch() {
       const traineeSearch = document.getElementById('settings-trainee-search');
-      const traineeOptions = document.getElementById('settings-trainee-options');
-      if (traineeSearch && traineeOptions) {
-        traineeSearch.addEventListener('input', function() {
-          const searchTerm = this.value.toLowerCase();
-          const options = traineeOptions.querySelectorAll('.trainee-option');
-          
-          options.forEach(option => {
-            const searchText = option.getAttribute('data-search-text').toLowerCase();
-            if (searchText.includes(searchTerm)) {
-              option.classList.remove('hidden');
-            } else {
-              option.classList.add('hidden');
-            }
-          });
-        });
+      if (traineeSearch) {
+        traineeSearch.addEventListener('input', applySettingsTraineeFilter);
       }
+
+      document.querySelectorAll('#settings-form input[name="healthcare_id"]').forEach(radio => {
+        radio.addEventListener('change', applySettingsTraineeFilter);
+      });
+
+      applySettingsTraineeFilter();
     }
     
     // Custom device management
@@ -1323,15 +1356,18 @@
       // Add basic fields
       formData.append('title', form.querySelector('[name="title"]').value);
       formData.append('status', form.querySelector('[name="status"]').value);
+      formData.append('affiliated_company', form.querySelector('[name="affiliated_company"]').value);
       formData.append('device_model_id', form.querySelector('[name="device_model_id"]').value);
       formData.append('start_datetime', form.querySelector('[name="start_datetime"]').value || '');
       formData.append('end_datetime', form.querySelector('[name="end_datetime"]').value || '');
       
-      // Add healthcare IDs (from checkboxes)
-      const healthcareCheckboxes = form.querySelectorAll('[name="healthcare_ids[]"]:checked');
-      healthcareCheckboxes.forEach(checkbox => {
-        formData.append('healthcare_ids', checkbox.value);
-      });
+      // Add healthcare ID (single selection)
+      const selectedHealthcare = form.querySelector('[name="healthcare_id"]:checked');
+      if (!selectedHealthcare) {
+        qssShowError('Please select one healthcare centre.');
+        return;
+      }
+      formData.append('healthcare_id', selectedHealthcare.value);
       
       // Add device data - pair device_type[] with device_ids[] or device_customs[]
       const deviceCheckboxes = form.querySelectorAll('[name="device_ids[]"]:checked');

@@ -204,9 +204,13 @@ router.get('/healthcare', async (req, res) => {
       deleteAction: '/settings/healthcare',
       createPage: '/settings/healthcare/new',
       editBase: '/settings/healthcare',
-      tableHeaders: ['Name', 'Description'],
+      tableHeaders: ['Name', 'Hospital Address'],
       hasModelDropdown: false,
-      hasModelColumn: false
+      hasModelColumn: false,
+      hasAddressField: true,
+      addressLabel: 'Hospital Address',
+      addressPlaceholder: 'Enter hospital address',
+      hasDescriptionField: false
     });
   } catch (error) {
     console.error('Healthcare page error:', error);
@@ -229,7 +233,11 @@ router.get('/healthcare/new', (req, res) => {
     namePlaceholder: 'Enter healthcare name',
     descriptionPlaceholder: 'Enter healthcare description (optional)',
     hasModelDropdown: false,
-    hasMaxScore: false
+    hasMaxScore: false,
+    hasAddressField: true,
+    addressLabel: 'Hospital Address',
+    addressPlaceholder: 'Enter hospital address',
+    hasDescriptionField: false
   });
 });
 
@@ -256,6 +264,10 @@ router.get('/healthcare/:id/edit', async (req, res) => {
       descriptionPlaceholder: 'Enter healthcare description (optional)',
       hasModelDropdown: false,
       hasMaxScore: false,
+      hasAddressField: true,
+      addressLabel: 'Hospital Address',
+      addressPlaceholder: 'Enter hospital address',
+      hasDescriptionField: false,
       item: rows[0]
     });
   } catch (error) {
@@ -265,12 +277,12 @@ router.get('/healthcare/:id/edit', async (req, res) => {
 });
 
 router.post('/healthcare/create', async (req, res) => {
-  const { name, description } = req.body;
+  const { name, hospital_address } = req.body;
   
   try {
     await req.db.query(
-      'INSERT INTO healthcare (name, description) VALUES (?, ?)',
-      [name, description || null]
+      'INSERT INTO healthcare (name, hospital_address, description) VALUES (?, ?, ?)',
+      [name, hospital_address || null, null]
     );
     res.redirect('/settings/healthcare');
   } catch (error) {
@@ -285,12 +297,12 @@ router.post('/healthcare/create', async (req, res) => {
 });
 
 router.post('/healthcare/:id/update', async (req, res) => {
-  const { name, description } = req.body;
+  const { name, hospital_address } = req.body;
   
   try {
     await req.db.query(
-      'UPDATE healthcare SET name = ?, description = ? WHERE id = ?',
-      [name, description || null, req.params.id]
+      'UPDATE healthcare SET name = ?, hospital_address = ?, description = ? WHERE id = ?',
+      [name, hospital_address || null, null, req.params.id]
     );
     res.redirect('/settings/healthcare');
   } catch (error) {

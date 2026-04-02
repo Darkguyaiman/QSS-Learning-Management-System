@@ -1,3 +1,9 @@
+<%
+  const affiliatedCompany = ((training && training.affiliated_company) ? String(training.affiliated_company) : 'QSS').toUpperCase() === 'PMS' ? 'PMS' : 'QSS';
+  const affiliatedBrand = affiliatedCompany === 'PMS'
+    ? { code: 'PMS', name: 'PMS', logo: '/images/Affiliated%20Companies/pmslogo.svg' }
+    : { code: 'QSS', name: 'Quick Stop Solution', logo: '/images/Affiliated%20Companies/qsslogo.svg' };
+%>
 <!-- Attendance Report Sub-tab -->
 <div id="attendance-report" class="attendance-sub-content">
   <div class="attendance-update-container attendance-report-shell">
@@ -25,9 +31,9 @@
       <article class="attendance-report-document">
         <header class="attendance-report-letterhead">
           <div class="attendance-report-brand">
-            <img src="/qsslogo.svg" alt="Quick Stop Solution" class="attendance-report-logo">
+            <img id="attendance-report-brand-logo" src="<%= affiliatedBrand.logo %>" alt="<%= affiliatedBrand.name %>" class="attendance-report-logo">
             <div>
-              <h3>Quick Stop Solution</h3>
+              <h3 id="attendance-report-brand-name"><%= affiliatedBrand.name %></h3>
               <p>Learning Management System</p>
             </div>
           </div>
@@ -386,6 +392,22 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
+  const REPORT_COMPANY = {
+    code: <%- JSON.stringify(affiliatedBrand.code) %>,
+    name: <%- JSON.stringify(affiliatedBrand.name) %>,
+    logoUrl: <%- JSON.stringify(affiliatedBrand.logo) %>
+  };
+  const REPORT_CONTEXT = {
+    trainingId: <%- JSON.stringify(typeof training !== 'undefined' ? training.id : null) %>,
+    trainingType: <%- JSON.stringify(typeof training !== 'undefined' ? training.type : '') %>,
+    trainingTitle: <%- JSON.stringify(typeof training !== 'undefined' ? training.title : '') %>,
+    generatedByName: <%- JSON.stringify(user.userName || '') %>,
+    generatedByPosition: <%- JSON.stringify(user.userPosition || '') %>,
+    healthcareNames: <%- JSON.stringify((typeof allHealthcare !== 'undefined' && Array.isArray(allHealthcare) && typeof trainingHealthcare !== 'undefined' && Array.isArray(trainingHealthcare)) ? trainingHealthcare.map(th => { const h = allHealthcare.find(x => String(x.id) === String(th.healthcare_id)); return h ? h.name : null; }).filter(Boolean) : []) %>,
+    marksData: <%- JSON.stringify(Array.isArray(marksData) ? marksData : []) %>
+  };
+  let currentReportState = null;
+
   function getAttendanceTrainingIdForReport() {
     const el = document.getElementById('attendance-tab');
     const raw = el?.dataset?.trainingId;
@@ -423,6 +445,46 @@
     if (!Number.isFinite(d)) return 'N/A';
     const rounded = Math.round(d * 100) / 100;
     return `${rounded} ${rounded === 1 ? 'hour' : 'hours'}`;
+  }
+
+  function sanitizeFileName(name) {
+    return String(name || 'file').replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_');
+  }
+
+  function formatDateYMD(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(`${dateStr}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return String(dateStr);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  function getBestTestScore(tests, testType) {
+    const candidates = (tests || []).filter(t => t.test_type === testType);
+    if (!candidates.length) return null;
+    return candidates.reduce((best, t) => {
+      const bestScore = parseFloat(best.score) || 0;
+      const currScore = parseFloat(t.score) || 0;
+      return currScore > bestScore ? t : best;
+    }, candidates[0]);
+  }
+
+  function summarizeHandsOn(handsOnScores) {
+    const scores = Array.isArray(handsOnScores) ? handsOnScores : [];
+    const totalScore = scores.reduce((sum, s) => sum + (parseFloat(s.score) || 0), 0);
+    const maxScore = scores.reduce((sum, s) => sum + (parseFloat(s.max_score) || 0), 0);
+    const percentage = maxScore > 0 ? ((totalScore / maxScore) * 100) : null;
+    return { totalScore, maxScore, percentage };
+  }
+
+  function getMarksLookup() {
+    const map = new Map();
+    (REPORT_CONTEXT.marksData || []).forEach(row => {
+      map.set(String(row.trainee_id || '').trim(), row);
+    });
+    return map;
   }
 
   function updateReportHeaderFields({ trainingTitle, date, time, duration, generatedByName, generatedByPosition, reference }) {
@@ -495,6 +557,7 @@
         const selectedOption = reportSelect.options[reportSelect.selectedIndex];
         if (!selectedOption || !selectedOption.value) {
           document.getElementById('report-preview').style.display = 'none';
+          currentReportState = null;
           return;
         }
 
@@ -502,10 +565,10 @@
         const date = selectedOption.dataset.date;
         const time = selectedOption.dataset.time || '';
         const duration = selectedOption.dataset.duration || '';
-        const trainingTitle = <%- JSON.stringify(typeof training !== 'undefined' ? training.title : '') %>;
-        const generatedByName = <%- JSON.stringify(user.userName || '') %>;
-        const generatedByPosition = <%- JSON.stringify(user.userPosition || '') %>;
-        const reference = `QSS-ATT-${trainingId || 'NA'}-${date || 'NA'}`;
+        const trainingTitle = REPORT_CONTEXT.trainingTitle;
+        const generatedByName = REPORT_CONTEXT.generatedByName;
+        const generatedByPosition = REPORT_CONTEXT.generatedByPosition;
+        const reference = `${REPORT_COMPANY.code}-ATT-${trainingId || 'NA'}-${date || 'NA'}`;
 
         try {
           const response = await fetch(`/attendance/session-details/${trainingId}?date=${encodeURIComponent(date)}`);
@@ -551,6 +614,17 @@
           });
 
           document.getElementById('report-preview').style.display = 'block';
+          currentReportState = {
+            trainingId,
+            trainingTitle,
+            date,
+            time,
+            duration,
+            generatedByName,
+            generatedByPosition,
+            reportReference: reference,
+            records: data.records || []
+          };
 
           const btn = document.getElementById('btn-generate-report');
           if (btn) {
@@ -606,8 +680,14 @@
       img.onerror = function() {
         resolve(null);
       };
-      img.src = '/qsslogo.svg';
+      img.src = REPORT_COMPANY.logoUrl;
     });
+  }
+
+  function drawSimpleWrappedText(doc, text, x, y, maxWidth, lineHeight) {
+    const lines = doc.splitTextToSize(String(text || ''), maxWidth);
+    doc.text(lines, x, y);
+    return y + (Math.max(lines.length, 1) * lineHeight);
   }
 
   async function generateAttendancePdfReport({
@@ -618,7 +698,8 @@
     records,
     generatedByName,
     generatedByPosition,
-    reportReference
+    reportReference,
+    download = true
   }) {
     if (!window.jspdf || !window.jspdf.jsPDF) {
       qssShowError('jsPDF failed to load. Please refresh the page and try again.');
@@ -671,7 +752,7 @@
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(14);
       doc.setTextColor(15, 23, 42);
-      doc.text('Quick Stop Solution', margin + 82, y + 28);
+      doc.text(REPORT_COMPANY.name, margin + 82, y + 28);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
@@ -704,7 +785,7 @@
 
     doc.text('Duration', margin + 290, y + 20);
     doc.text('Prepared By', margin + 290, y + 42);
-    doc.text('Prepared By', margin + 290, y + 64);
+    doc.text('Reference', margin + 290, y + 64);
 
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(17, 24, 39);
@@ -713,7 +794,8 @@
     doc.text(formatFriendlyTime(sessionTime), margin + 110, y + 64);
 
     doc.text(formatFriendlyDuration(sessionDuration), margin + 365, y + 20);
-    doc.text(generatedBy || '-', margin + 365, y + 64);
+    doc.text(generatedBy || '-', margin + 365, y + 42);
+    doc.text(reportReference || '-', margin + 365, y + 64);
 
     y += 104;
 
@@ -876,7 +958,270 @@
       doc.setLineDashPattern([], 0);
     });
 
-    const safeDate = (sessionDate || 'session').replaceAll('/', '-');
-    doc.save(`Attendance_Report_${safeDate}.pdf`);
+    if (download) {
+      const safeDate = sanitizeFileName(formatDateYMD(sessionDate) || sessionDate || 'session');
+      doc.save(`Attendance_Report_${safeDate}.pdf`);
+      return null;
+    }
+    return doc.output('blob');
+  }
+
+  async function generateInHouseLetterPdfBlob(state, logoImage) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 42;
+    const right = pageWidth - margin;
+    const generatedDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const hospitals = REPORT_CONTEXT.healthcareNames.length ? REPORT_CONTEXT.healthcareNames.join(', ') : 'N/A';
+
+    let y = margin;
+    if (logoImage && logoImage.dataUrl) {
+      doc.addImage(logoImage.dataUrl, 'PNG', margin, y, 80, 80);
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text(REPORT_COMPANY.name, margin + 92, y + 24);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text('In House Training Letter', margin + 92, y + 42);
+    doc.text(`Date: ${generatedDate}`, right, y + 24, { align: 'right' });
+    doc.text(`Ref: ${state.reportReference}`, right, y + 42, { align: 'right' });
+
+    y += 108;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('CONFIRMATION OF IN-HOUSE TRAINING FOR KLASER DEVICE', margin, y);
+    y += 22;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    y = drawSimpleWrappedText(doc, `We are pleased to confirm that staff members have successfully attended the in-house training session "${state.trainingTitle}".`, margin, y, pageWidth - margin * 2, 14);
+    y += 8;
+    y = drawSimpleWrappedText(doc, `Training Date: ${formatFriendlyDate(state.date)} | Time: ${formatFriendlyTime(state.time)} | Duration: ${formatFriendlyDuration(state.duration)}`, margin, y, pageWidth - margin * 2, 14);
+    y = drawSimpleWrappedText(doc, `Participating Healthcare Centre(s): ${hospitals}`, margin, y + 4, pageWidth - margin * 2, 14);
+    y = drawSimpleWrappedText(doc, `This training was conducted by ${REPORT_COMPANY.name}, covering safety, technical, and clinical aspects relevant to trainees.`, margin, y + 8, pageWidth - margin * 2, 14);
+    y = drawSimpleWrappedText(doc, 'Group report and individual trainee performance reports are attached in this package.', margin, y + 8, pageWidth - margin * 2, 14);
+
+    y += 24;
+    doc.text('Yours sincerely,', margin, y);
+    y += 48;
+    doc.line(margin, y, margin + 220, y);
+    doc.text('Shah Zarak Kahn Bin Ashiq Hussain', margin, y + 14);
+    doc.text(`Group Managing Director, ${REPORT_COMPANY.name}`, margin, y + 28);
+
+    return doc.output('blob');
+  }
+
+  async function generateGroupReportPdfBlob(state) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 36;
+    const marksLookup = getMarksLookup();
+    let y = margin;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('Attachment 1 - Group Report', margin, y);
+    y += 16;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${REPORT_CONTEXT.trainingTitle} | ${formatFriendlyDate(state.date)} ${formatFriendlyTime(state.time)}`, margin, y);
+    y += 18;
+
+    const columns = [
+      { key: 'no', label: 'No', width: 24 },
+      { key: 'name', label: 'Name', width: 120 },
+      { key: 'id', label: 'Trainee ID', width: 66 },
+      { key: 'pre', label: 'Pre', width: 42 },
+      { key: 'post', label: 'Post/Ref', width: 52 },
+      { key: 'cert', label: 'Cert', width: 40 },
+      { key: 'handson', label: 'Hands-On %', width: 64 },
+      { key: 'status', label: 'Attendance', width: 58 },
+      { key: 'notes', label: 'Notes', width: pageWidth - margin * 2 - (24 + 120 + 66 + 42 + 52 + 40 + 64 + 58) - 16 }
+    ];
+    const tableWidth = pageWidth - margin * 2;
+
+    const drawHeader = () => {
+      doc.setFillColor(238, 242, 247);
+      doc.rect(margin, y, tableWidth, 18, 'F');
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(margin, y, tableWidth, 18);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      let x = margin + 6;
+      columns.forEach(col => {
+        doc.text(col.label, x, y + 12);
+        x += col.width;
+      });
+      y += 20;
+    };
+    drawHeader();
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+
+    (state.records || []).forEach((r, idx) => {
+      const marks = marksLookup.get(String(r.trainee_id || '').trim());
+      const pre = marks ? getBestTestScore(marks.tests, 'pre_test') : null;
+      const post = marks ? (getBestTestScore(marks.tests, 'post_test') || getBestTestScore(marks.tests, 'refresher_training')) : null;
+      const cert = marks ? getBestTestScore(marks.tests, 'certificate_enrolment') : null;
+      const handsOn = marks ? summarizeHandsOn(marks.handsOnScores) : { percentage: null };
+
+      const row = [
+        String(idx + 1),
+        `${r.first_name || ''} ${r.last_name || ''}`.trim() || '-',
+        String(r.trainee_id || '-'),
+        pre ? `${(parseFloat(pre.score) || 0).toFixed(1)}%` : '-',
+        post ? `${(parseFloat(post.score) || 0).toFixed(1)}%` : '-',
+        cert ? `${(parseFloat(cert.score) || 0).toFixed(1)}%` : '-',
+        handsOn.percentage == null ? '-' : `${handsOn.percentage.toFixed(1)}%`,
+        String(r.status || '-').toUpperCase(),
+        String(r.notes || '-')
+      ];
+      const wrapped = row.map((v, i) => doc.splitTextToSize(v, columns[i].width - 8));
+      const rowHeight = Math.max(16, Math.max(...wrapped.map(lines => lines.length)) * 9 + 4);
+
+      if (y + rowHeight > pageHeight - margin) {
+        doc.addPage();
+        y = margin;
+        drawHeader();
+      }
+
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(margin, y, tableWidth, rowHeight);
+      let x = margin + 6;
+      wrapped.forEach((lines, i) => {
+        doc.text(lines, x, y + 10);
+        x += columns[i].width;
+      });
+      y += rowHeight;
+    });
+
+    return doc.output('blob');
+  }
+
+  async function generateIndividualReportPdfBlob(state, traineeRecord, marks) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 42;
+    const fullName = `${traineeRecord.first_name || ''} ${traineeRecord.last_name || ''}`.trim() || '-';
+    const handsOn = summarizeHandsOn(marks?.handsOnScores || []);
+    const pre = getBestTestScore(marks?.tests || [], 'pre_test');
+    const post = getBestTestScore(marks?.tests || [], 'post_test');
+    const refresher = getBestTestScore(marks?.tests || [], 'refresher_training');
+    const cert = getBestTestScore(marks?.tests || [], 'certificate_enrolment');
+    const effectiveMidTest = post || refresher;
+
+    let y = margin;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('Individual Trainee Report', margin, y);
+    y += 20;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`Training: ${state.trainingTitle}`, margin, y); y += 14;
+    doc.text(`Trainee: ${fullName}`, margin, y); y += 14;
+    doc.text(`Trainee ID: ${traineeRecord.trainee_id || '-'}`, margin, y); y += 14;
+    doc.text(`Session Date: ${formatFriendlyDate(state.date)}`, margin, y); y += 14;
+    doc.text(`Attendance: ${String(traineeRecord.status || '-').toUpperCase()}`, margin, y); y += 20;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Test Performance', margin, y); y += 14;
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Pre-Test: ${pre ? `${(parseFloat(pre.score) || 0).toFixed(1)}%` : 'N/A'}`, margin, y); y += 14;
+    doc.text(`${post ? 'Post-Test' : 'Refresher Test'}: ${effectiveMidTest ? `${(parseFloat(effectiveMidTest.score) || 0).toFixed(1)}%` : 'N/A'}`, margin, y); y += 14;
+    doc.text(`Certificate Enrolment: ${cert ? `${(parseFloat(cert.score) || 0).toFixed(1)}%` : 'N/A'}`, margin, y); y += 20;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Hands-On Performance', margin, y); y += 14;
+    doc.setFont('helvetica', 'normal');
+    if (handsOn.percentage == null) {
+      doc.text('No hands-on scores recorded.', margin, y); y += 14;
+    } else {
+      doc.text(`Total: ${handsOn.totalScore.toFixed(1)} / ${handsOn.maxScore.toFixed(1)} (${handsOn.percentage.toFixed(1)}%)`, margin, y); y += 14;
+      (marks?.handsOnScores || []).forEach(aspect => {
+        const label = `${aspect.aspect_name || 'Aspect'}: ${(parseFloat(aspect.score) || 0).toFixed(1)} / ${(parseFloat(aspect.max_score) || 0).toFixed(1)}`;
+        y = drawSimpleWrappedText(doc, label, margin + 8, y, pageWidth - margin * 2 - 8, 13);
+      });
+    }
+
+    y += 10;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Notes', margin, y); y += 14;
+    doc.setFont('helvetica', 'normal');
+    y = drawSimpleWrappedText(doc, traineeRecord.notes || 'N/A', margin, y, pageWidth - margin * 2, 13);
+
+    return doc.output('blob');
+  }
+
+  async function downloadBlob(filename, blob) {
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function downloadTrainingPackage(state) {
+    if (!state || !Array.isArray(state.records)) {
+      qssShowError('Select an attendance session first.');
+      return;
+    }
+    if (!window.JSZip) {
+      qssShowError('JSZip failed to load. Please refresh and try again.');
+      return;
+    }
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      qssShowError('jsPDF failed to load. Please refresh and try again.');
+      return;
+    }
+
+    const btn = document.getElementById('btn-download-package');
+    const oldHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing Package...';
+    }
+
+    try {
+      const marksLookup = getMarksLookup();
+      const logoImage = await loadLogoPngDataUrl();
+      const zip = new JSZip();
+
+      const letterBlob = await generateInHouseLetterPdfBlob(state, logoImage);
+      zip.file('Inhouse_Training_Letter.pdf', letterBlob);
+
+      const groupReportBlob = await generateGroupReportPdfBlob(state);
+      zip.file('Attachment_1_Group_Report.pdf', groupReportBlob);
+
+      const individualFolder = zip.folder('Individual Reports');
+      for (const record of state.records) {
+        const marks = marksLookup.get(String(record.trainee_id || '').trim()) || null;
+        const individualBlob = await generateIndividualReportPdfBlob(state, record, marks);
+        const fullName = `${record.first_name || ''} ${record.last_name || ''}`.trim() || 'Trainee';
+        const traineeId = sanitizeFileName(record.trainee_id || 'NA');
+        individualFolder.file(`${sanitizeFileName(fullName)}_${traineeId}.pdf`, individualBlob);
+      }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const packDate = sanitizeFileName(formatDateYMD(state.date) || state.date || 'session');
+      const trainingName = sanitizeFileName(state.trainingTitle || 'Training');
+      await downloadBlob(`${trainingName}_${packDate}_Reports.zip`, zipBlob);
+    } catch (err) {
+      console.error('Package generation error:', err);
+      qssShowError('Failed to generate package. Please try again.');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = oldHtml;
+      }
+    }
   }
 </script>
