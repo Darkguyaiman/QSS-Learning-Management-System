@@ -4,6 +4,7 @@ const path = require('path');
 const router = express.Router();
 const fs = require('fs');
 const sharp = require('sharp');
+const packageGenerator = require('./package-generator');
 
 const TEST_TYPE_LABELS = {
   pre_test: 'Pre-Test',
@@ -3513,6 +3514,114 @@ router.post('/:id/enrollment/:enrollmentId/hands-on/save', async (req, res) => {
   } catch (error) {
     console.error('Save hands-on scores error:', error);
     res.status(500).json({ success: false, error: 'Error saving hands-on scores' });
+  }
+});
+
+// Generate full backend package zip (admin/trainer only)
+router.post('/:id/package/zip', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+
+  try {
+    const trainingId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(trainingId) || trainingId <= 0) {
+      return res.status(400).json({ success: false, error: 'Invalid training id' });
+    }
+
+    const [trainings] = await req.db.query(
+      'SELECT id, type, title, status, start_datetime, end_datetime, affiliated_company FROM trainings WHERE id = ? LIMIT 1',
+      [trainingId]
+    );
+    if (!trainings || trainings.length === 0) {
+      return res.status(404).json({ success: false, error: 'Training not found' });
+    }
+
+    const training = trainings[0];
+    if (training.status !== 'completed') {
+      return res.status(400).json({ success: false, error: 'Package is only available after training is locked.' });
+    }
+
+    const formDataRaw = req.body?.formData || {};
+    const formData = {
+      hospitalName: String(formDataRaw.hospitalName || '').trim(),
+      deviceModel: String(formDataRaw.deviceModel || '').trim(),
+      address: String(formDataRaw.address || '').trim(),
+      recipientName: String(formDataRaw.recipientName || '').trim(),
+      recipientPhone: String(formDataRaw.recipientPhone || '').trim()
+    };
+    if (!formData.hospitalName || !formData.deviceModel || !formData.address || !formData.recipientName || !formData.recipientPhone) {
+      return res.status(400).json({ success: false, error: 'Missing required form fields' });
+    }
+
+    const zipBuffer = await packageGenerator.generatePackageZipBuffer({
+      db: req.db,
+      training,
+      formData,
+      generatedByName: req.session.userName || '',
+      generatedByPosition: req.session.userPosition || ''
+    });
+
+    const packDateSource = String(training.start_datetime || training.end_datetime || new Date().toISOString().slice(0, 10)).split('T')[0].split(' ')[0];
+    const filename = `${packageGenerator.sanitizeFileName(training.title || 'Training')}_${packageGenerator.sanitizeFileName(packDateSource)}_Package.zip`;
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(zipBuffer);
+  } catch (error) {
+    console.error('Backend package generation error:', error);
+    const status = Number.isInteger(error?.statusCode) ? error.statusCode : 500;
+    const message = status === 500 ? 'Failed to generate package zip' : String(error.message || 'Package validation failed');
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+// Generate backend-rendered in-house training letter PDF (admin/trainer only)
+router.post('/:id/package/letter-pdf', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+
+  try {
+    const trainingId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(trainingId) || trainingId <= 0) {
+      return res.status(400).json({ success: false, error: 'Invalid training id' });
+    }
+
+    const [trainings] = await req.db.query(
+      'SELECT id, type, title, start_datetime, end_datetime, affiliated_company FROM trainings WHERE id = ? LIMIT 1',
+      [trainingId]
+    );
+    if (!trainings || trainings.length === 0) {
+      return res.status(404).json({ success: false, error: 'Training not found' });
+    }
+
+    const training = trainings[0];
+    const formDataRaw = req.body?.formData || {};
+    const formData = {
+      hospitalName: String(formDataRaw.hospitalName || '').trim(),
+      deviceModel: String(formDataRaw.deviceModel || '').trim(),
+      address: String(formDataRaw.address || '').trim(),
+      recipientName: String(formDataRaw.recipientName || '').trim(),
+      recipientPhone: String(formDataRaw.recipientPhone || '').trim()
+    };
+    if (!formData.hospitalName || !formData.deviceModel || !formData.address || !formData.recipientName || !formData.recipientPhone) {
+      return res.status(400).json({ success: false, error: 'Missing required form fields' });
+    }
+
+    const buffer = await packageGenerator.generateLetterPdfBuffer({
+      db: req.db,
+      training,
+      formData
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=\"In House Training Letter.pdf\"');
+    return res.send(buffer);
+  } catch (error) {
+    console.error('Backend training letter generation error:', error);
+    const status = Number.isInteger(error?.statusCode) ? error.statusCode : 500;
+    const message = status === 500 ? 'Failed to generate letter PDF' : String(error.message || 'Letter validation failed');
+    return res.status(status).json({ success: false, error: message });
   }
 });
 

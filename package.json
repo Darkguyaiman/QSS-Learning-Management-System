@@ -28,11 +28,15 @@
     "express-session": "latest",
     "express-validator": "^7.0.1",
     "fs": "latest",
+    "jszip": "^3.10.1",
     "method-override": "^3.0.0",
     "multer": "latest",
     "mysql2": "latest",
     "path": "latest",
+    "pdfkit": "^0.18.0",
+    "puppeteer": "^24.40.0",
     "sharp": "^0.34.3",
+    "tslib": "^2.8.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
