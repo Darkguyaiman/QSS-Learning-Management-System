@@ -6,6 +6,7 @@ const puppeteer = require('puppeteer');
 let browserPromise = null;
 const headerCache = new Map();
 const logoCache = new Map();
+const PDF_RENDER_CONCURRENCY = 2;
 
 function sanitizeFileName(name) {
   return String(name || 'file').replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_');
@@ -339,7 +340,7 @@ async function htmlToPdfBuffer(html, orientation = 'portrait') {
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.setContent(html, { waitUntil: 'domcontentloaded' });
     const buffer = await page.pdf({
       format: 'A4',
       landscape: orientation === 'landscape',
@@ -352,63 +353,130 @@ async function htmlToPdfBuffer(html, orientation = 'portrait') {
   }
 }
 
-async function fetchPackageData(db, trainingId, trainingType) {
-  const [objectiveRows] = await db.query(
-    'SELECT id, name FROM objectives ORDER BY id'
+async function mapWithConcurrency(items, concurrency, worker) {
+  const source = Array.isArray(items) ? items : [];
+  const limit = Math.max(1, Number(concurrency) || 1);
+  const results = new Array(source.length);
+  let cursor = 0;
+
+  async function runWorker() {
+    while (true) {
+      const index = cursor++;
+      if (index >= source.length) return;
+      results[index] = await worker(source[index], index);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(limit, source.length) }, () => runWorker())
   );
-  const [handsOnAspectRows] = trainingType === 'main'
-    ? await db.query(
-      'SELECT id, aspect_name, max_score FROM practical_learning_outcomes WHERE training_id = ? ORDER BY id',
-      [trainingId]
-    )
-    : [[]];
 
-  const [rows] = await db.query(`
-    SELECT e.id as enrollment_id, tr.id as trainee_db_id, tr.first_name, tr.last_name, tr.trainee_id, tr.ic_passport,
-      (SELECT COUNT(*) FROM attendance WHERE enrollment_id = e.id AND status = 'present') as present_count,
-      (SELECT COUNT(*) FROM attendance WHERE enrollment_id = e.id AND status = 'absent') as absent_count
-    FROM enrollments e
-    JOIN trainees tr ON e.trainee_id = tr.id
-    WHERE e.training_id = ?
-    ORDER BY tr.last_name, tr.first_name
-  `, [trainingId]);
+  return results;
+}
 
+async function fetchPackageData(db, trainingId, trainingType) {
+  const [objectiveResult, handsOnAspectResult, attendanceResult, sessionsResult] = await Promise.all([
+    db.query('SELECT id, name FROM objectives ORDER BY id'),
+    trainingType === 'main'
+      ? db.query(
+        'SELECT id, aspect_name, max_score FROM practical_learning_outcomes WHERE training_id = ? ORDER BY id',
+        [trainingId]
+      )
+      : Promise.resolve([[]]),
+    db.query(`
+      SELECT e.id as enrollment_id, tr.id as trainee_db_id, tr.first_name, tr.last_name, tr.trainee_id, tr.ic_passport,
+        COALESCE(SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END), 0) as present_count,
+        COALESCE(SUM(CASE WHEN a.status = 'absent' THEN 1 ELSE 0 END), 0) as absent_count
+      FROM enrollments e
+      JOIN trainees tr ON e.trainee_id = tr.id
+      LEFT JOIN attendance a ON a.enrollment_id = e.id
+      WHERE e.training_id = ?
+      GROUP BY e.id, tr.id, tr.first_name, tr.last_name, tr.trainee_id, tr.ic_passport
+      ORDER BY tr.last_name, tr.first_name
+    `, [trainingId]),
+    db.query(`
+      SELECT DISTINCT DATE_FORMAT(a.date, '%Y-%m-%d') as date, TIME_FORMAT(a.time, '%H:%i:%s') as time, a.duration
+      FROM attendance a
+      JOIN enrollments e ON a.enrollment_id = e.id
+      WHERE e.training_id = ?
+      ORDER BY DATE_FORMAT(a.date, '%Y-%m-%d') DESC, TIME_FORMAT(a.time, '%H:%i:%s') DESC
+    `, [trainingId])
+  ]);
+
+  const [objectiveRows] = objectiveResult;
+  const [handsOnAspectRows] = handsOnAspectResult;
+  const [rows] = attendanceResult;
+  const [sessions] = sessionsResult;
   const attendanceRows = rows || [];
-  const marksByTraineeId = new Map();
+  const enrollmentIds = attendanceRows.map(row => row.enrollment_id);
+  const marksByEnrollmentId = new Map(
+    attendanceRows.map(row => [
+      String(row.enrollment_id),
+      { tests: [], handsOnScores: [], objectiveScores: {} }
+    ])
+  );
 
-  for (const row of attendanceRows) {
-    const [tests] = await db.query(
-      'SELECT * FROM test_attempts WHERE enrollment_id = ? AND status = "completed" ORDER BY test_type',
-      [row.enrollment_id]
-    );
-    (tests || []).forEach(t => { t.score = parseFloat(t.score) || 0; });
-    let handsOnScores = [];
-    let objectiveScores = {};
-    if (trainingType === 'main') {
-      const [hands] = await db.query(`
-        SELECT hs.*, ha.aspect_name, ha.max_score
-        FROM practical_learning_outcome_scores hs
-        JOIN practical_learning_outcomes ha ON hs.aspect_id = ha.id
-        WHERE hs.enrollment_id = ?
-      `, [row.enrollment_id]);
-      handsOnScores = hands || [];
+  if (enrollmentIds.length > 0) {
+    const [testsResult, handsResult] = await Promise.all([
+      db.query(
+        'SELECT * FROM test_attempts WHERE enrollment_id IN (?) AND status = "completed" ORDER BY enrollment_id, test_type, id',
+        [enrollmentIds]
+      ),
+      trainingType === 'main'
+        ? db.query(`
+          SELECT hs.*, ha.aspect_name, ha.max_score
+          FROM practical_learning_outcome_scores hs
+          JOIN practical_learning_outcomes ha ON hs.aspect_id = ha.id
+          WHERE hs.enrollment_id IN (?)
+          ORDER BY hs.enrollment_id, hs.id
+        `, [enrollmentIds])
+        : Promise.resolve([[]])
+    ]);
+
+    const [testRows] = testsResult;
+    const [handsRows] = handsResult;
+
+    for (const test of testRows || []) {
+      test.score = parseFloat(test.score) || 0;
+      const marks = marksByEnrollmentId.get(String(test.enrollment_id));
+      if (marks) marks.tests.push(test);
     }
 
-    const certAttempt = getBestTestScore(tests || [], 'certificate_enrolment');
-    if (certAttempt && certAttempt.id) {
+    for (const hand of handsRows || []) {
+      const marks = marksByEnrollmentId.get(String(hand.enrollment_id));
+      if (marks) marks.handsOnScores.push(hand);
+    }
+
+    const certAttemptIds = [];
+    for (const marks of marksByEnrollmentId.values()) {
+      const certAttempt = getBestTestScore(marks.tests, 'certificate_enrolment');
+      if (certAttempt?.id) {
+        marks.certificateAttemptId = certAttempt.id;
+        certAttemptIds.push(certAttempt.id);
+      }
+    }
+
+    if (certAttemptIds.length > 0) {
       const [objectiveAnswerRows] = await db.query(`
-        SELECT q.objective_id, o.name as objective_name, ta.selected_answer, q.correct_answer
+        SELECT ta.attempt_id, q.objective_id, o.name as objective_name, ta.selected_answer, q.correct_answer
         FROM test_answers ta
         JOIN questions q ON ta.question_id = q.id
         LEFT JOIN objectives o ON q.objective_id = o.id
-        WHERE ta.attempt_id = ?
-        ORDER BY q.objective_id, ta.id
-      `, [certAttempt.id]);
+        WHERE ta.attempt_id IN (?)
+        ORDER BY ta.attempt_id, q.objective_id, ta.id
+      `, [certAttemptIds]);
 
-      const grouped = new Map();
+      const objectiveScoresByAttemptId = new Map();
       for (const answer of objectiveAnswerRows || []) {
         const objectiveId = String(answer.objective_id || '');
         if (!objectiveId) continue;
+
+        const attemptKey = String(answer.attempt_id);
+        if (!objectiveScoresByAttemptId.has(attemptKey)) {
+          objectiveScoresByAttemptId.set(attemptKey, new Map());
+        }
+
+        const grouped = objectiveScoresByAttemptId.get(attemptKey);
         if (!grouped.has(objectiveId)) {
           grouped.set(objectiveId, {
             objectiveId: answer.objective_id,
@@ -417,6 +485,7 @@ async function fetchPackageData(db, trainingId, trainingType) {
             correct: 0
           });
         }
+
         const entry = grouped.get(objectiveId);
         entry.total += 1;
         if (String(answer.selected_answer || '') === String(answer.correct_answer || '')) {
@@ -424,33 +493,29 @@ async function fetchPackageData(db, trainingId, trainingType) {
         }
       }
 
-      objectiveScores = Array.from(grouped.values()).reduce((acc, entry) => {
-        acc[String(entry.objectiveId)] = {
-          ...entry,
-          percentage: entry.total > 0 ? (entry.correct / entry.total) * 100 : 0
-        };
-        return acc;
-      }, {});
+      for (const marks of marksByEnrollmentId.values()) {
+        const attemptKey = String(marks.certificateAttemptId || '');
+        const grouped = objectiveScoresByAttemptId.get(attemptKey);
+        if (!grouped) continue;
+
+        marks.objectiveScores = Array.from(grouped.values()).reduce((acc, entry) => {
+          acc[String(entry.objectiveId)] = {
+            ...entry,
+            percentage: entry.total > 0 ? (entry.correct / entry.total) * 100 : 0
+          };
+          return acc;
+        }, {});
+      }
     }
 
-    marksByTraineeId.set(String(row.trainee_id || '').trim(), {
-      tests: tests || [],
-      handsOnScores,
-      objectiveScores
-    });
+    for (const marks of marksByEnrollmentId.values()) {
+      delete marks.certificateAttemptId;
+    }
   }
-
-  const [sessions] = await db.query(`
-    SELECT DISTINCT DATE_FORMAT(a.date, '%Y-%m-%d') as date, TIME_FORMAT(a.time, '%H:%i:%s') as time, a.duration
-    FROM attendance a
-    JOIN enrollments e ON a.enrollment_id = e.id
-    WHERE e.training_id = ?
-    ORDER BY DATE_FORMAT(a.date, '%Y-%m-%d') DESC, TIME_FORMAT(a.time, '%H:%i:%s') DESC
-  `, [trainingId]);
 
   return {
     attendanceRows,
-    marksByTraineeId,
+    marksByEnrollmentId,
     sessions: sessions || [],
     objectives: objectiveRows || [],
     handsOnAspects: handsOnAspectRows || []
@@ -527,7 +592,7 @@ function buildLetterHtml({ training, company, formData, attendanceSessionCount, 
   return baseHtml('In House Training Letter', html);
 }
 
-function buildGroupHtml({ training, company, attendanceRows, marksByTraineeId, objectives, handsOnAspects }) {
+function buildGroupHtml({ training, company, attendanceRows, marksByEnrollmentId, objectives, handsOnAspects }) {
   const header = headerDataUrl(company.code);
   const currentDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   const ref = docRef(company.code, training.id, training.start_datetime || training.end_datetime);
@@ -536,7 +601,7 @@ function buildGroupHtml({ training, company, attendanceRows, marksByTraineeId, o
   const objectiveHeaders = Array.isArray(objectives) ? objectives : [];
 
   const overviewRowsHtml = attendanceRows.map((r) => {
-    const marks = marksByTraineeId.get(String(r.trainee_id || '').trim());
+    const marks = marksByEnrollmentId.get(String(r.enrollment_id));
     const pre = marks ? getBestTestScore(marks.tests, 'pre_test') : null;
     const post = marks ? (getBestTestScore(marks.tests, 'post_test') || getBestTestScore(marks.tests, 'refresher_training')) : null;
     const cert = marks ? getBestTestScore(marks.tests, 'certificate_enrolment') : null;
@@ -562,7 +627,7 @@ function buildGroupHtml({ training, company, attendanceRows, marksByTraineeId, o
   }).join('') || `<tr><td colspan="${isMainTraining ? 8 : 5}" class="muted-cell">No enrolled trainees were found for this training.</td></tr>`;
 
   const objectiveRowsHtml = attendanceRows.map((r) => {
-    const marks = marksByTraineeId.get(String(r.trainee_id || '').trim());
+    const marks = marksByEnrollmentId.get(String(r.enrollment_id));
     const objectiveCells = objectiveHeaders.map((objective) => {
       const entry = marks?.objectiveScores?.[String(objective.id)];
       return `<td class="center">${entry ? formatPercent(entry.percentage) : '0%'}</td>`;
@@ -619,9 +684,9 @@ function buildGroupHtml({ training, company, attendanceRows, marksByTraineeId, o
   return baseHtml('Group Report', html);
 }
 
-function buildIndividualHtml({ company, formData, row, marksByTraineeId, objectives }) {
+function buildIndividualHtml({ company, formData, row, marksByEnrollmentId, objectives }) {
   const header = headerDataUrl(company.code);
-  const marks = marksByTraineeId.get(String(row.trainee_id || '').trim());
+  const marks = marksByEnrollmentId.get(String(row.enrollment_id));
   const isMainTraining = Array.isArray(marks?.handsOnScores) && marks.handsOnScores.length > 0;
   const currentDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   const ref = docRef(company.code, row.enrollment_id || row.trainee_db_id || row.trainee_id || '0', new Date());
@@ -925,7 +990,7 @@ function buildCertificateHtml({ certificate, company }) {
 
 async function generatePackageZipBuffer({ db, training, formData, generatedByName, generatedByPosition }) {
   const company = normalizeCompany(training.affiliated_company);
-  const { attendanceRows, marksByTraineeId, objectives, handsOnAspects } = await fetchPackageData(db, training.id, training.type);
+  const { attendanceRows, marksByEnrollmentId, objectives, handsOnAspects } = await fetchPackageData(db, training.id, training.type);
   const missingIcRows = (attendanceRows || []).filter(row => !String(row.ic_passport || '').trim());
   if (missingIcRows.length > 0) {
     const sample = missingIcRows.slice(0, 10).map(row => `${row.first_name || ''} ${row.last_name || ''}`.trim() || `Enrollment ${row.enrollment_id}`);
@@ -952,38 +1017,61 @@ async function generatePackageZipBuffer({ db, training, formData, generatedByNam
     traineeId: String(row.ic_passport || row.trainee_id || ''),
     certificateNumber: certByEnrollmentId.get(String(row.enrollment_id))?.certificate_number || 'N/A'
   }));
-  const letterBuffer = await generateLetterPdfBuffer({
-    db,
-    training,
-    formData,
-    preloadedAttendanceRows: attendanceRows,
-    preloadedTraineeRows: traineeRows
-  });
+  const groupHtml = buildGroupHtml({ training, company, attendanceRows, marksByEnrollmentId, objectives, handsOnAspects });
+  const [letterBuffer, groupBuffer] = await Promise.all([
+    generateLetterPdfBuffer({
+      db,
+      training,
+      formData,
+      preloadedAttendanceRows: attendanceRows,
+      preloadedTraineeRows: traineeRows
+    }),
+    htmlToPdfBuffer(groupHtml, 'landscape')
+  ]);
   zip.file('In House Training Letter.pdf', letterBuffer);
-
-  const groupHtml = buildGroupHtml({ training, company, attendanceRows, marksByTraineeId, objectives, handsOnAspects });
-  zip.file('Group Report.pdf', await htmlToPdfBuffer(groupHtml, 'landscape'));
+  zip.file('Group Report.pdf', groupBuffer);
 
   const individualFolder = zip.folder('Individual Reports');
-  for (const row of attendanceRows) {
-    const html = buildIndividualHtml({ company, formData, row, marksByTraineeId, objectives });
-    const fullName = `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Trainee';
-    const traineeId = String(row.trainee_id || 'NA');
-    individualFolder.file(`${sanitizeFileName(fullName)}_${sanitizeFileName(traineeId)}.pdf`, await htmlToPdfBuffer(html, 'portrait'));
+  const individualEntries = await mapWithConcurrency(
+    attendanceRows,
+    PDF_RENDER_CONCURRENCY,
+    async (row) => {
+      const html = buildIndividualHtml({ company, formData, row, marksByEnrollmentId, objectives });
+      const fullName = `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Trainee';
+      const traineeId = String(row.trainee_id || 'NA');
+      const pdfBuffer = await htmlToPdfBuffer(html, 'portrait');
+      return {
+        fileName: `${sanitizeFileName(fullName)}_${sanitizeFileName(traineeId)}.pdf`,
+        pdfBuffer
+      };
+    }
+  );
+  for (const entry of individualEntries) {
+    individualFolder.file(entry.fileName, entry.pdfBuffer);
   }
 
   if (Array.isArray(issuedCertificates) && issuedCertificates.length > 0) {
     const certFolder = zip.folder('Certificates');
-    for (const cert of issuedCertificates) {
-      const certHtml = buildCertificateHtml({ certificate: cert, company });
-      const certPdf = await htmlToPdfBuffer(certHtml, 'landscape');
-      const certName = sanitizeFileName(cert.participant_name || 'Participant');
-      const certNo = sanitizeFileName(cert.certificate_number || 'CERT');
-      certFolder.file(`${certNo}_${certName}.pdf`, certPdf);
+    const certificateEntries = await mapWithConcurrency(
+      issuedCertificates,
+      PDF_RENDER_CONCURRENCY,
+      async (cert) => {
+        const certHtml = buildCertificateHtml({ certificate: cert, company });
+        const certPdf = await htmlToPdfBuffer(certHtml, 'landscape');
+        const certName = sanitizeFileName(cert.participant_name || 'Participant');
+        const certNo = sanitizeFileName(cert.certificate_number || 'CERT');
+        return {
+          fileName: `${certNo}_${certName}.pdf`,
+          pdfBuffer: certPdf
+        };
+      }
+    );
+    for (const entry of certificateEntries) {
+      certFolder.file(entry.fileName, entry.pdfBuffer);
     }
   }
 
-  return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+  return zip.generateAsync({ type: 'nodebuffer', compression: 'STORE' });
 }
 
 async function generateLetterPdfBuffer({ db, training, formData, preloadedAttendanceRows, preloadedTraineeRows }) {
