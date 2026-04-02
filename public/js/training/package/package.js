@@ -4,6 +4,11 @@
 
   async function generatePackage() {
     const ctx = window.PACKAGE_CONTEXT || {};
+    const btn = document.getElementById('btn-generate-package-tab');
+
+    if (btn && btn.disabled) {
+      return;
+    }
 
     if (!ctx.isLocked) {
       return qssShowError('Package is only available after training is locked.');
@@ -14,10 +19,10 @@
       return qssShowError('Please fill all package form fields.');
     }
 
-    const btn = document.getElementById('btn-generate-package-tab');
     const prev = btn ? btn.innerHTML : '';
     if (btn) {
       btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
     }
 
@@ -51,6 +56,7 @@
     } finally {
       if (btn) {
         btn.disabled = false;
+        btn.removeAttribute('aria-busy');
         btn.innerHTML = prev;
       }
     }

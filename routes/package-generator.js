@@ -925,7 +925,7 @@ function buildCertificateHtml({ certificate, company }) {
 
 async function generatePackageZipBuffer({ db, training, formData, generatedByName, generatedByPosition }) {
   const company = normalizeCompany(training.affiliated_company);
-  const { attendanceRows, marksByTraineeId, sessions, objectives, handsOnAspects } = await fetchPackageData(db, training.id, training.type);
+  const { attendanceRows, marksByTraineeId, objectives, handsOnAspects } = await fetchPackageData(db, training.id, training.type);
   const missingIcRows = (attendanceRows || []).filter(row => !String(row.ic_passport || '').trim());
   if (missingIcRows.length > 0) {
     const sample = missingIcRows.slice(0, 10).map(row => `${row.first_name || ''} ${row.last_name || ''}`.trim() || `Enrollment ${row.enrollment_id}`);
@@ -970,28 +970,6 @@ async function generatePackageZipBuffer({ db, training, formData, generatedByNam
     const fullName = `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Trainee';
     const traineeId = String(row.trainee_id || 'NA');
     individualFolder.file(`${sanitizeFileName(fullName)}_${sanitizeFileName(traineeId)}.pdf`, await htmlToPdfBuffer(html, 'portrait'));
-  }
-
-  const attendanceFolder = zip.folder('Attendance Reports');
-  for (const session of sessions) {
-    const [sessionRows] = await db.query(`
-      SELECT a.*, tr.first_name, tr.last_name, tr.trainee_id
-      FROM attendance a
-      JOIN enrollments e ON a.enrollment_id = e.id
-      JOIN trainees tr ON e.trainee_id = tr.id
-      WHERE e.training_id = ? AND DATE_FORMAT(a.date, '%Y-%m-%d') = ? AND TIME_FORMAT(a.time, '%H:%i:%s') = ?
-      ORDER BY tr.last_name, tr.first_name
-    `, [training.id, session.date, session.time]);
-    const html = buildAttendanceHtml({
-      training,
-      company,
-      session,
-      records: sessionRows || [],
-      generatedByName,
-      generatedByPosition
-    });
-    const sessionLabel = `${session.date || 'session'}_${String(session.time || '').replace(/:/g, '-') || 'time'}`;
-    attendanceFolder.file(`Attendance_Report_${sanitizeFileName(sessionLabel)}.pdf`, await htmlToPdfBuffer(html, 'portrait'));
   }
 
   if (Array.isArray(issuedCertificates) && issuedCertificates.length > 0) {
