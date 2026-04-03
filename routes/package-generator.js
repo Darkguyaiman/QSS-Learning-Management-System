@@ -7,6 +7,24 @@ let browserPromise = null;
 const headerCache = new Map();
 const logoCache = new Map();
 const PDF_RENDER_CONCURRENCY = 2;
+const DEFAULT_PUPPETEER_ARGS = [
+  '--no-sandbox',
+  '--disable-setuid-sandbox',
+  '--disable-dev-shm-usage',
+  '--disable-gpu'
+];
+const CHROME_ENV_PATHS = [
+  'PUPPETEER_EXECUTABLE_PATH',
+  'GOOGLE_CHROME_BIN',
+  'CHROME_BIN',
+  'CHROMIUM_PATH'
+];
+const LINUX_CHROME_PATHS = [
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/google-chrome',
+  '/usr/bin/chromium-browser',
+  '/usr/bin/chromium'
+];
 
 function sanitizeFileName(name) {
   return String(name || 'file').replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_');
@@ -326,12 +344,81 @@ function logoDataUrl(companyCode) {
   return value;
 }
 
+function resolveChromeExecutablePath() {
+  for (const envName of CHROME_ENV_PATHS) {
+    const value = String(process.env[envName] || '').trim();
+    if (value && fs.existsSync(value)) {
+      return value;
+    }
+  }
+
+  if (process.platform === 'linux') {
+    for (const candidate of LINUX_CHROME_PATHS) {
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  return null;
+}
+
+function buildPuppeteerLaunchOptions() {
+  const executablePath = resolveChromeExecutablePath();
+  const options = {
+    headless: true,
+    args: DEFAULT_PUPPETEER_ARGS
+  };
+
+  if (executablePath) {
+    options.executablePath = executablePath;
+  }
+
+  return options;
+}
+
+function formatBrowserLaunchError(error) {
+  const rawMessage = String(error?.message || '');
+  const missingLibrary = rawMessage.includes('error while loading shared libraries')
+    || rawMessage.includes('cannot open shared object file')
+    || rawMessage.includes('.so.');
+  const configuredPath = resolveChromeExecutablePath();
+
+  if (missingLibrary) {
+    const details = configuredPath
+      ? `configured browser: ${configuredPath}`
+      : 'no system Chrome executable was found';
+    const err = new Error(
+      `PDF generation is unavailable on this server because Chromium dependencies are missing (${details}). Install the required Linux libraries for Chrome/Chromium, or set PUPPETEER_EXECUTABLE_PATH (or GOOGLE_CHROME_BIN) to a working browser binary.`
+    );
+    err.statusCode = 503;
+    err.cause = error;
+    return err;
+  }
+
+  if (rawMessage) {
+    const err = new Error(`Failed to start the PDF browser. ${rawMessage}`);
+    err.statusCode = 503;
+    err.cause = error;
+    return err;
+  }
+
+  return error;
+}
+
 async function getBrowser() {
   if (!browserPromise) {
-    browserPromise = puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+    browserPromise = puppeteer.launch(buildPuppeteerLaunchOptions())
+      .then((browser) => {
+        browser.on('disconnected', () => {
+          browserPromise = null;
+        });
+        return browser;
+      })
+      .catch((error) => {
+        browserPromise = null;
+        throw formatBrowserLaunchError(error);
+      });
   }
   return browserPromise;
 }
