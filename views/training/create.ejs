@@ -641,7 +641,7 @@
                 <% } else if (error.raw && error.raw.length) { %>
                   <div class="alert-error-line"><%= error.raw.join(' ') %></div>
                 <% } %>
-                <div class="alert-error-line">Go to Question Bank and add questions for the selected device model.</div>
+                <div class="alert-error-line">Go to Question Bank and add questions for the selected module.</div>
               </div>
             <% } %>
           </div>
@@ -728,8 +728,21 @@
             
             <div class="form-section">
               <div class="section-title">
-                <i class="fas fa-microchip"></i>
-                Device Model *
+                <i class="fas fa-layer-group"></i>
+                Training Module and Device Model *
+              </div>
+
+              <div class="form-group">
+                <label for="module_id">
+                  <i class="fas fa-layer-group"></i>
+                  Select Module *
+                </label>
+                <select id="module_id" name="module_id" class="form-select" required>
+                  <option value="">Select module</option>
+                  <% modules.forEach(module => { %>
+                    <option value="<%= module.id %>"><%= module.name %></option>
+                  <% }); %>
+                </select>
               </div>
               
               <div class="form-group">

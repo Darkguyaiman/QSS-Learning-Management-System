@@ -53,10 +53,10 @@ async function getNonActiveTrainees(db, traineeIds) {
  * @param {Object} db - Database connection
  * @param {string} testType - Type of test (pre_test, post_test, refresher_training, certificate_enrolment)
  * @param {number} totalQuestions - Total number of questions needed
- * @param {number} deviceModelId - Device model ID
+ * @param {number} moduleId - Module ID
  * @returns {Promise<Array>} Array of question IDs
  */
-async function selectQuestionsForTest(db, testType, totalQuestions, deviceModelId) {
+async function selectQuestionsForTest(db, testType, totalQuestions, moduleId) {
   // Get all objectives
   const [objectives] = await db.query('SELECT id FROM objectives ORDER BY id');
   
@@ -79,8 +79,8 @@ async function selectQuestionsForTest(db, testType, totalQuestions, deviceModelI
   // Get questions grouped by objective
   for (const objective of objectives) {
     const [questions] = await db.query(
-      'SELECT id FROM questions WHERE test_type = ? AND objective_id = ? AND device_model_id = ? ORDER BY RAND()',
-      [testType, objective.id, deviceModelId]
+      'SELECT id FROM questions WHERE test_type = ? AND objective_id = ? AND module_id = ? ORDER BY RAND()',
+      [testType, objective.id, moduleId]
     );
     
     if (questions.length < minPerObjective) {
@@ -119,8 +119,8 @@ async function selectQuestionsForTest(db, testType, totalQuestions, deviceModelI
   if (remainingSlots > 0) {
     // Get all available questions of this test type
     const [allQuestions] = await db.query(
-      'SELECT id FROM questions WHERE test_type = ? AND device_model_id = ? ORDER BY RAND()',
-      [testType, deviceModelId]
+      'SELECT id FROM questions WHERE test_type = ? AND module_id = ? ORDER BY RAND()',
+      [testType, moduleId]
     );
     
     const availableQuestions = allQuestions
@@ -145,14 +145,14 @@ async function selectQuestionsForTest(db, testType, totalQuestions, deviceModelI
  * Validate if there are enough questions available for test creation
  * @param {Object} db - Database connection
  * @param {string} trainingType - Type of training (main or refresher_training)
- * @param {number} deviceModelId - Device model ID
+ * @param {number} moduleId - Module ID
  * @returns {Promise<{valid: boolean, errors: string[]}>}
  */
-async function validateTestQuestions(db, trainingType, deviceModelId) {
+async function validateTestQuestions(db, trainingType, moduleId) {
   const errors = [];
   
-  if (!deviceModelId) {
-    return { valid: false, errors: ['Device model is required for test generation.'] };
+  if (!moduleId) {
+    return { valid: false, errors: ['Module is required for test generation.'] };
   }
   
   // Get all objectives
@@ -183,8 +183,8 @@ async function validateTestQuestions(db, trainingType, deviceModelId) {
       // Check each objective has enough questions
       for (const objective of objectives) {
         const [questions] = await db.query(
-          'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND objective_id = ? AND device_model_id = ?',
-          [test.type, objective.id, deviceModelId]
+          'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND objective_id = ? AND module_id = ?',
+          [test.type, objective.id, moduleId]
         );
         
         const questionCount = questions[0].count;
@@ -195,8 +195,8 @@ async function validateTestQuestions(db, trainingType, deviceModelId) {
       
       // Check total available questions
       const [totalQuestions] = await db.query(
-        'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND device_model_id = ?',
-        [test.type, deviceModelId]
+        'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND module_id = ?',
+        [test.type, moduleId]
       );
       
       if (totalQuestions[0].count < test.count) {
@@ -217,8 +217,8 @@ async function validateTestQuestions(db, trainingType, deviceModelId) {
 
       for (const objective of objectives) {
         const [questions] = await db.query(
-          'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND objective_id = ? AND device_model_id = ?',
-          [test.type, objective.id, deviceModelId]
+          'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND objective_id = ? AND module_id = ?',
+          [test.type, objective.id, moduleId]
         );
 
         const questionCount = questions[0].count;
@@ -228,8 +228,8 @@ async function validateTestQuestions(db, trainingType, deviceModelId) {
       }
 
       const [totalQuestions] = await db.query(
-        'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND device_model_id = ?',
-        [test.type, deviceModelId]
+        'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND module_id = ?',
+        [test.type, moduleId]
       );
 
       if (totalQuestions[0].count < test.count) {
@@ -244,7 +244,7 @@ async function validateTestQuestions(db, trainingType, deviceModelId) {
   };
 }
 
-async function buildQuestionValidationSummary(db, errors, deviceModelId) {
+async function buildQuestionValidationSummary(db, errors, moduleId) {
   const summary = {
     title: 'Cannot create training',
     message: 'Not enough questions in the question bank to generate the required tests.',
@@ -310,11 +310,11 @@ async function buildQuestionValidationSummary(db, errors, deviceModelId) {
     }, {});
   }
 
-  if (deviceModelId) {
-    const [models] = await db.query('SELECT model_name FROM device_models WHERE id = ?', [deviceModelId]);
-    const modelName = models?.[0]?.model_name;
-    if (modelName) {
-      summary.message = `Not enough questions in the question bank for the selected device model (${modelName}).`;
+  if (moduleId) {
+    const [modules] = await db.query('SELECT name FROM modules WHERE id = ?', [moduleId]);
+    const moduleName = modules?.[0]?.name;
+    if (moduleName) {
+      summary.message = `Not enough questions in the question bank for the selected module (${moduleName}).`;
     }
   }
 
@@ -351,9 +351,9 @@ async function buildQuestionValidationSummary(db, errors, deviceModelId) {
  * @param {Object} db - Database connection
  * @param {number} trainingId - Training ID
  * @param {string} trainingType - Type of training (main or refresher_training)
- * @param {number} deviceModelId - Device model ID
+ * @param {number} moduleId - Module ID
  */
-async function createTrainingTests(db, trainingId, trainingType, deviceModelId) {
+async function createTrainingTests(db, trainingId, trainingType, moduleId) {
   try {
     if (trainingType === 'main') {
       // Main training: pre_test (10), post_test (10), certificate_enrolment (40)
@@ -365,7 +365,7 @@ async function createTrainingTests(db, trainingId, trainingType, deviceModelId) 
       
       for (const test of tests) {
         // Select questions
-        const questionIds = await selectQuestionsForTest(db, test.type, test.count, deviceModelId);
+        const questionIds = await selectQuestionsForTest(db, test.type, test.count, moduleId);
         
         // Create training_test record
         const [testResult] = await db.query(
@@ -390,7 +390,7 @@ async function createTrainingTests(db, trainingId, trainingType, deviceModelId) 
       ];
 
       for (const test of tests) {
-        const questionIds = await selectQuestionsForTest(db, test.type, test.count, deviceModelId);
+        const questionIds = await selectQuestionsForTest(db, test.type, test.count, moduleId);
         const [testResult] = await db.query(
           'INSERT INTO training_tests (training_id, test_type, total_questions) VALUES (?, ?, ?)',
           [trainingId, test.type, test.count]
@@ -739,6 +739,40 @@ function getDefaultExpiryDateTime() {
   return formatSqlDateTime(d);
 }
 
+async function getTrainingCreateFormData(db, currentUserId) {
+  const [healthcare] = await db.query('SELECT * FROM healthcare ORDER BY name ASC');
+  const [trainees] = await db.query(`
+    SELECT t.id, t.first_name, t.last_name, t.email, t.healthcare, t.ic_passport, t.trainee_id, h.id AS healthcare_id
+    FROM trainees t
+    LEFT JOIN healthcare h ON h.name = t.healthcare
+    WHERE t.trainee_status = "active"
+    ORDER BY t.first_name, t.last_name ASC
+  `);
+  const [devices] = await db.query(`
+    SELECT d.*, k.model_name 
+    FROM device_serial_numbers d
+    LEFT JOIN device_models k ON d.device_model_id = k.id
+    ORDER BY d.serial_number ASC
+  `);
+  const [deviceModels] = await db.query('SELECT * FROM device_models ORDER BY model_name ASC');
+  const [modules] = await db.query('SELECT * FROM modules ORDER BY name ASC');
+  const [trainers] = await db.query(`
+    SELECT id, first_name, last_name, email 
+    FROM users 
+    WHERE role IN ('admin', 'trainer') AND id != ?
+    ORDER BY last_name, first_name ASC
+  `, [currentUserId]);
+
+  return {
+    healthcare,
+    trainees,
+    devices,
+    deviceModels,
+    modules,
+    trainers
+  };
+}
+
 function isTrainingLocked(training) {
   return Boolean(Number(training?.is_locked ?? training?.training_is_locked ?? 0));
 }
@@ -1018,39 +1052,11 @@ router.get('/create', async (req, res) => {
   }
   
   try {
-    // Fetch all necessary data for the form
-    const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
-    const [trainees] = await req.db.query(`
-      SELECT t.id, t.first_name, t.last_name, t.email, t.healthcare, t.ic_passport, t.trainee_id, h.id AS healthcare_id
-      FROM trainees t
-      LEFT JOIN healthcare h ON h.name = t.healthcare
-      WHERE t.trainee_status = "active"
-      ORDER BY t.first_name, t.last_name ASC
-    `);
-    const [devices] = await req.db.query(`
-      SELECT d.*, k.model_name 
-      FROM device_serial_numbers d
-      LEFT JOIN device_models k ON d.device_model_id = k.id
-      ORDER BY d.serial_number ASC
-    `);
-    const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
-    
-    // Fetch all trainers (admin and trainer roles), excluding current user
-    const [trainers] = await req.db.query(`
-      SELECT id, first_name, last_name, email 
-      FROM users 
-      WHERE role IN ('admin', 'trainer') AND id != ?
-      ORDER BY last_name, first_name ASC
-    `, [req.session.userId]);
-    
+    const formData = await getTrainingCreateFormData(req.db, req.session.userId);
     res.render('training/create', { 
       user: req.session, 
       error: null,
-      healthcare,
-      trainees,
-      devices,
-      deviceModels,
-      trainers
+      ...formData
     });
   } catch (error) {
     console.error('Training create page error:', error);
@@ -1069,6 +1075,7 @@ router.post('/create', async (req, res) => {
     description,
     type,
     affiliated_company,
+    module_id,
     device_model_id,
     start_datetime,
     end_datetime,
@@ -1137,75 +1144,24 @@ router.post('/create', async (req, res) => {
       endDatetime = convertToMySQLDatetime(end_datetime);
     }
     
-    if (!device_model_id) {
-      const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
-      const [trainees] = await req.db.query(`
-        SELECT t.id, t.first_name, t.last_name, t.email, t.healthcare, t.ic_passport, t.trainee_id, h.id AS healthcare_id
-        FROM trainees t
-        LEFT JOIN healthcare h ON h.name = t.healthcare
-        WHERE t.trainee_status = "active"
-        ORDER BY t.first_name, t.last_name ASC
-      `);
-      const [devices] = await req.db.query(`
-        SELECT d.*, k.model_name 
-        FROM device_serial_numbers d
-        LEFT JOIN device_models k ON d.device_model_id = k.id
-        ORDER BY d.serial_number ASC
-      `);
-      const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
-      const [trainers] = await req.db.query(`
-        SELECT id, first_name, last_name, email 
-        FROM users 
-        WHERE role IN ('admin', 'trainer') AND id != ?
-        ORDER BY last_name, first_name ASC
-      `, [req.session.userId]);
-      
+    if (!module_id || !device_model_id) {
+      const formData = await getTrainingCreateFormData(req.db, req.session.userId);
       return res.render('training/create', { 
         user: req.session, 
-        error: 'Device model is required.',
-        healthcare,
-        trainees,
-        devices,
-        deviceModels,
-        trainers
+        error: !module_id ? 'Module is required.' : 'Device model is required.',
+        ...formData
       });
     }
 
     // Validate test questions availability BEFORE creating training
-    const validation = await validateTestQuestions(req.db, type, device_model_id);
+    const validation = await validateTestQuestions(req.db, type, module_id);
     if (!validation.valid) {
-      // Re-fetch data for form
-      const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
-      const [trainees] = await req.db.query(`
-        SELECT t.id, t.first_name, t.last_name, t.email, t.healthcare, t.ic_passport, t.trainee_id, h.id AS healthcare_id
-        FROM trainees t
-        LEFT JOIN healthcare h ON h.name = t.healthcare
-        WHERE t.trainee_status = "active"
-        ORDER BY t.first_name, t.last_name ASC
-      `);
-      const [devices] = await req.db.query(`
-        SELECT d.*, k.model_name 
-        FROM device_serial_numbers d
-        LEFT JOIN device_models k ON d.device_model_id = k.id
-        ORDER BY d.serial_number ASC
-      `);
-      const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
-      const [trainers] = await req.db.query(`
-        SELECT id, first_name, last_name, email 
-        FROM users 
-        WHERE role IN ('admin', 'trainer') AND id != ?
-        ORDER BY last_name, first_name ASC
-      `, [req.session.userId]);
-      
-      const errorSummary = await buildQuestionValidationSummary(req.db, validation.errors, device_model_id);
+      const formData = await getTrainingCreateFormData(req.db, req.session.userId);
+      const errorSummary = await buildQuestionValidationSummary(req.db, validation.errors, module_id);
       return res.render('training/create', { 
         user: req.session, 
         error: errorSummary,
-        healthcare,
-        trainees,
-        devices,
-        deviceModels,
-        trainers
+        ...formData
       });
     }
     
@@ -1234,8 +1190,8 @@ router.post('/create', async (req, res) => {
       
       // Insert training
       const [result] = await connection.query(
-        'INSERT INTO trainings (title, description, type, affiliated_company, device_model_id, created_by, status, start_datetime, end_datetime, header_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [title, description, type, affiliatedCompany, device_model_id, req.session.userId, 'in_progress', startDatetime, endDatetime, headerImage]
+        'INSERT INTO trainings (title, description, type, module_id, affiliated_company, device_model_id, created_by, status, start_datetime, end_datetime, header_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [title, description, type, module_id, affiliatedCompany, device_model_id, req.session.userId, 'in_progress', startDatetime, endDatetime, headerImage]
       );
       
       const trainingId = result.insertId;
@@ -1367,7 +1323,7 @@ router.post('/create', async (req, res) => {
       }
       
       // Create tests for the training (must succeed or transaction will rollback)
-      await createTrainingTests(connection, trainingId, type, device_model_id);
+      await createTrainingTests(connection, trainingId, type, module_id);
       
       // Commit transaction
       await connection.commit();
@@ -1381,39 +1337,14 @@ router.post('/create', async (req, res) => {
       
       // Re-fetch data for form
       try {
-        const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
-        const [trainees] = await req.db.query(`
-          SELECT t.id, t.first_name, t.last_name, t.email, t.healthcare, t.ic_passport, t.trainee_id, h.id AS healthcare_id
-          FROM trainees t
-          LEFT JOIN healthcare h ON h.name = t.healthcare
-          WHERE t.trainee_status = "active"
-          ORDER BY t.first_name, t.last_name ASC
-        `);
-        const [devices] = await req.db.query(`
-          SELECT d.*, k.model_name 
-          FROM device_serial_numbers d
-          LEFT JOIN device_models k ON d.device_model_id = k.id
-          ORDER BY d.serial_number ASC
-        `);
-        const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
-        const [trainers] = await req.db.query(`
-          SELECT id, first_name, last_name, email 
-          FROM users 
-          WHERE role IN ('admin', 'trainer') AND id != ?
-          ORDER BY last_name, first_name ASC
-        `, [req.session.userId]);
-        
+        const formData = await getTrainingCreateFormData(req.db, req.session.userId);
         // Show specific error message
         const errorMessage = error.message || 'Error creating training';
         
         res.render('training/create', { 
           user: req.session, 
           error: errorMessage,
-          healthcare,
-          trainees,
-          devices,
-          deviceModels,
-          trainers
+          ...formData
         });
       } catch (renderError) {
         console.error('Error rendering create page:', renderError);
@@ -1431,36 +1362,11 @@ router.post('/create', async (req, res) => {
     
     // Re-fetch data for form
     try {
-      const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
-      const [trainees] = await req.db.query(`
-        SELECT t.id, t.first_name, t.last_name, t.email, t.healthcare, t.ic_passport, t.trainee_id, h.id AS healthcare_id
-        FROM trainees t
-        LEFT JOIN healthcare h ON h.name = t.healthcare
-        WHERE t.trainee_status = "active"
-        ORDER BY t.first_name, t.last_name ASC
-      `);
-      const [devices] = await req.db.query(`
-        SELECT d.*, k.model_name 
-        FROM device_serial_numbers d
-        LEFT JOIN device_models k ON d.device_model_id = k.id
-        ORDER BY d.serial_number ASC
-      `);
-      const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
-      const [trainers] = await req.db.query(`
-        SELECT id, first_name, last_name, email 
-        FROM users 
-        WHERE role IN ('admin', 'trainer') AND id != ?
-        ORDER BY last_name, first_name ASC
-      `, [req.session.userId]);
-      
+      const formData = await getTrainingCreateFormData(req.db, req.session.userId);
       res.render('training/create', { 
         user: req.session, 
         error: error.message || 'Error creating training',
-        healthcare,
-        trainees,
-        devices,
-        deviceModels,
-        trainers
+        ...formData
       });
     } catch (renderError) {
       console.error('Error rendering create page:', renderError);
@@ -1762,6 +1668,7 @@ router.get('/:id', async (req, res) => {
     // Get data for Settings tab (Admin/Trainer only)
       let allHealthcare = [];
       let allDevices = [];
+      let allModules = [];
       let allDeviceModels = [];
       let allTrainers = [];
     let allTrainees = [];
@@ -1786,6 +1693,8 @@ router.get('/:id', async (req, res) => {
           ORDER BY dsn.serial_number ASC
         `);
         
+        [allModules] = await req.db.query('SELECT * FROM modules ORDER BY name ASC');
+
         // Get all device models
         [allDeviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
       
@@ -1852,6 +1761,7 @@ router.get('/:id', async (req, res) => {
       attendanceData,
       allHealthcare,
       allDevices,
+      allModules,
       allDeviceModels,
       allTrainers,
       allTrainees,
@@ -2664,11 +2574,11 @@ router.post('/:id/update', async (req, res) => {
   
   try {
     const trainingId = req.params.id;
-    const { title, status, start_datetime, end_datetime, healthcare_id, trainer_ids, trainee_ids, device_model_id, affiliated_company } = req.body;
+    const { title, status, start_datetime, end_datetime, healthcare_id, trainer_ids, trainee_ids, module_id, device_model_id, affiliated_company } = req.body;
     const traineeArray = trainee_ids ? (Array.isArray(trainee_ids) ? trainee_ids.map(String) : [String(trainee_ids)]) : [];
     
-    if (!device_model_id) {
-      return res.json({ success: false, error: 'Device model is required.' });
+    if (!module_id || !device_model_id) {
+      return res.json({ success: false, error: !module_id ? 'Module is required.' : 'Device model is required.' });
     }
 
     const nonActiveTrainees = await getNonActiveTrainees(req.db, traineeArray);
@@ -2728,7 +2638,7 @@ router.post('/:id/update', async (req, res) => {
     
     try {
       const [trainingRows] = await connection.query(
-        'SELECT id, type, device_model_id FROM trainings WHERE id = ?',
+        'SELECT id, type, module_id, device_model_id FROM trainings WHERE id = ?',
         [trainingId]
       );
       if (!trainingRows.length) {
@@ -2737,9 +2647,10 @@ router.post('/:id/update', async (req, res) => {
       }
       
       const currentTraining = trainingRows[0];
+      const moduleChanged = String(currentTraining.module_id || '') !== String(module_id || '');
       const deviceModelChanged = String(currentTraining.device_model_id || '') !== String(device_model_id || '');
       
-      if (deviceModelChanged) {
+      if (moduleChanged || deviceModelChanged) {
         const [attemptRows] = await connection.query(
           `SELECT COUNT(*) as count
            FROM test_attempts ta
@@ -2750,10 +2661,10 @@ router.post('/:id/update', async (req, res) => {
         
         if ((attemptRows[0]?.count || 0) > 0) {
           await connection.rollback();
-          return res.json({ success: false, error: 'Cannot change device model after tests have started.' });
+          return res.json({ success: false, error: 'Cannot change module or device model after tests have started.' });
         }
         
-        const validation = await validateTestQuestions(connection, currentTraining.type, device_model_id);
+        const validation = await validateTestQuestions(connection, currentTraining.type, module_id);
         if (!validation.valid) {
           await connection.rollback();
           return res.json({ success: false, error: validation.errors.join(' ') });
@@ -2763,8 +2674,8 @@ router.post('/:id/update', async (req, res) => {
       // Update training basic info
       const affiliatedCompany = normalizeAffiliatedCompany(affiliated_company);
       await connection.query(
-        'UPDATE trainings SET title = ?, status = ?, start_datetime = ?, end_datetime = ?, device_model_id = ?, affiliated_company = ? WHERE id = ?',
-        [title, status, startDatetime, endDatetime, device_model_id, affiliatedCompany, trainingId]
+        'UPDATE trainings SET title = ?, status = ?, start_datetime = ?, end_datetime = ?, module_id = ?, device_model_id = ?, affiliated_company = ? WHERE id = ?',
+        [title, status, startDatetime, endDatetime, module_id, device_model_id, affiliatedCompany, trainingId]
       );
       
       // Update healthcare centre (exactly one healthcare per training)
@@ -2861,7 +2772,7 @@ router.post('/:id/update', async (req, res) => {
         }
       }
 
-      if (deviceModelChanged) {
+      if (moduleChanged || deviceModelChanged) {
         const [existingTests] = await connection.query(
           'SELECT id FROM training_tests WHERE training_id = ?',
           [trainingId]
@@ -2881,7 +2792,7 @@ router.post('/:id/update', async (req, res) => {
           [trainingId]
         );
         
-        await createTrainingTests(connection, trainingId, currentTraining.type, device_model_id);
+        await createTrainingTests(connection, trainingId, currentTraining.type, module_id);
       }
       
       await connection.commit();

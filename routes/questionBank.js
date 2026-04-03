@@ -10,17 +10,17 @@ router.get('/', async (req, res) => {
   try {
     const [questions] = await req.db.query(`
       SELECT q.*, o.name as objective_name, o.id as objective_id, u.first_name, u.last_name, q.created_by as creator_id,
-             dm.model_name as device_model_name
+             m.name as module_name
       FROM questions q
       LEFT JOIN objectives o ON q.objective_id = o.id
       LEFT JOIN users u ON q.created_by = u.id
-      LEFT JOIN device_models dm ON q.device_model_id = dm.id
+      LEFT JOIN modules m ON q.module_id = m.id
       ORDER BY q.created_at DESC
     `);
     
     // Get unique objectives and creators for filters
     const [objectives] = await req.db.query('SELECT DISTINCT id, name FROM objectives ORDER BY name ASC');
-    const [deviceModels] = await req.db.query('SELECT id, model_name FROM device_models ORDER BY model_name ASC');
+    const [modules] = await req.db.query('SELECT id, name FROM modules ORDER BY name ASC');
     const [creators] = await req.db.query(`
       SELECT DISTINCT u.id, u.first_name, u.last_name
       FROM users u
@@ -32,7 +32,7 @@ router.get('/', async (req, res) => {
       user: req.session, 
       questions,
       objectives,
-      deviceModels,
+      modules,
       creators
     });
   } catch (error) {
@@ -45,8 +45,8 @@ router.get('/', async (req, res) => {
 router.get('/create', async (req, res) => {
   try {
     const [objectives] = await req.db.query('SELECT id, name, description FROM objectives ORDER BY name ASC');
-    const [deviceModels] = await req.db.query('SELECT id, model_name FROM device_models ORDER BY model_name ASC');
-    res.render('questions/create', { user: req.session, objectives, deviceModels, error: null });
+    const [modules] = await req.db.query('SELECT id, name, description FROM modules ORDER BY name ASC');
+    res.render('questions/create', { user: req.session, objectives, modules, error: null });
   } catch (error) {
     console.error('Question create page error:', error);
     res.status(500).send('Error loading page');
@@ -55,20 +55,20 @@ router.get('/create', async (req, res) => {
 
 // Create question POST
 router.post('/create', async (req, res) => {
-  const { questionText, optionA, optionB, optionC, optionD, correctAnswer, testType, objectiveId, deviceModelId } = req.body;
+  const { questionText, optionA, optionB, optionC, optionD, correctAnswer, testType, objectiveId, moduleId } = req.body;
   
   try {
-    if (!deviceModelId) {
+    if (!moduleId) {
       const [objectives] = await req.db.query('SELECT id, name, description FROM objectives ORDER BY name ASC');
-      const [deviceModels] = await req.db.query('SELECT id, model_name FROM device_models ORDER BY model_name ASC');
-      return res.render('questions/create', { user: req.session, objectives, deviceModels, error: 'Device model is required' });
+      const [modules] = await req.db.query('SELECT id, name, description FROM modules ORDER BY name ASC');
+      return res.render('questions/create', { user: req.session, objectives, modules, error: 'Module is required' });
     }
 
     // Validate required options
     if (!optionA || !optionB) {
       const [objectives] = await req.db.query('SELECT id, name, description FROM objectives ORDER BY name ASC');
-      const [deviceModels] = await req.db.query('SELECT id, model_name FROM device_models ORDER BY model_name ASC');
-      return res.render('questions/create', { user: req.session, objectives, deviceModels, error: 'Options A and B are required' });
+      const [modules] = await req.db.query('SELECT id, name, description FROM modules ORDER BY name ASC');
+      return res.render('questions/create', { user: req.session, objectives, modules, error: 'Options A and B are required' });
     }
     
     // Determine available options
@@ -81,8 +81,8 @@ router.post('/create', async (req, res) => {
     // Validate correct answer matches available options
     if (!availableOptions.includes(correctAnswer)) {
       const [objectives] = await req.db.query('SELECT id, name, description FROM objectives ORDER BY name ASC');
-      const [deviceModels] = await req.db.query('SELECT id, model_name FROM device_models ORDER BY model_name ASC');
-      return res.render('questions/create', { user: req.session, objectives, deviceModels, error: `Correct answer must be one of: ${availableOptions.join(', ')}` });
+      const [modules] = await req.db.query('SELECT id, name, description FROM modules ORDER BY name ASC');
+      return res.render('questions/create', { user: req.session, objectives, modules, error: `Correct answer must be one of: ${availableOptions.join(', ')}` });
     }
     
     // Check for duplicate options
@@ -92,21 +92,21 @@ router.post('/create', async (req, res) => {
     const uniqueOptions = [...new Set(options.map(o => o.toLowerCase()))];
     if (uniqueOptions.length !== options.length) {
       const [objectives] = await req.db.query('SELECT id, name, description FROM objectives ORDER BY name ASC');
-      const [deviceModels] = await req.db.query('SELECT id, model_name FROM device_models ORDER BY model_name ASC');
-      return res.render('questions/create', { user: req.session, objectives, deviceModels, error: 'All options must be unique' });
+      const [modules] = await req.db.query('SELECT id, name, description FROM modules ORDER BY name ASC');
+      return res.render('questions/create', { user: req.session, objectives, modules, error: 'All options must be unique' });
     }
     
     await req.db.query(
-      'INSERT INTO questions (question_text, option_a, option_b, option_c, option_d, correct_answer, test_type, device_model_id, objective_id, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [questionText, optionA, optionB, hasOptionC ? optionC : null, hasOptionD ? optionD : null, correctAnswer, testType, deviceModelId, objectiveId || null, req.session.userId]
+      'INSERT INTO questions (question_text, option_a, option_b, option_c, option_d, correct_answer, test_type, module_id, objective_id, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [questionText, optionA, optionB, hasOptionC ? optionC : null, hasOptionD ? optionD : null, correctAnswer, testType, moduleId, objectiveId || null, req.session.userId]
     );
     
     res.redirect('/questions');
   } catch (error) {
     console.error('Question creation error:', error);
     const [objectives] = await req.db.query('SELECT id, name, description FROM objectives ORDER BY name ASC');
-    const [deviceModels] = await req.db.query('SELECT id, model_name FROM device_models ORDER BY model_name ASC');
-    res.render('questions/create', { user: req.session, objectives, deviceModels, error: 'Error creating question' });
+    const [modules] = await req.db.query('SELECT id, name, description FROM modules ORDER BY name ASC');
+    res.render('questions/create', { user: req.session, objectives, modules, error: 'Error creating question' });
   }
 });
 
@@ -115,13 +115,13 @@ router.get('/:id/edit', async (req, res) => {
   try {
     const [questions] = await req.db.query('SELECT * FROM questions WHERE id = ?', [req.params.id]);
     const [objectives] = await req.db.query('SELECT id, name, description FROM objectives ORDER BY name ASC');
-    const [deviceModels] = await req.db.query('SELECT id, model_name FROM device_models ORDER BY model_name ASC');
+    const [modules] = await req.db.query('SELECT id, name, description FROM modules ORDER BY name ASC');
     
     if (questions.length === 0) {
       return res.status(404).send('Question not found');
     }
     
-    res.render('questions/edit', { user: req.session, question: questions[0], objectives, deviceModels, error: null });
+    res.render('questions/edit', { user: req.session, question: questions[0], objectives, modules, error: null });
   } catch (error) {
     console.error('Question edit page error:', error);
     res.status(500).send('Error loading page');
@@ -130,15 +130,15 @@ router.get('/:id/edit', async (req, res) => {
 
 // Update question POST
 router.post('/:id/edit', async (req, res) => {
-  const { questionText, optionA, optionB, optionC, optionD, correctAnswer, testType, objectiveId, deviceModelId } = req.body;
+  const { questionText, optionA, optionB, optionC, optionD, correctAnswer, testType, objectiveId, moduleId } = req.body;
   
   try {
-    if (!deviceModelId) {
+    if (!moduleId) {
       const [objectives] = await req.db.query('SELECT id, name, description FROM objectives ORDER BY name ASC');
-      const [deviceModels] = await req.db.query('SELECT id, model_name FROM device_models ORDER BY model_name ASC');
+      const [modules] = await req.db.query('SELECT id, name, description FROM modules ORDER BY name ASC');
       const [questions] = await req.db.query('SELECT * FROM questions WHERE id = ?', [req.params.id]);
       if (questions.length > 0) {
-        return res.render('questions/edit', { user: req.session, question: questions[0], objectives, deviceModels, error: 'Device model is required' });
+        return res.render('questions/edit', { user: req.session, question: questions[0], objectives, modules, error: 'Module is required' });
       }
       return res.status(500).send('Error updating question');
     }
@@ -146,10 +146,10 @@ router.post('/:id/edit', async (req, res) => {
     // Validate required options
     if (!optionA || !optionB) {
       const [objectives] = await req.db.query('SELECT id, name, description FROM objectives ORDER BY name ASC');
-      const [deviceModels] = await req.db.query('SELECT id, model_name FROM device_models ORDER BY model_name ASC');
+      const [modules] = await req.db.query('SELECT id, name, description FROM modules ORDER BY name ASC');
       const [questions] = await req.db.query('SELECT * FROM questions WHERE id = ?', [req.params.id]);
       if (questions.length > 0) {
-        return res.render('questions/edit', { user: req.session, question: questions[0], objectives, deviceModels, error: 'Options A and B are required' });
+        return res.render('questions/edit', { user: req.session, question: questions[0], objectives, modules, error: 'Options A and B are required' });
       }
       return res.status(500).send('Error updating question');
     }
@@ -164,10 +164,10 @@ router.post('/:id/edit', async (req, res) => {
     // Validate correct answer matches available options
     if (!availableOptions.includes(correctAnswer)) {
       const [objectives] = await req.db.query('SELECT id, name, description FROM objectives ORDER BY name ASC');
-      const [deviceModels] = await req.db.query('SELECT id, model_name FROM device_models ORDER BY model_name ASC');
+      const [modules] = await req.db.query('SELECT id, name, description FROM modules ORDER BY name ASC');
       const [questions] = await req.db.query('SELECT * FROM questions WHERE id = ?', [req.params.id]);
       if (questions.length > 0) {
-        return res.render('questions/edit', { user: req.session, question: questions[0], objectives, deviceModels, error: `Correct answer must be one of: ${availableOptions.join(', ')}` });
+        return res.render('questions/edit', { user: req.session, question: questions[0], objectives, modules, error: `Correct answer must be one of: ${availableOptions.join(', ')}` });
       }
       return res.status(500).send('Error updating question');
     }
@@ -179,27 +179,27 @@ router.post('/:id/edit', async (req, res) => {
     const uniqueOptions = [...new Set(options.map(o => o.toLowerCase()))];
     if (uniqueOptions.length !== options.length) {
       const [objectives] = await req.db.query('SELECT id, name, description FROM objectives ORDER BY name ASC');
-      const [deviceModels] = await req.db.query('SELECT id, model_name FROM device_models ORDER BY model_name ASC');
+      const [modules] = await req.db.query('SELECT id, name, description FROM modules ORDER BY name ASC');
       const [questions] = await req.db.query('SELECT * FROM questions WHERE id = ?', [req.params.id]);
       if (questions.length > 0) {
-        return res.render('questions/edit', { user: req.session, question: questions[0], objectives, deviceModels, error: 'All options must be unique' });
+        return res.render('questions/edit', { user: req.session, question: questions[0], objectives, modules, error: 'All options must be unique' });
       }
       return res.status(500).send('Error updating question');
     }
     
     await req.db.query(
-      'UPDATE questions SET question_text = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct_answer = ?, test_type = ?, device_model_id = ?, objective_id = ? WHERE id = ?',
-      [questionText, optionA, optionB, hasOptionC ? optionC : null, hasOptionD ? optionD : null, correctAnswer, testType, deviceModelId, objectiveId || null, req.params.id]
+      'UPDATE questions SET question_text = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct_answer = ?, test_type = ?, module_id = ?, objective_id = ? WHERE id = ?',
+      [questionText, optionA, optionB, hasOptionC ? optionC : null, hasOptionD ? optionD : null, correctAnswer, testType, moduleId, objectiveId || null, req.params.id]
     );
     
     res.redirect('/questions');
   } catch (error) {
     console.error('Question update error:', error);
     const [objectives] = await req.db.query('SELECT id, name, description FROM objectives ORDER BY name ASC');
-    const [deviceModels] = await req.db.query('SELECT id, model_name FROM device_models ORDER BY model_name ASC');
+    const [modules] = await req.db.query('SELECT id, name, description FROM modules ORDER BY name ASC');
     const [questions] = await req.db.query('SELECT * FROM questions WHERE id = ?', [req.params.id]);
     if (questions.length > 0) {
-      res.render('questions/edit', { user: req.session, question: questions[0], objectives, deviceModels, error: 'Error updating question' });
+      res.render('questions/edit', { user: req.session, question: questions[0], objectives, modules, error: 'Error updating question' });
     } else {
       res.status(500).send('Error updating question');
     }
@@ -240,10 +240,10 @@ router.get('/bulk/template', async (req, res) => {
       templatePath = path.join(__dirname, '..', 'Questions Bulk Creation Template.xlsx');
       const workbook = XLSX.utils.book_new();
       const worksheetData = [
-        ['Question', 'Test Type', 'Device Model', 'Objective', 'Option A', 'Option B', 'Option C', 'Option D', 'Correct Answer'],
-        ['What is the capital of France?', 'pre_test', 'Model A', 'Geography', 'Paris', 'London', 'Berlin', 'Madrid', 'A'],
-        ['What is 2 + 2?', 'post_test', 'Model A', 'Mathematics', '3', '4', '5', '6', 'B'],
-        ['Sample certificate question?', 'certificate_enrolment', 'Model A', 'General', 'Option 1', 'Option 2', 'Option 3', 'Option 4', 'A']
+        ['Question', 'Test Type', 'Module', 'Objective', 'Option A', 'Option B', 'Option C', 'Option D', 'Correct Answer'],
+        ['What is the capital of France?', 'pre_test', 'Module A', 'Geography', 'Paris', 'London', 'Berlin', 'Madrid', 'A'],
+        ['What is 2 + 2?', 'post_test', 'Module A', 'Mathematics', '3', '4', '5', '6', 'B'],
+        ['Sample certificate question?', 'certificate_enrolment', 'Module A', 'General', 'Option 1', 'Option 2', 'Option 3', 'Option 4', 'A']
       ];
       const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Questions');
@@ -285,11 +285,11 @@ router.post('/bulk/upload', async (req, res) => {
       objectiveMap[obj.name.toLowerCase()] = obj.id;
     });
 
-    // Get all device models for validation
-    const [deviceModels] = await req.db.query('SELECT id, model_name FROM device_models');
-    const deviceModelMap = {};
-    deviceModels.forEach(model => {
-      deviceModelMap[model.model_name.toLowerCase()] = model.id;
+    // Get all modules for validation
+    const [modules] = await req.db.query('SELECT id, name FROM modules');
+    const moduleMap = {};
+    modules.forEach(module => {
+      moduleMap[module.name.toLowerCase()] = module.id;
     });
     
     // Validate each question
@@ -315,10 +315,10 @@ router.post('/bulk/upload', async (req, res) => {
         continue;
       }
       
-      // Validate device model exists
-      const deviceModelId = deviceModelMap[(q.device_model_name || '').toLowerCase()];
-      if (!deviceModelId) {
-        errors.push(`Row ${rowNum}: Device Model "${q.device_model_name}" not found in system`);
+      // Validate module exists
+      const moduleId = moduleMap[(q.module_name || '').toLowerCase()];
+      if (!moduleId) {
+        errors.push(`Row ${rowNum}: Module "${q.module_name}" not found in system`);
         continue;
       }
 
@@ -329,7 +329,7 @@ router.post('/bulk/upload', async (req, res) => {
         continue;
       }
 
-      // Check for duplicate question (same question, same options, same type, same correct answer, same device model)
+      // Check for duplicate question (same question, same options, same type, same correct answer, same module)
       // Handle NULL values properly in the query
       const [existing] = await req.db.query(`
         SELECT id FROM questions 
@@ -340,11 +340,11 @@ router.post('/bulk/upload', async (req, res) => {
         AND (option_d = ? OR (option_d IS NULL AND ? IS NULL))
         AND test_type = ? 
         AND correct_answer = ?
-        AND device_model_id = ?
-      `, [q.question_text, q.option_a, q.option_b, hasOptionC ? q.option_c : null, hasOptionC ? q.option_c : null, hasOptionD ? q.option_d : null, hasOptionD ? q.option_d : null, q.test_type, q.correct_answer, deviceModelId]);
+        AND module_id = ?
+      `, [q.question_text, q.option_a, q.option_b, hasOptionC ? q.option_c : null, hasOptionC ? q.option_c : null, hasOptionD ? q.option_d : null, hasOptionD ? q.option_d : null, q.test_type, q.correct_answer, moduleId]);
       
       if (existing.length > 0) {
-        errors.push(`Row ${rowNum}: Duplicate question found (same question, options, type, correct answer, and device model already exists)`);
+        errors.push(`Row ${rowNum}: Duplicate question found (same question, options, type, correct answer, and module already exists)`);
         continue;
       }
       
@@ -369,7 +369,7 @@ router.post('/bulk/upload', async (req, res) => {
         option_d: hasOptionD ? q.option_d : null,
         correct_answer: q.correct_answer,
         test_type: q.test_type,
-        device_model_id: deviceModelId,
+        module_id: moduleId,
         objective_id: objectiveId,
         created_by: req.session.userId
       });
@@ -397,7 +397,7 @@ router.post('/bulk/upload', async (req, res) => {
         q.option_d,
         q.correct_answer,
         q.test_type,
-        q.device_model_id,
+        q.module_id,
         q.objective_id,
         q.created_by
       ]);
@@ -406,7 +406,7 @@ router.post('/bulk/upload', async (req, res) => {
       const flatValues = values.flat();
       
       await req.db.query(
-        `INSERT INTO questions (question_text, option_a, option_b, option_c, option_d, correct_answer, test_type, device_model_id, objective_id, created_by) VALUES ${placeholders}`,
+        `INSERT INTO questions (question_text, option_a, option_b, option_c, option_d, correct_answer, test_type, module_id, objective_id, created_by) VALUES ${placeholders}`,
         flatValues
       );
       

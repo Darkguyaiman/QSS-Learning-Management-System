@@ -485,15 +485,15 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="deviceModelId">
-                    <i class="fas fa-microchip"></i>
-                    Device Model *
+                  <label for="moduleId">
+                    <i class="fas fa-layer-group"></i>
+                    Module *
                   </label>
-                  <div id="deviceModelDropdown" class="tw-dropdown"></div>
-                  <select id="deviceModelId" name="deviceModelId" required style="display:none;">
-                    <option value="">Select device model</option>
-                    <% deviceModels.forEach(model => { %>
-                      <option value="<%= model.id %>" <%= question.device_model_id == model.id ? 'selected' : '' %>><%= model.model_name %></option>
+                  <div id="moduleDropdown" class="tw-dropdown"></div>
+                  <select id="moduleId" name="moduleId" required style="display:none;">
+                    <option value="">Select module</option>
+                    <% modules.forEach(module => { %>
+                      <option value="<%= module.id %>" <%= question.module_id == module.id ? 'selected' : '' %>><%= module.name %></option>
                     <% }); %>
                   </select>
                 </div>
@@ -767,19 +767,19 @@
         }
       });
 
-      // ---- TailwindDropdown for Device Model ----
-      var deviceModelItems = [];
-      document.querySelectorAll('#deviceModelId option').forEach(function(opt) {
-        if (opt.value) deviceModelItems.push({ label: opt.textContent.trim(), value: opt.value });
+      // ---- TailwindDropdown for Module ----
+      var moduleItems = [];
+      document.querySelectorAll('#moduleId option').forEach(function(opt) {
+        if (opt.value) moduleItems.push({ label: opt.textContent.trim(), value: opt.value });
       });
-      var currentDeviceModelId = document.getElementById('deviceModelId').value;
-      new TailwindDropdown('deviceModelDropdown', {
-        items: deviceModelItems,
-        placeholder: 'Select device model',
+      var currentModuleId = document.getElementById('moduleId').value;
+      new TailwindDropdown('moduleDropdown', {
+        items: moduleItems,
+        placeholder: 'Select module',
         multiSelect: false,
-        initialValue: currentDeviceModelId,
+        initialValue: currentModuleId,
         onChange: function(val) {
-          document.getElementById('deviceModelId').value = val || '';
+          document.getElementById('moduleId').value = val || '';
         }
       });
     });

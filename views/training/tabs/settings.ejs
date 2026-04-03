@@ -55,6 +55,21 @@
           </div>
           
           <div class="form-group">
+            <label for="settings-module">
+              <i class="fas fa-layer-group"></i>
+              Module *
+            </label>
+            <select id="settings-module" name="module_id" class="form-select" required <%= training.is_locked ? 'disabled' : '' %>>
+              <option value="">Select module</option>
+              <% if (typeof allModules !== 'undefined' && allModules) { %>
+                <% allModules.forEach(module => { %>
+                  <option value="<%= module.id %>" <%= training.module_id == module.id ? 'selected' : '' %>><%= module.name %></option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
+
+          <div class="form-group">
             <label for="settings-device-model">
               <i class="fas fa-microchip"></i>
               Device Model *

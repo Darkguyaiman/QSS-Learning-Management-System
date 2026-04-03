@@ -79,6 +79,15 @@ CREATE TABLE areas_of_specialization (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+-- Modules table
+CREATE TABLE modules (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL UNIQUE,
+  description TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
 -- Device Models table
 CREATE TABLE device_models (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -115,6 +124,7 @@ CREATE TABLE trainings (
   title VARCHAR(255) NOT NULL,
   description TEXT,
   type ENUM('main', 'refresher_training') NOT NULL,
+  module_id INT NOT NULL,
   device_model_id INT NOT NULL,
   created_by INT,
   affiliated_company ENUM('QSS', 'PMS') NOT NULL DEFAULT 'QSS',
@@ -125,6 +135,7 @@ CREATE TABLE trainings (
   header_image VARCHAR(255),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE RESTRICT,
   FOREIGN KEY (device_model_id) REFERENCES device_models(id) ON DELETE RESTRICT,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
@@ -182,12 +193,12 @@ CREATE TABLE questions (
   option_d VARCHAR(500) NULL,
   correct_answer ENUM('A', 'B', 'C', 'D') NOT NULL,
   test_type ENUM('pre_test', 'post_test', 'certificate_enrolment') NOT NULL,
-  device_model_id INT NOT NULL,
+  module_id INT NOT NULL,
   objective_id INT,
   training_id INT,
   created_by INT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (device_model_id) REFERENCES device_models(id) ON DELETE RESTRICT,
+  FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE RESTRICT,
   FOREIGN KEY (objective_id) REFERENCES objectives(id) ON DELETE SET NULL,
   FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE SET NULL,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
@@ -431,7 +442,8 @@ CREATE INDEX idx_attendance_date ON attendance(date);
 CREATE INDEX idx_test_attempts_enrollment ON test_attempts(enrollment_id);
 CREATE INDEX idx_questions_training ON questions(training_id);
 CREATE INDEX idx_device_model ON device_serial_numbers(device_model_id);
-CREATE INDEX idx_questions_device_model ON questions(device_model_id);
+CREATE INDEX idx_questions_module ON questions(module_id);
+CREATE INDEX idx_trainings_module ON trainings(module_id);
 CREATE INDEX idx_trainings_device_model ON trainings(device_model_id);
 CREATE INDEX idx_package_generation_jobs_status ON package_generation_jobs(status, created_at);
 CREATE INDEX idx_package_generation_jobs_lookup ON package_generation_jobs(created_by, training_id, status, created_at);

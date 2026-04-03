@@ -475,6 +475,157 @@ router.post('/areas-of-specialization/:id/delete', async (req, res) => {
 });
 
 // ========== DEVICE MODELS ==========
+router.get('/modules', async (req, res) => {
+  try {
+    const [modules] = await req.db.query('SELECT * FROM modules ORDER BY name ASC');
+
+    renderSettingsTemplate(req, res, {
+      pageTitle: 'Modules',
+      description: 'Manage training modules used by the question bank and trainings',
+      icon: 'fas fa-layer-group',
+      singularName: 'Module',
+      pluralName: 'Modules',
+      items: modules,
+      primaryField: 'name',
+      nameField: 'name',
+      nameLabel: 'Module Name',
+      namePlaceholder: 'Enter module name',
+      descriptionPlaceholder: 'Enter module description (optional)',
+      createAction: '/settings/modules/create',
+      updateAction: '/settings/modules',
+      deleteAction: '/settings/modules',
+      createPage: '/settings/modules/new',
+      editBase: '/settings/modules',
+      tableHeaders: ['Module Name', 'Description'],
+      hasModelDropdown: false,
+      hasModelColumn: false
+    });
+  } catch (error) {
+    console.error('Modules page error:', error);
+    res.status(500).send('Error loading modules');
+  }
+});
+
+router.get('/modules/new', (req, res) => {
+  renderSettingsForm(req, res, {
+    pageTitle: 'Modules',
+    description: 'Add a new module',
+    icon: 'fas fa-layer-group',
+    singularName: 'Module',
+    pluralName: 'Modules',
+    formMode: 'create',
+    formAction: '/settings/modules/create',
+    backUrl: '/settings/modules',
+    nameField: 'name',
+    nameLabel: 'Module Name',
+    namePlaceholder: 'Enter module name',
+    descriptionPlaceholder: 'Enter module description (optional)',
+    hasModelDropdown: false,
+    hasMaxScore: false
+  });
+});
+
+router.get('/modules/:id/edit', async (req, res) => {
+  try {
+    const [rows] = await req.db.query('SELECT * FROM modules WHERE id = ?', [req.params.id]);
+    if (!rows[0]) {
+      req.session.error = 'Module not found.';
+      return res.redirect('/settings/modules');
+    }
+
+    renderSettingsForm(req, res, {
+      pageTitle: 'Modules',
+      description: 'Edit module details',
+      icon: 'fas fa-layer-group',
+      singularName: 'Module',
+      pluralName: 'Modules',
+      formMode: 'edit',
+      formAction: `/settings/modules/${req.params.id}/update`,
+      backUrl: '/settings/modules',
+      nameField: 'name',
+      nameLabel: 'Module Name',
+      namePlaceholder: 'Enter module name',
+      descriptionPlaceholder: 'Enter module description (optional)',
+      hasModelDropdown: false,
+      hasMaxScore: false,
+      item: rows[0]
+    });
+  } catch (error) {
+    console.error('Module edit page error:', error);
+    res.status(500).send('Error loading module');
+  }
+});
+
+router.post('/modules/create', async (req, res) => {
+  const { name, description } = req.body;
+
+  try {
+    await req.db.query(
+      'INSERT INTO modules (name, description) VALUES (?, ?)',
+      [name, description || null]
+    );
+    res.redirect('/settings/modules');
+  } catch (error) {
+    console.error('Module creation error:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      req.session.error = 'Module with this name already exists';
+    } else {
+      req.session.error = 'Error creating module';
+    }
+    res.redirect('/settings/modules');
+  }
+});
+
+router.post('/modules/:id/update', async (req, res) => {
+  const { name, description } = req.body;
+
+  try {
+    await req.db.query(
+      'UPDATE modules SET name = ?, description = ? WHERE id = ?',
+      [name, description || null, req.params.id]
+    );
+    res.redirect('/settings/modules');
+  } catch (error) {
+    console.error('Module update error:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      req.session.error = 'Module with this name already exists';
+    } else {
+      req.session.error = 'Error updating module';
+    }
+    res.redirect('/settings/modules');
+  }
+});
+
+router.post('/modules/:id/delete', async (req, res) => {
+  try {
+    const [questions] = await req.db.query(
+      'SELECT COUNT(*) AS count FROM questions WHERE module_id = ?',
+      [req.params.id]
+    );
+    if (questions[0].count > 0) {
+      req.session.error = 'Cannot delete module. There are questions using this module.';
+      return res.redirect('/settings/modules');
+    }
+
+    const [trainings] = await req.db.query(
+      'SELECT COUNT(*) AS count FROM trainings WHERE module_id = ?',
+      [req.params.id]
+    );
+    if (trainings[0].count > 0) {
+      req.session.error = 'Cannot delete module. There are trainings using this module.';
+      return res.redirect('/settings/modules');
+    }
+
+    await req.db.query('DELETE FROM modules WHERE id = ?', [req.params.id]);
+    res.redirect('/settings/modules');
+  } catch (error) {
+    console.error('Module delete error:', error);
+    req.session.error = 'Error deleting module';
+    res.redirect('/settings/modules');
+  }
+});
+
+// ========== DEVICE MODELS ==========
 router.get('/models', async (req, res) => {
   try {
     const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');

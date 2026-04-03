@@ -890,9 +890,9 @@
         <% objectives.forEach(function(obj) { %>
         window.availableObjectives.push('<%= obj.name.replace(/'/g, "\\'") %>');
         <% }); %>
-        window.availableDeviceModels = [];
-        <% deviceModels.forEach(function(model) { %>
-        window.availableDeviceModels.push('<%= model.model_name.replace(/'/g, "\\'") %>');
+        window.availableModules = [];
+        <% modules.forEach(function(module) { %>
+        window.availableModules.push('<%= module.name.replace(/'/g, "\\'") %>');
         <% }); %>
       </script>
       
@@ -951,15 +951,15 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="deviceModelId">
-                    <i class="fas fa-microchip"></i>
-                    Device Model *
+                  <label for="moduleId">
+                    <i class="fas fa-layer-group"></i>
+                    Module *
                   </label>
-                  <div id="deviceModelDropdown" class="tw-dropdown"></div>
-                  <select id="deviceModelId" name="deviceModelId" required style="display:none;">
-                    <option value="">Select device model</option>
-                    <% deviceModels.forEach(model => { %>
-                      <option value="<%= model.id %>"><%= model.model_name %></option>
+                  <div id="moduleDropdown" class="tw-dropdown"></div>
+                  <select id="moduleId" name="moduleId" required style="display:none;">
+                    <option value="">Select module</option>
+                    <% modules.forEach(module => { %>
+                      <option value="<%= module.id %>"><%= module.name %></option>
                     <% }); %>
                   </select>
                 </div>
@@ -1299,7 +1299,7 @@
         const errors = [];
         const validData = [];
         const availableObjectives = window.availableObjectives || [];
-        const availableDeviceModels = window.availableDeviceModels || [];
+        const availableModules = window.availableModules || [];
         
         // Skip header row (row 0) and start from row 1 (index 1)
         for (let i = 1; i < data.length; i++) {
@@ -1321,10 +1321,10 @@
             return strValue;
           }
           
-          // Excel columns: A=Question, B=Test Type, C=Device Model, D=Objective, E=Option A, F=Option B, G=Option C, H=Option D, I=Correct Answer
+          // Excel columns: A=Question, B=Test Type, C=Module, D=Objective, E=Option A, F=Option B, G=Option C, H=Option D, I=Correct Answer
           const question = getCellValue(0);
           const testType = getCellValue(1).toLowerCase();
-          const deviceModel = getCellValue(2);
+          const moduleName = getCellValue(2);
           const objective = getCellValue(3);
           const optionA = getCellValue(4);
           const optionB = getCellValue(5);
@@ -1355,17 +1355,17 @@
             continue;
           }
 
-          if (!deviceModel) {
-            errors.push(`Row ${rowNum}: Device Model is required`);
+          if (!moduleName) {
+            errors.push(`Row ${rowNum}: Module is required`);
             continue;
           }
 
-          // Validate device model exists in system
-          const deviceModelExists = availableDeviceModels.some(model => 
-            model.toLowerCase() === deviceModel.toLowerCase()
+          // Validate module exists in system
+          const moduleExists = availableModules.some(module => 
+            module.toLowerCase() === moduleName.toLowerCase()
           );
-          if (!deviceModelExists) {
-            errors.push(`Row ${rowNum}: Device Model "${deviceModel}" not found in system. Available device models: ${availableDeviceModels.join(', ')}`);
+          if (!moduleExists) {
+            errors.push(`Row ${rowNum}: Module "${moduleName}" not found in system. Available modules: ${availableModules.join(', ')}`);
             continue;
           }
           
@@ -1427,7 +1427,7 @@
           validData.push({
             question_text: question,
             test_type: testType,
-            device_model_name: deviceModel,
+            module_name: moduleName,
             objective_name: objective,
             option_a: optionA,
             option_b: optionB,
@@ -1611,17 +1611,17 @@
       }
     });
 
-    // ---- TailwindDropdown for Device Model ----
-    var deviceModelItems = [];
-    document.querySelectorAll('#deviceModelId option').forEach(function(opt) {
-      if (opt.value) deviceModelItems.push({ label: opt.textContent.trim(), value: opt.value });
+    // ---- TailwindDropdown for Module ----
+    var moduleItems = [];
+    document.querySelectorAll('#moduleId option').forEach(function(opt) {
+      if (opt.value) moduleItems.push({ label: opt.textContent.trim(), value: opt.value });
     });
-    new TailwindDropdown('deviceModelDropdown', {
-      items: deviceModelItems,
-      placeholder: 'Select device model',
+    new TailwindDropdown('moduleDropdown', {
+      items: moduleItems,
+      placeholder: 'Select module',
       multiSelect: false,
       onChange: function(val) {
-        document.getElementById('deviceModelId').value = val || '';
+        document.getElementById('moduleId').value = val || '';
       }
     });
   });
@@ -1694,8 +1694,8 @@
             <div class="column-row">
               <div><span class="column-tag">Column C</span></div>
               <div>
-                <div class="column-field">Device Model</div>
-                <div class="column-notes">Must match an existing device model in the system.</div>
+                <div class="column-field">Module</div>
+                <div class="column-notes">Must match an existing module in the system.</div>
               </div>
               <div><span class="pill pill-required">Required</span></div>
             </div>
@@ -1770,7 +1770,7 @@
           </div>
           <div class="rule-card">
             <span class="rule-icon do"><i class="fas fa-check"></i></span>
-            <div class="rule-text">Use device model names that exist in the system (case-insensitive).</div>
+            <div class="rule-text">Use module names that exist in the system (case-insensitive).</div>
           </div>
           <div class="rule-card">
             <span class="rule-icon do"><i class="fas fa-check"></i></span>
@@ -1808,7 +1808,7 @@
         <div class="rules-grid">
           <div class="rule-card">
             <span class="rule-icon dont"><i class="fas fa-times"></i></span>
-            <div class="rule-text">Don't use device model names that don't exist in the system.</div>
+            <div class="rule-text">Don't use module names that don't exist in the system.</div>
           </div>
           <div class="rule-card">
             <span class="rule-icon dont"><i class="fas fa-times"></i></span>

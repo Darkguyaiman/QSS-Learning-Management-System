@@ -734,14 +734,14 @@
 
             <div class="filter-group">
               <label>
-                <i class="fas fa-microchip"></i>
-                Device Model
+                <i class="fas fa-layer-group"></i>
+                Module
               </label>
-              <div id="deviceModelFilterDropdown" class="tw-dropdown tw-dropdown--compact"></div>
-              <select id="deviceModelFilter" style="display:none;">
-                <option value="">All Device Models</option>
-                <% deviceModels.forEach(model => { %>
-                  <option value="<%= model.id %>"><%= model.model_name %></option>
+              <div id="moduleFilterDropdown" class="tw-dropdown tw-dropdown--compact"></div>
+              <select id="moduleFilter" style="display:none;">
+                <option value="">All Modules</option>
+                <% modules.forEach(module => { %>
+                  <option value="<%= module.id %>"><%= module.name %></option>
                 <% }); %>
               </select>
             </div>
@@ -773,7 +773,7 @@
                  data-option-c="<%= (question.option_c || '').toLowerCase() %>"
                  data-option-d="<%= (question.option_d || '').toLowerCase() %>"
                  data-objective-id="<%= question.objective_id || '' %>"
-                 data-device-model-id="<%= question.device_model_id || '' %>"
+                 data-module-id="<%= question.module_id || '' %>"
                  data-test-type="<%= question.test_type %>"
                  data-creator-id="<%= question.creator_id || '' %>">
               <div class="question-header">
@@ -787,10 +787,10 @@
                       <%= question.objective_name %>
                     </span>
                   <% } %>
-                  <% if (question.device_model_name) { %>
+                  <% if (question.module_name) { %>
                     <span class="question-badge badge-device-model">
-                      <i class="fas fa-microchip"></i>
-                      <%= question.device_model_name %>
+                      <i class="fas fa-layer-group"></i>
+                      <%= question.module_name %>
                     </span>
                   <% } %>
                   <span class="question-badge badge-test-type <%= question.test_type === 'refresher_training' ? 'refresher_training' : question.test_type === 'certificate_enrolment' ? 'certificate_enrolment' : '' %>">
@@ -895,7 +895,7 @@
     (function() {
       // ---- Filter state ----
       var activeObjective = '';
-      var activeDeviceModel = '';
+      var activeModule = '';
       var activeTestType  = '';
       var activeCreator   = '';
 
@@ -913,18 +913,18 @@
         onChange: function(val) { activeObjective = val || ''; filterQuestions(); }
       });
 
-      // ---- Build Device Model dropdown ----
-      var deviceModelItems = [{ label: 'All Device Models', value: '' }];
-      document.querySelectorAll('#deviceModelFilter option').forEach(function(opt) {
+      // ---- Build Module dropdown ----
+      var moduleItems = [{ label: 'All Modules', value: '' }];
+      document.querySelectorAll('#moduleFilter option').forEach(function(opt) {
         if (!opt.value) return;
-        deviceModelItems.push({ label: opt.textContent.trim(), value: opt.value });
+        moduleItems.push({ label: opt.textContent.trim(), value: opt.value });
       });
-      new TailwindDropdown('deviceModelFilterDropdown', {
-        items: deviceModelItems,
-        placeholder: 'All Device Models',
+      new TailwindDropdown('moduleFilterDropdown', {
+        items: moduleItems,
+        placeholder: 'All Modules',
         multiSelect: false,
         initialValue: '',
-        onChange: function(val) { activeDeviceModel = val || ''; filterQuestions(); }
+        onChange: function(val) { activeModule = val || ''; filterQuestions(); }
       });
 
       // ---- Build Test Type dropdown ----
@@ -991,7 +991,7 @@
           var optionC      = card.dataset.optionC   || '';
           var optionD      = card.dataset.optionD   || '';
           var objectiveId  = card.dataset.objectiveId || '';
-          var deviceModelId = card.dataset.deviceModelId || '';
+          var moduleId = card.dataset.moduleId || '';
           var testType     = card.dataset.testType  || '';
           var creatorId    = card.dataset.creatorId || '';
 
@@ -1003,11 +1003,11 @@
             optionD.includes(searchTerm);
 
           var matchesObjective = !activeObjective || objectiveId === activeObjective;
-          var matchesDeviceModel = !activeDeviceModel || deviceModelId === activeDeviceModel;
+          var matchesModule = !activeModule || moduleId === activeModule;
           var matchesTestType  = !activeTestType  || testType    === activeTestType;
           var matchesCreator   = !activeCreator   || creatorId   === activeCreator;
 
-          if (matchesSearch && matchesObjective && matchesDeviceModel && matchesTestType && matchesCreator) {
+          if (matchesSearch && matchesObjective && matchesModule && matchesTestType && matchesCreator) {
             card.classList.remove('hidden');
             visibleCount++;
           } else {
