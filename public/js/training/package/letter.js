@@ -195,7 +195,7 @@
           </table>
 
           <div class="recipient-block">
-            <p><strong>Attn to:</strong> Mr/Mrs ${utils.escapeHtml(formData.recipientName)}</p>
+            <p><strong>Attn to:</strong>${utils.escapeHtml(formData.recipientName)}</p>
             <p><strong>Phone num:</strong> ${utils.escapeHtml(formData.recipientPhone)}</p>
           </div>
 

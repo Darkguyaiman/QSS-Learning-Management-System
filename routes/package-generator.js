@@ -538,7 +538,7 @@ function buildLetterHtml({ training, company, formData, attendanceSessionCount, 
         <td style="width:38%;vertical-align:top;text-align:right;padding:6px 0 6px 4px;"><strong>Date:</strong> ${escapeHtml(currentDate)}<br><strong>Ref:</strong> ${escapeHtml(ref)}</td>
       </tr>
     </table>
-    <p><strong>Attn to:</strong> Mr/Mrs ${escapeHtml(formData.recipientName)}</p>
+    <p><strong>Attn to:</strong>${escapeHtml(formData.recipientName)}</p>
     <p><strong>Phone num:</strong> ${escapeHtml(formData.recipientPhone)}</p>
     <div class="subject">CONFIRMATION OF IN-HOUSE TRAINING FOR DEVICE</div>
     <p>Dear ${escapeHtml(formData.recipientName)},</p>

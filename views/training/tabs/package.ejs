@@ -119,6 +119,7 @@
     trainingId: <%- JSON.stringify(training.id) %>,
     trainingTitle: <%- JSON.stringify(training.title || '') %>,
     trainingType: <%- JSON.stringify(training.type || '') %>,
+    isCompleted: <%- JSON.stringify(String(training.status || '').toLowerCase() === 'completed') %>,
     isLocked: <%- JSON.stringify(!!training.is_locked) %>,
     trainingStartDate: <%- JSON.stringify(training.start_datetime || '') %>,
     trainingEndDate: <%- JSON.stringify(training.end_datetime || '') %>,

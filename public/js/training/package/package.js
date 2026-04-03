@@ -95,8 +95,8 @@
       return;
     }
 
-    if (!ctx.isLocked) {
-      return qssShowError('Package is only available after training is locked.');
+    if (!ctx.isCompleted) {
+      return qssShowError('Package is only available after training is completed.');
     }
 
     const formData = utils.collectFormData();

@@ -86,7 +86,7 @@ async function bootstrapQueue(db = pool) {
 
 async function getTrainingForPackage(db, trainingId) {
   const [trainings] = await db.query(
-    'SELECT id, type, title, status, start_datetime, end_datetime, affiliated_company FROM trainings WHERE id = ? LIMIT 1',
+    'SELECT id, type, title, status, is_locked, start_datetime, end_datetime, affiliated_company FROM trainings WHERE id = ? LIMIT 1',
     [trainingId]
   );
   return trainings?.[0] || null;
@@ -101,8 +101,8 @@ async function enqueuePackageJob({ db = pool, trainingId, formData, userId, gene
     err.statusCode = 404;
     throw err;
   }
-  if (!Number(training.is_locked || 0)) {
-    const err = new Error('Package is only available after training is locked.');
+  if (String(training.status || '').toLowerCase() !== 'completed') {
+    const err = new Error('Package is only available after training is completed.');
     err.statusCode = 400;
     throw err;
   }
@@ -210,8 +210,8 @@ async function processQueuedJob(job, db) {
     err.statusCode = 404;
     throw err;
   }
-  if (!Number(training.is_locked || 0)) {
-    const err = new Error('Package is only available after training is locked.');
+  if (String(training.status || '').toLowerCase() !== 'completed') {
+    const err = new Error('Package is only available after training is completed.');
     err.statusCode = 400;
     throw err;
   }
