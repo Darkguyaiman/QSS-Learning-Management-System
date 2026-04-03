@@ -54,6 +54,29 @@
     .page-actions {
       margin-left: auto;
     }
+
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      align-items: center;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      padding: 0.28rem 0.7rem;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(87, 63, 215, 0.14) 0%, rgba(17, 53, 139, 0.1) 100%);
+      border: 1px solid rgba(87, 63, 215, 0.18);
+      color: #2F2A64;
+      font-size: 0.78rem;
+      font-weight: 600;
+      line-height: 1.35;
+      white-space: normal;
+      word-break: break-word;
+    }
     
     .settings-card {
       background: var(--color-white);
@@ -601,9 +624,13 @@
                           <span style="color: var(--color-gray);">N/A</span>
                         <% } %>
                       </td>
-                      <td style="max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="<%= u.area_of_specialization || '' %>">
+                      <td style="max-width: 260px;" title="<%= u.area_of_specialization || '' %>">
                         <% if (u.area_of_specialization && String(u.area_of_specialization).trim()) { %>
-                          <%= u.area_of_specialization %>
+                          <div class="chip-list">
+                            <% String(u.area_of_specialization).split(',').map(value => value.trim()).filter(Boolean).forEach(spec => { %>
+                              <span class="chip"><%= spec %></span>
+                            <% }); %>
+                          </div>
                         <% } else { %>
                           <span style="color: var(--color-gray);">N/A</span>
                         <% } %>
@@ -659,7 +686,17 @@
                     </div>
                     <div class="item-card-row">
                       <div class="item-card-label">Specialization</div>
-                      <div class="item-card-value"><%= u.area_of_specialization || 'N/A' %></div>
+                      <div class="item-card-value">
+                        <% if (u.area_of_specialization && String(u.area_of_specialization).trim()) { %>
+                          <div class="chip-list">
+                            <% String(u.area_of_specialization).split(',').map(value => value.trim()).filter(Boolean).forEach(spec => { %>
+                              <span class="chip"><%= spec %></span>
+                            <% }); %>
+                          </div>
+                        <% } else { %>
+                          N/A
+                        <% } %>
+                      </div>
                     </div>
                     <div class="item-card-row">
                       <div class="item-card-label">Certificate</div>

@@ -208,6 +208,32 @@
       font-weight: 600;
     }
 
+    .selected-chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      margin-top: 0.75rem;
+      min-height: 2rem;
+    }
+
+    .selected-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(87, 63, 215, 0.14) 0%, rgba(17, 53, 139, 0.1) 100%);
+      border: 1px solid rgba(87, 63, 215, 0.18);
+      color: #2F2A64;
+      font-size: 0.82rem;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+
+    .selected-chip-placeholder {
+      color: var(--color-gray);
+      font-size: 0.9rem;
+    }
+
     .certificate-dropzone {
       margin-top: var(--spacing-sm);
       border: 2px dashed rgba(87, 63, 215, 0.4);
@@ -373,6 +399,7 @@
                 <label>Area of Specialization</label>
                 <input type="hidden" id="settingsAreaOfSpecialization" name="area_of_specialization" value="<%= typeof item !== 'undefined' && item ? (item.area_of_specialization || '') : '' %>">
                 <div id="settingsAreaDropdown" class="tw-dropdown-container"></div>
+                <div id="settingsAreaChipList" class="selected-chip-list" aria-live="polite"></div>
                 <small class="form-help">Select one or more specializations.</small>
               </div>
             </div>
@@ -464,7 +491,8 @@
     (function initSettingsAreaDropdown() {
       var dropdownEl = document.getElementById('settingsAreaDropdown');
       var hiddenInput = document.getElementById('settingsAreaOfSpecialization');
-      if (!dropdownEl || !hiddenInput || !window.TailwindDropdown) return;
+      var chipList = document.getElementById('settingsAreaChipList');
+      if (!dropdownEl || !hiddenInput || !chipList || !window.TailwindDropdown) return;
 
       var areas = <%- JSON.stringify(typeof areasOfSpecialization !== 'undefined' ? areasOfSpecialization : []) %>;
       var items = areas.map(function (a) {
@@ -476,6 +504,27 @@
         .map(function (v) { return v.trim(); })
         .filter(Boolean);
 
+      function renderChips(values) {
+        chipList.innerHTML = '';
+
+        if (!Array.isArray(values) || values.length === 0) {
+          var placeholder = document.createElement('span');
+          placeholder.className = 'selected-chip-placeholder';
+          placeholder.textContent = 'No specialization selected';
+          chipList.appendChild(placeholder);
+          return;
+        }
+
+        values.forEach(function (value) {
+          var chip = document.createElement('span');
+          chip.className = 'selected-chip';
+          chip.textContent = value;
+          chipList.appendChild(chip);
+        });
+      }
+
+      renderChips(initial);
+
       new window.TailwindDropdown('settingsAreaDropdown', {
         items: items,
         multiSelect: true,
@@ -483,6 +532,7 @@
         initialValue: initial,
         onChange: function (values) {
           hiddenInput.value = Array.isArray(values) ? values.join(', ') : '';
+          renderChips(Array.isArray(values) ? values : []);
         }
       });
     })();

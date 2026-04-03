@@ -126,6 +126,47 @@
 </aside>
 
 <script>
+  function expandSettingsSubmenu(menuItem, submenu, { animate = false } = {}) {
+    if (!menuItem || !submenu) return;
+
+    if (animate) {
+      submenu.classList.add('animating');
+    } else {
+      submenu.classList.remove('animating');
+    }
+
+    menuItem.classList.add('active');
+    submenu.style.maxHeight = submenu.scrollHeight + 'px';
+
+    // After the expand transition completes, remove the hard pixel cap so
+    // late layout changes do not clip the last submenu item.
+    setTimeout(() => {
+      if (menuItem.classList.contains('active')) {
+        submenu.style.maxHeight = 'none';
+      }
+      submenu.classList.remove('animating');
+    }, animate ? 500 : 0);
+  }
+
+  function collapseSettingsSubmenu(menuItem, submenu) {
+    if (!menuItem || !submenu) return;
+
+    // If submenu was left fully open, restore its current measured height
+    // first so the collapse animation still works.
+    if (submenu.style.maxHeight === 'none') {
+      submenu.style.maxHeight = submenu.scrollHeight + 'px';
+      submenu.offsetHeight;
+    }
+
+    submenu.classList.add('animating');
+    menuItem.classList.remove('active');
+    submenu.style.maxHeight = '0';
+
+    setTimeout(() => {
+      submenu.classList.remove('animating');
+    }, 500);
+  }
+
   function toggleSettingsMenu(event) {
     // Prevent event from bubbling up and closing sidebar on mobile
     if (event) {
@@ -140,27 +181,12 @@
     
     const isActive = menuItem.classList.contains('active');
     
-    // Add animating class to enable transitions
-    submenu.classList.add('animating');
-    
     if (isActive) {
-      menuItem.classList.remove('active');
-      submenu.style.maxHeight = '0';
+      collapseSettingsSubmenu(menuItem, submenu);
       localStorage.setItem('settingsMenuExpanded', 'false');
-      
-      // Remove animating class after animation completes
-      setTimeout(() => {
-        submenu.classList.remove('animating');
-      }, 500);
     } else {
-      menuItem.classList.add('active');
-      submenu.style.maxHeight = submenu.scrollHeight + 'px';
+      expandSettingsSubmenu(menuItem, submenu, { animate: true });
       localStorage.setItem('settingsMenuExpanded', 'true');
-      
-      // Remove animating class after animation completes
-      setTimeout(() => {
-        submenu.classList.remove('animating');
-      }, 500);
     }
   }
   
@@ -193,10 +219,9 @@
       
       // Set state without animation (no animating class)
       if (shouldExpand) {
-        menuItem.classList.add('active');
-        // Set height immediately without transition
-        submenu.style.maxHeight = submenu.scrollHeight + 'px';
+        expandSettingsSubmenu(menuItem, submenu);
       } else {
+        submenu.classList.remove('animating');
         menuItem.classList.remove('active');
         submenu.style.maxHeight = '0';
       }
