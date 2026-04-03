@@ -119,6 +119,7 @@ CREATE TABLE trainings (
   created_by INT,
   affiliated_company ENUM('QSS', 'PMS') NOT NULL DEFAULT 'QSS',
   status ENUM('in_progress', 'completed', 'canceled', 'rescheduled') DEFAULT 'in_progress',
+  is_locked TINYINT(1) NOT NULL DEFAULT 0,
   start_datetime DATETIME,
   end_datetime DATETIME,
   header_image VARCHAR(255),
@@ -244,7 +245,7 @@ CREATE TABLE attendance (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE,
   FOREIGN KEY (marked_by) REFERENCES users(id) ON DELETE SET NULL,
-  UNIQUE KEY unique_attendance (enrollment_id, date)
+  UNIQUE KEY unique_attendance_session (enrollment_id, date, time)
 );
 
 -- Test attempts

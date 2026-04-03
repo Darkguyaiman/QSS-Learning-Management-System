@@ -450,11 +450,11 @@ router.post('/:id/media/upload-chunk', mediaChunkUpload.single('chunk'), async (
 
   try {
     const trainingId = req.params.id;
-    const [tRows] = await req.db.query('SELECT id, status FROM trainings WHERE id = ?', [trainingId]);
+    const [tRows] = await req.db.query('SELECT id, status, is_locked FROM trainings WHERE id = ?', [trainingId]);
     if (!tRows || tRows.length === 0) {
       return res.status(404).json({ success: false, error: 'Training not found' });
     }
-    if (tRows[0].status === 'completed') {
+    if (isTrainingLocked(tRows[0])) {
       return res.status(400).json({ success: false, error: 'Training is locked' });
     }
 
@@ -602,11 +602,11 @@ router.post('/:id/media/:mediaId/delete', async (req, res) => {
     const trainingId = req.params.id;
     const mediaId = req.params.mediaId;
 
-    const [tRows] = await req.db.query('SELECT id, status FROM trainings WHERE id = ?', [trainingId]);
+    const [tRows] = await req.db.query('SELECT id, status, is_locked FROM trainings WHERE id = ?', [trainingId]);
     if (!tRows || tRows.length === 0) {
       return res.status(404).json({ success: false, error: 'Training not found' });
     }
-    if (tRows[0].status === 'completed') {
+    if (isTrainingLocked(tRows[0])) {
       return res.status(400).json({ success: false, error: 'Training is locked' });
     }
 
@@ -646,7 +646,7 @@ function moveFileSafe(srcAbs, destAbs) {
 
 async function getMaterialWithTraining(db, materialId, trainingId) {
   const [rows] = await db.query(`
-    SELECT m.*, s.title as section_title, s.training_id, t.status AS training_status,
+    SELECT m.*, s.title as section_title, s.training_id, t.status AS training_status, t.is_locked AS training_is_locked,
            CONCAT(u.first_name, ' ', u.last_name) as uploaded_by_name
     FROM training_materials m
     LEFT JOIN training_sections s ON m.section_id = s.id
@@ -739,6 +739,10 @@ function getDefaultExpiryDateTime() {
   return formatSqlDateTime(d);
 }
 
+function isTrainingLocked(training) {
+  return Boolean(Number(training?.is_locked ?? training?.training_is_locked ?? 0));
+}
+
 function isAssetAccessibleAfterLock(visibilityValue, accessExpiresAt, defaultVisibility = 'private') {
   const visibility = normalizeAssetVisibility(visibilityValue, defaultVisibility);
   if (visibility !== 'public') {
@@ -752,6 +756,10 @@ function isAssetAccessibleAfterLock(visibilityValue, accessExpiresAt, defaultVis
     return false;
   }
   return expiry.getTime() >= Date.now();
+}
+
+function shouldBypassLockedAssetVisibility(userRole) {
+  return userRole === 'admin' || userRole === 'trainer';
 }
 
 async function authorizeTrainingAccess(req, trainingId) {
@@ -882,8 +890,8 @@ router.get('/', async (req, res) => {
 
     // Status visibility by role
     if (req.session.userRole === 'trainee') {
-      // Trainees should not see locked trainings
-      query += ` AND t.status IN ('in_progress', 'rescheduled')`;
+      // Trainees can see completed trainings unless they are explicitly locked
+      query += ` AND t.status IN ('in_progress', 'completed', 'rescheduled') AND COALESCE(t.is_locked, 0) = 0`;
     } else if (req.session.userRole !== 'admin') {
       query += ` AND t.status IN ('in_progress', 'completed', 'rescheduled')`;
     }
@@ -1477,8 +1485,11 @@ router.get('/:id', async (req, res) => {
 
     // Restrict visibility by role and status
     if (req.session.userRole === 'trainee') {
-      const traineeAllowedStatuses = ['in_progress', 'rescheduled'];
+      const traineeAllowedStatuses = ['in_progress', 'completed', 'rescheduled'];
       if (!traineeAllowedStatuses.includes(training.status)) {
+        return res.status(403).send('This training is locked. You can only view your certificate.');
+      }
+      if (isTrainingLocked(training)) {
         return res.status(403).send('This training is locked. You can only view your certificate.');
       }
     } else if (req.session.userRole !== 'admin') {
@@ -1514,8 +1525,9 @@ router.get('/:id', async (req, res) => {
     if (!training.header_image) {
       training.header_image = '/images/Training Headers/Header 2.jpg';
     }
-    const isTrainingLocked = training.status === 'completed';
-    const materialVisibilityFilter = isTrainingLocked
+    const locked = isTrainingLocked(training);
+    const shouldRestrictLockedMaterials = locked && !shouldBypassLockedAssetVisibility(req.session.userRole);
+    const materialVisibilityFilter = shouldRestrictLockedMaterials
       ? ` AND (COALESCE(m.visibility, 'private') = 'public' AND (m.access_expires_at IS NULL OR m.access_expires_at >= NOW()))`
       : '';
     
@@ -1731,7 +1743,7 @@ router.get('/:id', async (req, res) => {
     // Training Media (gallery)
     let trainingMedia = [];
     try {
-      const mediaVisibilityFilter = isTrainingLocked
+      const mediaVisibilityFilter = locked
         ? ` AND (COALESCE(visibility, 'public') = 'public' AND (access_expires_at IS NULL OR access_expires_at >= NOW()))`
         : '';
       const [mediaRows] = await req.db.query(
@@ -1937,12 +1949,12 @@ router.post('/:id/import-sections', async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    const [targetRows] = await connection.query('SELECT id, status FROM trainings WHERE id = ?', [trainingId]);
+    const [targetRows] = await connection.query('SELECT id, status, is_locked FROM trainings WHERE id = ?', [trainingId]);
     if (!targetRows || targetRows.length === 0) {
       await connection.rollback();
       return res.status(404).json({ success: false, error: 'Target training not found' });
     }
-    if (targetRows[0].status === 'completed') {
+    if (isTrainingLocked(targetRows[0])) {
       await connection.rollback();
       return res.status(400).json({ success: false, error: 'Training is locked' });
     }
@@ -2113,13 +2125,17 @@ router.get('/:id/materials/:materialId', async (req, res) => {
       return res.status(404).send('Training not found');
     }
     const training = trainings[0];
-    if (training.status === 'completed' && !isAssetAccessibleAfterLock(material.visibility, material.access_expires_at, 'private')) {
-      return res.status(403).send('This material is no longer accessible after training lock.');
-    }
-
     const access = await authorizeTrainingAccess(req, training.id);
     if (!access.allowed) {
       return res.status(403).send('You are not authorized to access this material. Please contact your administrator.');
+    }
+
+    if (
+      isTrainingLocked(training) &&
+      !shouldBypassLockedAssetVisibility(req.session.userRole) &&
+      !isAssetAccessibleAfterLock(material.visibility, material.access_expires_at, 'private')
+    ) {
+      return res.status(403).send('This material is no longer accessible after training lock.');
     }
 
     if (req.session.userRole === 'trainee' && access.enrollmentId) {
@@ -2151,7 +2167,7 @@ router.get('/:id/media/:mediaId/content', async (req, res) => {
     const mediaId = Number(req.params.mediaId);
 
     const [rows] = await req.db.query(
-      `SELECT tm.id, tm.file_path, tm.visibility, tm.access_expires_at, t.status AS training_status
+      `SELECT tm.id, tm.file_path, tm.visibility, tm.access_expires_at, t.is_locked AS training_is_locked
        FROM training_media tm
        INNER JOIN trainings t ON t.id = tm.training_id
        WHERE tm.id = ? AND tm.training_id = ?`,
@@ -2168,7 +2184,7 @@ router.get('/:id/media/:mediaId/content', async (req, res) => {
       return res.status(403).send('You are not authorized to access this media. Please contact your administrator.');
     }
 
-    if (media.training_status === 'completed' && !isAssetAccessibleAfterLock(media.visibility, media.access_expires_at, 'public')) {
+    if (isTrainingLocked(media) && !isAssetAccessibleAfterLock(media.visibility, media.access_expires_at, 'public')) {
       return res.status(403).send('This media is no longer accessible after training lock.');
     }
 
@@ -2201,13 +2217,17 @@ router.get('/:id/materials/:materialId/content', async (req, res) => {
     if (!material.file_path) {
       return res.status(404).send('No file available for this material');
     }
-    if (material.training_status === 'completed' && !isAssetAccessibleAfterLock(material.visibility, material.access_expires_at, 'private')) {
-      return res.status(403).send('This material is no longer accessible after training lock.');
-    }
-
     const access = await authorizeTrainingAccess(req, trainingId);
     if (!access.allowed) {
       return res.status(403).send('You are not authorized to access this material. Please contact your administrator.');
+    }
+
+    if (
+      isTrainingLocked(material) &&
+      !shouldBypassLockedAssetVisibility(req.session.userRole) &&
+      !isAssetAccessibleAfterLock(material.visibility, material.access_expires_at, 'private')
+    ) {
+      return res.status(403).send('This material is no longer accessible after training lock.');
     }
 
     const absolutePath = resolveMaterialAbsolutePath(material.file_path);
@@ -2347,6 +2367,17 @@ router.get('/:id/materials/:materialId/edit', async (req, res) => {
     }
     
     const material = materials[0];
+
+    const [trainings] = await req.db.query(
+      'SELECT status, is_locked FROM trainings WHERE id = ? LIMIT 1',
+      [material.training_id]
+    );
+    if (trainings.length === 0) {
+      return res.status(404).send('Training not found');
+    }
+    if (isTrainingLocked(trainings[0])) {
+      return res.status(403).send('Training is locked. Material editing is disabled.');
+    }
     
     // Get all sections for dropdown
     const [sections] = await req.db.query(
@@ -2382,6 +2413,20 @@ router.post('/:id/materials/:materialId/edit', upload.single('file'), async (req
     }
     
     const currentMaterial = materials[0];
+    const [sectionRows] = await req.db.query(
+      `SELECT t.status, t.is_locked
+       FROM training_sections s
+       INNER JOIN trainings t ON t.id = s.training_id
+       WHERE s.id = ?
+       LIMIT 1`,
+      [currentMaterial.section_id]
+    );
+    if (sectionRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Training not found' });
+    }
+    if (isTrainingLocked(sectionRows[0])) {
+      return res.status(400).json({ success: false, error: 'Training is locked' });
+    }
     
     // Determine file path and URL
     let filePath = currentMaterial.file_path;
@@ -2909,7 +2954,7 @@ router.post('/:id/status', async (req, res) => {
   }
 });
 
-// Lock training (admin only) - sets status to completed and locks it
+// Lock training (admin only)
 router.post('/:id/lock', async (req, res) => {
   if (req.session.userRole !== 'admin') {
     return res.status(403).json({ success: false, error: 'Access denied. Only admins can lock trainings.' });
@@ -2917,7 +2962,7 @@ router.post('/:id/lock', async (req, res) => {
   
   try {
     await req.db.query(
-      'UPDATE trainings SET status = ? WHERE id = ?',
+      'UPDATE trainings SET status = ?, is_locked = 1 WHERE id = ?',
       ['completed', req.params.id]
     );
     
@@ -2928,7 +2973,7 @@ router.post('/:id/lock', async (req, res) => {
   }
 });
 
-// Unlock training (admin only) - sets status back to in_progress
+// Unlock training (admin only)
 router.post('/:id/unlock', async (req, res) => {
   if (req.session.userRole !== 'admin') {
     return res.status(403).json({ success: false, error: 'Access denied. Only admins can unlock trainings.' });
@@ -2936,8 +2981,8 @@ router.post('/:id/unlock', async (req, res) => {
   
   try {
     await req.db.query(
-      'UPDATE trainings SET status = ? WHERE id = ?',
-      ['in_progress', req.params.id]
+      'UPDATE trainings SET is_locked = 0 WHERE id = ?',
+      [req.params.id]
     );
     
     res.json({ success: true, message: 'Training unlocked successfully' });
@@ -2957,7 +3002,7 @@ router.post('/:id/release-scores', async (req, res) => {
     const { enrollment_ids } = req.body;
 
     // Verify training
-    const [trainings] = await req.db.query('SELECT status, type FROM trainings WHERE id = ?', [req.params.id]);
+    const [trainings] = await req.db.query('SELECT status, type, is_locked FROM trainings WHERE id = ?', [req.params.id]);
     if (trainings.length === 0) {
       return res.status(404).json({ success: false, error: 'Training not found' });
     }
@@ -2967,9 +3012,6 @@ router.post('/:id/release-scores', async (req, res) => {
     if (training.type === 'main') {
       if (req.session.userRole !== 'admin') {
         return res.status(403).json({ success: false, error: 'Access denied. Only admins can release scores for main training.' });
-      }
-      if (training.status !== 'completed') {
-        return res.status(400).json({ success: false, error: 'Training must be locked (completed) before releasing scores' });
       }
     }
 

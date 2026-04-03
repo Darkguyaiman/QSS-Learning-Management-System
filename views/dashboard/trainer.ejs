@@ -928,19 +928,19 @@
             <p>Total Trainings</p>
           </div>
           <div class="stat-card">
-            <h3><%= trainingStats.in_progress %></h3>
+            <h3><%= trainingStats.in_progress ?? 0 %></h3>
             <p>In Progress</p>
           </div>
           <div class="stat-card">
-            <h3><%= trainingStats.completed %></h3>
+            <h3><%= trainingStats.completed ?? 0 %></h3>
             <p>Completed</p>
           </div>
           <div class="stat-card">
-            <h3><%= trainingStats.canceled %></h3>
+            <h3><%= trainingStats.canceled ?? 0 %></h3>
             <p>Canceled</p>
           </div>
           <div class="stat-card">
-            <h3><%= trainingStats.rescheduled %></h3>
+            <h3><%= trainingStats.rescheduled ?? 0 %></h3>
             <p>Rescheduled</p>
           </div>
         </div>

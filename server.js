@@ -8,7 +8,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { pool, dbConfig, initializeDatabase } = require('./config/database');
+const { pool, dbConfig, initializeDatabase, ensureDefaultUsers } = require('./config/database');
 
 const app = express();
 app.disable('x-powered-by');
@@ -240,15 +240,19 @@ function startServer() {
   });
 }
 
-if (INIT_DB_ON_STARTUP) {
-  initializeDatabase()
-    .then(() => {
-      startServer();
-    })
-    .catch((error) => {
-      console.error('Failed to initialize database:', error);
-      process.exit(1);
-    });
-} else {
-  startServer();
-}
+const bootstrapApp = async () => {
+  try {
+    if (INIT_DB_ON_STARTUP) {
+      await initializeDatabase();
+    } else {
+      await ensureDefaultUsers();
+    }
+
+    startServer();
+  } catch (error) {
+    console.error('Failed to initialize application:', error);
+    process.exit(1);
+  }
+};
+
+bootstrapApp();

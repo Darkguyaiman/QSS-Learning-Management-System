@@ -41,11 +41,32 @@
       text-align: center;
     }
     @media (max-width: 640px) {
-      .results-scorebox-main-row .results-scorebox-sticker {
-        width: 160px;
-        height: 160px;
-        right: calc(100% - 6px);
-        top: -20px;
+      .results-scorebox--passed .results-scorebox-main-row {
+        width: 100%;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.35rem;
+        padding-left: 0;
+      }
+      .results-scorebox--passed .results-scorebox-main-row .results-scorebox-sticker {
+        position: relative;
+        width: 104px;
+        height: 104px;
+        right: auto;
+        left: auto;
+        top: auto;
+        margin: 0 auto 0.35rem;
+        transform: rotate(-10deg);
+      }
+      .results-scorebox--passed .results-scorebox-main-row .results-scorebox-score {
+        display: block;
+        width: 100%;
+        position: relative;
+        z-index: 3;
+      }
+      .results-scorebox-cert {
+        font-size: 0.95rem;
+        line-height: 1.45;
       }
     }
     #celebration-confetti-canvas {

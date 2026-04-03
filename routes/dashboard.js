@@ -20,7 +20,8 @@ router.get('/', async (req, res) => {
         JOIN trainings t ON e.training_id = t.id
         WHERE e.trainee_id = ?
           AND e.status = 'active'
-          AND t.status IN ('in_progress', 'rescheduled')
+          AND t.status IN ('in_progress', 'completed', 'rescheduled')
+          AND COALESCE(t.is_locked, 0) = 0
         ORDER BY e.enrolled_at DESC
         LIMIT 6
       `, [userId]);

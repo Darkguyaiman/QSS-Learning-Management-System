@@ -19,9 +19,9 @@
     return await response.json();
   }
 
-  async function fetchSessionRecords(trainingId, date) {
-    if (!trainingId || !date) return [];
-    const response = await fetch(`/attendance/session-details/${trainingId}?date=${encodeURIComponent(date)}`);
+  async function fetchSessionRecords(trainingId, date, time) {
+    if (!trainingId || !date || !time) return [];
+    const response = await fetch(`/attendance/session-details/${trainingId}?date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}`);
     if (!response.ok) throw new Error('Failed to load session details');
     const data = await response.json();
     return Array.isArray(data.records) ? data.records : [];

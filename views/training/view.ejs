@@ -1087,7 +1087,7 @@
             <i class="fas fa-calendar-check"></i> Attendance
           </button>
         <% } %>
-        <% if (['admin', 'trainer'].includes(user.userRole) && training.status === 'completed') { %>
+        <% if (['admin', 'trainer'].includes(user.userRole) && training.is_locked) { %>
           <button class="tab-button" onclick="switchTab('package')">
             <i class="fas fa-box-archive"></i> Package
           </button>
@@ -1131,7 +1131,7 @@
       <%- include('./tabs/attendance', { user, attendanceData, training }) %>
 
       <!-- Package Tab (Admin/Trainer Only, Locked Training Only) -->
-      <% if (['admin', 'trainer'].includes(user.userRole) && training.status === 'completed') { %>
+      <% if (['admin', 'trainer'].includes(user.userRole) && training.is_locked) { %>
         <%- include('./tabs/package', { user, training, attendanceData, marksData, allDeviceModels, allHealthcare, trainingHealthcare }) %>
       <% } %>
       
@@ -1951,6 +1951,15 @@
         `;
         
         document.body.appendChild(modal);
+
+        modal.querySelectorAll('input[type="number"]').forEach(input => {
+          input.addEventListener('wheel', function(e) {
+            if (document.activeElement === this) {
+              e.preventDefault();
+              this.blur();
+            }
+          }, { passive: false });
+        });
         
         // Close on overlay click
         modal.addEventListener('click', function(e) {

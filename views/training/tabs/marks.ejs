@@ -23,7 +23,7 @@
           <h3 class="section-title" style="margin: 0;">Test Scores</h3>
           <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
             <% if (training.type === 'main' && aspects && aspects.length > 0) { %>
-              <button class="btn btn-primary btn-sm" onclick="toggleHandsOnGrading()" id="toggle-hands-on-btn" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+              <button class="btn btn-primary btn-sm" onclick="toggleHandsOnGrading()" id="toggle-hands-on-btn" <%= training.is_locked ? 'disabled title="Training is locked"' : '' %>>
                 <i class="fas fa-hand-paper"></i>
                 <span>Grade Practical Learning Outcome</span>
                 <i class="fas fa-chevron-down" style="margin-left: 0.25rem; transition: transform 0.3s ease; font-size: 0.75rem;"></i>
@@ -124,7 +124,7 @@
                   <% } %>
                 </td>
                 <td>
-                  <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                  <div class="marks-actions">
                     <% if (data.tests.length > 0) { %>
                       <a class="btn btn-sm btn-secondary" href="/training/<%= training.id %>/enrollment/<%= data.enrollment_id %>/test-answers">
                         <i class="fas fa-eye"></i> View Test Answers
@@ -138,7 +138,7 @@
                       const canReleaseRefresher = !data.can_download_results && certPassed;
                     %>
                     <% if (training.type === 'main') { %>
-                      <% if (user.userRole === 'admin' && training.status === 'completed' && !data.can_download_results) { %>
+                      <% if (user.userRole === 'admin' && !data.can_download_results) { %>
                         <button class="btn btn-sm btn-primary" onclick="releaseScores([<%= data.enrollment_id %>], this)">
                           <i class="fas fa-unlock"></i> Release
                         </button>
@@ -264,7 +264,7 @@
                     const canReleaseRefresher = !data.can_download_results && certPassed;
                   %>
                   <% if (training.type === 'main') { %>
-                    <% if (user.userRole === 'admin' && training.status === 'completed' && !data.can_download_results) { %>
+                    <% if (user.userRole === 'admin' && !data.can_download_results) { %>
                       <button class="btn btn-sm btn-primary" onclick="releaseScores([<%= data.enrollment_id %>], this)">
                         <i class="fas fa-unlock"></i> Release
                       </button>
@@ -296,7 +296,7 @@
               <h3 class="section-title" style="margin: 0 0 0.25rem 0;">Practical Learning Outcome Grading</h3>
               <p class="header-subtitle">Enter scores for each trainee and aspect</p>
             </div>
-            <button class="btn-save-all" onclick="saveAllHandsOnScores()" id="save-all-hands-on-btn" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+            <button class="btn-save-all" onclick="saveAllHandsOnScores()" id="save-all-hands-on-btn" <%= training.is_locked ? 'disabled title="Training is locked"' : '' %>>
               <i class="fas fa-save"></i>
               <span>Save All Scores</span>
             </button>
@@ -345,7 +345,7 @@
                           step="0.1"
                           value="<%= scoreValue %>"
                           placeholder="0"
-                          <%= training.status === 'completed' ? 'disabled' : '' %>>
+                          <%= training.is_locked ? 'disabled' : '' %>>
                         <span class="score-max">/<%= aspect.max_score %></span>
                       </div>
                     </td>
@@ -356,7 +356,7 @@
                         data-enrollment-id="<%= data.enrollment_id %>"
                         rows="2"
                         placeholder="One comment for all outcomes"
-                        <%= training.status === 'completed' ? 'disabled' : '' %>><%= (data.handsOnScores.find(s => s.comments && s.comments.trim().length > 0) || {}).comments || '' %></textarea>
+                        <%= training.is_locked ? 'disabled' : '' %>><%= (data.handsOnScores.find(s => s.comments && s.comments.trim().length > 0) || {}).comments || '' %></textarea>
                     </td>
                     <td>
                       <span class="hands-on-total" data-enrollment-id="<%= data.enrollment_id %>">
@@ -405,7 +405,7 @@
                           step="0.1"
                           value="<%= scoreValue %>"
                           placeholder="0"
-                          <%= training.status === 'completed' ? 'disabled' : '' %>>
+                          <%= training.is_locked ? 'disabled' : '' %>>
                         <span class="score-max">/<%= aspect.max_score %></span>
                       </div>
                     </div>
@@ -419,7 +419,7 @@
                       data-enrollment-id="<%= data.enrollment_id %>"
                       rows="2"
                       placeholder="One comment for all outcomes"
-                      <%= training.status === 'completed' ? 'disabled' : '' %>><%= (data.handsOnScores.find(s => s.comments && s.comments.trim().length > 0) || {}).comments || '' %></textarea>
+                      <%= training.is_locked ? 'disabled' : '' %>><%= (data.handsOnScores.find(s => s.comments && s.comments.trim().length > 0) || {}).comments || '' %></textarea>
                   </div>
                   <div class="card-total">
                     <strong>Total: </strong>
@@ -495,10 +495,28 @@
       margin-top: 0.5rem;
       padding-top: 1rem;
       border-top: 1px solid #E8EAED;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
 
     .marks-card-actions .btn {
-      width: 100%;
+      flex: 1 1 160px;
+      min-width: 0;
+    }
+
+    .marks-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .marks-actions .btn {
+      min-height: 36px;
+      padding: 0.45rem 0.75rem;
+      font-size: 0.8rem;
+      line-height: 1.2;
     }
 
     @media (max-width: 768px) {
@@ -581,6 +599,18 @@
       .btn-sm {
         padding: 0.5rem 0.75rem;
         font-size: 0.8125rem;
+      }
+
+      .marks-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .marks-actions .btn,
+      .marks-card-actions .btn {
+        width: 100%;
+        flex: 1 1 auto;
+        justify-content: center;
       }
     }
 
@@ -793,6 +823,28 @@
       outline: none;
       border-color: #573FD7;
       box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.1);
+    }
+
+    .trainer-comment-card {
+      margin: 0 0 1rem 0;
+      padding: 1rem 1.1rem;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef5ff 100%);
+      border: 1px solid #dbe4ee;
+    }
+
+    .trainer-comment-card h3 {
+      margin: 0 0 0.35rem 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #0b1f44;
+    }
+
+    .trainer-comment-card p {
+      margin: 0;
+      color: #334155;
+      line-height: 1.6;
+      white-space: pre-wrap;
     }
 
     .hands-on-grading-table th:last-child,
@@ -1030,14 +1082,46 @@
       });
     }
 
+    function syncHandsOnScoreInputs(sourceInput) {
+      const enrollmentId = sourceInput.dataset.enrollmentId;
+      const aspectId = sourceInput.dataset.aspectId;
+      const value = sourceInput.value;
+      document.querySelectorAll(
+        `.hands-on-score-input[data-enrollment-id="${enrollmentId}"][data-aspect-id="${aspectId}"]`
+      ).forEach(input => {
+        if (input !== sourceInput) {
+          input.value = value;
+        }
+      });
+    }
+
+    function syncHandsOnComments(sourceTextarea) {
+      const enrollmentId = sourceTextarea.dataset.enrollmentId;
+      const value = sourceTextarea.value;
+      document.querySelectorAll(`.hands-on-comment[data-enrollment-id="${enrollmentId}"]`).forEach(textarea => {
+        if (textarea !== sourceTextarea) {
+          textarea.value = value;
+        }
+      });
+    }
+
     // Add event listeners to all score inputs
     document.addEventListener('DOMContentLoaded', function() {
       const inputs = document.querySelectorAll('.hands-on-score-input');
       inputs.forEach(input => {
+        input.addEventListener('wheel', function(e) {
+          if (document.activeElement === this) {
+            e.preventDefault();
+            this.blur();
+          }
+        }, { passive: false });
+
         input.addEventListener('input', function() {
           const enrollmentId = this.dataset.enrollmentId;
           const maxScore = parseInt(this.dataset.maxScore);
           const value = parseFloat(this.value);
+
+          syncHandsOnScoreInputs(this);
 
           // Remove previous classes
           this.classList.remove('success', 'error');
@@ -1053,6 +1137,13 @@
           }
 
           updateTraineeTotal(enrollmentId);
+        });
+      });
+
+      const comments = document.querySelectorAll('.hands-on-comment');
+      comments.forEach(textarea => {
+        textarea.addEventListener('input', function() {
+          syncHandsOnComments(this);
         });
       });
     });
@@ -1075,11 +1166,11 @@
           const score = parseFloat(input.value);
 
           if (!enrollmentMap.has(enrollmentId)) {
-            enrollmentMap.set(enrollmentId, []);
+            enrollmentMap.set(enrollmentId, new Map());
           }
 
           if (!isNaN(score)) {
-            enrollmentMap.get(enrollmentId).push({
+            enrollmentMap.get(enrollmentId).set(String(aspectId), {
               aspect_id: parseInt(aspectId),
               score: score,
               comments: ''
@@ -1089,9 +1180,10 @@
 
         // Save scores for each enrollment
         const savePromises = [];
-        for (const [enrollmentId, scores] of enrollmentMap) {
+        for (const [enrollmentId, scoreMap] of enrollmentMap) {
           const commentEl = document.querySelector(`.hands-on-comment[data-enrollment-id="${enrollmentId}"]`);
           const commentText = commentEl ? commentEl.value.trim() : '';
+          const scores = Array.from(scoreMap.values());
           scores.forEach(s => {
             s.comments = commentText;
           });
@@ -1142,7 +1234,7 @@
   </script>
   <% } %>
   
-  <% if (['admin', 'trainer'].includes(user.userRole) && (training.type !== 'main' || training.status === 'completed')) { %>
+  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
   <script>
     // Score release functionality
     async function releaseScores(enrollmentIds, buttonEl) {

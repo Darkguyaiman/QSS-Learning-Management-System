@@ -101,7 +101,7 @@ async function enqueuePackageJob({ db = pool, trainingId, formData, userId, gene
     err.statusCode = 404;
     throw err;
   }
-  if (training.status !== 'completed') {
+  if (!Number(training.is_locked || 0)) {
     const err = new Error('Package is only available after training is locked.');
     err.statusCode = 400;
     throw err;
@@ -210,7 +210,7 @@ async function processQueuedJob(job, db) {
     err.statusCode = 404;
     throw err;
   }
-  if (training.status !== 'completed') {
+  if (!Number(training.is_locked || 0)) {
     const err = new Error('Package is only available after training is locked.');
     err.statusCode = 400;
     throw err;

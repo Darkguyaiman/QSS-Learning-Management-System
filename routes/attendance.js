@@ -257,15 +257,20 @@ router.get('/sessions/:trainingId', async (req, res) => {
   }
 });
 
-// Get session details for a specific date
+// Get session details for a specific date + time
 router.get('/session-details/:trainingId', async (req, res) => {
   try {
     if (!requireStaff(req, res)) return;
 
-    const { date } = req.query;
+    const { date, time } = req.query;
     
-    if (!date) {
-      return res.status(400).json({ error: 'Date parameter is required' });
+    if (!date || !time) {
+      return res.status(400).json({ error: 'Date and time parameters are required' });
+    }
+
+    const normalizedTime = normalizeTimeInput(time);
+    if (!normalizedTime) {
+      return res.status(400).json({ error: 'Valid time parameter is required' });
     }
     
     const [records] = await req.db.query(`
@@ -274,9 +279,9 @@ router.get('/session-details/:trainingId', async (req, res) => {
       FROM attendance a
       JOIN enrollments e ON a.enrollment_id = e.id
       JOIN trainees tr ON e.trainee_id = tr.id
-      WHERE e.training_id = ? AND a.date = ?
+      WHERE e.training_id = ? AND a.date = ? AND TIME_FORMAT(a.time, '%H:%i') = ?
       ORDER BY tr.last_name, tr.first_name
-    `, [req.params.trainingId, date]);
+    `, [req.params.trainingId, date, normalizedTime]);
     
     res.json({ records });
   } catch (error) {
@@ -287,9 +292,9 @@ router.get('/session-details/:trainingId', async (req, res) => {
 
 // Update bulk attendance
 router.post('/update-bulk', async (req, res) => {
-  const { records, training_id, date } = req.body;
+  const { records, training_id, date, original_time } = req.body;
   
-  if (!records || !Array.isArray(records) || records.length === 0 || !date) {
+  if (!records || !Array.isArray(records) || records.length === 0 || !date || !original_time) {
     return res.status(400).json({ success: false, error: 'Invalid data provided' });
   }
   
@@ -312,6 +317,10 @@ router.post('/update-bulk', async (req, res) => {
       
       // Convert time format if needed
       const timeValue = time;
+      const originalTimeValue = normalizeTimeInput(original_time);
+      if (!originalTimeValue) {
+        throw new Error('Original session time is required');
+      }
       
       // Log for debugging
       console.log('Update attendance - Time received:', time, 'End time received:', endTime, 'Formatted:', timeValue);
@@ -331,14 +340,13 @@ router.post('/update-bulk', async (req, res) => {
       );
       const enrollmentIds = enrollments.map(e => e.id);
       
-      // Delete existing records for this date and training
-      // This ensures we remove any records that might not be in the update list
+      // Delete only the original session being edited
       if (enrollmentIds.length > 0) {
         const placeholders = enrollmentIds.map(() => '?').join(',');
         await connection.query(`
           DELETE FROM attendance 
-          WHERE enrollment_id IN (${placeholders}) AND date = ?
-        `, [...enrollmentIds, dateOnly]);
+          WHERE enrollment_id IN (${placeholders}) AND date = ? AND TIME_FORMAT(time, '%H:%i') = ?
+        `, [...enrollmentIds, dateOnly, originalTimeValue]);
       }
       
       // Insert updated records using INSERT ... ON DUPLICATE KEY UPDATE
@@ -401,9 +409,12 @@ router.get('/trainee/:enrollmentId', async (req, res) => {
     const limit = 10; // 10 records per page
     const offset = (page - 1) * limit;
     
-    // Get attendance records grouped by date
+    // Get attendance records per session
     const [attendanceRecords] = await req.db.query(`
-      SELECT date, 
+      SELECT date,
+        TIME_FORMAT(time, '%H:%i:%s') as time,
+        TIME_FORMAT(ADDTIME(time, SEC_TO_TIME(ROUND(duration * 3600))), '%H:%i:%s') as end_time,
+        duration,
         status,
         notes,
         marked_by,
@@ -411,43 +422,30 @@ router.get('/trainee/:enrollmentId', async (req, res) => {
       FROM attendance
       LEFT JOIN users u ON marked_by = u.id
       WHERE enrollment_id = ?
-      GROUP BY date, status, notes, marked_by, u.first_name, u.last_name
-      ORDER BY date DESC
+      ORDER BY date DESC, time DESC
       LIMIT ? OFFSET ?
     `, [req.params.enrollmentId, limit, offset]);
     
     // Get total count for pagination
     const [totalCount] = await req.db.query(`
-      SELECT COUNT(DISTINCT date) as total
+      SELECT COUNT(*) as total
       FROM attendance
       WHERE enrollment_id = ?
     `, [req.params.enrollmentId]);
     
     const totalPages = Math.ceil((totalCount[0]?.total || 0) / limit);
     
-    // Format attendance by date
+    // Format attendance by session
     const attendanceByDate = attendanceRecords.map(record => {
-      // Extract time from notes if it was stored there
-      let timeDisplay = '';
-      let notesWithoutTime = record.notes || '';
-      
-      if (record.notes && record.notes.includes('Time:')) {
-        const lines = record.notes.split('\n');
-        const timeLine = lines.find(line => line.trim().startsWith('Time:'));
-        if (timeLine) {
-          timeDisplay = timeLine.replace('Time:', '').trim();
-          // Remove time line from notes
-          notesWithoutTime = lines.filter(line => !line.trim().startsWith('Time:')).join('\n').trim();
-        }
-      }
-      
       return {
         date: record.date,
         status: record.status,
-        notes: notesWithoutTime,
+        notes: record.notes || '',
         marked_by_first: record.marked_by_first,
         marked_by_last: record.marked_by_last,
-        time: timeDisplay
+        time: record.time,
+        end_time: record.end_time,
+        duration: record.duration
       };
     });
     

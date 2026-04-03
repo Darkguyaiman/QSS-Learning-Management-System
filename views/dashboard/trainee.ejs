@@ -65,6 +65,9 @@
         .recert-badge {
           white-space: nowrap;
         }
+        .certificates-mobile-list {
+          display: none;
+        }
       </style>
       <!-- Top Grid: Welcome + Quick Actions -->
       <div class="dashboard-top-grid">
@@ -279,6 +282,51 @@
                 <% }); %>
               </tbody>
             </table>
+          </div>
+          <div class="certificates-mobile-list">
+            <% certificates.forEach(cert => { %>
+              <%
+                const daysLeft = cert.days_remaining;
+                const statusClass = (daysLeft !== null && daysLeft < 0)
+                  ? 'cert-status--expired'
+                  : (daysLeft !== null && daysLeft <= 30)
+                    ? 'cert-status--urgent'
+                    : (daysLeft !== null && daysLeft <= 60)
+                      ? 'cert-status--warn'
+                      : 'cert-status--safe';
+                const statusText = (daysLeft !== null && daysLeft < 0)
+                  ? 'Expired'
+                  : (daysLeft !== null && daysLeft <= 30)
+                    ? 'Expiring Soon'
+                    : (daysLeft !== null && daysLeft <= 60)
+                      ? 'Renewal Window'
+                      : 'Active';
+              %>
+              <article class="certificate-mobile-card">
+                <div class="certificate-mobile-card__header">
+                  <h3><%= cert.training_title %></h3>
+                  <span class="cert-status <%= statusClass %>">
+                    <%= statusText %>
+                    <% if (daysLeft !== null && daysLeft >= 0) { %>
+                      (<%= daysLeft %>d)
+                    <% } %>
+                  </span>
+                </div>
+                <div class="certificate-mobile-card__meta">
+                  <div class="certificate-mobile-card__row">
+                    <span class="certificate-mobile-card__label">Certificate No.</span>
+                    <strong><%= cert.certificate_number %></strong>
+                  </div>
+                  <div class="certificate-mobile-card__row">
+                    <span class="certificate-mobile-card__label">Valid Until</span>
+                    <strong><%= cert.validity_end ? new Date(cert.validity_end).toLocaleDateString('en-GB') : 'N/A' %></strong>
+                  </div>
+                </div>
+                <a class="btn btn-primary certificate-mobile-card__action" href="/training/<%= cert.training_id %>/certificate/<%= cert.enrollment_id %>" target="_blank">
+                  View Certificate
+                </a>
+              </article>
+            <% }); %>
           </div>
         <% } %>
       </div>
@@ -848,6 +896,60 @@
       font-weight: 600;
     }
 
+    .certificate-mobile-card {
+      display: none;
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+      border: 1px solid #e5e7eb;
+      border-radius: 18px;
+      padding: var(--spacing-md);
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    }
+
+    .certificate-mobile-card__header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .certificate-mobile-card__header h3 {
+      margin: 0;
+      font-size: 1rem;
+      line-height: 1.35;
+      color: var(--color-dark);
+    }
+
+    .certificate-mobile-card__meta {
+      display: grid;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .certificate-mobile-card__row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #eef2f7;
+    }
+
+    .certificate-mobile-card__row:last-child {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .certificate-mobile-card__label {
+      color: var(--color-gray);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .certificate-mobile-card__action {
+      width: 100%;
+      justify-content: center;
+    }
+
     .analytics-cards {
       display: grid;
       grid-template-columns: 1fr;
@@ -1222,15 +1324,28 @@
     }
 
     @media (max-width: 768px) {
+      .welcome-hero {
+        min-height: 200px;
+        padding: var(--spacing-lg) 0;
+        border-radius: 16px;
+        background-position: center;
+      }
+
+      .hero-content {
+        justify-content: flex-start;
+      }
+
       .hero-content-centered {
         max-width: 100%;
-        padding: var(--spacing-md);
+        padding: var(--spacing-md) var(--spacing-lg);
+        text-align: left;
       }
 
       .hero-content-centered h1 {
-        font-size: 2rem;
-        margin-bottom: var(--spacing-md);
+        font-size: clamp(1.7rem, 7vw, 2rem);
+        margin-bottom: var(--spacing-sm);
         text-shadow: 0 3px 6px rgba(0, 0, 0, 0.7);
+        word-break: break-word;
       }
 
       .hero-content-centered p {
@@ -1311,56 +1426,100 @@
 
     @media (max-width: 640px) {
       .welcome-hero {
-        min-height: 250px;
-        padding: var(--spacing-md) 0;
+        min-height: 180px;
+        padding: var(--spacing-lg) 0;
         background-attachment: scroll;
       }
 
       .hero-content-centered {
-        left: 4%;
-        max-width: 90%;
-        top: 50%;
-        transform: translateY(-50%);
+        max-width: 100%;
+        padding: var(--spacing-md) var(--spacing-md) var(--spacing-lg);
       }
 
       .hero-content-centered h1 {
-        font-size: 1.75rem;
+        font-size: clamp(1.5rem, 7.5vw, 1.8rem);
         margin-bottom: var(--spacing-sm);
+        line-height: 1.15;
       }
 
       .hero-content-centered p {
         font-size: 0.95rem;
         line-height: 1.4;
       }
+
+      .progress-ring {
+        width: 92px;
+        height: 92px;
+      }
+
+      .progress-ring-text {
+        width: 64px;
+      }
+
+      .progress-ring-number {
+        font-size: 1.1rem;
+      }
+
+      .progress-ring-label {
+        font-size: 0.62rem;
+        letter-spacing: 0.04em;
+      }
+
+      .table-responsive {
+        display: none;
+      }
+
+      .certificates-mobile-list {
+        display: grid;
+        gap: 0.9rem;
+      }
+
+      .certificate-mobile-card {
+        display: block;
+      }
     }
 
     @media (max-width: 480px) {
       .welcome-hero {
-        min-height: 220px;
+        min-height: 168px;
         padding: var(--spacing-md) 0;
-        margin-top: -1.5rem;
         background-size: cover;
         background-position: center;
       }
-    }
 
-    @media (max-width: 425px) {
-      .welcome-hero {
-        margin-top: -2rem;
+      .hero-content-centered {
+        padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
+      }
+
+      .progress-ring {
+        width: 84px;
+        height: 84px;
+      }
+
+      .progress-ring-text {
+        width: 56px;
+      }
+
+      .progress-ring-number {
+        font-size: 0.95rem;
+        line-height: 0.95;
+      }
+
+      .progress-ring-label {
+        font-size: 0.56rem;
+        margin-top: 0.2rem;
+        line-height: 1.05;
       }
     }
 
     @media (max-width: 425px) {
       .hero-content-centered {
-        left: 5%;
-        top: 50%;
-        transform: translateY(-50%);
-        max-width: 85%;
+        max-width: 100%;
         text-align: left;
       }
 
       .hero-content-centered h1 {
-        font-size: 1.5rem;
+        font-size: clamp(1.35rem, 7vw, 1.55rem);
         margin-bottom: var(--spacing-xs);
         line-height: 1.2;
       }
@@ -1399,21 +1558,39 @@
 
     @media (max-width: 360px) {
       .welcome-hero {
-        min-height: 200px;
+        min-height: 156px;
         padding: var(--spacing-sm) 0;
       }
 
       .hero-content-centered {
-        left: 4%;
-        max-width: 88%;
+        max-width: 100%;
+        padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-md);
+      }
+
+      .progress-ring {
+        width: 78px;
+        height: 78px;
+      }
+
+      .progress-ring-text {
+        width: 52px;
       }
 
       .hero-content-centered h1 {
-        font-size: 1.375rem;
+        font-size: 1.25rem;
       }
 
       .hero-content-centered p {
         font-size: 0.8125rem;
+      }
+
+      .progress-ring-number {
+        font-size: 0.85rem;
+      }
+
+      .progress-ring-label {
+        font-size: 0.5rem;
+        margin-top: 0.15rem;
       }
 
       .analytics-main-content h3 {

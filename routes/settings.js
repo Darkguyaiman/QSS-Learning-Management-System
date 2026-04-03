@@ -278,11 +278,18 @@ router.get('/healthcare/:id/edit', async (req, res) => {
 
 router.post('/healthcare/create', async (req, res) => {
   const { name, hospital_address } = req.body;
+  const trimmedName = String(name || '').trim();
+  const trimmedHospitalAddress = String(hospital_address || '').trim();
+
+  if (!trimmedName || !trimmedHospitalAddress) {
+    req.session.error = 'Healthcare name and hospital address are required.';
+    return res.redirect('/settings/healthcare/new');
+  }
   
   try {
     await req.db.query(
       'INSERT INTO healthcare (name, hospital_address, description) VALUES (?, ?, ?)',
-      [name, hospital_address || null, null]
+      [trimmedName, trimmedHospitalAddress, null]
     );
     res.redirect('/settings/healthcare');
   } catch (error) {
@@ -298,11 +305,18 @@ router.post('/healthcare/create', async (req, res) => {
 
 router.post('/healthcare/:id/update', async (req, res) => {
   const { name, hospital_address } = req.body;
+  const trimmedName = String(name || '').trim();
+  const trimmedHospitalAddress = String(hospital_address || '').trim();
+
+  if (!trimmedName || !trimmedHospitalAddress) {
+    req.session.error = 'Healthcare name and hospital address are required.';
+    return res.redirect(`/settings/healthcare/${req.params.id}/edit`);
+  }
   
   try {
     await req.db.query(
       'UPDATE healthcare SET name = ?, hospital_address = ?, description = ? WHERE id = ?',
-      [name, hospital_address || null, null, req.params.id]
+      [trimmedName, trimmedHospitalAddress, null, req.params.id]
     );
     res.redirect('/settings/healthcare');
   } catch (error) {

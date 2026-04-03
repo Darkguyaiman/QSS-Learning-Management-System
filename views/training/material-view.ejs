@@ -223,9 +223,11 @@
             <a href="/training/<%= training.id %>/materials/<%= material.id %>/access" class="btn btn-secondary">
               <i class="fas fa-user-check"></i> View Access
             </a>
-            <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="btn btn-outline">
-              <i class="fas fa-edit"></i> Edit Material
-            </a>
+            <% if (!training.is_locked) { %>
+              <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="btn btn-outline">
+                <i class="fas fa-edit"></i> Edit Material
+              </a>
+            <% } %>
           <% } %>
           <a href="/training/<%= training.id %>?tab=coursework" class="btn btn-secondary">
             <i class="fas fa-arrow-left"></i> Back to Course
@@ -394,14 +396,21 @@
               const scale = targetWidth / baseViewport.width;
               const viewport = page.getViewport({ scale });
 
+              const outputScale = Math.max(window.devicePixelRatio || 1, 1.5);
               const canvas = document.createElement('canvas');
               canvas.className = 'pdf-page-canvas';
-              canvas.width = Math.floor(viewport.width);
-              canvas.height = Math.floor(viewport.height);
+              canvas.width = Math.floor(viewport.width * outputScale);
+              canvas.height = Math.floor(viewport.height * outputScale);
+              canvas.style.width = Math.floor(viewport.width) + 'px';
+              canvas.style.height = Math.floor(viewport.height) + 'px';
               canvas.setAttribute('aria-label', 'PDF page ' + pageNo);
 
               const ctx = canvas.getContext('2d', { alpha: false });
-              await page.render({ canvasContext: ctx, viewport }).promise;
+              await page.render({
+                canvasContext: ctx,
+                viewport,
+                transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0]
+              }).promise;
               shell.appendChild(canvas);
             }
           } catch (err) {

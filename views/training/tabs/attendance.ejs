@@ -251,6 +251,7 @@
           <form id="update-attendance-form" class="attendance-form" autocomplete="off">
             <input type="hidden" id="update-attendance-id" name="attendance_id">
             <input type="hidden" id="update-attendance-date" name="date">
+            <input type="hidden" id="update-attendance-original-time" name="original_time">
             <input type="hidden" id="update-attendance-time" name="time">
             
             <div class="form-row">
@@ -1632,6 +1633,7 @@
           
           try {
             const trainingId = getAttendanceTrainingId();
+            const originalTime = formData.get('original_time');
             const response = await fetch('/attendance/update-bulk', {
               method: 'POST',
               headers: {
@@ -1640,6 +1642,7 @@
               body: JSON.stringify({
                 training_id: trainingId,
                 date: date,
+                original_time: originalTime,
                 records: attendanceRecords
               })
             });
@@ -1797,11 +1800,12 @@
       const endTime = selectedOption.dataset.endTime;
       
       try {
-        const response = await fetch(`/attendance/session-details/${trainingId}?date=${date}`);
+        const response = await fetch(`/attendance/session-details/${trainingId}?date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}`);
         const data = await response.json();
         
       // Populate form
       document.getElementById('update-attendance-id').value = sessionId;
+      document.getElementById('update-attendance-original-time').value = time || '';
       
       // Clean date - extract just the date part if it's an ISO datetime
       let cleanDate = date;

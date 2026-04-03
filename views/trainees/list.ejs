@@ -104,6 +104,158 @@
       font-size: 0.875rem;
       color: #4B5563;
     }
+
+    .specialization-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .specialization-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      background: rgba(87, 63, 215, 0.1);
+      color: #4C1D95;
+      font-size: 0.75rem;
+      font-weight: 600;
+      line-height: 1.2;
+      border: 1px solid rgba(87, 63, 215, 0.14);
+    }
+
+    .trainee-actions-inline {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+
+    .trainee-action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      padding: 0.42rem 0.72rem;
+      min-height: 32px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    .trainee-action-btn i {
+      font-size: 0.78rem;
+      margin: 0;
+    }
+
+    .trainee-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(4px);
+      z-index: 1100;
+      padding: 1.5rem;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .trainee-modal-overlay.active {
+      display: flex;
+    }
+
+    .trainee-modal {
+      width: min(720px, 100%);
+      max-height: 88vh;
+      overflow-y: auto;
+      background: #FFFFFF;
+      border-radius: 18px;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+      border: 1px solid rgba(87, 63, 215, 0.12);
+    }
+
+    .trainee-modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1.25rem 1.5rem 1rem;
+      border-bottom: 1px solid #E5E7EB;
+    }
+
+    .trainee-modal-title {
+      margin: 0;
+      font-size: 1.3rem;
+      color: #111827;
+    }
+
+    .trainee-modal-subtitle {
+      margin-top: 0.35rem;
+      color: #6B7280;
+      font-size: 0.9rem;
+    }
+
+    .trainee-modal-close {
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 10px;
+      background: #F3F4F6;
+      color: #374151;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .trainee-modal-close:hover {
+      background: #E5E7EB;
+    }
+
+    .trainee-modal-body {
+      padding: 1.25rem 1.5rem 1.5rem;
+    }
+
+    .trainee-modal-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .trainee-modal-field {
+      padding: 1rem;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(87, 63, 215, 0.04) 0%, rgba(17, 53, 139, 0.03) 100%);
+      border: 1px solid #E5E7EB;
+      min-width: 0;
+    }
+
+    .trainee-modal-field--full {
+      grid-column: 1 / -1;
+    }
+
+    .trainee-modal-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.55rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #6B7280;
+    }
+
+    .trainee-modal-label i {
+      color: #573FD7;
+    }
+
+    .trainee-modal-value {
+      color: #111827;
+      font-size: 0.96rem;
+      line-height: 1.55;
+      word-break: break-word;
+    }
     
     .trainee-avatar {
       width: 56px;
@@ -267,10 +419,11 @@
       border-top: 1px solid #E8EAED;
       display: flex;
       gap: 0.5rem;
+      align-items: center;
     }
     
     .trainee-card-actions .btn {
-      flex: 1;
+      flex: 0 0 auto;
       justify-content: center;
     }
     
@@ -469,6 +622,14 @@
         width: 100%;
         justify-content: center;
       }
+
+      .trainee-modal-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .trainee-card-actions {
+        flex-wrap: wrap;
+      }
     }
   </style>
 </head>
@@ -497,7 +658,7 @@
         </div>
 
         <% if (trainees.length > 0) { %>
-          <div class="bulk-actions">
+          <div class="bulk-actions" id="bulk-actions-bar" style="display: none;">
             <div class="bulk-actions-left">
               <label class="trainee-select">
                 <input type="checkbox" id="select-all">
@@ -633,20 +794,12 @@
                 <th style="width: 60px; text-align: center;">
                   Select
                 </th>
-                <th>Trainee ID</th>
                 <th>Name</th>
-                <th>Email</th>
                 <th>IC/Passport</th>
                 <th>Handphone</th>
                 <th>Healthcare</th>
-                <th>Designation</th>
-                <th>Area of Specialization</th>
-                <th>Serial Number</th>
                 <th>Status</th>
                 <th>Completed Trainings</th>
-                <th>First Training</th>
-                <th>Latest Training</th>
-                <th>Recertification Date</th>
                 <th>Registered</th>
                 <th>Actions</th>
               </tr>
@@ -657,7 +810,6 @@
                   <td style="text-align: center;">
                     <input type="checkbox" class="trainee-checkbox" name="traineeIds" value="<%= trainee.id %>">
                   </td>
-                  <td><strong><%= trainee.trainee_id %></strong></td>
                   <td>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                       <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #573FD7 0%, #11358B 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.75rem; flex-shrink: 0;">
@@ -666,27 +818,35 @@
                       <span><%= trainee.first_name %> <%= trainee.last_name %></span>
                     </div>
                   </td>
-                  <td><%= trainee.email %></td>
                   <td><%= trainee.ic_passport %></td>
                   <td><%= trainee.handphone_number || '-' %></td>
                   <td><%= trainee.healthcare || '-' %></td>
-                  <td><%= trainee.designation || '-' %></td>
-                  <td><%= trainee.area_of_specialization || '-' %></td>
-                  <td><%= trainee.serial_number || '-' %></td>
                   <td>
                     <span class="badge badge-<%= trainee.trainee_status === 'active' ? 'success' : trainee.trainee_status === 'inactive' ? 'warning' : trainee.trainee_status === 'registered' ? 'info' : 'danger' %>">
                       <%= trainee.trainee_status %>
                     </span>
                   </td>
                   <td><%= trainee.number_of_completed_trainings || 0 %></td>
-                  <td><%= trainee.first_training ? new Date(trainee.first_training).toLocaleDateString() : '-' %></td>
-                  <td><%= trainee.latest_training ? new Date(trainee.latest_training).toLocaleDateString() : '-' %></td>
-                  <td><%= trainee.recertification_date ? new Date(trainee.recertification_date).toLocaleDateString() : '-' %></td>
                   <td><%= new Date(trainee.created_at).toLocaleDateString() %></td>
                   <td>
-                    <a href="/trainees/<%= trainee.id %>/edit" class="btn btn-sm btn-secondary" title="Edit Trainee">
-                      <i class="fas fa-edit"></i> Edit
-                    </a>
+                    <div class="trainee-actions-inline">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline trainee-view-btn trainee-action-btn"
+                        data-name="<%= trainee.first_name %> <%= trainee.last_name %>"
+                        data-email="<%= trainee.email || '' %>"
+                        data-designation="<%= trainee.designation || '' %>"
+                        data-area="<%= trainee.area_of_specialization || '' %>"
+                        data-first-training="<%= trainee.first_training ? new Date(trainee.first_training).toLocaleDateString() : '-' %>"
+                        data-latest-training="<%= trainee.latest_training ? new Date(trainee.latest_training).toLocaleDateString() : '-' %>"
+                        data-recertification-date="<%= trainee.recertification_date ? new Date(trainee.recertification_date).toLocaleDateString() : '-' %>"
+                      >
+                        <i class="fas fa-eye"></i> View
+                      </button>
+                      <a href="/trainees/<%= trainee.id %>/edit" class="btn btn-sm btn-secondary trainee-action-btn" title="Edit Trainee">
+                        <i class="fas fa-edit"></i> Edit
+                      </a>
+                    </div>
                   </td>
                 </tr>
               <% }); %>
@@ -709,12 +869,9 @@
                   </div>
                   <div class="trainee-card-title">
                     <h3 class="trainee-card-name"><%= trainee.first_name %> <%= trainee.last_name %></h3>
-                    <div class="trainee-card-id-row">
-                      <div class="trainee-card-id">ID: <%= trainee.trainee_id %></div>
-                      <span class="badge badge-<%= trainee.trainee_status === 'active' ? 'success' : trainee.trainee_status === 'inactive' ? 'warning' : trainee.trainee_status === 'registered' ? 'info' : 'danger' %> mobile-badge">
-                        <%= trainee.trainee_status %>
-                      </span>
-                    </div>
+                    <span class="badge badge-<%= trainee.trainee_status === 'active' ? 'success' : trainee.trainee_status === 'inactive' ? 'warning' : trainee.trainee_status === 'registered' ? 'info' : 'danger' %> mobile-badge">
+                      <%= trainee.trainee_status %>
+                    </span>
                   </div>
                 </div>
                 <span class="badge badge-<%= trainee.trainee_status === 'active' ? 'success' : trainee.trainee_status === 'inactive' ? 'warning' : trainee.trainee_status === 'registered' ? 'info' : 'danger' %> desktop-badge">
@@ -723,13 +880,6 @@
               </div>
               
               <div class="trainee-card-body">
-                <div class="trainee-card-row">
-                  <div class="trainee-card-label">
-                    <i class="fas fa-envelope"></i> Email
-                  </div>
-                  <div class="trainee-card-value"><%= trainee.email %></div>
-                </div>
-                
                 <div class="trainee-card-row">
                   <div class="trainee-card-label">
                     <i class="fas fa-id-card"></i> IC/Passport
@@ -755,66 +905,12 @@
                 </div>
                 <% } %>
                 
-                <% if (trainee.designation) { %>
-                <div class="trainee-card-row">
-                  <div class="trainee-card-label">
-                    <i class="fas fa-briefcase"></i> Designation
-                  </div>
-                  <div class="trainee-card-value"><%= trainee.designation %></div>
-                </div>
-                <% } %>
-                
-                <% if (trainee.area_of_specialization) { %>
-                <div class="trainee-card-row">
-                  <div class="trainee-card-label">
-                    <i class="fas fa-stethoscope"></i> Area of Specialization
-                  </div>
-                  <div class="trainee-card-value"><%= trainee.area_of_specialization %></div>
-                </div>
-                <% } %>
-                
-                <% if (trainee.serial_number) { %>
-                <div class="trainee-card-row">
-                  <div class="trainee-card-label">
-                    <i class="fas fa-hashtag"></i> Serial Number
-                  </div>
-                  <div class="trainee-card-value"><%= trainee.serial_number %></div>
-                </div>
-                <% } %>
-                
                 <div class="trainee-card-row">
                   <div class="trainee-card-label">
                     <i class="fas fa-graduation-cap"></i> Completed Trainings
                   </div>
                   <div class="trainee-card-value"><%= trainee.number_of_completed_trainings || 0 %></div>
                 </div>
-                
-                <% if (trainee.first_training) { %>
-                <div class="trainee-card-row">
-                  <div class="trainee-card-label">
-                    <i class="fas fa-calendar-alt"></i> First Training
-                  </div>
-                  <div class="trainee-card-value"><%= new Date(trainee.first_training).toLocaleDateString() %></div>
-                </div>
-                <% } %>
-                
-                <% if (trainee.latest_training) { %>
-                <div class="trainee-card-row">
-                  <div class="trainee-card-label">
-                    <i class="fas fa-calendar-check"></i> Latest Training
-                  </div>
-                  <div class="trainee-card-value"><%= new Date(trainee.latest_training).toLocaleDateString() %></div>
-                </div>
-                <% } %>
-                
-                <% if (trainee.recertification_date) { %>
-                <div class="trainee-card-row">
-                  <div class="trainee-card-label">
-                    <i class="fas fa-certificate"></i> Recertification Date
-                  </div>
-                  <div class="trainee-card-value"><%= new Date(trainee.recertification_date).toLocaleDateString() %></div>
-                </div>
-                <% } %>
                 
                 <div class="trainee-card-row">
                   <div class="trainee-card-label">
@@ -825,8 +921,21 @@
               </div>
               
               <div class="trainee-card-actions">
-                <a href="/trainees/<%= trainee.id %>/edit" class="btn btn-secondary">
-                  <i class="fas fa-edit"></i> Edit Trainee
+                <button
+                  type="button"
+                  class="btn btn-outline trainee-view-btn trainee-action-btn"
+                  data-name="<%= trainee.first_name %> <%= trainee.last_name %>"
+                  data-email="<%= trainee.email || '' %>"
+                  data-designation="<%= trainee.designation || '' %>"
+                  data-area="<%= trainee.area_of_specialization || '' %>"
+                  data-first-training="<%= trainee.first_training ? new Date(trainee.first_training).toLocaleDateString() : '-' %>"
+                  data-latest-training="<%= trainee.latest_training ? new Date(trainee.latest_training).toLocaleDateString() : '-' %>"
+                  data-recertification-date="<%= trainee.recertification_date ? new Date(trainee.recertification_date).toLocaleDateString() : '-' %>"
+                >
+                  <i class="fas fa-eye"></i> View
+                </button>
+                <a href="/trainees/<%= trainee.id %>/edit" class="btn btn-secondary trainee-action-btn">
+                  <i class="fas fa-edit"></i> Edit
                 </a>
               </div>
             </div>
@@ -842,9 +951,59 @@
       <% } %>
     </div>
   </main>
+
+  <div class="trainee-modal-overlay" id="trainee-view-modal-overlay">
+    <div class="trainee-modal" role="dialog" aria-modal="true" aria-labelledby="trainee-view-modal-title">
+      <div class="trainee-modal-header">
+        <div>
+          <h2 class="trainee-modal-title" id="trainee-view-modal-title">Trainee Details</h2>
+          <div class="trainee-modal-subtitle" id="trainee-view-modal-subtitle"></div>
+        </div>
+        <button type="button" class="trainee-modal-close" id="trainee-view-modal-close" aria-label="Close details modal">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="trainee-modal-body">
+        <div class="trainee-modal-grid">
+          <div class="trainee-modal-field">
+            <div class="trainee-modal-label"><i class="fas fa-envelope"></i> Email</div>
+            <div class="trainee-modal-value" id="modal-email">-</div>
+          </div>
+          <div class="trainee-modal-field">
+            <div class="trainee-modal-label"><i class="fas fa-briefcase"></i> Designation</div>
+            <div class="trainee-modal-value" id="modal-designation">-</div>
+          </div>
+          <div class="trainee-modal-field trainee-modal-field--full">
+            <div class="trainee-modal-label"><i class="fas fa-stethoscope"></i> Area of Specialization</div>
+            <div class="trainee-modal-value" id="modal-area"></div>
+          </div>
+          <div class="trainee-modal-field">
+            <div class="trainee-modal-label"><i class="fas fa-calendar-alt"></i> First Training</div>
+            <div class="trainee-modal-value" id="modal-first-training">-</div>
+          </div>
+          <div class="trainee-modal-field">
+            <div class="trainee-modal-label"><i class="fas fa-calendar-check"></i> Latest Training</div>
+            <div class="trainee-modal-value" id="modal-latest-training">-</div>
+          </div>
+          <div class="trainee-modal-field trainee-modal-field--full">
+            <div class="trainee-modal-label"><i class="fas fa-certificate"></i> Recertification Date</div>
+            <div class="trainee-modal-value" id="modal-recertification-date">-</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   
   <script src="/js/main.js"></script>
   <script>
+    function syncBulkActionsVisibility() {
+      const content = document.getElementById('filters-content');
+      const bulkActions = document.getElementById('bulk-actions-bar');
+      if (!content || !bulkActions) return;
+      const isExpanded = content.style.display !== 'none' && content.style.display !== '';
+      bulkActions.style.display = isExpanded ? 'flex' : 'none';
+    }
+
     // Toggle filters visibility
     function toggleFilters() {
       const content = document.getElementById('filters-content');
@@ -866,6 +1025,8 @@
         text.textContent = 'Show Filters';
         localStorage.setItem('traineeFiltersExpanded', 'false');
       }
+
+      syncBulkActionsVisibility();
     }
     
     // Check if filters should be shown by default
@@ -909,6 +1070,8 @@
         icon.classList.add('fa-chevron-down');
         text.textContent = 'Show Filters';
       }
+
+      syncBulkActionsVisibility();
     });
     
     // Handle search form submission
@@ -1050,6 +1213,67 @@
         }
       });
     }
+
+    (function initTraineeViewModal() {
+      const overlay = document.getElementById('trainee-view-modal-overlay');
+      const closeBtn = document.getElementById('trainee-view-modal-close');
+      const title = document.getElementById('trainee-view-modal-title');
+      const subtitle = document.getElementById('trainee-view-modal-subtitle');
+      const emailEl = document.getElementById('modal-email');
+      const designationEl = document.getElementById('modal-designation');
+      const areaEl = document.getElementById('modal-area');
+      const firstTrainingEl = document.getElementById('modal-first-training');
+      const latestTrainingEl = document.getElementById('modal-latest-training');
+      const recertificationDateEl = document.getElementById('modal-recertification-date');
+      if (!overlay) return;
+
+      function renderAreas(areaValue) {
+        const normalized = (areaValue || '').split(',').map(area => area.trim()).filter(Boolean);
+        if (!normalized.length) {
+          areaEl.textContent = '-';
+          return;
+        }
+        areaEl.innerHTML = normalized.map(area => `<span class="specialization-chip">${area}</span>`).join('');
+        areaEl.classList.add('specialization-chips');
+      }
+
+      function clearAreaLayout() {
+        areaEl.classList.remove('specialization-chips');
+      }
+
+      function openModal(button) {
+        title.textContent = 'Trainee Details';
+        subtitle.textContent = button.dataset.name || '';
+        emailEl.textContent = button.dataset.email || '-';
+        designationEl.textContent = button.dataset.designation || '-';
+        firstTrainingEl.textContent = button.dataset.firstTraining || '-';
+        latestTrainingEl.textContent = button.dataset.latestTraining || '-';
+        recertificationDateEl.textContent = button.dataset.recertificationDate || '-';
+        clearAreaLayout();
+        renderAreas(button.dataset.area || '');
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeModal() {
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+
+      document.querySelectorAll('.trainee-view-btn').forEach(button => {
+        button.addEventListener('click', () => openModal(button));
+      });
+
+      closeBtn?.addEventListener('click', closeModal);
+      overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) closeModal();
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && overlay.classList.contains('active')) {
+          closeModal();
+        }
+      });
+    })();
   </script>
 </body>
 </html>

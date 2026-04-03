@@ -6,6 +6,25 @@
   <title>Results - LMS</title>
   <link rel="stylesheet" href="/css/styles.css">
   <style>
+    .trainer-comment-card {
+      margin: 0 0 1rem 0;
+      padding: 1rem 1.1rem;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef5ff 100%);
+      border: 1px solid #dbe4ee;
+    }
+    .trainer-comment-card h3 {
+      margin: 0 0 0.35rem 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #0b1f44;
+    }
+    .trainer-comment-card p {
+      margin: 0;
+      color: #334155;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
     .celebration-banner {
       margin: 1rem 0 0;
       padding: 1.5rem;
@@ -137,9 +156,10 @@
             const handsOnComment = (handsOnScores.find(s => s.comments && s.comments.trim().length > 0) || {}).comments;
           %>
           <% if (handsOnComment) { %>
-            <p class="text-muted" style="margin: 0 0 1rem 0;">
-              <strong>Trainer Comment:</strong> <%= handsOnComment %>
-            </p>
+            <div class="trainer-comment-card">
+              <h3>Trainer Comment</h3>
+              <p><%= handsOnComment %></p>
+            </div>
           <% } %>
           <div class="table-responsive">
             <table class="data-table">

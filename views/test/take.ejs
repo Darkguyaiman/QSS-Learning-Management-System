@@ -255,7 +255,6 @@
           captureAnswerForIndex(currentIndex);
           saveAnswersToStorage();
           showQuestion(idx);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
         });
       });
 
@@ -264,14 +263,12 @@
         captureAnswerForIndex(currentIndex);
         saveAnswersToStorage();
         showQuestion(currentIndex - 1);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
       });
 
       nextBtn.addEventListener('click', function () {
         captureAnswerForIndex(currentIndex);
         saveAnswersToStorage();
         showQuestion(currentIndex + 1);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
       });
 
       // Before submit: enforce all answered and clear storage
@@ -293,7 +290,6 @@
             alert('Almost there! Please answer all questions before submitting. We will take you to the first unanswered question.');
           }
           showQuestion(unansweredIndex);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
           return false;
         }
 

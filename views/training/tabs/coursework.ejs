@@ -116,13 +116,13 @@
       <h2 style="margin: 0; font-size: 1.25rem; font-weight: 400; color: #202124;">Training Materials</h2>
       <% if (['admin', 'trainer'].includes(user.userRole)) { %>
         <div style="display: flex; gap: 0.5rem;">
-          <button class="btn btn-outline" onclick="openImportSectionsModal()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+          <button class="btn btn-outline" onclick="openImportSectionsModal()" <%= training.is_locked ? 'disabled title="Training is locked"' : '' %>>
             <i class="fas fa-file-import"></i> Import Sections
           </button>
-          <button class="btn btn-outline" onclick="openCreateSectionModal()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+          <button class="btn btn-outline" onclick="openCreateSectionModal()" <%= training.is_locked ? 'disabled title="Training is locked"' : '' %>>
             <i class="fas fa-folder-plus"></i> Create Section
           </button>
-          <button class="btn btn-primary" onclick="openCreateMaterialModal()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+          <button class="btn btn-primary" onclick="openCreateMaterialModal()" <%= training.is_locked ? 'disabled title="Training is locked"' : '' %>>
             <i class="fas fa-plus"></i> Create Material
           </button>
         </div>
@@ -144,19 +144,17 @@
       <div class="section-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
           <h3 class="section-title" style="margin: 0; flex: 1;">General Materials</h3>
-            <% if (['admin', 'trainer'].includes(user.userRole) && generalMaterialsSection) { %>
+            <% if (['admin', 'trainer'].includes(user.userRole) && generalMaterialsSection && !training.is_locked) { %>
               <div class="material-actions">
-                <button class="material-menu-btn" onclick="toggleMaterialMenu(event, 'section-general')" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+                <button class="material-menu-btn" onclick="toggleMaterialMenu(event, 'section-general')">
                   <i class="fas fa-ellipsis-v"></i>
                 </button>
-                <% if (training.status !== 'completed') { %>
-                  <div id="section-general" class="material-menu-dropdown">
-                    <a href="/training/<%= training.id %>/sections/<%= generalMaterialsSection.id %>/edit" class="material-menu-item">
-                      <i class="fas fa-edit"></i>
-                      <span>Edit Section</span>
-                    </a>
-                  </div>
-                <% } %>
+                <div id="section-general" class="material-menu-dropdown">
+                  <a href="/training/<%= training.id %>/sections/<%= generalMaterialsSection.id %>/edit" class="material-menu-item">
+                    <i class="fas fa-edit"></i>
+                    <span>Edit Section</span>
+                  </a>
+                </div>
               </div>
             <% } %>
         </div>
@@ -190,27 +188,25 @@
                   <i class="fas fa-external-link-alt"></i> Open
                 </a>
               <% } %>
-              <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+              <% if (['admin', 'trainer'].includes(user.userRole) && !training.is_locked) { %>
                 <div class="material-actions">
-                  <button class="material-menu-btn" onclick="event.stopPropagation(); toggleMaterialMenu(event, 'material-<%= material.id %>')" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+                  <button class="material-menu-btn" onclick="event.stopPropagation(); toggleMaterialMenu(event, 'material-<%= material.id %>')">
                     <i class="fas fa-ellipsis-v"></i>
                   </button>
-                  <% if (training.status !== 'completed') { %>
-                    <div id="material-<%= material.id %>" class="material-menu-dropdown">
-                      <a href="/training/<%= training.id %>/materials/<%= material.id %>/access" class="material-menu-item">
-                        <i class="fas fa-user-check"></i>
-                        <span>View Access</span>
-                      </a>
-                      <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="material-menu-item">
-                        <i class="fas fa-edit"></i>
-                        <span>Edit</span>
-                      </a>
-                      <button class="material-menu-item delete" onclick="deleteMaterial(<%= material.id %>)">
-                        <i class="fas fa-trash"></i>
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                  <% } %>
+                  <div id="material-<%= material.id %>" class="material-menu-dropdown">
+                    <a href="/training/<%= training.id %>/materials/<%= material.id %>/access" class="material-menu-item">
+                      <i class="fas fa-user-check"></i>
+                      <span>View Access</span>
+                    </a>
+                    <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="material-menu-item">
+                      <i class="fas fa-edit"></i>
+                      <span>Edit</span>
+                    </a>
+                    <button class="material-menu-item delete" onclick="deleteMaterial(<%= material.id %>)">
+                      <i class="fas fa-trash"></i>
+                      <span>Delete</span>
+                    </button>
+                  </div>
                 </div>
               <% } %>
             </div>
@@ -228,23 +224,21 @@
         <div class="section-card">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
             <h3 class="section-title" style="margin: 0; flex: 1;"><%= section.title %></h3>
-            <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+            <% if (['admin', 'trainer'].includes(user.userRole) && !training.is_locked) { %>
               <div class="material-actions">
-                <button class="material-menu-btn" onclick="toggleMaterialMenu(event, 'section-<%= section.id %>')" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+                <button class="material-menu-btn" onclick="toggleMaterialMenu(event, 'section-<%= section.id %>')">
                   <i class="fas fa-ellipsis-v"></i>
                 </button>
-                <% if (training.status !== 'completed') { %>
-                  <div id="section-<%= section.id %>" class="material-menu-dropdown">
-                    <a href="/training/<%= training.id %>/sections/<%= section.id %>/edit" class="material-menu-item">
-                      <i class="fas fa-edit"></i>
-                      <span>Edit Section</span>
-                    </a>
-                    <button class="material-menu-item delete" onclick="deleteSection(<%= section.id %>)">
-                      <i class="fas fa-trash"></i>
-                      <span>Delete Section</span>
-                    </button>
-                  </div>
-                <% } %>
+                <div id="section-<%= section.id %>" class="material-menu-dropdown">
+                  <a href="/training/<%= training.id %>/sections/<%= section.id %>/edit" class="material-menu-item">
+                    <i class="fas fa-edit"></i>
+                    <span>Edit Section</span>
+                  </a>
+                  <button class="material-menu-item delete" onclick="deleteSection(<%= section.id %>)">
+                    <i class="fas fa-trash"></i>
+                    <span>Delete Section</span>
+                  </button>
+                </div>
               </div>
             <% } %>
           </div>
@@ -280,27 +274,25 @@
                       <i class="fas fa-external-link-alt"></i> Open
                     </a>
                   <% } %>
-                  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+                  <% if (['admin', 'trainer'].includes(user.userRole) && !training.is_locked) { %>
                     <div class="material-actions">
-                      <button class="material-menu-btn" onclick="event.stopPropagation(); toggleMaterialMenu(event, 'material-<%= material.id %>')" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+                      <button class="material-menu-btn" onclick="event.stopPropagation(); toggleMaterialMenu(event, 'material-<%= material.id %>')">
                         <i class="fas fa-ellipsis-v"></i>
                       </button>
-                      <% if (training.status !== 'completed') { %>
-                        <div id="material-<%= material.id %>" class="material-menu-dropdown">
-                          <a href="/training/<%= training.id %>/materials/<%= material.id %>/access" class="material-menu-item">
-                            <i class="fas fa-user-check"></i>
-                            <span>View Access</span>
-                          </a>
-                          <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="material-menu-item">
-                            <i class="fas fa-edit"></i>
-                            <span>Edit</span>
-                          </a>
-                          <button class="material-menu-item delete" onclick="deleteMaterial(<%= material.id %>)">
-                            <i class="fas fa-trash"></i>
-                            <span>Delete</span>
-                          </button>
-                        </div>
-                      <% } %>
+                      <div id="material-<%= material.id %>" class="material-menu-dropdown">
+                        <a href="/training/<%= training.id %>/materials/<%= material.id %>/access" class="material-menu-item">
+                          <i class="fas fa-user-check"></i>
+                          <span>View Access</span>
+                        </a>
+                        <a href="/training/<%= training.id %>/materials/<%= material.id %>/edit" class="material-menu-item">
+                          <i class="fas fa-edit"></i>
+                          <span>Edit</span>
+                        </a>
+                        <button class="material-menu-item delete" onclick="deleteMaterial(<%= material.id %>)">
+                          <i class="fas fa-trash"></i>
+                          <span>Delete</span>
+                        </button>
+                      </div>
                     </div>
                   <% } %>
                 </div>
@@ -625,14 +617,14 @@
       </h3>
       <% if (['admin', 'trainer'].includes(user.userRole)) { %>
         <div style="display:flex; gap: 0.5rem; flex-wrap: wrap;">
-          <input id="coursework-media-input" type="file" accept="image/*" multiple style="display:none;" <%= training.status === 'completed' ? 'disabled' : '' %>>
-          <button type="button" class="btn btn-outline" onclick="openCourseworkMediaPicker()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+          <input id="coursework-media-input" type="file" accept="image/*" multiple style="display:none;" <%= training.is_locked ? 'disabled' : '' %>>
+          <button type="button" class="btn btn-outline" onclick="openCourseworkMediaPicker()" <%= training.is_locked ? 'disabled title="Training is locked"' : '' %>>
             <i class="fas fa-images"></i> Add Photos
           </button>
-          <button type="button" class="btn btn-primary" onclick="uploadQueuedTrainingMedia()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+          <button type="button" class="btn btn-primary" onclick="uploadQueuedTrainingMedia()" <%= training.is_locked ? 'disabled title="Training is locked"' : '' %>>
             <i class="fas fa-cloud-upload-alt"></i> Upload
           </button>
-          <button type="button" class="btn btn-outline" onclick="clearQueuedTrainingMedia()" <%= training.status === 'completed' ? 'disabled title="Training is locked"' : '' %>>
+          <button type="button" class="btn btn-outline" onclick="clearQueuedTrainingMedia()" <%= training.is_locked ? 'disabled title="Training is locked"' : '' %>>
             <i class="fas fa-trash"></i> Clear Queue
           </button>
         </div>
@@ -649,7 +641,7 @@
       <i class="fas fa-exclamation-circle"></i> <span></span>
     </div>
 
-    <% if (['admin', 'trainer'].includes(user.userRole) && training.status !== 'completed') { %>
+    <% if (['admin', 'trainer'].includes(user.userRole) && !training.is_locked) { %>
       <div id="coursework-media-dropzone" class="training-media-dropzone" style="margin-top: 1rem;">
         <div class="training-media-dropzone-inner">
           <div class="training-media-dropzone-icon"><i class="fas fa-cloud-upload-alt"></i></div>
@@ -681,7 +673,7 @@
             <a href="/training/<%= training.id %>/media/<%= m.id %>/content" target="_blank" rel="noopener">
               <img src="/training/<%= training.id %>/media/<%= m.id %>/content" alt="<%= m.original_name || 'Training media' %>">
             </a>
-            <% if (['admin', 'trainer'].includes(user.userRole) && training.status !== 'completed') { %>
+            <% if (['admin', 'trainer'].includes(user.userRole) && !training.is_locked) { %>
               <button type="button" class="training-media-delete" onclick="deleteTrainingMedia(<%= m.id %>)" title="Delete">
                 <i class="fas fa-trash"></i>
               </button>

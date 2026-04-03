@@ -58,12 +58,15 @@ async function getAreasOfSpecialization(db) {
 
 async function renderProfileView(req, res, profile, extra) {
   const areasOfSpecialization = await getAreasOfSpecialization(req.db);
+  const profileSuccess = req.session.profileSuccess || null;
+  req.session.profileSuccess = null;
   res.render('profile/view', {
     user: req.session,
     profile,
     areasOfSpecialization,
     error: null,
     passwordError: null,
+    profileSuccess,
     ...extra
   });
 }
@@ -89,8 +92,12 @@ router.post('/update', async (req, res) => {
   const { firstName, lastName, email, position, phoneNumber, areaOfSpecialization } = req.body;
   
   try {
+    const cleanFirstName = firstName ? firstName.trim() : '';
+    const cleanLastName = lastName ? lastName.trim() : '';
+    const cleanEmail = email ? email.trim() : '';
+
     // Validate input
-    if (!firstName || !lastName || !email) {
+    if (!cleanFirstName || !cleanLastName || !cleanEmail) {
       let profile;
       if (req.session.userRole === 'trainee') {
         const [trainees] = await req.db.query('SELECT * FROM trainees WHERE id = ?', [req.session.userId]);
@@ -103,11 +110,35 @@ router.post('/update', async (req, res) => {
         error: 'All fields are required'
       });
     }
+
+    if (req.session.userRole === 'trainee') {
+      const [existingTrainee] = await req.db.query(
+        'SELECT id FROM trainees WHERE email = ? AND id <> ?',
+        [cleanEmail, req.session.userId]
+      );
+      if (existingTrainee.length > 0) {
+        const [trainees] = await req.db.query('SELECT * FROM trainees WHERE id = ?', [req.session.userId]);
+        return renderProfileView(req, res, trainees[0], {
+          error: 'That email address is already in use.'
+        });
+      }
+    } else {
+      const [existingUser] = await req.db.query(
+        'SELECT id FROM users WHERE email = ? AND id <> ?',
+        [cleanEmail, req.session.userId]
+      );
+      if (existingUser.length > 0) {
+        const [users] = await req.db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
+        return renderProfileView(req, res, users[0], {
+          error: 'That email address is already in use.'
+        });
+      }
+    }
     
     if (req.session.userRole === 'trainee') {
       await req.db.query(
         'UPDATE trainees SET first_name = ?, last_name = ?, email = ? WHERE id = ?',
-        [firstName, lastName, email, req.session.userId]
+        [cleanFirstName, cleanLastName, cleanEmail, req.session.userId]
       );
     } else {
       const cleanPosition = position ? position.trim() : '';
@@ -123,13 +154,14 @@ router.post('/update', async (req, res) => {
 
       await req.db.query(
         'UPDATE users SET first_name = ?, last_name = ?, email = ?, position = ?, phone_number = ?, area_of_specialization = ? WHERE id = ?',
-        [firstName, lastName, email, cleanPosition, cleanPhone, cleanArea, req.session.userId]
+        [cleanFirstName, cleanLastName, cleanEmail, cleanPosition, cleanPhone, cleanArea, req.session.userId]
       );
 
       req.session.userPosition = cleanPosition;
     }
     
-    req.session.userName = `${firstName} ${lastName}`;
+    req.session.userName = `${cleanFirstName} ${cleanLastName}`;
+    req.session.profileSuccess = 'Personal information updated successfully.';
     res.redirect('/profile');
   } catch (error) {
     console.error('Profile update error:', error);

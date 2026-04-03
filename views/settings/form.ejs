@@ -433,8 +433,8 @@
             </div>
             <% if (typeof hasAddressField !== 'undefined' && hasAddressField) { %>
               <div class="form-group">
-                <label for="item-address"><%= typeof addressLabel !== 'undefined' && addressLabel ? addressLabel : 'Address' %></label>
-                <textarea id="item-address" name="hospital_address" placeholder="<%= typeof addressPlaceholder !== 'undefined' && addressPlaceholder ? addressPlaceholder : 'Enter address' %>"><%= typeof item !== 'undefined' && item ? (item.hospital_address || '') : '' %></textarea>
+                <label for="item-address"><%= typeof addressLabel !== 'undefined' && addressLabel ? addressLabel : 'Address' %> *</label>
+                <textarea id="item-address" name="hospital_address" required placeholder="<%= typeof addressPlaceholder !== 'undefined' && addressPlaceholder ? addressPlaceholder : 'Enter address' %>"><%= typeof item !== 'undefined' && item ? (item.hospital_address || '') : '' %></textarea>
               </div>
             <% } %>
             <% if (typeof hasDescriptionField === 'undefined' || hasDescriptionField) { %>

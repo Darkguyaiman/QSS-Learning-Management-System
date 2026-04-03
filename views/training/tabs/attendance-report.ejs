@@ -394,6 +394,198 @@
       text-align: left;
     }
   }
+
+  @media (max-width: 640px) {
+    .attendance-report-shell {
+      width: calc(100% + 2rem);
+      max-width: none;
+      margin-left: -1rem;
+      margin-right: -1rem;
+      padding: 0.85rem 1rem 0;
+      border: none;
+      box-shadow: none;
+      background: transparent;
+    }
+
+    .attendance-report-toolbar {
+      align-items: stretch;
+    }
+
+    .attendance-report-toolbar .btn {
+      width: 100%;
+    }
+
+    .attendance-report-toolbar-subtitle {
+      line-height: 1.5;
+    }
+
+    .attendance-report-document {
+      border-radius: 12px;
+      padding: 0.85rem;
+      margin-top: 0.85rem;
+    }
+
+    .attendance-report-letterhead {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.85rem;
+    }
+
+    .attendance-report-brand {
+      width: 100%;
+      align-items: flex-start;
+    }
+
+    .attendance-report-brand-copy {
+      min-height: 0;
+    }
+
+    .attendance-report-logo {
+      width: 60px;
+      height: 60px;
+    }
+
+    .attendance-report-title-wrap h2 {
+      font-size: 1.08rem;
+    }
+
+    .attendance-report-meta-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .attendance-report-meta-item {
+      padding: 0.7rem;
+    }
+
+    .attendance-report-table-wrap,
+    .attendance-report-summary-section .attendance-summary-table-container {
+      overflow: visible;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      padding: 0;
+    }
+
+    .attendance-report-table-wrap .table-wrapper,
+    .attendance-report-summary-section .table-wrapper {
+      overflow: visible;
+    }
+
+    .attendance-report-table,
+    .attendance-report-table thead,
+    .attendance-report-table tbody,
+    .attendance-report-table th,
+    .attendance-report-table td,
+    .attendance-report-table tr {
+      display: block;
+      width: 100%;
+    }
+
+    .attendance-report-table thead {
+      display: none;
+    }
+
+    .attendance-report-table tbody {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .attendance-report-table tbody tr {
+      border: 1px solid #dbe4ee;
+      border-radius: 12px;
+      background: #f8fafc;
+      padding: 0.8rem;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+    }
+
+    .attendance-report-table tbody td {
+      border: none;
+      padding: 0.35rem 0;
+      text-align: left;
+      white-space: normal;
+      word-break: break-word;
+    }
+
+    .attendance-report-table tbody td::before {
+      content: attr(data-label);
+      display: block;
+      margin-bottom: 0.15rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #6b7280;
+    }
+
+    .attendance-report-summary-table {
+      display: grid;
+      gap: 0.65rem;
+      border: none;
+      background: transparent;
+    }
+
+    .attendance-report-summary-table thead {
+      display: none;
+    }
+
+    .attendance-report-summary-table tbody,
+    .attendance-report-summary-table tr {
+      display: contents;
+    }
+
+    .attendance-report-summary-table td {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.8rem 0.9rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #0b1f44;
+      border: 1px solid #dbe4ee;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+      text-align: left;
+    }
+
+    .attendance-report-summary-table td::before {
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #6b7280;
+    }
+
+    .attendance-report-summary-table td#report-total-count::before {
+      content: 'Total Trainees';
+    }
+
+    .attendance-report-summary-table td#report-present-count::before {
+      content: 'Present';
+    }
+
+    .attendance-report-summary-table td#report-absent-count::before {
+      content: 'Absent';
+    }
+
+    .attendance-report-summary-table td#report-late-count::before {
+      content: 'Late';
+    }
+
+    .attendance-report-signatures {
+      gap: 0.75rem;
+    }
+
+    .signature-block {
+      min-height: 0;
+      gap: 0.9rem;
+      padding: 0.85rem;
+      border: 1px dashed #cbd5e1;
+      border-radius: 12px;
+      background: #fbfdff;
+    }
+  }
   </style>
 
 <!-- jsPDF (UMD) -->
@@ -579,7 +771,7 @@
         const reference = `${REPORT_COMPANY.code}-ATT-${trainingId || 'NA'}-${date || 'NA'}`;
 
         try {
-          const response = await fetch(`/attendance/session-details/${trainingId}?date=${encodeURIComponent(date)}`);
+          const response = await fetch(`/attendance/session-details/${trainingId}?date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}`);
           const data = await response.json();
 
           const meta = document.getElementById('report-session-meta');

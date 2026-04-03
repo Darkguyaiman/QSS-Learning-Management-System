@@ -72,6 +72,47 @@ async function seedDefaultUsers(connection) {
   }
 }
 
+async function usersTableExists(connection) {
+  const [rows] = await connection.query(
+    `SELECT COUNT(*) AS cnt
+     FROM INFORMATION_SCHEMA.TABLES
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'users'`
+  );
+
+  return Number(rows?.[0]?.cnt || 0) > 0;
+}
+
+async function ensureDefaultUsers() {
+  let connection;
+
+  try {
+    connection = await mysql.createConnection({
+      ...dbConfig,
+      database: 'lms_db'
+    });
+
+    const hasUsersTable = await usersTableExists(connection);
+    if (!hasUsersTable) {
+      console.warn('Users table not found; skipping default user seeding');
+      return;
+    }
+
+    await seedDefaultUsers(connection);
+  } catch (error) {
+    if (error.code === 'ER_BAD_DB_ERROR') {
+      console.warn('Database lms_db not found; skipping default user seeding');
+      return;
+    }
+
+    throw error;
+  } finally {
+    if (connection) {
+      await connection.end();
+    }
+  }
+}
+
 async function addColumnIfMissing(connection, tableName, columnName, columnDefinition) {
   const [rows] = await connection.query(
     `SELECT COUNT(*) AS cnt
@@ -208,6 +249,7 @@ const pool = mysql.createPool({
 module.exports = {
   dbConfig,
   pool,
+  ensureDefaultUsers,
   initializeDatabase,
   generateUniqueTraineeId
 };

@@ -119,7 +119,7 @@
     trainingId: <%- JSON.stringify(training.id) %>,
     trainingTitle: <%- JSON.stringify(training.title || '') %>,
     trainingType: <%- JSON.stringify(training.type || '') %>,
-    isLocked: <%- JSON.stringify(training.status === 'completed') %>,
+    isLocked: <%- JSON.stringify(!!training.is_locked) %>,
     trainingStartDate: <%- JSON.stringify(training.start_datetime || '') %>,
     trainingEndDate: <%- JSON.stringify(training.end_datetime || '') %>,
     companyCode: <%- JSON.stringify(affiliatedBrand.code) %>,

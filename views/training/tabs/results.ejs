@@ -1,5 +1,15 @@
 <!-- Results Tab (Trainee Only - After Score Release) -->
 <% if (user.userRole === 'trainee' && enrollment && enrollment.can_download_results) { %>
+  <style>
+    #results-tab-confetti-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 9998;
+    }
+  </style>
   <div id="results-tab" class="tab-content">
     <div class="results-container results-tab">
       <!-- Header Banner -->
@@ -36,7 +46,12 @@
             const postTest = getBestTest(marksData && marksData.tests, 'post_test');
             const certificateEnrolmentTest = getBestTest(marksData && marksData.tests, 'certificate_enrolment');
             const refresher_trainingTest = getBestTest(marksData && marksData.tests, 'refresher_training');
+            const showCertificationCelebration = !!(certificateEnrolmentTest && (parseFloat(certificateEnrolmentTest.score) || 0) >= 80);
           %>
+
+          <% if (showCertificationCelebration) { %>
+            <canvas id="results-tab-confetti-canvas" aria-hidden="true"></canvas>
+          <% } %>
           
           <% if (preTest) { %>
             <div class="test-card pre-test">
@@ -134,9 +149,10 @@
             const handsOnComment = (marksData.handsOnScores.find(s => s.comments && s.comments.trim().length > 0) || {}).comments;
           %>
           <% if (handsOnComment) { %>
-            <p class="text-muted" style="margin: 0 0 1rem 0;">
-              <strong>Trainer Comment:</strong> <%= handsOnComment %>
-            </p>
+            <div class="trainer-comment-card">
+              <h3>Trainer Comment</h3>
+              <p><%= handsOnComment %></p>
+            </div>
           <% } %>
           
           <div class="table-responsive">
@@ -251,6 +267,69 @@
       </div>
     </div>
   </div>
+  <%
+    const celebrationTest = ((marksData && marksData.tests) || []).find(t =>
+      t.test_type === 'certificate_enrolment' && (parseFloat(t.score) || 0) >= 80
+    );
+  %>
+  <% if (celebrationTest) { %>
+    <script>
+      (function () {
+        const canvas = document.getElementById('results-tab-confetti-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const DPR = Math.max(1, window.devicePixelRatio || 1);
+
+        function resize() {
+          canvas.width = Math.floor(window.innerWidth * DPR);
+          canvas.height = Math.floor(window.innerHeight * DPR);
+          canvas.style.width = window.innerWidth + 'px';
+          canvas.style.height = window.innerHeight + 'px';
+          ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        const colors = ['#fbbc04', '#34a853', '#4285f4', '#ea4335', '#ff7f50'];
+        const particles = Array.from({ length: 180 }, () => ({
+          x: Math.random() * window.innerWidth,
+          y: -20 - Math.random() * window.innerHeight,
+          r: 4 + Math.random() * 6,
+          c: colors[Math.floor(Math.random() * colors.length)],
+          vy: 1.5 + Math.random() * 3.5,
+          vx: -1 + Math.random() * 2,
+          rot: Math.random() * Math.PI,
+          vr: (Math.random() - 0.5) * 0.2
+        }));
+
+        const start = performance.now();
+        function frame(t) {
+          const elapsed = t - start;
+          ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+          particles.forEach(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.rot += p.vr;
+            if (p.y > window.innerHeight + 20) {
+              p.y = -20;
+              p.x = Math.random() * window.innerWidth;
+            }
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            ctx.fillStyle = p.c;
+            ctx.fillRect(-p.r / 2, -p.r / 2, p.r, p.r);
+            ctx.restore();
+          });
+          if (elapsed < 5000) {
+            requestAnimationFrame(frame);
+          } else {
+            ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+            canvas.remove();
+          }
+        }
+        requestAnimationFrame(frame);
+      })();
+    </script>
+  <% } %>
 <% } %>
-
-

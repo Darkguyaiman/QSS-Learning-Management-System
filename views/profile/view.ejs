@@ -37,6 +37,12 @@
         </div>
       <% } %>
 
+      <% if (typeof profileSuccess !== 'undefined' && profileSuccess) { %>
+        <div class="alert alert-success">
+          <%= profileSuccess %>
+        </div>
+      <% } %>
+
       <div class="profile-container <%= isTrainee ? 'trainee-view' : '' %>">
         <!-- Profile Header Card -->
         <div class="profile-header-card">
@@ -171,7 +177,18 @@
                   Area of Specialization
                 </label>
                 <input type="hidden" id="areaOfSpecializationAdmin" name="areaOfSpecialization" value="<%= profile.area_of_specialization || '' %>">
-                <div id="areaOfSpecializationDropdown" class="tw-dropdown-container"></div>
+                <div class="profile-chip-selector" id="areaSpecializationSelector">
+                  <% (areasOfSpecialization || []).forEach(function(area) { %>
+                    <button
+                      type="button"
+                      class="profile-chip-option"
+                      data-value="<%= area.name %>"
+                    >
+                      <i class="fas fa-check profile-chip-option-check" aria-hidden="true"></i>
+                      <span><%= area.name %></span>
+                    </button>
+                  <% }) %>
+                </div>
                 <small class="form-help">Select one or more specializations.</small>
               </div>
             <% } %>
@@ -327,9 +344,20 @@
             </div>
             <div class="form-group">
               <% if (profile.certificate_file) { %>
-                <div style="margin-bottom: var(--spacing-md);">
-                  Current certificate:
-                  <a href="<%= profile.certificate_file %>" target="_blank" rel="noopener">View Certificate</a>
+                <div class="current-certificate-card">
+                  <div class="current-certificate-meta">
+                    <div class="current-certificate-icon">
+                      <i class="fas fa-certificate"></i>
+                    </div>
+                    <div>
+                      <div class="current-certificate-label">Current Certificate</div>
+                      <div class="current-certificate-subtext">Your latest uploaded certificate is ready to view.</div>
+                    </div>
+                  </div>
+                  <a href="<%= profile.certificate_file %>" target="_blank" rel="noopener" class="current-certificate-link">
+                    <i class="fas fa-arrow-up-right-from-square"></i>
+                    View Certificate
+                  </a>
                 </div>
               <% } else { %>
                 <div style="margin-bottom: var(--spacing-md); color: var(--color-gray);">
@@ -1337,6 +1365,73 @@
   font-weight: 600;
 }
 
+.current-certificate-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-lg);
+  background: linear-gradient(135deg, rgba(87, 63, 215, 0.08) 0%, rgba(17, 53, 139, 0.05) 100%);
+  border: 1px solid rgba(87, 63, 215, 0.14);
+}
+
+.current-certificate-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  min-width: 0;
+}
+
+.current-certificate-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-blue) 100%);
+  color: #FFFFFF;
+  box-shadow: 0 8px 18px rgba(87, 63, 215, 0.2);
+}
+
+.current-certificate-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-dark);
+  margin-bottom: 0.2rem;
+}
+
+.current-certificate-subtext {
+  font-size: 0.82rem;
+  color: var(--color-gray);
+}
+
+.current-certificate-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 999px;
+  background: #FFFFFF;
+  color: var(--color-purple);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  border: 1px solid rgba(87, 63, 215, 0.16);
+  box-shadow: 0 4px 12px rgba(17, 53, 139, 0.08);
+  transition: all 0.2s ease;
+}
+
+.current-certificate-link:hover {
+  transform: translateY(-1px);
+  color: var(--color-blue);
+  border-color: rgba(87, 63, 215, 0.32);
+  box-shadow: 0 8px 18px rgba(17, 53, 139, 0.12);
+}
+
 .password-card {
   grid-column: 1 / -1;
 }
@@ -1347,6 +1442,50 @@
   font-weight: 900;
   color: var(--color-purple);
   font-size: 0.75rem;
+}
+
+.profile-chip-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin-top: 0.25rem;
+}
+
+.profile-chip-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.6rem 0.9rem;
+  border: 1.5px solid rgba(87, 63, 215, 0.14);
+  border-radius: 999px;
+  background: #FFFFFF;
+  color: var(--color-dark);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.profile-chip-option:hover {
+  border-color: rgba(87, 63, 215, 0.45);
+  background: rgba(87, 63, 215, 0.05);
+}
+
+.profile-chip-option.is-selected {
+  background: linear-gradient(135deg, rgba(87, 63, 215, 0.14) 0%, rgba(17, 53, 139, 0.12) 100%);
+  border-color: rgba(87, 63, 215, 0.5);
+  color: var(--color-purple);
+  box-shadow: 0 4px 12px rgba(87, 63, 215, 0.12);
+}
+
+.profile-chip-option-check {
+  font-size: 0.75rem;
+  opacity: 0.35;
+  transition: opacity 0.2s ease;
+}
+
+.profile-chip-option.is-selected .profile-chip-option-check {
+  opacity: 1;
 }
 
 /* TailwindDropdown fallback styling (no Tailwind CSS on page) */
@@ -1606,6 +1745,15 @@
 
   .trainee-layout {
     grid-template-columns: 1fr;
+  }
+
+  .current-certificate-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .current-certificate-link {
+    justify-content: center;
   }
 }
 
@@ -1941,31 +2089,43 @@
       confirmPasswordInput.addEventListener('input', checkPasswordMatch);
     }
 
-    // Area of Specialization dropdown (admin/trainer only)
-    (function initAreaDropdown() {
-      var dropdownEl = document.getElementById('areaOfSpecializationDropdown');
+    // Area of Specialization chip selector (admin/trainer only)
+    (function initAreaSelector() {
+      var selectorEl = document.getElementById('areaSpecializationSelector');
       var hiddenInput = document.getElementById('areaOfSpecializationAdmin');
-      if (!dropdownEl || !hiddenInput || !window.TailwindDropdown) return;
+      if (!selectorEl || !hiddenInput) return;
 
-      var areas = <%- JSON.stringify(areasOfSpecialization || []) %>;
-      var items = areas.map(function (a) {
-        return { label: a.name, value: a.name };
-      });
-
-      var initial = (hiddenInput.value || '')
+      var selected = (hiddenInput.value || '')
         .split(',')
         .map(function (v) { return v.trim(); })
         .filter(Boolean);
 
-      new window.TailwindDropdown('areaOfSpecializationDropdown', {
-        items: items,
-        multiSelect: true,
-        placeholder: 'Select specializations',
-        initialValue: initial,
-        onChange: function (values) {
-          hiddenInput.value = Array.isArray(values) ? values.join(', ') : '';
-        }
+      function syncHiddenInput() {
+        hiddenInput.value = selected.join(', ');
+      }
+
+      selectorEl.querySelectorAll('.profile-chip-option').forEach(function (option) {
+        var value = option.getAttribute('data-value');
+        var isSelected = selected.indexOf(value) !== -1;
+        option.classList.toggle('is-selected', isSelected);
+        option.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+
+        option.addEventListener('click', function () {
+          var idx = selected.indexOf(value);
+          if (idx === -1) {
+            selected.push(value);
+            option.classList.add('is-selected');
+            option.setAttribute('aria-pressed', 'true');
+          } else {
+            selected.splice(idx, 1);
+            option.classList.remove('is-selected');
+            option.setAttribute('aria-pressed', 'false');
+          }
+          syncHiddenInput();
+        });
       });
+
+      syncHiddenInput();
     })();
 
     // Certificate drag-and-drop upload

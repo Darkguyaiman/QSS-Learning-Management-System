@@ -610,6 +610,8 @@
     .chip-option {
       display: flex;
       align-items: center;
+      width: 100%;
+      box-sizing: border-box;
       padding: 0.35rem 0.75rem;
       gap: 0.5rem;
       cursor: pointer;
@@ -630,6 +632,8 @@
     .chip-option-label {
       display: inline-flex;
       align-items: center;
+      flex: 1;
+      min-width: 0;
       gap: 0.35rem;
       cursor: pointer;
     }
@@ -835,6 +839,8 @@
     .area-modal-item {
       display: flex;
       align-items: center;
+      width: 100%;
+      box-sizing: border-box;
       padding: 1rem;
       border: 2px solid #E5E7EB;
       border-radius: 10px;
@@ -1505,17 +1511,17 @@
                 <div class="chip-multiselect-panel" id="areaChipsPanel">
                   <% if (typeof areasOfSpecialization !== 'undefined' && areasOfSpecialization && areasOfSpecialization.length) { %>
                     <% areasOfSpecialization.forEach(function(area, index) { %>
-                      <div class="chip-option">
+                      <label class="chip-option" for="area-chip-<%= index %>">
                         <input 
                           type="checkbox" 
                           id="area-chip-<%= index %>" 
                           name="areaOfSpecialization" 
                           value="<%= area.name %>"
                         >
-                        <label class="chip-option-label" for="area-chip-<%= index %>">
+                        <span class="chip-option-label">
                           <span><%= area.name %></span>
-                        </label>
-                      </div>
+                        </span>
+                      </label>
                     <% }) %>
                   <% } %>
                 </div>
@@ -1590,7 +1596,7 @@
       <div class="area-modal-list" id="areaModalList">
         <% if (typeof areasOfSpecialization !== 'undefined' && areasOfSpecialization && areasOfSpecialization.length) { %>
           <% areasOfSpecialization.forEach(function(area, index) { %>
-            <div class="area-modal-item">
+            <label class="area-modal-item" for="area-modal-<%= index %>">
               <input 
                 type="checkbox" 
                 id="area-modal-<%= index %>" 
@@ -1598,10 +1604,10 @@
                 value="<%= area.name %>"
                 data-original-id="area-chip-<%= index %>"
               >
-              <label class="area-modal-item-label" for="area-modal-<%= index %>">
+              <span class="area-modal-item-label">
                 <%= area.name %>
-              </label>
-            </div>
+              </span>
+            </label>
           <% }) %>
         <% } %>
       </div>
