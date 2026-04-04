@@ -570,7 +570,7 @@ CREATE TABLE `sessions` (
 
 LOCK TABLES `sessions` WRITE;
 /*!40000 ALTER TABLE `sessions` DISABLE KEYS */;
-INSERT INTO `sessions` VALUES ('-af6ejWE_-1EoVIEb48CD5WNxgMumfGI',1775282921,'{\"cookie\":{\"originalMaxAge\":86400000,\"expires\":\"2026-04-04T02:24:17.198Z\",\"secure\":false,\"httpOnly\":true,\"path\":\"/\",\"sameSite\":\"lax\"},\"userId\":1,\"userRole\":\"trainee\",\"userName\":\"Mohamed Aiman\",\"userProfile\":null,\"traineeId\":\"T568090\"}'),('D2l8pGoZIUqv93UXxWsXZ9hzS_KCayV9',1775353472,'{\"cookie\":{\"originalMaxAge\":86400000,\"expires\":\"2026-04-04T06:17:24.174Z\",\"secure\":false,\"httpOnly\":true,\"path\":\"/\",\"sameSite\":\"lax\"},\"userId\":1,\"userRole\":\"admin\",\"userName\":\"Mohamed Aiman\",\"userProfile\":\"/uploads/profiles/1-1775183513302.jpeg\",\"userPosition\":\"Senior Trainer\"}');
+INSERT INTO `sessions` VALUES ('-af6ejWE_-1EoVIEb48CD5WNxgMumfGI',1775282921,'{\"cookie\":{\"originalMaxAge\":86400000,\"expires\":\"2026-04-04T02:24:17.198Z\",\"secure\":false,\"httpOnly\":true,\"path\":\"/\",\"sameSite\":\"lax\"},\"userId\":1,\"userRole\":\"trainee\",\"userName\":\"Mohamed Aiman\",\"userProfile\":null,\"traineeId\":\"T568090\"}'),('D2l8pGoZIUqv93UXxWsXZ9hzS_KCayV9',1775358743,'{\"cookie\":{\"originalMaxAge\":86400000,\"expires\":\"2026-04-04T06:17:24.174Z\",\"secure\":false,\"httpOnly\":true,\"path\":\"/\",\"sameSite\":\"lax\"},\"userId\":1,\"userRole\":\"admin\",\"userName\":\"Mohamed Aiman\",\"userProfile\":\"/uploads/profiles/1-1775183513302.jpeg\",\"userPosition\":\"Senior Trainer\"}');
 /*!40000 ALTER TABLE `sessions` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1093,7 +1093,7 @@ CREATE TABLE `users` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`),
   KEY `idx_user_role` (`role`)
-) ENGINE=InnoDB AUTO_INCREMENT=57 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1102,7 +1102,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'admin@lms.com','$2b$10$jDdfAHpJGnM1RYN9WHtnYuXg.qVdagofeO/MLVKVxboF41/wzmlEy','Mohamed','Aiman','Senior Trainer','01121787858','Chronic kidney disease, Erectile dysfunction, Diabetic foot ulcer','/uploads/certificates/1-1775183429482.pdf','admin','/uploads/profiles/1-1775183513302.jpeg','2026-04-03 01:48:55','2026-04-03 02:36:39'),(2,'trainer@lms.com','$2b$10$jDdfAHpJGnM1RYN9WHtnYuXg.qVdagofeO/MLVKVxboF41/wzmlEy','John','Trainer','',NULL,NULL,NULL,'trainer',NULL,'2026-04-03 01:48:55','2026-04-03 01:48:55');
+INSERT INTO `users` VALUES (1,'admin@lms.com','$2b$10$jDdfAHpJGnM1RYN9WHtnYuXg.qVdagofeO/MLVKVxboF41/wzmlEy','Mohamed','Aiman','Senior Trainer','01121787858',NULL,'/uploads/certificates/1-1775183429482.pdf','admin','/uploads/profiles/1-1775183513302.jpeg','2026-04-03 01:48:55','2026-04-04 01:47:27'),(2,'nssyahirah.razali@gmail.com','$2b$10$kHRBriAL2g31YSfGjf8rz.Dn0QvLJ3fhy5eHQ0zKVBclrjr7B7t1O','Ary','Lee','Trainer','+60 14-248 6414','Chronic kidney disease, Diabetic foot ulcer, Idiopathic pulmonary fibrosis, Pain management',NULL,'admin',NULL,'2026-04-02 23:51:39','2026-04-04 01:53:18'),(3,'Zulhazrael96@gmail.com','$2b$10$AmJGVYmLCSLImVNbwUXysOBvu1tgJFZPrdd89OXjX3.hrmjCUCqge','Zulhazrael','Edzuan','Trainer','+60 19-281 1372','Chronic kidney disease, Diabetic foot ulcer, Erectile dysfunction, Idiopathic pulmonary fibrosis, Pain management',NULL,'admin',NULL,'2026-04-02 23:52:59','2026-04-04 01:53:18'),(4,'devaraj.daryl@gmail.com','$2b$10$gQFxX5QsYEZz2gB.m.J..uQJfeV9PgRrvqbSqDnybFUL4NVwbqWQ2','Daryl','Devaraj','Trainer','+60 17-822 9186','Pain management, Erectile dysfunction, Idiopathic pulmonary fibrosis, Diabetic foot ulcer, Chronic kidney disease',NULL,'admin',NULL,'2026-04-02 23:56:20','2026-04-04 01:53:18'),(5,'qssmalaysia@yahoo.com','$2b$10$qBFNk/ZKGYV3.EtdCLGJJO5La7RiXR28vdtkZsz4kthr3FN/LTc62','Shah Zarak','Khan','Managing Director','+60 19-262 1626','Chronic kidney disease, Diabetic foot ulcer, Erectile dysfunction, Idiopathic pulmonary fibrosis, Pain management',NULL,'admin',NULL,'2026-04-04 01:57:59','2026-04-04 01:57:59');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -1115,4 +1115,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-04-04  9:46:08
+-- Dump completed on 2026-04-04 11:15:13
