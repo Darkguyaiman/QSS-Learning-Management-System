@@ -77,6 +77,17 @@
       white-space: normal;
       word-break: break-word;
     }
+
+    .chip-list.chip-list-compact {
+      gap: 0.22rem;
+    }
+
+    .chip.chip-compact {
+      padding: 0.12rem 0.42rem;
+      font-size: 0.68rem;
+      line-height: 1.15;
+      font-weight: 600;
+    }
     
     .settings-card {
       background: var(--color-white);
@@ -626,9 +637,9 @@
                       </td>
                       <td style="max-width: 260px;" title="<%= u.area_of_specialization || '' %>">
                         <% if (u.area_of_specialization && String(u.area_of_specialization).trim()) { %>
-                          <div class="chip-list">
+                          <div class="chip-list chip-list-compact">
                             <% String(u.area_of_specialization).split(',').map(value => value.trim()).filter(Boolean).forEach(spec => { %>
-                              <span class="chip"><%= spec %></span>
+                              <span class="chip chip-compact"><%= spec %></span>
                             <% }); %>
                           </div>
                         <% } else { %>
@@ -688,9 +699,9 @@
                       <div class="item-card-label">Specialization</div>
                       <div class="item-card-value">
                         <% if (u.area_of_specialization && String(u.area_of_specialization).trim()) { %>
-                          <div class="chip-list">
+                          <div class="chip-list chip-list-compact">
                             <% String(u.area_of_specialization).split(',').map(value => value.trim()).filter(Boolean).forEach(spec => { %>
-                              <span class="chip"><%= spec %></span>
+                              <span class="chip chip-compact"><%= spec %></span>
                             <% }); %>
                           </div>
                         <% } else { %>
