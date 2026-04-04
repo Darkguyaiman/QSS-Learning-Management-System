@@ -614,6 +614,8 @@ function buildLetterHtml({ training, company, formData, attendanceSessionCount, 
   const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const ref = docRef(company.code, training.id, training.start_datetime || training.end_datetime);
   const trainingTypeLabel = String(training.type || '').toLowerCase() === 'main' ? 'Main Training' : 'Refresher Training';
+  const subjectTrainingTitle = String(training.title || 'In-House Training').toUpperCase();
+  const moduleName = training.module_name || training.moduleName || formData.moduleName || formData.module || 'Module';
   const headerHtml = header ? `<img src="${header}" alt="${escapeHtml(company.code)} Header" class="header-image">` : '';
 
   const html = `
@@ -625,11 +627,11 @@ function buildLetterHtml({ training, company, formData, attendanceSessionCount, 
         <td style="width:38%;vertical-align:top;text-align:right;padding:6px 0 6px 4px;"><strong>Date:</strong> ${escapeHtml(currentDate)}<br><strong>Ref:</strong> ${escapeHtml(ref)}</td>
       </tr>
     </table>
-    <p><strong>Attn to:</strong>${escapeHtml(formData.recipientName)}</p>
-    <p><strong>Phone num:</strong> ${escapeHtml(formData.recipientPhone)}</p>
-    <div class="subject">CONFIRMATION OF IN-HOUSE TRAINING FOR DEVICE</div>
+    <p><strong>Attn to:</strong> ${escapeHtml(formData.recipientName)}</p>
+    <p><strong>Phone Number:</strong> ${escapeHtml(formData.recipientPhone)}</p>
+    <div class="subject">CONFIRMATION OF IN-HOUSE TRAINING FOR ${escapeHtml(subjectTrainingTitle)}</div>
     <p>Dear ${escapeHtml(formData.recipientName)},</p>
-    <p>We are pleased to confirm that the following staff members have successfully attended the in-house training for the ${escapeHtml(formData.deviceModel)} devicedevice. Details of the training are as below:</p>
+    <p>We are pleased to confirm that the following staff members have successfully attended the in-house training for the ${escapeHtml(moduleName)} module. Details of the training are as below:</p>
     <div class="soft-card" style="margin:15px 0;">
       <div><strong>Date and Time:</strong> ${escapeHtml(trainingPeriodText(training))}</div>
       <div><strong>Device Model:</strong> ${escapeHtml(formData.deviceModel)}</div>
@@ -652,19 +654,19 @@ function buildLetterHtml({ training, company, formData, attendanceSessionCount, 
               ? traineeRows.map(row => `<tr>
                 <td>${escapeHtml(row.name || '')}</td>
                 <td>${escapeHtml(row.traineeId || '')}</td>
-                <td>${escapeHtml(row.certificateNumber || 'N/A')}</td>
+                <td>${escapeHtml(row.certificateNumber || 'Not Passed')}</td>
               </tr>`).join('')
               : '<tr><td colspan="3" style="text-align:center;color:#64748b;">No trainees found.</td></tr>'}
           </tbody>
         </table>
       </div>
     </div>
-    <p>The training was conducted by ${escapeHtml(company.name)}, covering safety, technical, and clinical aspects of the ${escapeHtml(formData.deviceModel)} device. The participants have demonstrated a satisfactory understanding of these key areas.</p>
-    <p>As a result of this training, these staff members are now qualified to perform laser treatments using the ${escapeHtml(formData.deviceModel)} device.</p>
+    <p>The training was conducted by ${escapeHtml(company.name)}, covering safety, technical, and clinical aspects of the ${escapeHtml(moduleName)} devices. The participants have demonstrated a satisfactory understanding of these key areas.</p>
+    <p>As a result of this training, these staff members are now qualified to perform laser treatments using the ${escapeHtml(moduleName)} devices.</p>
     <p>Should you require any further information or clarification, please do not hesitate to contact us. We appreciate your cooperation and look forward to continued collaboration.</p>
     <p>Thank you.</p>
     <p>Yours sincerely,</p>
-    <div style="margin-top:18px;border-top:1.5px solid #000;width:240px;"></div>
+    <div style="margin-top:40px;border-top:1.5px solid #000;width:240px;"></div>
     <p style="margin:5px 0 0 0;"><strong>Shah Zarak Kahn Bin Ashiq Hussain</strong><br><strong>Group Managing Director,</strong><br><strong>${escapeHtml(company.name)}</strong></p>
     <div class="soft-card" style="margin-top:16px;font-size:9pt;">
       <div><strong>Address:</strong> Unit T2A-08-06 Menara 3 (3 Towers), No 296, Jalan Ampang, 50450 Kuala Lumpur, Malaysia</div>
@@ -1102,7 +1104,7 @@ async function generatePackageZipBuffer({ db, training, formData, generatedByNam
   const traineeRows = attendanceRows.map(row => ({
     name: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
     traineeId: String(row.ic_passport || row.trainee_id || ''),
-    certificateNumber: certByEnrollmentId.get(String(row.enrollment_id))?.certificate_number || 'N/A'
+    certificateNumber: certByEnrollmentId.get(String(row.enrollment_id))?.certificate_number || 'Not Passed'
   }));
   const groupHtml = buildGroupHtml({ training, company, attendanceRows, marksByEnrollmentId, objectives, handsOnAspects });
   const [letterBuffer, groupBuffer] = await Promise.all([
@@ -1184,7 +1186,7 @@ async function generateLetterPdfBuffer({ db, training, formData, preloadedAttend
     traineeRows = attendanceRows.map(row => ({
       name: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
       traineeId: String(row.ic_passport || row.trainee_id || ''),
-      certificateNumber: certByEnrollmentId.get(String(row.enrollment_id))?.certificate_number || 'N/A'
+      certificateNumber: certByEnrollmentId.get(String(row.enrollment_id))?.certificate_number || 'Not Passed'
     }));
   }
 

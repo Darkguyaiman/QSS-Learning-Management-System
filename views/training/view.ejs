@@ -1336,6 +1336,19 @@
       setupTraineeSearch();
     }
     
+    const settingsTitleSelect = document.getElementById('settings-title');
+    const settingsDescriptionField = document.getElementById('settings-description');
+    if (settingsTitleSelect && settingsDescriptionField) {
+      settingsTitleSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (!selectedOption) return;
+        const presetDescription = selectedOption.getAttribute('data-description');
+        if (presetDescription !== null) {
+          settingsDescriptionField.value = presetDescription || '';
+        }
+      });
+    }
+
     // Form submission handler
     document.getElementById('settings-form')?.addEventListener('submit', async function(e) {
       e.preventDefault();
@@ -1355,6 +1368,7 @@
       
       // Add basic fields
       formData.append('title', form.querySelector('[name="title"]').value);
+      formData.append('description', form.querySelector('[name="description"]').value || '');
       formData.append('status', form.querySelector('[name="status"]').value);
       formData.append('affiliated_company', form.querySelector('[name="affiliated_company"]').value);
       formData.append('module_id', form.querySelector('[name="module_id"]').value);

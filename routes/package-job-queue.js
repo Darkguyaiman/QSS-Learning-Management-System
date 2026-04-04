@@ -86,7 +86,11 @@ async function bootstrapQueue(db = pool) {
 
 async function getTrainingForPackage(db, trainingId) {
   const [trainings] = await db.query(
-    'SELECT id, type, title, status, is_locked, start_datetime, end_datetime, affiliated_company FROM trainings WHERE id = ? LIMIT 1',
+    `SELECT t.id, t.type, t.title, t.status, t.is_locked, t.start_datetime, t.end_datetime, t.affiliated_company,
+            m.name AS module_name
+     FROM trainings t
+     LEFT JOIN modules m ON t.module_id = m.id
+     WHERE t.id = ? LIMIT 1`,
     [trainingId]
   );
   return trainings?.[0] || null;

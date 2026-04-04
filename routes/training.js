@@ -756,6 +756,7 @@ async function getTrainingCreateFormData(db, currentUserId) {
   `);
   const [deviceModels] = await db.query('SELECT * FROM device_models ORDER BY model_name ASC');
   const [modules] = await db.query('SELECT * FROM modules ORDER BY name ASC');
+  const [trainingTitles] = await db.query('SELECT * FROM training_titles ORDER BY name ASC');
   const [trainers] = await db.query(`
     SELECT id, first_name, last_name, email 
     FROM users 
@@ -769,6 +770,7 @@ async function getTrainingCreateFormData(db, currentUserId) {
     devices,
     deviceModels,
     modules,
+    trainingTitles,
     trainers
   };
 }
@@ -1668,6 +1670,7 @@ router.get('/:id', async (req, res) => {
     // Get data for Settings tab (Admin/Trainer only)
       let allHealthcare = [];
       let allDevices = [];
+      let allTrainingTitles = [];
       let allModules = [];
       let allDeviceModels = [];
       let allTrainers = [];
@@ -1693,6 +1696,7 @@ router.get('/:id', async (req, res) => {
           ORDER BY dsn.serial_number ASC
         `);
         
+        [allTrainingTitles] = await req.db.query('SELECT * FROM training_titles ORDER BY name ASC');
         [allModules] = await req.db.query('SELECT * FROM modules ORDER BY name ASC');
 
         // Get all device models
@@ -1761,6 +1765,7 @@ router.get('/:id', async (req, res) => {
       attendanceData,
       allHealthcare,
       allDevices,
+      allTrainingTitles,
       allModules,
       allDeviceModels,
       allTrainers,
@@ -2574,7 +2579,7 @@ router.post('/:id/update', async (req, res) => {
   
   try {
     const trainingId = req.params.id;
-    const { title, status, start_datetime, end_datetime, healthcare_id, trainer_ids, trainee_ids, module_id, device_model_id, affiliated_company } = req.body;
+    const { title, description, status, start_datetime, end_datetime, healthcare_id, trainer_ids, trainee_ids, module_id, device_model_id, affiliated_company } = req.body;
     const traineeArray = trainee_ids ? (Array.isArray(trainee_ids) ? trainee_ids.map(String) : [String(trainee_ids)]) : [];
     
     if (!module_id || !device_model_id) {
@@ -2674,8 +2679,8 @@ router.post('/:id/update', async (req, res) => {
       // Update training basic info
       const affiliatedCompany = normalizeAffiliatedCompany(affiliated_company);
       await connection.query(
-        'UPDATE trainings SET title = ?, status = ?, start_datetime = ?, end_datetime = ?, module_id = ?, device_model_id = ?, affiliated_company = ? WHERE id = ?',
-        [title, status, startDatetime, endDatetime, module_id, device_model_id, affiliatedCompany, trainingId]
+        'UPDATE trainings SET title = ?, description = ?, status = ?, start_datetime = ?, end_datetime = ?, module_id = ?, device_model_id = ?, affiliated_company = ? WHERE id = ?',
+        [title, description || null, status, startDatetime, endDatetime, module_id, device_model_id, affiliatedCompany, trainingId]
       );
       
       // Update healthcare centre (exactly one healthcare per training)
@@ -3614,7 +3619,11 @@ router.post('/:id/package/letter-pdf', async (req, res) => {
     }
 
     const [trainings] = await req.db.query(
-      'SELECT id, type, title, start_datetime, end_datetime, affiliated_company FROM trainings WHERE id = ? LIMIT 1',
+      `SELECT t.id, t.type, t.title, t.start_datetime, t.end_datetime, t.affiliated_company,
+              m.name AS module_name
+       FROM trainings t
+       LEFT JOIN modules m ON t.module_id = m.id
+       WHERE t.id = ? LIMIT 1`,
       [trainingId]
     );
     if (!trainings || trainings.length === 0) {

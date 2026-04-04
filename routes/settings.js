@@ -626,6 +626,139 @@ router.post('/modules/:id/delete', async (req, res) => {
 });
 
 // ========== DEVICE MODELS ==========
+router.get('/training-titles', async (req, res) => {
+  try {
+    const [trainingTitles] = await req.db.query('SELECT * FROM training_titles ORDER BY name ASC');
+
+    renderSettingsTemplate(req, res, {
+      pageTitle: 'Training Titles',
+      description: 'Manage preset training titles used in training forms',
+      icon: 'fas fa-heading',
+      singularName: 'Training Title',
+      pluralName: 'Training Titles',
+      items: trainingTitles,
+      primaryField: 'name',
+      nameField: 'name',
+      nameLabel: 'Training Title',
+      namePlaceholder: 'Enter training title',
+      descriptionPlaceholder: 'Enter notes or description (optional)',
+      createAction: '/settings/training-titles/create',
+      updateAction: '/settings/training-titles',
+      deleteAction: '/settings/training-titles',
+      createPage: '/settings/training-titles/new',
+      editBase: '/settings/training-titles',
+      tableHeaders: ['Training Title', 'Description'],
+      hasModelDropdown: false,
+      hasModelColumn: false
+    });
+  } catch (error) {
+    console.error('Training titles page error:', error);
+    res.status(500).send('Error loading training titles');
+  }
+});
+
+router.get('/training-titles/new', (req, res) => {
+  renderSettingsForm(req, res, {
+    pageTitle: 'Training Titles',
+    description: 'Add a new preset training title',
+    icon: 'fas fa-heading',
+    singularName: 'Training Title',
+    pluralName: 'Training Titles',
+    formMode: 'create',
+    formAction: '/settings/training-titles/create',
+    backUrl: '/settings/training-titles',
+    nameField: 'name',
+    nameLabel: 'Training Title',
+    namePlaceholder: 'Enter training title',
+    descriptionPlaceholder: 'Enter notes or description (optional)',
+    hasModelDropdown: false,
+    hasMaxScore: false
+  });
+});
+
+router.get('/training-titles/:id/edit', async (req, res) => {
+  try {
+    const [rows] = await req.db.query('SELECT * FROM training_titles WHERE id = ?', [req.params.id]);
+    if (!rows[0]) {
+      req.session.error = 'Training title not found.';
+      return res.redirect('/settings/training-titles');
+    }
+
+    renderSettingsForm(req, res, {
+      pageTitle: 'Training Titles',
+      description: 'Edit preset training title',
+      icon: 'fas fa-heading',
+      singularName: 'Training Title',
+      pluralName: 'Training Titles',
+      formMode: 'edit',
+      formAction: `/settings/training-titles/${req.params.id}/update`,
+      backUrl: '/settings/training-titles',
+      nameField: 'name',
+      nameLabel: 'Training Title',
+      namePlaceholder: 'Enter training title',
+      descriptionPlaceholder: 'Enter notes or description (optional)',
+      hasModelDropdown: false,
+      hasMaxScore: false,
+      item: rows[0]
+    });
+  } catch (error) {
+    console.error('Training title edit page error:', error);
+    res.status(500).send('Error loading training title');
+  }
+});
+
+router.post('/training-titles/create', async (req, res) => {
+  const { name, description } = req.body;
+
+  try {
+    await req.db.query(
+      'INSERT INTO training_titles (name, description) VALUES (?, ?)',
+      [name, description || null]
+    );
+    res.redirect('/settings/training-titles');
+  } catch (error) {
+    console.error('Training title creation error:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      req.session.error = 'Training title with this name already exists';
+    } else {
+      req.session.error = 'Error creating training title';
+    }
+    res.redirect('/settings/training-titles');
+  }
+});
+
+router.post('/training-titles/:id/update', async (req, res) => {
+  const { name, description } = req.body;
+
+  try {
+    await req.db.query(
+      'UPDATE training_titles SET name = ?, description = ? WHERE id = ?',
+      [name, description || null, req.params.id]
+    );
+    res.redirect('/settings/training-titles');
+  } catch (error) {
+    console.error('Training title update error:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      req.session.error = 'Training title with this name already exists';
+    } else {
+      req.session.error = 'Error updating training title';
+    }
+    res.redirect('/settings/training-titles');
+  }
+});
+
+router.post('/training-titles/:id/delete', async (req, res) => {
+  try {
+    await req.db.query('DELETE FROM training_titles WHERE id = ?', [req.params.id]);
+    res.redirect('/settings/training-titles');
+  } catch (error) {
+    console.error('Training title delete error:', error);
+    req.session.error = 'Error deleting training title';
+    res.redirect('/settings/training-titles');
+  }
+});
+
+// ========== DEVICE MODELS ==========
 router.get('/models', async (req, res) => {
   try {
     const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
