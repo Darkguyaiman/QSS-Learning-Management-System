@@ -63,7 +63,7 @@ CREATE TABLE objectives (
 -- Healthcare table
 CREATE TABLE healthcare (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(255) NOT NULL UNIQUE,
+  name VARCHAR(255) NOT NULL,
   hospital_address TEXT,
   description TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
