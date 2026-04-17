@@ -15,6 +15,7 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "import:hospitals": "node scripts/import_hospitals.js",
+    "webhook:sample": "node scripts/send_crm_webhook_sample.js",
     "tw:build": "tailwindcss -i ./public/css/tailwind.css -o ./public/css/tailwind.output.css --minify",
     "tw:watch": "tailwindcss -i ./public/css/tailwind.css -o ./public/css/tailwind.output.css --watch"
   },
