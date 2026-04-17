@@ -976,6 +976,28 @@
                           <% } %>
                         </td>
                       <% } %>
+                      <% if (typeof hasTrainingReminderField !== 'undefined' && hasTrainingReminderField) { %>
+                        <td>
+                          <% const trainingReminderOption = (trainingReminderOptions || []).find(option => option.value === item.training_reminder_interval); %>
+                          <% if (trainingReminderOption) { %>
+                            <span class="chip"><%= trainingReminderOption.label %></span>
+                          <% } else { %>
+                            <span style="color: var(--color-gray);">No reminder</span>
+                          <% } %>
+                        </td>
+                        <td>
+                          <% if (item.training_reminder_due_date) { %>
+                            <%
+                              const reminderDateValue = item.training_reminder_due_date instanceof Date
+                                ? `${item.training_reminder_due_date.getFullYear()}-${String(item.training_reminder_due_date.getMonth() + 1).padStart(2, '0')}-${String(item.training_reminder_due_date.getDate()).padStart(2, '0')}`
+                                : String(item.training_reminder_due_date).slice(0, 10);
+                            %>
+                            <%= reminderDateValue %>
+                          <% } else { %>
+                            <span style="color: var(--color-gray);">Not scheduled</span>
+                          <% } %>
+                        </td>
+                      <% } %>
                       <% if (typeof hasDescriptionField === 'undefined' || hasDescriptionField) { %>
                         <td>
                           <% if (item.description) { %>
@@ -1047,6 +1069,34 @@
                             <%= item.hospital_address %>
                           <% } else { %>
                             <span style="color: var(--color-gray);">No address</span>
+                          <% } %>
+                        </div>
+                      </div>
+                    <% } %>
+                    <% if (typeof hasTrainingReminderField !== 'undefined' && hasTrainingReminderField) { %>
+                      <div class="item-card-row">
+                        <div class="item-card-label">Training Reminder</div>
+                        <div class="item-card-value">
+                          <% const trainingReminderOption = (trainingReminderOptions || []).find(option => option.value === item.training_reminder_interval); %>
+                          <% if (trainingReminderOption) { %>
+                            <span class="chip"><%= trainingReminderOption.label %></span>
+                          <% } else { %>
+                            <span style="color: var(--color-gray);">No reminder</span>
+                          <% } %>
+                        </div>
+                      </div>
+                      <div class="item-card-row">
+                        <div class="item-card-label">Reminder Date</div>
+                        <div class="item-card-value">
+                          <% if (item.training_reminder_due_date) { %>
+                            <%
+                              const reminderDateValue = item.training_reminder_due_date instanceof Date
+                                ? `${item.training_reminder_due_date.getFullYear()}-${String(item.training_reminder_due_date.getMonth() + 1).padStart(2, '0')}-${String(item.training_reminder_due_date.getDate()).padStart(2, '0')}`
+                                : String(item.training_reminder_due_date).slice(0, 10);
+                            %>
+                            <%= reminderDateValue %>
+                          <% } else { %>
+                            <span style="color: var(--color-gray);">Not scheduled</span>
                           <% } %>
                         </div>
                       </div>

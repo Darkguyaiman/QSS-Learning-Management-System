@@ -1146,6 +1146,71 @@
         </div>
       </section>
 
+      <!-- Healthcare Training Reminders -->
+      <section class="dashboard-section">
+        <h2><i class="fas fa-hospital-user" style="color: #573FD7;"></i> Healthcare Training Reminders</h2>
+        <p style="color:#5F6368; margin: -0.5rem 0 1.25rem 0;">Healthcare reminders due within 60 days</p>
+
+        <% if (!healthcareTrainingReminders || healthcareTrainingReminders.length === 0) { %>
+          <div class="empty-state">
+            <p>No upcoming healthcare training reminders.</p>
+          </div>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="recert-table">
+              <thead>
+                <tr>
+                  <th>Healthcare</th>
+                  <th>Hospital Address</th>
+                  <th>Reminder</th>
+                  <th>Reminder Date</th>
+                  <th>Days Left</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% healthcareTrainingReminders.forEach(reminder => { %>
+                  <%
+                    const daysLeft = reminder.days_remaining;
+                    const badgeClass = (daysLeft !== null && daysLeft <= 30)
+                      ? 'recert-badge--urgent'
+                      : 'recert-badge--warn';
+                    const badgeText = (daysLeft !== null && daysLeft <= 30)
+                      ? 'Urgent'
+                      : 'Upcoming';
+                    const reminderLabelMap = {
+                      '6_months': '6 Months',
+                      '1_year': '1 Year',
+                      '2_years': '2 Years',
+                      '3_years': '3 Years'
+                    };
+                  %>
+                  <tr>
+                    <td><strong><%= reminder.name %></strong></td>
+                    <td><%= reminder.hospital_address || '-' %></td>
+                    <td><%= reminderLabelMap[reminder.training_reminder_interval] || 'Custom' %></td>
+                    <td>
+                      <% if (reminder.training_reminder_due_date) { %>
+                        <%
+                          const reminderDateValue = reminder.training_reminder_due_date instanceof Date
+                            ? `${reminder.training_reminder_due_date.getFullYear()}-${String(reminder.training_reminder_due_date.getMonth() + 1).padStart(2, '0')}-${String(reminder.training_reminder_due_date.getDate()).padStart(2, '0')}`
+                            : String(reminder.training_reminder_due_date).slice(0, 10);
+                        %>
+                        <%= reminderDateValue %>
+                      <% } else { %>
+                        -
+                      <% } %>
+                    </td>
+                    <td><%= daysLeft %> days</td>
+                    <td><span class="recert-badge <%= badgeClass %>"><%= badgeText %></span></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </section>
+
       <!-- Upcoming Recertifications -->
       <section class="dashboard-section">
         <h2><i class="fas fa-bell" style="color: #573FD7;"></i> Upcoming Recertifications</h2>

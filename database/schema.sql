@@ -65,6 +65,8 @@ CREATE TABLE healthcare (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   hospital_address TEXT,
+  training_reminder_interval ENUM('6_months', '1_year', '2_years', '3_years') NULL,
+  training_reminder_due_date DATE NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

@@ -464,6 +464,22 @@
                 <textarea id="item-address" name="hospital_address" required placeholder="<%= typeof addressPlaceholder !== 'undefined' && addressPlaceholder ? addressPlaceholder : 'Enter address' %>"><%= typeof item !== 'undefined' && item ? (item.hospital_address || '') : '' %></textarea>
               </div>
             <% } %>
+            <% if (typeof hasTrainingReminderField !== 'undefined' && hasTrainingReminderField) { %>
+              <div class="form-group">
+                <label for="training-reminder-interval">Training Reminder</label>
+                <select id="training-reminder-interval" name="training_reminder_interval">
+                  <option value="">No reminder</option>
+                  <% (trainingReminderOptions || []).forEach(option => { %>
+                    <option value="<%= option.value %>" <%= typeof item !== 'undefined' && item && item.training_reminder_interval === option.value ? 'selected' : '' %>>
+                      <%= option.label %>
+                    </option>
+                  <% }); %>
+                </select>
+                <div style="margin-top: 6px; font-size: 0.85rem; color: var(--color-gray);">
+                  Reminder date is calculated automatically and rolls forward to the next cycle after it passes.
+                </div>
+              </div>
+            <% } %>
             <% if (typeof hasDescriptionField === 'undefined' || hasDescriptionField) { %>
               <div class="form-group">
                 <label for="item-description">Description</label>

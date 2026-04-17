@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { refreshHealthcareTrainingReminderCycles } = require('../utils/healthcareTrainingReminders');
 
 router.get('/', async (req, res) => {
   try {
@@ -105,6 +106,8 @@ router.get('/', async (req, res) => {
         certificates
       });
     } else if (role === 'trainer' || role === 'admin') {
+      await refreshHealthcareTrainingReminderCycles(req.db);
+
       // Get training statistics
       const [trainingStats] = await req.db.query(`
         SELECT 
@@ -224,6 +227,20 @@ router.get('/', async (req, res) => {
         hospital,
         trainees
       }));
+
+      const [healthcareReminderRows] = await req.db.query(`
+        SELECT
+          id,
+          name,
+          hospital_address,
+          training_reminder_interval,
+          training_reminder_due_date,
+          DATEDIFF(training_reminder_due_date, CURDATE()) as days_remaining
+        FROM healthcare
+        WHERE training_reminder_due_date IS NOT NULL
+          AND DATEDIFF(training_reminder_due_date, CURDATE()) BETWEEN 0 AND 60
+        ORDER BY days_remaining ASC, name ASC, id ASC
+      `);
       
       res.render('dashboard/trainer', { 
         user: req.session,
@@ -233,7 +250,8 @@ router.get('/', async (req, res) => {
         trainers,
         recentRegistrations,
         isAdmin: role === 'admin',
-        recertificationsByHospital
+        recertificationsByHospital,
+        healthcareTrainingReminders: healthcareReminderRows || []
       });
     }
   } catch (error) {

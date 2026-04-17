@@ -3,6 +3,12 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
+const {
+  HEALTHCARE_TRAINING_REMINDER_OPTIONS,
+  calculateHealthcareTrainingReminderDate,
+  resolveNextHealthcareTrainingReminderDate,
+  refreshHealthcareTrainingReminderCycles
+} = require('../utils/healthcareTrainingReminders');
 
 const certificateStorage = multer.diskStorage({
   destination: './public/uploads/certificates/',
@@ -316,6 +322,8 @@ router.post('/objectives/:id/delete', async (req, res) => {
 // ========== HEALTHCARE ==========
 router.get('/healthcare', async (req, res) => {
   try {
+    await refreshHealthcareTrainingReminderCycles(req.db);
+
     const searchQuery = normalizeSearchTerm(req.query.search);
     const page = parsePositiveInteger(req.query.page, 1);
     const { items: healthcare, pagination } = await querySettingsItems(req.db, {
@@ -345,13 +353,15 @@ router.get('/healthcare', async (req, res) => {
       deleteAction: '/settings/healthcare',
       createPage: '/settings/healthcare/new',
       editBase: '/settings/healthcare',
-      tableHeaders: ['Name', 'Hospital Address'],
+      tableHeaders: ['Name', 'Hospital Address', 'Training Reminder', 'Reminder Date'],
       hasModelDropdown: false,
       hasModelColumn: false,
       hasAddressField: true,
       addressLabel: 'Hospital Address',
       addressPlaceholder: 'Enter hospital address',
       hasDescriptionField: false,
+      hasTrainingReminderField: true,
+      trainingReminderOptions: HEALTHCARE_TRAINING_REMINDER_OPTIONS,
       enableSearch: true,
       searchQuery,
       searchPlaceholder: 'Search healthcare by CRM ID, name, or hospital address',
@@ -381,12 +391,16 @@ router.get('/healthcare/new', (req, res) => {
     hasAddressField: true,
     addressLabel: 'Hospital Address',
     addressPlaceholder: 'Enter hospital address',
-    hasDescriptionField: false
+    hasDescriptionField: false,
+    hasTrainingReminderField: true,
+    trainingReminderOptions: HEALTHCARE_TRAINING_REMINDER_OPTIONS
   });
 });
 
 router.get('/healthcare/:id/edit', async (req, res) => {
   try {
+    await refreshHealthcareTrainingReminderCycles(req.db);
+
     const [rows] = await req.db.query('SELECT * FROM healthcare WHERE id = ?', [req.params.id]);
     if (!rows[0]) {
       req.session.error = 'Healthcare not found.';
@@ -411,6 +425,8 @@ router.get('/healthcare/:id/edit', async (req, res) => {
       addressLabel: 'Hospital Address',
       addressPlaceholder: 'Enter hospital address',
       hasDescriptionField: false,
+      hasTrainingReminderField: true,
+      trainingReminderOptions: HEALTHCARE_TRAINING_REMINDER_OPTIONS,
       item: rows[0]
     });
   } catch (error) {
@@ -420,19 +436,26 @@ router.get('/healthcare/:id/edit', async (req, res) => {
 });
 
 router.post('/healthcare/create', async (req, res) => {
-  const { name, hospital_address } = req.body;
+  const { name, hospital_address, training_reminder_interval } = req.body;
   const trimmedName = String(name || '').trim();
   const trimmedHospitalAddress = String(hospital_address || '').trim();
+  const trimmedReminderInterval = String(training_reminder_interval || '').trim();
+  const reminderDueDate = calculateHealthcareTrainingReminderDate(trimmedReminderInterval);
 
   if (!trimmedName || !trimmedHospitalAddress) {
     req.session.error = 'Healthcare name and hospital address are required.';
     return res.redirect('/settings/healthcare/new');
   }
+
+  if (trimmedReminderInterval && !reminderDueDate) {
+    req.session.error = 'Please choose a valid healthcare training reminder interval.';
+    return res.redirect('/settings/healthcare/new');
+  }
   
   try {
     await req.db.query(
-      'INSERT INTO healthcare (name, hospital_address) VALUES (?, ?)',
-      [trimmedName, trimmedHospitalAddress]
+      'INSERT INTO healthcare (name, hospital_address, training_reminder_interval, training_reminder_due_date) VALUES (?, ?, ?, ?)',
+      [trimmedName, trimmedHospitalAddress, trimmedReminderInterval || null, reminderDueDate]
     );
     res.redirect('/settings/healthcare');
   } catch (error) {
@@ -443,19 +466,46 @@ router.post('/healthcare/create', async (req, res) => {
 });
 
 router.post('/healthcare/:id/update', async (req, res) => {
-  const { name, hospital_address } = req.body;
+  const { name, hospital_address, training_reminder_interval } = req.body;
   const trimmedName = String(name || '').trim();
   const trimmedHospitalAddress = String(hospital_address || '').trim();
+  const trimmedReminderInterval = String(training_reminder_interval || '').trim();
 
   if (!trimmedName || !trimmedHospitalAddress) {
     req.session.error = 'Healthcare name and hospital address are required.';
     return res.redirect(`/settings/healthcare/${req.params.id}/edit`);
   }
-  
+
   try {
+    const [existingRows] = await req.db.query(
+      'SELECT training_reminder_interval, training_reminder_due_date FROM healthcare WHERE id = ?',
+      [req.params.id]
+    );
+
+    if (!existingRows[0]) {
+      req.session.error = 'Healthcare not found.';
+      return res.redirect('/settings/healthcare');
+    }
+
+    const existingHealthcare = existingRows[0];
+    const hasReminderChanged = (existingHealthcare.training_reminder_interval || '') !== trimmedReminderInterval;
+    const reminderDueDate = trimmedReminderInterval
+      ? (hasReminderChanged || !existingHealthcare.training_reminder_due_date
+        ? calculateHealthcareTrainingReminderDate(trimmedReminderInterval)
+        : resolveNextHealthcareTrainingReminderDate(
+          trimmedReminderInterval,
+          existingHealthcare.training_reminder_due_date
+        ))
+      : null;
+
+    if (trimmedReminderInterval && !reminderDueDate) {
+      req.session.error = 'Please choose a valid healthcare training reminder interval.';
+      return res.redirect(`/settings/healthcare/${req.params.id}/edit`);
+    }
+
     await req.db.query(
-      'UPDATE healthcare SET name = ?, hospital_address = ? WHERE id = ?',
-      [trimmedName, trimmedHospitalAddress, req.params.id]
+      'UPDATE healthcare SET name = ?, hospital_address = ?, training_reminder_interval = ?, training_reminder_due_date = ? WHERE id = ?',
+      [trimmedName, trimmedHospitalAddress, trimmedReminderInterval || null, reminderDueDate, req.params.id]
     );
     res.redirect('/settings/healthcare');
   } catch (error) {
