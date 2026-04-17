@@ -30,14 +30,6 @@ function buildName(client, clientId) {
   return preferredName || businessEntityName || `CRM Client ${clientId}`;
 }
 
-function buildDescription(client) {
-  return [
-    `mobile_phone: ${client?.mobile_phone || ''}`,
-    `email_address: ${client?.email_address || ''}`,
-    `work_phone: ${client?.work_phone || ''}`
-  ].join('\n');
-}
-
 async function fetchJson(url) {
   const response = await fetch(url, { headers: buildHeaders() });
 
@@ -80,22 +72,21 @@ async function upsertClients(connection, clients) {
 
     const name = buildName(client, clientId);
     const hospitalAddress = buildAddress(client);
-    const description = buildDescription(client);
 
     const [existingRows] = await connection.query('SELECT id FROM healthcare WHERE id = ? LIMIT 1', [clientId]);
 
     if (existingRows.length > 0) {
       await connection.query(
-        'UPDATE healthcare SET name = ?, hospital_address = ?, description = ? WHERE id = ?',
-        [name, hospitalAddress, description, clientId]
+        'UPDATE healthcare SET name = ?, hospital_address = ? WHERE id = ?',
+        [name, hospitalAddress, clientId]
       );
       updated++;
       continue;
     }
 
     await connection.query(
-      'INSERT INTO healthcare (id, name, hospital_address, description) VALUES (?, ?, ?, ?)',
-      [clientId, name, hospitalAddress, description]
+      'INSERT INTO healthcare (id, name, hospital_address) VALUES (?, ?, ?)',
+      [clientId, name, hospitalAddress]
     );
     inserted++;
   }

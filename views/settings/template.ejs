@@ -55,6 +55,96 @@
       margin-left: auto;
     }
 
+    .settings-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: var(--spacing-md);
+      flex-wrap: wrap;
+      margin-bottom: var(--spacing-lg);
+      width: 100%;
+    }
+
+    .settings-search-form {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: var(--spacing-sm);
+      flex-wrap: wrap;
+      flex: 0 1 auto;
+      width: auto;
+      max-width: 100%;
+      margin-left: auto;
+    }
+
+    .settings-search-form input[type="search"] {
+      width: 320px;
+      max-width: 100%;
+      min-width: 200px;
+      padding: 0.6rem 0.8rem;
+      border: 2px solid #D6D9E0;
+      border-radius: var(--border-radius);
+      font-size: 0.95rem;
+      font-family: inherit;
+      background: #FFFFFF;
+      box-shadow: 0 1px 0 rgba(17, 24, 39, 0.04);
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+
+    .settings-search-form input[type="search"]:hover {
+      border-color: rgba(87, 63, 215, 0.45);
+      background: #FCFCFF;
+    }
+
+    .settings-search-form input[type="search"]:focus {
+      outline: none;
+      border-color: var(--color-purple);
+      box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.18);
+    }
+
+    .settings-search-summary {
+      font-size: 0.9rem;
+      color: var(--color-gray);
+    }
+
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--spacing-md);
+      flex-wrap: wrap;
+      margin-top: var(--spacing-lg);
+      padding-top: var(--spacing-md);
+      border-top: 1px solid var(--color-gray-light);
+    }
+
+    .pagination-links {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .pagination-page {
+      min-width: 32px;
+      text-align: center;
+      padding: 0.38rem 0.55rem;
+      border-radius: var(--border-radius);
+      border: 1px solid var(--color-gray-light);
+      background: #FFFFFF;
+      color: var(--color-dark);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.82rem;
+    }
+
+    .pagination-page.is-active {
+      background: var(--color-purple);
+      border-color: var(--color-purple);
+      color: #FFFFFF;
+    }
+
     .chip-list {
       display: flex;
       flex-wrap: wrap;
@@ -104,6 +194,23 @@
       margin-bottom: var(--spacing-lg);
       padding-bottom: var(--spacing-md);
       border-bottom: 1px solid var(--color-gray-light);
+    }
+
+    .card-header-inline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--spacing-md);
+      flex-wrap: wrap;
+      margin-bottom: var(--spacing-lg);
+      padding-bottom: var(--spacing-md);
+      border-bottom: 1px solid var(--color-gray-light);
+    }
+
+    .card-header-inline .card-title {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
     }
     
     .form-group {
@@ -221,6 +328,16 @@
       padding: var(--spacing-xs) var(--spacing-sm);
       font-size: 0.875rem;
     }
+
+    .pagination-links .btn {
+      padding: 0.38rem 0.55rem;
+      min-width: 32px;
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.82rem;
+    }
     
     .action-buttons {
       display: flex;
@@ -323,6 +440,22 @@
         margin-top: var(--spacing-md);
       }
 
+      .settings-toolbar,
+      .pagination {
+        align-items: stretch;
+      }
+
+      .settings-search-form {
+        justify-content: stretch;
+        width: 100%;
+        flex: 1 1 100%;
+      }
+
+      .settings-search-form input[type="search"] {
+        width: 100%;
+        min-width: 0;
+      }
+
       .main-content .container {
         padding-left: 1rem;
         padding-right: 1rem;
@@ -357,6 +490,14 @@
         font-size: 1.125rem;
         margin-bottom: var(--spacing-md);
         padding-bottom: var(--spacing-sm);
+      }
+
+      .card-header-inline {
+        align-items: stretch;
+      }
+
+      .card-header-inline .card-title {
+        margin-bottom: 0;
       }
       
       .form-group {
@@ -594,11 +735,32 @@
 
       <% if (typeof pageType !== 'undefined' && pageType === 'users') { %>
         <div class="settings-card">
+          <% if (typeof enableSearch !== 'undefined' && enableSearch) { %>
+            <div class="settings-toolbar">
+              <form class="settings-search-form" method="GET" action="<%= currentPath %>">
+                <input
+                  type="search"
+                  name="search"
+                  value="<%= typeof searchQuery !== 'undefined' ? searchQuery : '' %>"
+                  placeholder="<%= typeof searchPlaceholder !== 'undefined' && searchPlaceholder ? searchPlaceholder : ('Search ' + pluralName.toLowerCase()) %>"
+                  aria-label="Search <%= pluralName %>"
+                >
+                <button type="submit" class="btn btn-primary btn-sm" aria-label="Search">
+                  <i class="fas fa-search"></i>
+                </button>
+                <% if (typeof searchQuery !== 'undefined' && searchQuery) { %>
+                  <a href="<%= buildListUrl({ search: null, page: null }) %>" class="btn btn-secondary btn-sm">
+                    Clear
+                  </a>
+                <% } %>
+              </form>
+            </div>
+          <% } %>
           <div class="card-title">Existing Users</div>
           <% if (!users || users.length === 0) { %>
             <div class="empty-state">
               <i class="<%= icon %>"></i>
-              <p>No users found.</p>
+              <p><%= searchQuery ? 'No users matched your search.' : 'No users found.' %></p>
             </div>
           <% } else { %>
             <div class="table-responsive desktop-table">
@@ -739,12 +901,38 @@
         </div>
       <% } else { %>
       <div class="settings-card">
-        <div class="card-title">Existing <%= pluralName %></div>
+        <div class="<%= (typeof enableSearch !== 'undefined' && enableSearch) ? 'card-header-inline' : '' %>">
+          <div class="card-title">Existing <%= pluralName %></div>
+          <% if (typeof enableSearch !== 'undefined' && enableSearch) { %>
+            <form class="settings-search-form" method="GET" action="<%= currentPath %>">
+              <input
+                type="search"
+                name="search"
+                value="<%= typeof searchQuery !== 'undefined' ? searchQuery : '' %>"
+                placeholder="<%= typeof searchPlaceholder !== 'undefined' && searchPlaceholder ? searchPlaceholder : ('Search ' + pluralName.toLowerCase()) %>"
+                aria-label="Search <%= pluralName %>"
+              >
+              <button type="submit" class="btn btn-primary btn-sm" aria-label="Search">
+                <i class="fas fa-search"></i>
+              </button>
+              <% if (typeof searchQuery !== 'undefined' && searchQuery) { %>
+                <a href="<%= buildListUrl({ search: null, page: null }) %>" class="btn btn-secondary btn-sm">
+                  Clear
+                </a>
+              <% } %>
+            </form>
+          <% } %>
+        </div>
         <% if (items.length === 0) { %>
           <div class="empty-state">
             <i class="<%= icon %>"></i>
-            <p>No <%= pluralName.toLowerCase() %> defined yet.</p>
-            <p style="font-size: 0.9rem; margin-top: var(--spacing-xs);">Add your first <%= singularName.toLowerCase() %> above to get started.</p>
+            <% if (searchQuery) { %>
+              <p>No <%= pluralName.toLowerCase() %> matched your search.</p>
+              <p style="font-size: 0.9rem; margin-top: var(--spacing-xs);">Try a different keyword or clear the search.</p>
+            <% } else { %>
+              <p>No <%= pluralName.toLowerCase() %> defined yet.</p>
+              <p style="font-size: 0.9rem; margin-top: var(--spacing-xs);">Add your first <%= singularName.toLowerCase() %> above to get started.</p>
+            <% } %>
           </div>
         <% } else { %>
           <!-- Desktop Table View -->
@@ -898,6 +1086,47 @@
               </div>
             <% }); %>
           </div>
+          <% if (typeof pagination !== 'undefined' && pagination && pagination.totalPages > 1) { %>
+            <% const paginationStart = Math.max(1, pagination.currentPage - 2); %>
+            <% const paginationEnd = Math.min(pagination.totalPages, pagination.currentPage + 2); %>
+            <div class="pagination">
+              <div class="settings-search-summary">
+                <%= pagination.totalItems %> healthcare<%= pagination.totalItems === 1 ? '' : 's' %>
+              </div>
+              <div class="pagination-links">
+                <% if (pagination.currentPage > 1) { %>
+                  <a href="<%= buildListUrl({ page: pagination.currentPage - 1 }) %>" class="btn btn-secondary" aria-label="Previous page">
+                    <i class="fas fa-chevron-left"></i>
+                  </a>
+                <% } %>
+                <% if (paginationStart > 1) { %>
+                  <a href="<%= buildListUrl({ page: 1 }) %>" class="pagination-page">1</a>
+                  <% if (paginationStart > 2) { %>
+                    <span class="settings-search-summary">...</span>
+                  <% } %>
+                <% } %>
+                <% for (let pageNumber = paginationStart; pageNumber <= paginationEnd; pageNumber++) { %>
+                  <a
+                    href="<%= buildListUrl({ page: pageNumber }) %>"
+                    class="pagination-page <%= pageNumber === pagination.currentPage ? 'is-active' : '' %>"
+                  >
+                    <%= pageNumber %>
+                  </a>
+                <% } %>
+                <% if (paginationEnd < pagination.totalPages) { %>
+                  <% if (paginationEnd < pagination.totalPages - 1) { %>
+                    <span class="settings-search-summary">...</span>
+                  <% } %>
+                  <a href="<%= buildListUrl({ page: pagination.totalPages }) %>" class="pagination-page"><%= pagination.totalPages %></a>
+                <% } %>
+                <% if (pagination.currentPage < pagination.totalPages) { %>
+                  <a href="<%= buildListUrl({ page: pagination.currentPage + 1 }) %>" class="btn btn-secondary" aria-label="Next page">
+                    <i class="fas fa-chevron-right"></i>
+                  </a>
+                <% } %>
+              </div>
+            </div>
+          <% } %>
         <% } %>
       </div>
       <% } %>

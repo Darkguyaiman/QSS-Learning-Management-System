@@ -25,11 +25,16 @@ router.get('/', (req, res) => {
 function renderSettingsTemplate(req, res, config) {
   const error = req.session.error || null;
   delete req.session.error;
+  const currentQuery = config.currentQuery || req.query || {};
+  const currentPath = `${req.baseUrl || ''}${req.path || ''}`;
   
   res.render('settings/template', {
     user: req.session,
     ...config,
-    error
+    error,
+    currentPath,
+    currentQuery,
+    buildListUrl: (overrides = {}) => buildUrlWithQuery(currentPath, currentQuery, overrides)
   });
 }
 
@@ -49,10 +54,133 @@ async function getAreasOfSpecialization(db) {
   return rows;
 }
 
+const DEFAULT_HEALTHCARE_PAGE_SIZE = 20;
+
+function normalizeSearchTerm(value) {
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, 100);
+}
+
+function escapeLikePattern(value) {
+  return String(value || '').replace(/[\\%_]/g, '\\$&');
+}
+
+function parsePositiveInteger(value, fallback = 1) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function buildUrlWithQuery(basePath, currentQuery, overrides = {}) {
+  const params = new URLSearchParams();
+  const allKeys = new Set([
+    ...Object.keys(currentQuery || {}),
+    ...Object.keys(overrides || {})
+  ]);
+
+  for (const key of allKeys) {
+    const sourceValue = Object.prototype.hasOwnProperty.call(overrides, key)
+      ? overrides[key]
+      : currentQuery[key];
+
+    const values = Array.isArray(sourceValue) ? sourceValue : [sourceValue];
+    for (const rawValue of values) {
+      if (rawValue === null || typeof rawValue === 'undefined') {
+        continue;
+      }
+
+      const serializedValue = String(rawValue).trim();
+      if (!serializedValue) {
+        continue;
+      }
+
+      params.append(key, serializedValue);
+    }
+  }
+
+  const queryString = params.toString();
+  return queryString ? `${basePath}?${queryString}` : basePath;
+}
+
+function buildSearchWhereClause(searchColumns, searchQuery) {
+  if (!searchQuery || !Array.isArray(searchColumns) || searchColumns.length === 0) {
+    return { clause: '', params: [] };
+  }
+
+  const likeValue = `%${escapeLikePattern(searchQuery)}%`;
+  const clause = ` AND (${searchColumns.map(column => `${column} LIKE ?`).join(' OR ')})`;
+
+  return {
+    clause,
+    params: searchColumns.map(() => likeValue)
+  };
+}
+
+async function querySettingsItems(db, options) {
+  const {
+    selectSql = '*',
+    fromSql,
+    baseWhere = '1=1',
+    baseParams = [],
+    searchColumns = [],
+    searchQuery = '',
+    orderBy,
+    pagination = null
+  } = options;
+
+  const searchFilter = buildSearchWhereClause(searchColumns, searchQuery);
+  const whereSql = `${baseWhere}${searchFilter.clause}`;
+  const queryParams = [...baseParams, ...searchFilter.params];
+
+  if (!pagination) {
+    const [items] = await db.query(
+      `SELECT ${selectSql} FROM ${fromSql} WHERE ${whereSql} ORDER BY ${orderBy}`,
+      queryParams
+    );
+
+    return { items, pagination: null };
+  }
+
+  const requestedPage = parsePositiveInteger(pagination.page, 1);
+  const pageSize = parsePositiveInteger(pagination.pageSize, DEFAULT_HEALTHCARE_PAGE_SIZE);
+
+  const [[countRow]] = await db.query(
+    `SELECT COUNT(*) AS total FROM ${fromSql} WHERE ${whereSql}`,
+    queryParams
+  );
+
+  const totalItems = Number(countRow?.total || 0);
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(requestedPage, totalPages);
+  const offset = (currentPage - 1) * pageSize;
+
+  const [items] = await db.query(
+    `SELECT ${selectSql} FROM ${fromSql} WHERE ${whereSql} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
+    [...queryParams, pageSize, offset]
+  );
+
+  return {
+    items,
+    pagination: {
+      currentPage,
+      totalPages,
+      totalItems,
+      pageSize
+    }
+  };
+}
+
 // ========== OBJECTIVES ==========
 router.get('/objectives', async (req, res) => {
   try {
-    const [objectives] = await req.db.query('SELECT * FROM objectives ORDER BY name ASC');
+    const searchQuery = normalizeSearchTerm(req.query.search);
+    const { items: objectives } = await querySettingsItems(req.db, {
+      fromSql: 'objectives',
+      searchColumns: ['name', 'description'],
+      searchQuery,
+      orderBy: 'name ASC'
+    });
     
     renderSettingsTemplate(req, res, {
       pageTitle: 'Objectives',
@@ -73,7 +201,10 @@ router.get('/objectives', async (req, res) => {
       editBase: '/settings/objectives',
       tableHeaders: ['Name', 'Description'],
       hasModelDropdown: false,
-      hasModelColumn: false
+      hasModelColumn: false,
+      enableSearch: true,
+      searchQuery,
+      searchPlaceholder: 'Search objectives by name or description'
     });
   } catch (error) {
     console.error('Objectives page error:', error);
@@ -185,7 +316,18 @@ router.post('/objectives/:id/delete', async (req, res) => {
 // ========== HEALTHCARE ==========
 router.get('/healthcare', async (req, res) => {
   try {
-    const [healthcare] = await req.db.query('SELECT * FROM healthcare ORDER BY name ASC');
+    const searchQuery = normalizeSearchTerm(req.query.search);
+    const page = parsePositiveInteger(req.query.page, 1);
+    const { items: healthcare, pagination } = await querySettingsItems(req.db, {
+      fromSql: 'healthcare',
+      searchColumns: ['CAST(id AS CHAR)', 'name', 'hospital_address'],
+      searchQuery,
+      orderBy: 'name ASC, id ASC',
+      pagination: {
+        page,
+        pageSize: DEFAULT_HEALTHCARE_PAGE_SIZE
+      }
+    });
     
     renderSettingsTemplate(req, res, {
       pageTitle: 'Healthcare',
@@ -198,7 +340,6 @@ router.get('/healthcare', async (req, res) => {
       nameField: 'name',
       nameLabel: 'Name',
       namePlaceholder: 'Enter healthcare name',
-      descriptionPlaceholder: 'Enter healthcare description (optional)',
       createAction: '/settings/healthcare/create',
       updateAction: '/settings/healthcare',
       deleteAction: '/settings/healthcare',
@@ -210,7 +351,11 @@ router.get('/healthcare', async (req, res) => {
       hasAddressField: true,
       addressLabel: 'Hospital Address',
       addressPlaceholder: 'Enter hospital address',
-      hasDescriptionField: false
+      hasDescriptionField: false,
+      enableSearch: true,
+      searchQuery,
+      searchPlaceholder: 'Search healthcare by CRM ID, name, or hospital address',
+      pagination
     });
   } catch (error) {
     console.error('Healthcare page error:', error);
@@ -231,7 +376,6 @@ router.get('/healthcare/new', (req, res) => {
     nameField: 'name',
     nameLabel: 'Name',
     namePlaceholder: 'Enter healthcare name',
-    descriptionPlaceholder: 'Enter healthcare description (optional)',
     hasModelDropdown: false,
     hasMaxScore: false,
     hasAddressField: true,
@@ -261,7 +405,6 @@ router.get('/healthcare/:id/edit', async (req, res) => {
       nameField: 'name',
       nameLabel: 'Name',
       namePlaceholder: 'Enter healthcare name',
-      descriptionPlaceholder: 'Enter healthcare description (optional)',
       hasModelDropdown: false,
       hasMaxScore: false,
       hasAddressField: true,
@@ -288,17 +431,13 @@ router.post('/healthcare/create', async (req, res) => {
   
   try {
     await req.db.query(
-      'INSERT INTO healthcare (name, hospital_address, description) VALUES (?, ?, ?)',
-      [trimmedName, trimmedHospitalAddress, null]
+      'INSERT INTO healthcare (name, hospital_address) VALUES (?, ?)',
+      [trimmedName, trimmedHospitalAddress]
     );
     res.redirect('/settings/healthcare');
   } catch (error) {
     console.error('Healthcare creation error:', error);
-    if (error.code === 'ER_DUP_ENTRY') {
-      req.session.error = 'Healthcare with this name already exists';
-    } else {
-      req.session.error = 'Error creating healthcare';
-    }
+    req.session.error = 'Error creating healthcare';
     res.redirect('/settings/healthcare');
   }
 });
@@ -315,17 +454,13 @@ router.post('/healthcare/:id/update', async (req, res) => {
   
   try {
     await req.db.query(
-      'UPDATE healthcare SET name = ?, hospital_address = ?, description = ? WHERE id = ?',
-      [trimmedName, trimmedHospitalAddress, null, req.params.id]
+      'UPDATE healthcare SET name = ?, hospital_address = ? WHERE id = ?',
+      [trimmedName, trimmedHospitalAddress, req.params.id]
     );
     res.redirect('/settings/healthcare');
   } catch (error) {
     console.error('Healthcare update error:', error);
-    if (error.code === 'ER_DUP_ENTRY') {
-      req.session.error = 'Healthcare with this name already exists';
-    } else {
-      req.session.error = 'Error updating healthcare';
-    }
+    req.session.error = 'Error updating healthcare';
     res.redirect('/settings/healthcare');
   }
 });
@@ -344,7 +479,13 @@ router.post('/healthcare/:id/delete', async (req, res) => {
 // ========== AREAS OF SPECIALIZATION ==========
 router.get('/areas', async (req, res) => {
   try {
-    const [areasOfSpecialization] = await req.db.query('SELECT * FROM areas_of_specialization ORDER BY name ASC');
+    const searchQuery = normalizeSearchTerm(req.query.search);
+    const { items: areasOfSpecialization } = await querySettingsItems(req.db, {
+      fromSql: 'areas_of_specialization',
+      searchColumns: ['name', 'description'],
+      searchQuery,
+      orderBy: 'name ASC'
+    });
     
     renderSettingsTemplate(req, res, {
       pageTitle: 'Areas of Specialization',
@@ -365,7 +506,10 @@ router.get('/areas', async (req, res) => {
       editBase: '/settings/areas',
       tableHeaders: ['Name', 'Description'],
       hasModelDropdown: false,
-      hasModelColumn: false
+      hasModelColumn: false,
+      enableSearch: true,
+      searchQuery,
+      searchPlaceholder: 'Search specializations by name or description'
     });
   } catch (error) {
     console.error('Areas page error:', error);
@@ -477,7 +621,13 @@ router.post('/areas-of-specialization/:id/delete', async (req, res) => {
 // ========== DEVICE MODELS ==========
 router.get('/modules', async (req, res) => {
   try {
-    const [modules] = await req.db.query('SELECT * FROM modules ORDER BY name ASC');
+    const searchQuery = normalizeSearchTerm(req.query.search);
+    const { items: modules } = await querySettingsItems(req.db, {
+      fromSql: 'modules',
+      searchColumns: ['name', 'description'],
+      searchQuery,
+      orderBy: 'name ASC'
+    });
 
     renderSettingsTemplate(req, res, {
       pageTitle: 'Modules',
@@ -498,7 +648,10 @@ router.get('/modules', async (req, res) => {
       editBase: '/settings/modules',
       tableHeaders: ['Module Name', 'Description'],
       hasModelDropdown: false,
-      hasModelColumn: false
+      hasModelColumn: false,
+      enableSearch: true,
+      searchQuery,
+      searchPlaceholder: 'Search modules by name or description'
     });
   } catch (error) {
     console.error('Modules page error:', error);
@@ -628,7 +781,13 @@ router.post('/modules/:id/delete', async (req, res) => {
 // ========== DEVICE MODELS ==========
 router.get('/training-titles', async (req, res) => {
   try {
-    const [trainingTitles] = await req.db.query('SELECT * FROM training_titles ORDER BY name ASC');
+    const searchQuery = normalizeSearchTerm(req.query.search);
+    const { items: trainingTitles } = await querySettingsItems(req.db, {
+      fromSql: 'training_titles',
+      searchColumns: ['name', 'description'],
+      searchQuery,
+      orderBy: 'name ASC'
+    });
 
     renderSettingsTemplate(req, res, {
       pageTitle: 'Training Titles',
@@ -649,7 +808,10 @@ router.get('/training-titles', async (req, res) => {
       editBase: '/settings/training-titles',
       tableHeaders: ['Training Title', 'Description'],
       hasModelDropdown: false,
-      hasModelColumn: false
+      hasModelColumn: false,
+      enableSearch: true,
+      searchQuery,
+      searchPlaceholder: 'Search training titles by name or description'
     });
   } catch (error) {
     console.error('Training titles page error:', error);
@@ -761,7 +923,13 @@ router.post('/training-titles/:id/delete', async (req, res) => {
 // ========== DEVICE MODELS ==========
 router.get('/models', async (req, res) => {
   try {
-    const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
+    const searchQuery = normalizeSearchTerm(req.query.search);
+    const { items: deviceModels } = await querySettingsItems(req.db, {
+      fromSql: 'device_models',
+      searchColumns: ['model_name', 'description'],
+      searchQuery,
+      orderBy: 'model_name ASC'
+    });
     
     renderSettingsTemplate(req, res, {
       pageTitle: 'Device Models',
@@ -782,7 +950,10 @@ router.get('/models', async (req, res) => {
       editBase: '/settings/models',
       tableHeaders: ['Model Name', 'Description'],
       hasModelDropdown: false,
-      hasModelColumn: false
+      hasModelColumn: false,
+      enableSearch: true,
+      searchQuery,
+      searchPlaceholder: 'Search device models by name or description'
     });
   } catch (error) {
     console.error('Device models page error:', error);
@@ -905,13 +1076,15 @@ router.post('/device-models/:id/delete', async (req, res) => {
 // ========== DEVICE SERIAL NUMBERS ==========
 router.get('/devices', async (req, res) => {
   try {
+    const searchQuery = normalizeSearchTerm(req.query.search);
     const [deviceModels] = await req.db.query('SELECT * FROM device_models ORDER BY model_name ASC');
-    const [deviceSerialNumbers] = await req.db.query(`
-      SELECT d.*, k.model_name 
-      FROM device_serial_numbers d
-      LEFT JOIN device_models k ON d.device_model_id = k.id
-      ORDER BY d.serial_number ASC
-    `);
+    const { items: deviceSerialNumbers } = await querySettingsItems(req.db, {
+      selectSql: 'd.*, k.model_name',
+      fromSql: 'device_serial_numbers d LEFT JOIN device_models k ON d.device_model_id = k.id',
+      searchColumns: ['d.serial_number', 'k.model_name', 'd.notes'],
+      searchQuery,
+      orderBy: 'd.serial_number ASC'
+    });
     
     renderSettingsTemplate(req, res, {
       pageTitle: 'Device Serial Numbers',
@@ -933,7 +1106,10 @@ router.get('/devices', async (req, res) => {
       tableHeaders: ['Serial Number', 'Device Model', 'Notes'],
       hasModelDropdown: true,
       hasModelColumn: true,
-      deviceModels
+      deviceModels,
+      enableSearch: true,
+      searchQuery,
+      searchPlaceholder: 'Search device serials, model names, or notes'
     });
   } catch (error) {
     console.error('Device serial numbers page error:', error);
@@ -1055,7 +1231,13 @@ router.post('/device-serial-numbers/:id/delete', async (req, res) => {
 // ========== Practical Learning Outcomes ==========
 router.get('/hands-on-aspects', async (req, res) => {
   try {
-    const [handsOnAspects] = await req.db.query('SELECT * FROM practical_learning_outcomes_settings ORDER BY aspect_name ASC');
+    const searchQuery = normalizeSearchTerm(req.query.search);
+    const { items: handsOnAspects } = await querySettingsItems(req.db, {
+      fromSql: 'practical_learning_outcomes_settings',
+      searchColumns: ['aspect_name', 'description'],
+      searchQuery,
+      orderBy: 'aspect_name ASC'
+    });
     
     renderSettingsTemplate(req, res, {
       pageTitle: 'Practical Learning Outcomes',
@@ -1077,7 +1259,10 @@ router.get('/hands-on-aspects', async (req, res) => {
       tableHeaders: ['Aspect Name', 'Description', 'Max Score'],
       hasModelDropdown: false,
       hasModelColumn: false,
-      hasMaxScore: true
+      hasMaxScore: true,
+      enableSearch: true,
+      searchQuery,
+      searchPlaceholder: 'Search outcomes by aspect name or description'
     });
   } catch (error) {
     console.error('Practical Learning Outcomes page error:', error);
@@ -1194,13 +1379,25 @@ router.get('/users', async (req, res) => {
     if (req.session.userRole !== 'admin') {
       return res.status(403).send('Forbidden');
     }
-    
-    const [users] = await req.db.query(`
-      SELECT id, email, first_name, last_name, role, position, phone_number, area_of_specialization, certificate_file, profile_picture
-      FROM users
-      WHERE role IN ('admin', 'trainer')
-      ORDER BY role ASC, last_name ASC, first_name ASC
-    `);
+
+    const searchQuery = normalizeSearchTerm(req.query.search);
+    const { items: users } = await querySettingsItems(req.db, {
+      selectSql: 'id, email, first_name, last_name, role, position, phone_number, area_of_specialization, certificate_file, profile_picture',
+      fromSql: 'users',
+      baseWhere: "role IN ('admin', 'trainer')",
+      searchColumns: [
+        'first_name',
+        'last_name',
+        "CONCAT(first_name, ' ', last_name)",
+        'email',
+        'role',
+        'position',
+        'phone_number',
+        'area_of_specialization'
+      ],
+      searchQuery,
+      orderBy: 'role ASC, last_name ASC, first_name ASC'
+    });
 
     renderSettingsTemplate(req, res, {
       pageType: 'users',
@@ -1211,7 +1408,10 @@ router.get('/users', async (req, res) => {
       pluralName: 'Users',
       createPage: '/settings/users/new',
       editBase: '/settings/users',
-      users
+      users,
+      enableSearch: true,
+      searchQuery,
+      searchPlaceholder: 'Search users by name, email, role, position, phone, or specialization'
     });
   } catch (error) {
     console.error('User positions page error:', error);
