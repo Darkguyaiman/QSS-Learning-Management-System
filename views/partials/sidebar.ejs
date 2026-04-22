@@ -35,7 +35,7 @@
   <div class="sidebar-header">
     <a href="/dashboard" class="sidebar-brand">
       <img src="/favicon.ico" alt="QSS Logo" class="sidebar-logo">
-      <span class="sidebar-brand-text">QSS Learning Management System</span>
+      <span class="sidebar-brand-text">Q Learning Management System</span>
     </a>
     <button class="sidebar-close-mobile" id="sidebarCloseMobile" aria-label="Close menu">
       <i class="fas fa-times"></i>
@@ -134,6 +134,14 @@
 </aside>
 
 <script>
+  function setInitialSettingsSubmenuState(menuItem, submenu, shouldExpand) {
+    if (!menuItem || !submenu) return;
+
+    submenu.classList.remove('animating');
+    menuItem.classList.toggle('active', shouldExpand);
+    submenu.style.maxHeight = shouldExpand ? 'none' : '0';
+  }
+
   function expandSettingsSubmenu(menuItem, submenu, { animate = false } = {}) {
     if (!menuItem || !submenu) return;
 
@@ -225,14 +233,9 @@
         }
       }
       
-      // Set state without animation (no animating class)
-      if (shouldExpand) {
-        expandSettingsSubmenu(menuItem, submenu);
-      } else {
-        submenu.classList.remove('animating');
-        menuItem.classList.remove('active');
-        submenu.style.maxHeight = '0';
-      }
+      // Apply the final state once on initial load to avoid a visible
+      // expand/collapse jump before the page settles.
+      setInitialSettingsSubmenuState(menuItem, submenu, shouldExpand);
       
       // Highlight active submenu item if on settings page
       if (isSettingsPage) {
