@@ -210,7 +210,7 @@ CREATE TABLE questions (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE RESTRICT,
   FOREIGN KEY (objective_id) REFERENCES objectives(id) ON DELETE SET NULL,
-  FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE SET NULL,
+  FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE CASCADE,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
 

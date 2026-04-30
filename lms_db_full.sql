@@ -520,7 +520,6 @@ CREATE TABLE `questions` (
   `correct_answer` enum('A','B','C','D') NOT NULL,
   `test_type` enum('pre_test','post_test','certificate_enrolment') NOT NULL,
   `module_id` int NOT NULL,
-  `device_model_id` int NOT NULL,
   `objective_id` int DEFAULT NULL,
   `training_id` int DEFAULT NULL,
   `created_by` int DEFAULT NULL,
@@ -529,10 +528,8 @@ CREATE TABLE `questions` (
   KEY `objective_id` (`objective_id`),
   KEY `created_by` (`created_by`),
   KEY `idx_questions_training` (`training_id`),
-  KEY `idx_questions_device_model` (`device_model_id`),
   KEY `idx_questions_module` (`module_id`),
   CONSTRAINT `fk_questions_module` FOREIGN KEY (`module_id`) REFERENCES `modules` (`id`) ON DELETE RESTRICT,
-  CONSTRAINT `questions_ibfk_1` FOREIGN KEY (`device_model_id`) REFERENCES `device_models` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `questions_ibfk_2` FOREIGN KEY (`objective_id`) REFERENCES `objectives` (`id`) ON DELETE SET NULL,
   CONSTRAINT `questions_ibfk_3` FOREIGN KEY (`training_id`) REFERENCES `trainings` (`id`) ON DELETE SET NULL,
   CONSTRAINT `questions_ibfk_4` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
