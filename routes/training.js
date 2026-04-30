@@ -742,9 +742,9 @@ function getDefaultExpiryDateTime() {
 async function getTrainingCreateFormData(db, currentUserId) {
   const [healthcare] = await db.query('SELECT * FROM healthcare ORDER BY name ASC');
   const [trainees] = await db.query(`
-    SELECT t.id, t.first_name, t.last_name, t.email, t.healthcare, t.ic_passport, t.trainee_id, h.id AS healthcare_id
+    SELECT t.id, t.first_name, t.last_name, t.email, h.name AS healthcare, t.ic_passport, t.trainee_id, h.id AS healthcare_id
     FROM trainees t
-    LEFT JOIN healthcare h ON h.name = t.healthcare
+    LEFT JOIN healthcare h ON h.id = t.healthcare_id
     WHERE t.trainee_status = "active"
     ORDER BY t.first_name, t.last_name ASC
   `);
@@ -773,6 +773,48 @@ async function getTrainingCreateFormData(db, currentUserId) {
     trainingTitles,
     trainers
   };
+}
+
+/**
+ * Unique positive user ids for training_trainers. Always includes creatorUserId.
+ * Accepts trainer_ids as array, a single scalar, or null (duplicate ids are ignored).
+ */
+function uniqueTrainerIdsForTraining(creatorUserId, trainer_ids) {
+  const set = new Set();
+  const add = (raw) => {
+    if (raw === undefined || raw === null || raw === '') return;
+    const n = parseInt(String(raw), 10);
+    if (!Number.isNaN(n) && n > 0) set.add(n);
+  };
+  add(creatorUserId);
+  if (trainer_ids == null || trainer_ids === '') {
+    return [...set];
+  }
+  if (Array.isArray(trainer_ids)) {
+    trainer_ids.forEach(add);
+  } else {
+    add(trainer_ids);
+  }
+  return [...set];
+}
+
+/** Dedupe trainer ids from multipart/json body (update flow; no implicit creator). */
+function uniqueTrainerIdsFromForm(trainer_ids) {
+  const set = new Set();
+  const add = (raw) => {
+    if (raw === undefined || raw === null || raw === '') return;
+    const n = parseInt(String(raw), 10);
+    if (!Number.isNaN(n) && n > 0) set.add(n);
+  };
+  if (trainer_ids == null || trainer_ids === '') {
+    return [...set];
+  }
+  if (Array.isArray(trainer_ids)) {
+    trainer_ids.forEach(add);
+  } else {
+    add(trainer_ids);
+  }
+  return [...set];
 }
 
 function isTrainingLocked(training) {
@@ -1198,31 +1240,12 @@ router.post('/create', async (req, res) => {
       
       const trainingId = result.insertId;
       
-      // Insert trainer relationships (including creator)
-      // Always add the creator as a trainer
-      await connection.query(
-        'INSERT INTO training_trainers (training_id, trainer_id) VALUES (?, ?)',
-        [trainingId, req.session.userId]
-      );
-      
-      // Add additional trainers if selected
-      if (trainer_ids && Array.isArray(trainer_ids)) {
-        for (const trainerId of trainer_ids) {
-          // Skip if it's the creator (already added)
-          if (parseInt(trainerId) !== parseInt(req.session.userId)) {
-            try {
-              await connection.query(
-                'INSERT INTO training_trainers (training_id, trainer_id) VALUES (?, ?)',
-                [trainingId, trainerId]
-              );
-            } catch (error) {
-              // Ignore duplicate entry errors
-              if (error.code !== 'ER_DUP_ENTRY') {
-                console.error('Error adding trainer:', error);
-              }
-            }
-          }
-        }
+      const trainerIdsUnique = uniqueTrainerIdsForTraining(req.session.userId, trainer_ids);
+      for (const trainerId of trainerIdsUnique) {
+        await connection.query(
+          'INSERT INTO training_trainers (training_id, trainer_id) VALUES (?, ?)',
+          [trainingId, trainerId]
+        );
       }
       
       // Insert healthcare relationship (exactly one healthcare per training)
@@ -1719,9 +1742,9 @@ router.get('/:id', async (req, res) => {
       // Get trainees for the selected healthcare only
       const selectedHealthcareId = trainingHealthcare[0]?.healthcare_id || null;
       [allTrainees] = await req.db.query(`
-        SELECT t.id, t.trainee_id, t.first_name, t.last_name, t.email, t.healthcare, t.ic_passport, h.id AS healthcare_id
+        SELECT t.id, t.trainee_id, t.first_name, t.last_name, t.email, h.name AS healthcare, t.ic_passport, h.id AS healthcare_id
         FROM trainees t
-        LEFT JOIN healthcare h ON h.name = t.healthcare
+        LEFT JOIN healthcare h ON h.id = t.healthcare_id
         WHERE t.trainee_status = 'active'
           AND (? IS NULL OR h.id = ?)
         ORDER BY t.last_name, t.first_name
@@ -2738,8 +2761,8 @@ router.post('/:id/update', async (req, res) => {
       // Update trainers
       await connection.query('DELETE FROM training_trainers WHERE training_id = ?', [trainingId]);
       if (trainer_ids) {
-        const trainerArray = Array.isArray(trainer_ids) ? trainer_ids : [trainer_ids];
-        for (const trainerId of trainerArray) {
+        const trainerDeduped = uniqueTrainerIdsFromForm(trainer_ids);
+        for (const trainerId of trainerDeduped) {
           await connection.query(
             'INSERT INTO training_trainers (training_id, trainer_id) VALUES (?, ?)',
             [trainingId, trainerId]
@@ -3005,10 +3028,11 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
         tr.first_name,
         tr.last_name,
         tr.trainee_id as trainee_public_id,
-        tr.healthcare
+        h.name as healthcare
       FROM enrollments e
       JOIN trainings t ON e.training_id = t.id
       JOIN trainees tr ON e.trainee_id = tr.id
+      LEFT JOIN healthcare h ON h.id = tr.healthcare_id
       WHERE e.id = ? AND e.training_id = ?
     `, [enrollmentId, trainingId]);
     
@@ -3445,10 +3469,37 @@ router.post('/:id/enrollment/:enrollmentId/hands-on/save', async (req, res) => {
     if (trainings.length === 0 || trainings[0].type !== 'main') {
       return res.status(400).json({ success: false, error: 'Hands-on evaluation only available for main trainings' });
     }
+
+    if (!Array.isArray(scores)) {
+      return res.status(400).json({ success: false, error: 'Invalid scores payload' });
+    }
+
+    const trainingId = req.params.id;
+    const [aspectRows] = await req.db.query(
+      'SELECT id, max_score FROM practical_learning_outcomes WHERE training_id = ?',
+      [trainingId]
+    );
+    const maxScoreByAspectId = new Map(
+      (aspectRows || []).map((a) => {
+        const cap = a.max_score != null ? Math.max(0, Number(a.max_score)) : 100;
+        return [Number(a.id), Number.isFinite(cap) ? cap : 100];
+      })
+    );
     
     // Save each score
     const sharedComment = typeof comment === 'string' ? comment : '';
     for (const scoreData of scores) {
+      const aspectId = parseInt(scoreData.aspect_id, 10);
+      const cap = maxScoreByAspectId.get(aspectId);
+      if (!Number.isFinite(aspectId) || cap === undefined) {
+        continue;
+      }
+      let score = Number(scoreData.score);
+      if (!Number.isFinite(score)) {
+        continue;
+      }
+      score = Math.min(Math.max(0, score), cap);
+
       const commentValue = (scoreData.comments && String(scoreData.comments).trim().length > 0)
         ? String(scoreData.comments)
         : sharedComment;
@@ -3458,11 +3509,11 @@ router.post('/:id/enrollment/:enrollmentId/hands-on/save', async (req, res) => {
          ON DUPLICATE KEY UPDATE score = ?, evaluated_by = ?, comments = ?, evaluated_at = NOW()`,
         [
           enrollmentId,
-          scoreData.aspect_id,
-          scoreData.score,
+          aspectId,
+          score,
           req.session.userId,
           commentValue || '',
-          scoreData.score,
+          score,
           req.session.userId,
           commentValue || ''
         ]

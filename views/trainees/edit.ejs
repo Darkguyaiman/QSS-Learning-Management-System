@@ -1094,7 +1094,7 @@
                               id="area-chip-<%= index %>" 
                               name="areaOfSpecialization" 
                               value="<%= area.name %>"
-                              <%= (trainee.area_of_specialization || '').split(',').map(s => s.trim()).includes(area.name) ? 'checked' : '' %>
+                              <%= Array.isArray(trainee.area_of_specialization_list) && trainee.area_of_specialization_list.includes(area.name) ? 'checked' : '' %>
                             >
                             <label class="chip-option-label" for="area-chip-<%= index %>">
                               <span><%= area.name %></span>
@@ -1259,7 +1259,7 @@
                 name="areaOfSpecializationModal" 
                 value="<%= area.name %>"
                 data-original-id="area-chip-<%= index %>"
-                <%= (trainee.area_of_specialization || '').split(',').map(s => s.trim()).includes(area.name) ? 'checked' : '' %>
+                <%= Array.isArray(trainee.area_of_specialization_list) && trainee.area_of_specialization_list.includes(area.name) ? 'checked' : '' %>
               >
               <label class="area-modal-item-label" for="area-modal-<%= index %>">
                 <%= area.name %>

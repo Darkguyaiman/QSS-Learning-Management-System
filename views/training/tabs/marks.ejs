@@ -11,6 +11,24 @@
           return currScore > bestScore ? t : best;
         }, candidates[0]);
       };
+      /** One row per aspect (last wins). Avoids double totals if DB has dupes or joins duplicate. */
+      const practicalOutcomeTotalsFromScores = (handsOnScores) => {
+        const byAspect = new Map();
+        for (const s of handsOnScores || []) {
+          const aid = s.aspect_id;
+          byAspect.set(aid, {
+            score: parseFloat(s.score) || 0,
+            max: parseInt(s.max_score, 10) || 0
+          });
+        }
+        let total = 0;
+        let max = 0;
+        for (const v of byAspect.values()) {
+          total += v.score;
+          max += v.max;
+        }
+        return { total, max };
+      };
     %>
     <% if (marksData.length === 0) { %>
       <div class="empty-state">
@@ -81,8 +99,9 @@
                   <td>
                     <% if (data.handsOnScores.length > 0) { %>
                       <% 
-                        const totalScore = data.handsOnScores.reduce((sum, s) => sum + (parseFloat(s.score) || 0), 0);
-                        const maxScore = data.handsOnScores.reduce((sum, s) => sum + (parseInt(s.max_score) || 0), 0);
+                        const poRow = practicalOutcomeTotalsFromScores(data.handsOnScores);
+                        const totalScore = poRow.total;
+                        const maxScore = poRow.max;
                         const percentage = maxScore > 0 ? (totalScore / maxScore * 100).toFixed(1) : 0;
                       %>
                       <span class="test-score <%= percentage >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
@@ -215,8 +234,9 @@
                     <span class="marks-label">Practical Learning Outcome</span>
                     <% if (data.handsOnScores.length > 0) { %>
                       <% 
-                        const totalScore = data.handsOnScores.reduce((sum, s) => sum + (parseFloat(s.score) || 0), 0);
-                        const maxScore = data.handsOnScores.reduce((sum, s) => sum + (parseInt(s.max_score) || 0), 0);
+                        const poMob = practicalOutcomeTotalsFromScores(data.handsOnScores);
+                        const totalScore = poMob.total;
+                        const maxScore = poMob.max;
                         const percentage = maxScore > 0 ? (totalScore / maxScore * 100).toFixed(1) : 0;
                       %>
                       <span class="test-score <%= percentage >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
@@ -361,7 +381,7 @@
                     <td>
                       <span class="hands-on-total" data-enrollment-id="<%= data.enrollment_id %>">
                         <% 
-                          const totalScore = data.handsOnScores.reduce((sum, s) => sum + (parseFloat(s.score) || 0), 0);
+                          const totalScore = practicalOutcomeTotalsFromScores(data.handsOnScores).total;
                           const maxScore = aspects.reduce((sum, a) => sum + (parseInt(a.max_score) || 0), 0);
                           const percentage = maxScore > 0 ? (totalScore / maxScore * 100).toFixed(1) : 0;
                         %>
@@ -425,11 +445,11 @@
                     <strong>Total: </strong>
                     <span class="hands-on-total" data-enrollment-id="<%= data.enrollment_id %>">
                       <% 
-                        const totalScore = data.handsOnScores.reduce((sum, s) => sum + (parseFloat(s.score) || 0), 0);
-                        const maxScore = aspects.reduce((sum, a) => sum + (parseInt(a.max_score) || 0), 0);
-                        const percentage = maxScore > 0 ? (totalScore / maxScore * 100).toFixed(1) : 0;
+                        const totalScoreHo = practicalOutcomeTotalsFromScores(data.handsOnScores).total;
+                        const maxScoreHo = aspects.reduce((sum, a) => sum + (parseInt(a.max_score) || 0), 0);
+                        const percentageHo = maxScoreHo > 0 ? (totalScoreHo / maxScoreHo * 100).toFixed(1) : 0;
                       %>
-                      <%= totalScore %>/<%= maxScore %> (<%= percentage %>%)
+                      <%= totalScoreHo %>/<%= maxScoreHo %> (<%= percentageHo %>%)
                     </span>
                   </div>
                 </div>
@@ -1064,12 +1084,16 @@
     // Calculate total for a trainee
     function updateTraineeTotal(enrollmentId) {
       const inputs = document.querySelectorAll(`.hands-on-score-input[data-enrollment-id="${enrollmentId}"]`);
+      const byAspect = new Map();
+      inputs.forEach(input => {
+        const aid = input.dataset.aspectId;
+        if (!byAspect.has(aid)) byAspect.set(aid, input);
+      });
       let total = 0;
       let maxTotal = 0;
-
-      inputs.forEach(input => {
+      byAspect.forEach(input => {
         const score = parseFloat(input.value) || 0;
-        const maxScore = parseInt(input.dataset.maxScore) || 0;
+        const maxScore = parseInt(input.dataset.maxScore, 10) || 0;
         total += score;
         maxTotal += maxScore;
       });
@@ -1109,6 +1133,23 @@
     document.addEventListener('DOMContentLoaded', function() {
       const inputs = document.querySelectorAll('.hands-on-score-input');
       inputs.forEach(input => {
+        const max = parseInt(input.dataset.maxScore, 10);
+        const v = parseFloat(input.value);
+        if (Number.isFinite(max) && max >= 0 && Number.isFinite(v) && v > max) {
+          input.value = String(max);
+        }
+      });
+      const syncKeys = new Set();
+      inputs.forEach(input => {
+        const k = `${input.dataset.enrollmentId}:${input.dataset.aspectId}`;
+        if (syncKeys.has(k)) return;
+        syncKeys.add(k);
+        syncHandsOnScoreInputs(input);
+      });
+      const enrollmentIdsForTotals = new Set(Array.from(inputs).map(i => i.dataset.enrollmentId).filter(Boolean));
+      enrollmentIdsForTotals.forEach(eid => updateTraineeTotal(eid));
+
+      inputs.forEach(input => {
         input.addEventListener('wheel', function(e) {
           if (document.activeElement === this) {
             e.preventDefault();
@@ -1118,20 +1159,18 @@
 
         input.addEventListener('input', function() {
           const enrollmentId = this.dataset.enrollmentId;
-          const maxScore = parseInt(this.dataset.maxScore);
-          const value = parseFloat(this.value);
+          const maxScore = parseInt(this.dataset.maxScore, 10);
+          const raw = parseFloat(this.value);
+
+          if (Number.isFinite(maxScore) && maxScore >= 0 && Number.isFinite(raw) && raw > maxScore) {
+            this.value = String(maxScore);
+          }
 
           syncHandsOnScoreInputs(this);
 
-          // Remove previous classes
           this.classList.remove('success', 'error');
-
-          // Validate max score
-          if (value > maxScore) {
-            this.value = maxScore;
-            this.classList.add('error');
-            setTimeout(() => this.classList.remove('error'), 1000);
-          } else if (value > 0 && value <= maxScore) {
+          const effective = parseFloat(this.value);
+          if (Number.isFinite(maxScore) && maxScore > 0 && Number.isFinite(effective) && effective > 0 && effective <= maxScore) {
             this.classList.add('success');
             setTimeout(() => this.classList.remove('success'), 500);
           }
@@ -1169,13 +1208,12 @@
             enrollmentMap.set(enrollmentId, new Map());
           }
 
-          if (!isNaN(score)) {
-            enrollmentMap.get(enrollmentId).set(String(aspectId), {
-              aspect_id: parseInt(aspectId),
-              score: score,
-              comments: ''
-            });
-          }
+          if (!Number.isFinite(score)) return;
+          enrollmentMap.get(enrollmentId).set(String(aspectId), {
+            aspect_id: parseInt(aspectId, 10),
+            score: score,
+            comments: ''
+          });
         });
 
         // Save scores for each enrollment

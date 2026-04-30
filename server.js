@@ -80,7 +80,7 @@ const profileUpload = multer({ storage: profileStorage });
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use('/uploads/materials', (req, res) => {
   return res.status(403).send('Direct access to training material files is disabled');
 });

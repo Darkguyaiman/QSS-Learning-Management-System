@@ -530,6 +530,21 @@
       margin-bottom: var(--spacing-lg);
       color: #065F46;
     }
+
+    .bulk-upload-actions {
+      display: flex;
+      gap: var(--spacing-md);
+      justify-content: flex-end;
+      align-items: center;
+      margin-top: var(--spacing-lg);
+      padding-top: var(--spacing-lg);
+      border-top: 2px solid var(--color-gray-light);
+      flex-wrap: wrap;
+    }
+
+    .bulk-upload-actions .btn {
+      min-height: 44px;
+    }
     
     .alert-error {
       background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
@@ -758,6 +773,17 @@
       
       .validation-errors ul {
         font-size: 0.8125rem;
+      }
+
+      .bulk-upload-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+      }
+
+      .bulk-upload-actions .btn {
+        width: 100%;
+        justify-content: center;
       }
     }
     
@@ -1180,6 +1206,8 @@
 
       updateCorrectAnswerOptions();
       
+      var bulkUploadValidatedQuestions = null;
+
       // Bulk upload functionality
       const uploadBulkBtn = document.getElementById('uploadBulkBtn');
       if (uploadBulkBtn) {
@@ -1223,7 +1251,11 @@
         try {
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array' });
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          bulkUploadValidatedQuestions = null;
+          const sheetName = workbook.SheetNames.find(function (n) {
+            return String(n).toLowerCase() === 'questions';
+          }) || workbook.SheetNames[0];
+          const firstSheet = workbook.Sheets[sheetName];
           // Use header: 1 to get array of arrays, and defval: '' for empty cells
           // Also use raw: false to get formatted values
           // Parse Excel with proper handling of empty cells
@@ -1248,10 +1280,6 @@
             }
           }
           
-          // Debug: Log first few rows to console
-          console.log('Parsed Excel data (first 3 rows):', jsonData.slice(0, 3));
-          console.log('Sheet range:', firstSheet['!ref']);
-          
           // Validate data
           const validation = validateBulkData(jsonData);
           
@@ -1269,6 +1297,7 @@
             if (uploadBtn) {
               uploadBtn.disabled = true;
             }
+            bulkUploadValidatedQuestions = null;
           } else {
             // Show success
             if (successDiv) {
@@ -1277,7 +1306,7 @@
             }
             if (uploadBtn) {
               uploadBtn.disabled = false;
-              uploadBtn.dataset.validData = JSON.stringify(validation.validData);
+              bulkUploadValidatedQuestions = validation.validData;
             }
           }
         } catch (error) {
@@ -1288,10 +1317,25 @@
           if (uploadBtn) {
             uploadBtn.disabled = true;
           }
+          bulkUploadValidatedQuestions = null;
         }
       };
       reader.readAsArrayBuffer(file);
       });
+      }
+      
+      // Normalize test type from template dropdown labels, legacy underscores, or variants
+      function normalizeBulkTestTypeCell(raw) {
+        if (raw === null || raw === undefined) return null;
+        let s = String(raw).replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]+/g, ' ').trim();
+        try {
+          s = s.normalize('NFKC');
+        } catch (e) { /* ignore */ }
+        s = s.toLowerCase().replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+        if (s === 'post test' || s === 'post-test') return 'post_test';
+        if (s === 'pre test' || s === 'pre-test') return 'pre_test';
+        if (s === 'certificate enrolment' || s === 'certificate enrollment') return 'certificate_enrolment';
+        return null;
       }
       
       // Validation function
@@ -1323,7 +1367,8 @@
           
           // Excel columns: A=Question, B=Test Type, C=Module, D=Objective, E=Option A, F=Option B, G=Option C, H=Option D, I=Correct Answer
           const question = getCellValue(0);
-          const testType = getCellValue(1).toLowerCase();
+          const testTypeRaw = getCellValue(1);
+          const testType = normalizeBulkTestTypeCell(testTypeRaw);
           const moduleName = getCellValue(2);
           const objective = getCellValue(3);
           const optionA = getCellValue(4);
@@ -1332,21 +1377,14 @@
           const optionD = getCellValue(7);
           const correctAnswer = getCellValue(8).toUpperCase();
           
-          // Debug logging for first row with issues (only log once)
-          if (i === 1 && (!optionA || !optionB)) {
-            console.log('Row data:', row);
-            console.log('Row length:', row.length);
-            console.log('Parsed values:', { question, testType, objective, optionA, optionB, optionC, optionD, correctAnswer });
-          }
-          
           // Validate required fields
           if (!question) {
             errors.push(`Row ${rowNum}: Question is required`);
             continue;
           }
           
-          if (!testType || !['pre_test', 'post_test', 'certificate_enrolment'].includes(testType)) {
-            errors.push(`Row ${rowNum}: Test Type must be one of: pre_test, post_test, certificate_enrolment`);
+          if (!testType) {
+            errors.push(`Row ${rowNum}: Test type must be Post Test, Pre Test, or Certificate Enrolment (or legacy pre_test, post_test, certificate_enrolment)`);
             continue;
           }
           
@@ -1449,6 +1487,7 @@
       const closeModal = document.getElementById('closeModal');
       if (closeModal) {
         closeModal.addEventListener('click', function() {
+          bulkUploadValidatedQuestions = null;
           const bulkModal = document.getElementById('bulkUploadModal');
           if (bulkModal) {
             bulkModal.classList.remove('active');
@@ -1463,6 +1502,7 @@
       const closeModal2 = document.getElementById('closeModal2');
       if (closeModal2) {
         closeModal2.addEventListener('click', function() {
+          bulkUploadValidatedQuestions = null;
           const bulkModal = document.getElementById('bulkUploadModal');
           if (bulkModal) {
             bulkModal.classList.remove('active');
@@ -1532,7 +1572,9 @@
       const uploadBtn = document.getElementById('uploadBtn');
       if (uploadBtn) {
         uploadBtn.addEventListener('click', function() {
-        const validData = JSON.parse(this.dataset.validData || '[]');
+        const validData = bulkUploadValidatedQuestions && bulkUploadValidatedQuestions.length
+          ? bulkUploadValidatedQuestions
+          : [];
         if (validData.length === 0) {
           window.qssShowWarning && window.qssShowWarning('No valid data to upload', 'Upload Error');
           return;
@@ -1640,7 +1682,7 @@
       <div id="validationErrors" class="validation-errors" style="display: none;"></div>
       <div id="validationSuccess" class="validation-success" style="display: none;"></div>
       
-      <div style="display: flex; gap: var(--spacing-md); justify-content: flex-end; margin-top: var(--spacing-lg);">
+      <div class="bulk-upload-actions">
         <button type="button" class="btn btn-outline" id="closeModal2">Cancel</button>
         <button type="button" class="btn btn-success btn-lg" id="uploadBtn" disabled>
           <i class="fas fa-upload"></i>
@@ -1686,7 +1728,7 @@
               <div><span class="column-tag">Column B</span></div>
               <div>
                 <div class="column-field">Test Type</div>
-                <div class="column-notes">Use: pre_test, post_test, or certificate_enrolment.</div>
+                <div class="column-notes">Choose from the dropdown (current LMS values).</div>
               </div>
               <div><span class="pill pill-required">Required</span></div>
             </div>
@@ -1695,7 +1737,7 @@
               <div><span class="column-tag">Column C</span></div>
               <div>
                 <div class="column-field">Module</div>
-                <div class="column-notes">Must match an existing module in the system.</div>
+                <div class="column-notes">Choose from the dropdown (must match an existing module).</div>
               </div>
               <div><span class="pill pill-required">Required</span></div>
             </div>
@@ -1704,7 +1746,7 @@
               <div><span class="column-tag">Column D</span></div>
               <div>
                 <div class="column-field">Objective Name</div>
-                <div class="column-notes">Must match an existing objective name in the system.</div>
+                <div class="column-notes">Choose from the dropdown (must match an existing objective).</div>
               </div>
               <div><span class="pill pill-required">Required</span></div>
             </div>
@@ -1749,7 +1791,7 @@
               <div><span class="column-tag">Column I</span></div>
               <div>
                 <div class="column-field">Correct Answer</div>
-                <div class="column-notes">Use A, B, C, or D and match available options.</div>
+                <div class="column-notes">Choose A, B, C, or D from the dropdown; must match the options you filled in.</div>
               </div>
               <div><span class="pill pill-required">Required</span></div>
             </div>
@@ -1828,7 +1870,7 @@
           </div>
           <div class="rule-card">
             <span class="rule-icon dont"><i class="fas fa-times"></i></span>
-            <div class="rule-text">Don't use invalid test types (must be exactly: pre_test, post_test, or certificate_enrolment).</div>
+            <div class="rule-text">Don't use invalid test types (use the dropdown: Post Test, Pre Test, or Certificate Enrolment).</div>
           </div>
           <div class="rule-card">
             <span class="rule-icon dont"><i class="fas fa-times"></i></span>
@@ -1841,28 +1883,6 @@
           <div class="rule-card">
             <span class="rule-icon dont"><i class="fas fa-times"></i></span>
             <div class="rule-text">Don't modify the header row (Row 1).</div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="rules-section">
-        <h3><i class="fas fa-info-circle"></i> Validation Process</h3>
-        <div class="rules-grid">
-          <div class="rule-card">
-            <span class="rule-icon info"><i class="fas fa-info"></i></span>
-            <div class="rule-text"><strong>Frontend Validation:</strong> Checks file structure, required fields, and basic rules before upload.</div>
-          </div>
-          <div class="rule-card">
-            <span class="rule-icon info"><i class="fas fa-info"></i></span>
-            <div class="rule-text"><strong>Backend Validation:</strong> Performs thorough checks including duplicate detection and database validation.</div>
-          </div>
-          <div class="rule-card">
-            <span class="rule-icon info"><i class="fas fa-info"></i></span>
-            <div class="rule-text"><strong>Batch Insertion:</strong> Questions are inserted in batches of 10 for optimal performance.</div>
-          </div>
-          <div class="rule-card">
-            <span class="rule-icon info"><i class="fas fa-info"></i></span>
-            <div class="rule-text"><strong>Error Reporting:</strong> Detailed error messages will show exactly what needs to be fixed.</div>
           </div>
         </div>
       </div>

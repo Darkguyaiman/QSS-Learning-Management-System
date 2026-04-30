@@ -31,8 +31,9 @@ router.get('/', async (req, res) => {
       const [traineeData] = await req.db.query(`
         SELECT
           t.*,
-          t.healthcare as hospital_name
+          h.name as hospital_name
         FROM trainees t
+        LEFT JOIN healthcare h ON h.id = t.healthcare_id
         WHERE t.id = ?
       `, [userId]);
 
@@ -187,17 +188,18 @@ router.get('/', async (req, res) => {
       // Get recent registrations (trainees with status 'registered')
       const [recentRegistrations] = await req.db.query(`
         SELECT 
-          id,
-          trainee_id,
-          first_name,
-          last_name,
-          ic_passport,
-          healthcare,
-          email,
-          handphone_number
-        FROM trainees
-        WHERE trainee_status = 'registered'
-        ORDER BY created_at DESC
+          t.id,
+          t.trainee_id,
+          t.first_name,
+          t.last_name,
+          t.ic_passport,
+          h.name AS healthcare,
+          t.email,
+          t.handphone_number
+        FROM trainees t
+        LEFT JOIN healthcare h ON h.id = t.healthcare_id
+        WHERE t.trainee_status = 'registered'
+        ORDER BY t.created_at DESC
         LIMIT 10
       `);
 
@@ -206,14 +208,15 @@ router.get('/', async (req, res) => {
         SELECT ci.training_id, ci.enrollment_id, ci.validity_end,
           DATEDIFF(ci.validity_end, CURDATE()) as days_remaining,
           tr.first_name, tr.last_name, tr.trainee_id as trainee_public_id,
-          tr.healthcare,
+          h.name as healthcare,
           t.title as training_title
         FROM certificate_issues ci
         JOIN trainees tr ON ci.trainee_id = tr.id
         JOIN trainings t ON ci.training_id = t.id
+        LEFT JOIN healthcare h ON h.id = tr.healthcare_id
         WHERE ci.validity_end IS NOT NULL
           AND DATEDIFF(ci.validity_end, CURDATE()) BETWEEN 0 AND 60
-        ORDER BY tr.healthcare, days_remaining ASC
+        ORDER BY h.name, days_remaining ASC
       `);
 
       const recertMap = new Map();

@@ -10,6 +10,105 @@
   <script src="/js/tw-components.js"></script>
   <style>
     /* Trainee Card Styles for Mobile/Tablet */
+    /* Header actions: wrap on small screens */
+    .trainee-list-header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    a.btn-success {
+      text-decoration: none;
+    }
+    a.btn-success,
+    a.btn-success:visited {
+      color: #fff;
+    }
+    .btn-success {
+      background-color: var(--color-success, #10B981);
+      color: #fff !important;
+      border: 1px solid #059669;
+    }
+    .btn-success:hover {
+      background-color: #059669;
+      color: #fff !important;
+    }
+    .btn-success:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .trainee-import-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .trainee-import-modal.active {
+      display: flex;
+    }
+    .trainee-import-modal-content {
+      background: var(--color-white, #fff);
+      border-radius: var(--border-radius-lg, 12px);
+      padding: 1.25rem 1.5rem;
+      max-width: 560px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg, 0 8px 32px rgba(0,0,0,0.15));
+    }
+    .trainee-import-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid #E8EAED;
+    }
+    .trainee-import-modal-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 2px solid #E8EAED;
+    }
+
+    .trainee-import-modal-actions .btn {
+      min-height: 44px;
+    }
+
+    .trainee-import-validation-errors {
+      background: #FEE2E2;
+      border: 2px solid #EF4444;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      color: #991B1B;
+      font-size: 0.875rem;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    .trainee-import-validation-errors ul {
+      margin: 0.5rem 0 0;
+      padding-left: 1.25rem;
+    }
+    .trainee-import-validation-success {
+      background: #D1FAE5;
+      border: 2px solid #10B981;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      color: #065F46;
+      font-size: 0.875rem;
+    }
+
     .trainee-card {
       display: none;
       background: white;
@@ -607,6 +706,16 @@
         justify-content: center;
       }
 
+      .trainee-list-header-actions {
+        width: 100%;
+        flex-direction: column;
+      }
+
+      .trainee-list-header-actions .btn {
+        width: 100%;
+        justify-content: center;
+      }
+
       .bulk-actions {
         flex-direction: column;
         align-items: stretch;
@@ -627,6 +736,14 @@
         grid-template-columns: 1fr;
       }
 
+      .trainee-import-modal-actions {
+        flex-direction: column;
+      }
+      .trainee-import-modal-actions .btn {
+        width: 100%;
+        justify-content: center;
+      }
+
       .trainee-card-actions {
         flex-wrap: wrap;
       }
@@ -640,9 +757,19 @@
     <div class="container">
       <div class="dashboard-header">
         <h1><i class="fas fa-users" style="color:#573FD7;"></i> Trainees</h1>
-        <a href="/trainees/create" class="btn btn-primary">
-          <i class="fas fa-user-plus"></i> Create New Trainee
-        </a>
+        <div class="trainee-list-header-actions">
+          <% if (typeof traineeImportEnabled !== 'undefined' && traineeImportEnabled) { %>
+            <a href="/trainees/import/template" class="btn btn-success">
+              <i class="fas fa-file-excel"></i> Download import template
+            </a>
+            <button type="button" class="btn btn-success" id="traineeImportExcelBtn">
+              <i class="fas fa-upload"></i> Import Excel
+            </button>
+          <% } %>
+          <a href="/trainees/create" class="btn btn-primary">
+            <i class="fas fa-user-plus"></i> Create New Trainee
+          </a>
+        </div>
       </div>
       
       <!-- Search and Filter Section -->
@@ -990,10 +1117,37 @@
             <div class="trainee-modal-value" id="modal-recertification-date">-</div>
           </div>
         </div>
+    </div>
+  </div>
+  </div>
+
+  <% if (typeof traineeImportEnabled !== 'undefined' && traineeImportEnabled) { %>
+  <input type="file" id="traineeImportFile" accept=".xlsx,.xls" style="display:none" />
+  <div id="traineeImportModal" class="trainee-import-modal" role="dialog" aria-modal="true">
+    <div class="trainee-import-modal-content" onclick="event.stopPropagation();">
+      <div class="trainee-import-modal-header">
+        <div>
+          <h2 style="margin:0;font-size:1.125rem;color:#202124;"><i class="fas fa-file-excel" style="color:#217346;"></i> Import trainees from Excel</h2>
+          <p style="margin:0.35rem 0 0;font-size:0.8125rem;color:#5F6368;">Only the first sheet is read. Row 1 must be the header row. Required columns: Name, IC/Passport, Email. Empty Trainee ID will be auto-generated. <strong>Area of Specialization</strong> can be one name or several separated by commas or semicolons (for example <code style="font-size:0.75rem;">Pain management, Diabetic foot ulcer</code>)—each name must exist in your Areas of Specialization list (matching is case-insensitive).</p>
+        </div>
+        <button type="button" class="close-modal" id="traineeImportModalClose" style="background:none;border:none;font-size:1.35rem;cursor:pointer;color:#5F6368;line-height:1;" aria-label="Close">&times;</button>
+      </div>
+      <p style="font-size:0.8125rem;color:#B45309;background:#FFFBEB;padding:0.65rem 0.75rem;border-radius:8px;border:1px solid #FCD34D;margin:0 0 0.75rem;">
+        <strong>Password:</strong> Imported trainees all receive the same temporary password <code style="background:#FEF3C7;padding:0 4px;border-radius:4px;">TRAINEE_IMPORT_DEFAULT_PASSWORD</code> from server env (default <code style="background:#FEF3C7;padding:0 4px;border-radius:4px;">LmsTraineeImport#1</code>). Change it in production via environment variable.
+      </p>
+      <div id="traineeImportErrors" class="trainee-import-validation-errors" style="display:none;margin-bottom:1rem;"></div>
+      <div id="traineeImportSuccess" class="trainee-import-validation-success" style="display:none;margin-bottom:1rem;"></div>
+      <div class="trainee-import-modal-actions">
+        <button type="button" class="btn btn-outline" id="traineeImportCancelBtn">Cancel</button>
+        <button type="button" class="btn btn-success" id="traineeImportSubmitBtn" disabled><i class="fas fa-upload"></i> Import</button>
       </div>
     </div>
   </div>
+  <% } %>
   
+  <% if (typeof traineeImportEnabled !== 'undefined' && traineeImportEnabled) { %>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <% } %>
   <script src="/js/main.js"></script>
   <script>
     function syncBulkActionsVisibility() {
@@ -1274,6 +1428,191 @@
         }
       });
     })();
+
+<% if (typeof traineeImportEnabled !== 'undefined' && traineeImportEnabled) { %>
+    (function initTraineeExcelImport() {
+      const HEADER_MAP = {
+        'timestamp': 'timestamp',
+        'name': 'full_name',
+        'ic/passport': 'ic_passport',
+        'email': 'email',
+        'handphone number': 'handphone_number',
+        'healthcare': 'healthcare',
+        'designation': 'designation',
+        'trainee id': 'trainee_id',
+        'area of specialization': 'area_of_specialization',
+        'serial number': 'serial_number',
+        'first training': 'first_training',
+        'latest training': 'latest_training',
+        're-certification date': 'recertification_date',
+        'number of completed trainings': 'number_of_completed_trainings',
+        'trainee status': 'trainee_status'
+      };
+      function normH(h) {
+        return String(h || '').trim().toLowerCase().replace(/\u00a0/g, ' ').replace(/\s+/g, ' ');
+      }
+      function rowToPayload(headerRow, dataRow) {
+        const o = {};
+        for (let i = 0; i < headerRow.length; i++) {
+          const field = HEADER_MAP[normH(headerRow[i])];
+          if (!field || field === 'timestamp') continue;
+          let v = dataRow[i];
+          if (v === undefined || v === null) v = '';
+          o[field] = v;
+        }
+        return o;
+      }
+      function validateRows(trainees) {
+        const errs = [];
+        const allowed = new Set(['active', 'inactive', 'suspended', 'registered']);
+        const seenE = new Set();
+        const seenT = new Set();
+        trainees.forEach(function (t, idx) {
+          const rowNum = idx + 2;
+          const name = String(t.full_name || '').trim();
+          if (!name) errs.push('Row ' + rowNum + ': Name is required');
+          if (!String(t.ic_passport || '').trim()) errs.push('Row ' + rowNum + ': IC/Passport is required');
+          const em = String(t.email || '').trim().toLowerCase();
+          if (!em) errs.push('Row ' + rowNum + ': Email is required');
+          var st = String(t.trainee_status || '').trim().toLowerCase();
+          if (!st) st = 'registered';
+          if (!allowed.has(st)) errs.push('Row ' + rowNum + ': Trainee Status must be active, inactive, suspended, or registered');
+          if (em && seenE.has(em)) errs.push('Row ' + rowNum + ': Duplicate email in file');
+          if (em) seenE.add(em);
+          var tid = String(t.trainee_id || '').trim();
+          if (tid.length > 10) errs.push('Row ' + rowNum + ': Trainee ID max 10 characters');
+          if (tid) {
+            if (seenT.has(tid)) errs.push('Row ' + rowNum + ': Duplicate Trainee ID in file');
+            seenT.add(tid);
+          }
+        });
+        return errs;
+      }
+
+      var modal = document.getElementById('traineeImportModal');
+      var fileInput = document.getElementById('traineeImportFile');
+      var btn = document.getElementById('traineeImportExcelBtn');
+      var closeBtn = document.getElementById('traineeImportModalClose');
+      var cancelBtn = document.getElementById('traineeImportCancelBtn');
+      var submitBtn = document.getElementById('traineeImportSubmitBtn');
+      var errEl = document.getElementById('traineeImportErrors');
+      var okEl = document.getElementById('traineeImportSuccess');
+      var pendingPayload = null;
+
+      function resetModalFeedback() {
+        pendingPayload = null;
+        if (errEl) { errEl.style.display = 'none'; errEl.innerHTML = ''; }
+        if (okEl) { okEl.style.display = 'none'; okEl.textContent = ''; }
+        if (submitBtn) submitBtn.disabled = true;
+      }
+      function closeM() {
+        if (modal) modal.classList.remove('active');
+        if (fileInput) fileInput.value = '';
+        resetModalFeedback();
+      }
+
+      btn?.addEventListener('click', function () {
+        if (fileInput) fileInput.click();
+      });
+      closeBtn?.addEventListener('click', closeM);
+      cancelBtn?.addEventListener('click', closeM);
+      modal?.addEventListener('click', function (e) {
+        if (e.target === modal) closeM();
+      });
+
+      fileInput?.addEventListener('change', function () {
+        var f = this.files[0];
+        if (!f || typeof XLSX === 'undefined') return;
+        if (modal) modal.classList.add('active');
+        resetModalFeedback();
+        var reader = new FileReader();
+        reader.onload = function (ev) {
+          try {
+            var data = new Uint8Array(ev.target.result);
+            var wb = XLSX.read(data, { type: 'array' });
+            var sheetName = wb.SheetNames.find(function (n) { return String(n).toLowerCase() === 'trainees'; }) || wb.SheetNames[0];
+            var sh = wb.Sheets[sheetName];
+            var rows = XLSX.utils.sheet_to_json(sh, { header: 1, defval: '', raw: true, blankrows: false });
+            if (!rows.length) {
+              errEl.innerHTML = '<strong>No data found in sheet.</strong>';
+              errEl.style.display = 'block';
+              return;
+            }
+            var headerRow = rows[0].map(function (c) { return String(c || ''); });
+            var trainees = [];
+            for (var r = 1; r < rows.length; r++) {
+              var line = rows[r];
+              if (!line || !line.length) continue;
+              if (line.every(function (c) { return c === '' || c === null || c === undefined; })) continue;
+              var obj = rowToPayload(headerRow, line);
+              if (!String(obj.full_name || '').trim() && !String(obj.email || '').trim() && !String(obj.ic_passport || '').trim()) continue;
+              if (!obj.trainee_status) obj.trainee_status = 'registered';
+              trainees.push(obj);
+            }
+            var verr = validateRows(trainees);
+            if (verr.length) {
+              errEl.innerHTML = '<strong>Fix these issues:</strong><ul>' + verr.map(function (e) { return '<li>' + e + '</li>'; }).join('') + '</ul>';
+              errEl.style.display = 'block';
+              return;
+            }
+            if (!trainees.length) {
+              errEl.innerHTML = '<strong>No valid data rows.</strong>';
+              errEl.style.display = 'block';
+              return;
+            }
+            pendingPayload = trainees;
+            okEl.textContent = trainees.length + ' trainee row(s) ready. Click Import to save.';
+            okEl.style.display = 'block';
+            submitBtn.disabled = false;
+          } catch (er) {
+            errEl.innerHTML = '<strong>Could not read file:</strong> ' + (er.message || String(er));
+            errEl.style.display = 'block';
+          }
+        };
+        reader.readAsArrayBuffer(f);
+      });
+
+      submitBtn?.addEventListener('click', function () {
+        if (!pendingPayload || !pendingPayload.length) return;
+        submitBtn.disabled = true;
+        var prevHtml = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing…';
+        fetch('/trainees/import/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trainees: pendingPayload })
+        })
+          .then(function (res) { return res.json().then(function (data) { return { res: res, data: data }; }); })
+          .then(function (out) {
+            if (out.data.success) {
+              if (typeof window.qssShowSuccess === 'function') {
+                window.qssShowSuccess('Imported ' + out.data.inserted + ' trainee(s).', 'Import complete');
+              }
+              setTimeout(function () { window.location.href = '/trainees'; }, 500);
+              return;
+            }
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = prevHtml;
+            if (out.data.errors && out.data.errors.length) {
+              errEl.innerHTML = '<strong>Server validation:</strong><ul>' + out.data.errors.map(function (e) { return '<li>' + e + '</li>'; }).join('') + '</ul>';
+              errEl.style.display = 'block';
+            } else {
+              errEl.innerHTML = '<strong>' + (out.data.error || 'Import failed') + '</strong>';
+              errEl.style.display = 'block';
+            }
+            if (typeof TailwindModal !== 'undefined' && TailwindModal.error) {
+              TailwindModal.error('Import failed', out.data.error || 'See messages below.');
+            }
+          })
+          .catch(function (err) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = prevHtml;
+            errEl.innerHTML = '<strong>Network error:</strong> ' + (err.message || '');
+            errEl.style.display = 'block';
+          });
+      });
+    })();
+<% } %>
   </script>
 </body>
 </html>

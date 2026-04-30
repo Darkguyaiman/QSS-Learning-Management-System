@@ -1,9 +1,130 @@
 const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const router = express.Router();
-const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
+
+/** Labels shown in Excel test-type dropdown (order matches column A on Lists sheet). */
+const TEST_TYPE_DROPDOWN_LABELS = ['Post Test', 'Pre Test', 'Certificate Enrolment'];
+const CORRECT_ANSWERS = ['A', 'B', 'C', 'D'];
+const TEMPLATE_DATA_LAST_ROW = 5000;
+
+/** Accept dropdown labels, legacy underscores, or common variants; returns DB enum value or null. */
+function normalizeBulkTestType(raw) {
+  if (raw === null || raw === undefined) return null;
+  let s = String(raw).replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]+/g, ' ').trim();
+  try {
+    s = s.normalize('NFKC');
+  } catch (e) { /* ignore */ }
+  s = s.toLowerCase().replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+  if (s === 'post test' || s === 'post-test') return 'post_test';
+  if (s === 'pre test' || s === 'pre-test') return 'pre_test';
+  if (s === 'certificate enrolment' || s === 'certificate enrollment') return 'certificate_enrolment';
+  return null;
+}
+
+/**
+ * Build .xlsx buffer: Questions sheet + hidden Lists sheet for validation dropdowns.
+ */
+async function buildQuestionsBulkTemplateBuffer(db) {
+  const [modules] = await db.query('SELECT name FROM modules ORDER BY name ASC');
+  const [objectives] = await db.query('SELECT name FROM objectives ORDER BY name ASC');
+
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'LMS';
+
+  // Questions must be the first worksheet so "first sheet" parsers and Excel's default tab match.
+  const ws = workbook.addWorksheet('Questions');
+  ws.addRow([
+    'Question',
+    'Test Type',
+    'Module',
+    'Objective',
+    'Option A',
+    'Option B',
+    'Option C',
+    'Option D',
+    'Correct Answer'
+  ]);
+  ws.getRow(1).font = { bold: true };
+  ws.columns = [
+    { width: 52 },
+    { width: 28 },
+    { width: 28 },
+    { width: 40 },
+    { width: 28 },
+    { width: 28 },
+    { width: 22 },
+    { width: 22 },
+    { width: 18 }
+  ];
+
+  const lists = workbook.addWorksheet('Lists');
+  lists.state = 'veryHidden';
+
+  TEST_TYPE_DROPDOWN_LABELS.forEach((label, i) => {
+    lists.getCell(i + 1, 1).value = label;
+  });
+  CORRECT_ANSWERS.forEach((t, i) => {
+    lists.getCell(i + 1, 2).value = t;
+  });
+
+  if (modules.length === 0) {
+    lists.getCell(1, 3).value = '';
+  } else {
+    modules.forEach((m, i) => {
+      lists.getCell(i + 1, 3).value = m.name;
+    });
+  }
+
+  if (objectives.length === 0) {
+    lists.getCell(1, 4).value = '';
+  } else {
+    objectives.forEach((o, i) => {
+      lists.getCell(i + 1, 4).value = o.name;
+    });
+  }
+
+  const nTest = TEST_TYPE_DROPDOWN_LABELS.length;
+  const nCorrect = CORRECT_ANSWERS.length;
+  const nMod = Math.max(modules.length, 1);
+  const nObj = Math.max(objectives.length, 1);
+
+  const listError = {
+    showErrorMessage: true,
+    errorStyle: 'error',
+    errorTitle: 'Invalid value',
+    error: 'Pick a value from the dropdown list.'
+  };
+
+  ws.dataValidations.add(`B2:B${TEMPLATE_DATA_LAST_ROW}`, {
+    type: 'list',
+    allowBlank: true,
+    ...listError,
+    formulae: [`Lists!$A$1:$A$${nTest}`]
+  });
+
+  ws.dataValidations.add(`C2:C${TEMPLATE_DATA_LAST_ROW}`, {
+    type: 'list',
+    allowBlank: true,
+    ...listError,
+    formulae: [`Lists!$C$1:$C$${nMod}`]
+  });
+
+  ws.dataValidations.add(`D2:D${TEMPLATE_DATA_LAST_ROW}`, {
+    type: 'list',
+    allowBlank: true,
+    ...listError,
+    formulae: [`Lists!$D$1:$D$${nObj}`]
+  });
+
+  ws.dataValidations.add(`I2:I${TEMPLATE_DATA_LAST_ROW}`, {
+    type: 'list',
+    allowBlank: true,
+    ...listError,
+    formulae: [`Lists!$B$1:$B$${nCorrect}`]
+  });
+
+  return workbook.xlsx.writeBuffer();
+}
 
 // List questions
 router.get('/', async (req, res) => {
@@ -217,47 +338,14 @@ router.post('/:id/delete', async (req, res) => {
   }
 });
 
-// Download bulk upload template
+// Download bulk upload template (generated: dropdowns for test type, module, objective, correct answer)
 router.get('/bulk/template', async (req, res) => {
   try {
-    // Try multiple possible locations for the template
-    const possiblePaths = [
-      path.join(__dirname, '..', 'Questions Bulk Creation Template.xlsx'),
-      path.join(process.cwd(), 'Questions Bulk Creation Template.xlsx'),
-      path.join(__dirname, '..', '..', 'Questions Bulk Creation Template.xlsx')
-    ];
-    
-    let templatePath = null;
-    for (const possiblePath of possiblePaths) {
-      if (fs.existsSync(possiblePath)) {
-        templatePath = possiblePath;
-        break;
-      }
-    }
-    
-    // If template doesn't exist, create it
-    if (!templatePath) {
-      templatePath = path.join(__dirname, '..', 'Questions Bulk Creation Template.xlsx');
-      const workbook = XLSX.utils.book_new();
-      const worksheetData = [
-        ['Question', 'Test Type', 'Module', 'Objective', 'Option A', 'Option B', 'Option C', 'Option D', 'Correct Answer'],
-        ['What is the capital of France?', 'pre_test', 'Module A', 'Geography', 'Paris', 'London', 'Berlin', 'Madrid', 'A'],
-        ['What is 2 + 2?', 'post_test', 'Module A', 'Mathematics', '3', '4', '5', '6', 'B'],
-        ['Sample certificate question?', 'certificate_enrolment', 'Module A', 'General', 'Option 1', 'Option 2', 'Option 3', 'Option 4', 'A']
-      ];
-      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Questions');
-      XLSX.writeFile(workbook, templatePath);
-    }
-    
-    res.download(templatePath, 'Questions Bulk Creation Template.xlsx', (err) => {
-      if (err) {
-        console.error('Template download error:', err);
-        if (!res.headersSent) {
-          res.status(500).send('Error downloading template');
-        }
-      }
-    });
+    const buffer = await buildQuestionsBulkTemplateBuffer(req.db);
+    const filename = 'Questions Bulk Creation Template.xlsx';
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(Buffer.from(buffer));
   } catch (error) {
     console.error('Template download error:', error);
     if (!res.headersSent) {
@@ -296,6 +384,7 @@ router.post('/bulk/upload', async (req, res) => {
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       const rowNum = i + 2; // Excel row number (accounting for header)
+      const testTypeNorm = normalizeBulkTestType(q.test_type);
       
       // Determine available options (C and D are optional) - MUST be defined before use
       const hasOptionC = q.option_c && q.option_c.trim() !== '';
@@ -316,16 +405,21 @@ router.post('/bulk/upload', async (req, res) => {
       }
       
       // Validate module exists
-      const moduleId = moduleMap[(q.module_name || '').toLowerCase()];
+      const moduleId = moduleMap[String(q.module_name || '').trim().toLowerCase()];
       if (!moduleId) {
         errors.push(`Row ${rowNum}: Module "${q.module_name}" not found in system`);
         continue;
       }
 
       // Validate objective exists
-      const objectiveId = objectiveMap[q.objective_name.toLowerCase()];
+      const objectiveId = objectiveMap[String(q.objective_name || '').trim().toLowerCase()];
       if (!objectiveId) {
         errors.push(`Row ${rowNum}: Objective "${q.objective_name}" not found in system`);
+        continue;
+      }
+
+      if (!testTypeNorm) {
+        errors.push(`Row ${rowNum}: Invalid test type "${q.test_type}". Use Post Test, Pre Test, or Certificate Enrolment.`);
         continue;
       }
 
@@ -341,16 +435,10 @@ router.post('/bulk/upload', async (req, res) => {
         AND test_type = ? 
         AND correct_answer = ?
         AND module_id = ?
-      `, [q.question_text, q.option_a, q.option_b, hasOptionC ? q.option_c : null, hasOptionC ? q.option_c : null, hasOptionD ? q.option_d : null, hasOptionD ? q.option_d : null, q.test_type, q.correct_answer, moduleId]);
+      `, [q.question_text, q.option_a, q.option_b, hasOptionC ? q.option_c : null, hasOptionC ? q.option_c : null, hasOptionD ? q.option_d : null, hasOptionD ? q.option_d : null, testTypeNorm, q.correct_answer, moduleId]);
       
       if (existing.length > 0) {
         errors.push(`Row ${rowNum}: Duplicate question found (same question, options, type, correct answer, and module already exists)`);
-        continue;
-      }
-      
-      // Validate test type
-      if (!['pre_test', 'post_test', 'certificate_enrolment'].includes(q.test_type)) {
-        errors.push(`Row ${rowNum}: Invalid test type "${q.test_type}"`);
         continue;
       }
       
@@ -368,7 +456,7 @@ router.post('/bulk/upload', async (req, res) => {
         option_c: hasOptionC ? q.option_c : null,
         option_d: hasOptionD ? q.option_d : null,
         correct_answer: q.correct_answer,
-        test_type: q.test_type,
+        test_type: testTypeNorm,
         module_id: moduleId,
         objective_id: objectiveId,
         created_by: req.session.userId

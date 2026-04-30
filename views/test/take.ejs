@@ -78,6 +78,8 @@
                 <div class="form-group" style="margin-bottom: 0;">
                   <% ['A','B','C','D'].forEach(function(optionLetter) { %>
                     <% const optionKey = 'option_' + optionLetter.toLowerCase(); %>
+                    <% const optionText = question[optionKey]; %>
+                    <% if (optionText != null && String(optionText).trim() !== '') { %>
                     <label class="test-option-row">
                       <input 
                         type="radio" 
@@ -86,9 +88,10 @@
                         class="test-option-input"
                       >
                       <span>
-                        <strong><%= optionLetter %>:</strong> <%= question[optionKey] %>
+                        <strong><%= optionLetter %>:</strong> <%= optionText %>
                       </span>
                     </label>
+                    <% } %>
                   <% }); %>
                 </div>
               </div>

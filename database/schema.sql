@@ -36,10 +36,9 @@ CREATE TABLE trainees (
   email VARCHAR(255) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
   handphone_number VARCHAR(20),
-  healthcare VARCHAR(255),
-  designation VARCHAR(255),
-  area_of_specialization VARCHAR(255),
-  serial_number VARCHAR(100),
+  healthcare_id INT NULL,
+  designation_id INT NULL,
+  device_serial_number_id INT NULL,
   first_training DATE,
   latest_training DATE,
   recertification_date DATE,
@@ -71,6 +70,15 @@ CREATE TABLE healthcare (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+-- Designations table
+CREATE TABLE designations (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL UNIQUE,
+  description TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
 -- Areas of Specialization table
 CREATE TABLE areas_of_specialization (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -78,6 +86,16 @@ CREATE TABLE areas_of_specialization (
   description TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Trainee Areas of Specialization (many-to-many)
+CREATE TABLE trainee_area_of_specializations (
+  trainee_id INT NOT NULL,
+  area_of_specialization_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (trainee_id, area_of_specialization_id),
+  FOREIGN KEY (trainee_id) REFERENCES trainees(id) ON DELETE CASCADE,
+  FOREIGN KEY (area_of_specialization_id) REFERENCES areas_of_specialization(id) ON DELETE CASCADE
 );
 
 -- Modules table
@@ -117,6 +135,14 @@ CREATE TABLE device_serial_numbers (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (device_model_id) REFERENCES device_models(id) ON DELETE RESTRICT
 );
+
+ALTER TABLE trainees
+  ADD CONSTRAINT fk_trainees_healthcare
+    FOREIGN KEY (healthcare_id) REFERENCES healthcare(id) ON DELETE SET NULL,
+  ADD CONSTRAINT fk_trainees_designation
+    FOREIGN KEY (designation_id) REFERENCES designations(id) ON DELETE SET NULL,
+  ADD CONSTRAINT fk_trainees_device_serial_number
+    FOREIGN KEY (device_serial_number_id) REFERENCES device_serial_numbers(id) ON DELETE SET NULL;
 
 -- Practical Learning Outcomes Settings table (templates for outcomes)
 CREATE TABLE practical_learning_outcomes_settings (
@@ -445,6 +471,9 @@ CREATE TABLE package_generation_jobs (
 
 -- Indexes for better performance
 CREATE INDEX idx_user_role ON users(role);
+CREATE INDEX idx_trainees_healthcare ON trainees(healthcare_id);
+CREATE INDEX idx_trainees_designation ON trainees(designation_id);
+CREATE INDEX idx_trainees_device_serial_number ON trainees(device_serial_number_id);
 CREATE INDEX idx_training_type ON trainings(type);
 CREATE INDEX idx_enrollment_trainee ON enrollments(trainee_id);
 CREATE INDEX idx_enrollment_training ON enrollments(training_id);
@@ -455,5 +484,6 @@ CREATE INDEX idx_device_model ON device_serial_numbers(device_model_id);
 CREATE INDEX idx_questions_module ON questions(module_id);
 CREATE INDEX idx_trainings_module ON trainings(module_id);
 CREATE INDEX idx_trainings_device_model ON trainings(device_model_id);
+CREATE INDEX idx_taos_area ON trainee_area_of_specializations(area_of_specialization_id);
 CREATE INDEX idx_package_generation_jobs_status ON package_generation_jobs(status, created_at);
 CREATE INDEX idx_package_generation_jobs_lookup ON package_generation_jobs(created_by, training_id, status, created_at);

@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const bcrypt = require('bcrypt');
 const router = express.Router();
+const { normalizeTraineeRecord } = require('../utils/area-of-specialization');
 
 // Profile picture upload
 const storage = multer.diskStorage({
@@ -43,8 +44,24 @@ const certificateUpload = multer({
 // Helper function to get profile
 async function getProfile(db, userRole, userId) {
   if (userRole === 'trainee') {
-    const [trainees] = await db.query('SELECT * FROM trainees WHERE id = ?', [userId]);
-    return trainees.length > 0 ? trainees[0] : null;
+    const [trainees] = await db.query(`
+      SELECT
+        t.*,
+        h.name AS healthcare,
+        d.name AS designation,
+        GROUP_CONCAT(DISTINCT aos.name ORDER BY aos.name SEPARATOR ', ') AS area_of_specialization,
+        dsn.serial_number AS serial_number
+      FROM trainees t
+      LEFT JOIN healthcare h ON h.id = t.healthcare_id
+      LEFT JOIN designations d ON d.id = t.designation_id
+      LEFT JOIN device_serial_numbers dsn ON dsn.id = t.device_serial_number_id
+      LEFT JOIN trainee_area_of_specializations taos ON taos.trainee_id = t.id
+      LEFT JOIN areas_of_specialization aos ON aos.id = taos.area_of_specialization_id
+      WHERE t.id = ?
+      GROUP BY
+        t.id, h.name, d.name, dsn.serial_number
+    `, [userId]);
+    return trainees.length > 0 ? normalizeTraineeRecord(trainees[0]) : null;
   } else {
     const [users] = await db.query('SELECT * FROM users WHERE id = ?', [userId]);
     return users.length > 0 ? users[0] : null;
@@ -100,8 +117,7 @@ router.post('/update', async (req, res) => {
     if (!cleanFirstName || !cleanLastName || !cleanEmail) {
       let profile;
       if (req.session.userRole === 'trainee') {
-        const [trainees] = await req.db.query('SELECT * FROM trainees WHERE id = ?', [req.session.userId]);
-        profile = trainees[0];
+        profile = await getProfile(req.db, req.session.userRole, req.session.userId);
       } else {
         const [users] = await req.db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
         profile = users[0];
@@ -117,8 +133,7 @@ router.post('/update', async (req, res) => {
         [cleanEmail, req.session.userId]
       );
       if (existingTrainee.length > 0) {
-        const [trainees] = await req.db.query('SELECT * FROM trainees WHERE id = ?', [req.session.userId]);
-        return renderProfileView(req, res, trainees[0], {
+        return renderProfileView(req, res, await getProfile(req.db, req.session.userRole, req.session.userId), {
           error: 'That email address is already in use.'
         });
       }
@@ -168,8 +183,7 @@ router.post('/update', async (req, res) => {
     let profile;
     try {
       if (req.session.userRole === 'trainee') {
-        const [trainees] = await req.db.query('SELECT * FROM trainees WHERE id = ?', [req.session.userId]);
-        profile = trainees[0];
+        profile = await getProfile(req.db, req.session.userRole, req.session.userId);
       } else {
         const [users] = await req.db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
         profile = users[0];
@@ -190,8 +204,7 @@ router.post('/upload-picture', upload.single('profilePicture'), async (req, res)
     if (!['admin', 'trainer'].includes(req.session.userRole)) {
       let profile;
       if (req.session.userRole === 'trainee') {
-        const [trainees] = await req.db.query('SELECT * FROM trainees WHERE id = ?', [req.session.userId]);
-        profile = trainees[0];
+        profile = await getProfile(req.db, req.session.userRole, req.session.userId);
       } else {
         const [users] = await req.db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
         profile = users[0];
@@ -204,8 +217,7 @@ router.post('/upload-picture', upload.single('profilePicture'), async (req, res)
     if (!req.file) {
       let profile;
       if (req.session.userRole === 'trainee') {
-        const [trainees] = await req.db.query('SELECT * FROM trainees WHERE id = ?', [req.session.userId]);
-        profile = trainees[0];
+        profile = await getProfile(req.db, req.session.userRole, req.session.userId);
       } else {
         const [users] = await req.db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
         profile = users[0];
@@ -219,8 +231,7 @@ router.post('/upload-picture', upload.single('profilePicture'), async (req, res)
     if (req.file.size > 5 * 1024 * 1024) {
       let profile;
       if (req.session.userRole === 'trainee') {
-        const [trainees] = await req.db.query('SELECT * FROM trainees WHERE id = ?', [req.session.userId]);
-        profile = trainees[0];
+        profile = await getProfile(req.db, req.session.userRole, req.session.userId);
       } else {
         const [users] = await req.db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
         profile = users[0];
@@ -251,8 +262,7 @@ router.post('/upload-picture', upload.single('profilePicture'), async (req, res)
     let profile;
     try {
       if (req.session.userRole === 'trainee') {
-        const [trainees] = await req.db.query('SELECT * FROM trainees WHERE id = ?', [req.session.userId]);
-        profile = trainees[0];
+        profile = await getProfile(req.db, req.session.userRole, req.session.userId);
       } else {
         const [users] = await req.db.query('SELECT * FROM users WHERE id = ?', [req.session.userId]);
         profile = users[0];

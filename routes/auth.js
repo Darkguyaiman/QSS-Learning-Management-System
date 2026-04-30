@@ -1,6 +1,60 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const router = express.Router();
+const { normalizeAreaValue } = require('../utils/area-of-specialization');
+
+async function resolveHealthcareId(db, healthcareName) {
+  const name = String(healthcareName || '').trim();
+  if (!name) return null;
+
+  const [rows] = await db.query('SELECT id FROM healthcare WHERE name = ? LIMIT 1', [name]);
+  return rows[0]?.id || null;
+}
+
+async function ensureDesignationId(dbOrConnection, designationName) {
+  const name = String(designationName || '').trim();
+  if (!name) return null;
+
+  await dbOrConnection.query(
+    'INSERT INTO designations (name) VALUES (?) ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), name = VALUES(name)',
+    [name]
+  );
+  const [rows] = await dbOrConnection.query('SELECT LAST_INSERT_ID() AS id');
+  return rows[0]?.id || null;
+}
+
+async function resolveDeviceSerialNumberId(db, serialNumber) {
+  const value = String(serialNumber || '').trim();
+  if (!value) return null;
+
+  const [rows] = await db.query('SELECT id FROM device_serial_numbers WHERE serial_number = ? LIMIT 1', [value]);
+  return rows[0]?.id || null;
+}
+
+async function resolveAreaIds(db, values) {
+  const names = normalizeAreaValue(values);
+  if (names.length === 0) {
+    return { ids: [], missing: [] };
+  }
+
+  const placeholders = names.map(() => '?').join(',');
+  const [rows] = await db.query(
+    `SELECT id, name FROM areas_of_specialization WHERE name IN (${placeholders})`,
+    names
+  );
+
+  const byName = new Map(rows.map((row) => [row.name, row.id]));
+  const ids = [];
+  const missing = [];
+
+  for (const name of names) {
+    const id = byName.get(name);
+    if (id) ids.push(id);
+    else missing.push(name);
+  }
+
+  return { ids, missing };
+}
 
 // Login page
 router.get('/login', (req, res) => {
@@ -258,33 +312,69 @@ router.post('/register', async (req, res) => {
         }
       }
       
+      const [healthcareId, deviceSerialNumberId, areaResolution] = await Promise.all([
+        resolveHealthcareId(req.db, healthcare),
+        resolveDeviceSerialNumberId(req.db, serialNumber),
+        resolveAreaIds(req.db, areaOfSpecialization)
+      ]);
+
+      if (!healthcareId) {
+        if (isAjax) {
+          return sendJsonResponse(false, 'Selected healthcare was not found.', [], { healthcare: 'Selected healthcare was not found' });
+        }
+        return await sendHtmlResponse('Selected healthcare was not found.');
+      }
+
+      if (serialNumber && !deviceSerialNumberId) {
+        if (isAjax) {
+          return sendJsonResponse(false, 'Selected serial number was not found.', [], { serialNumber: 'Selected serial number was not found' });
+        }
+        return await sendHtmlResponse('Selected serial number was not found.');
+      }
+
+      if (areaResolution.missing.length > 0) {
+        if (isAjax) {
+          return sendJsonResponse(false, 'One or more areas of specialization were not found.', [], { areaOfSpecialization: 'One or more areas of specialization were not found' });
+        }
+        return await sendHtmlResponse(`Unknown area(s) of specialization: ${areaResolution.missing.join(', ')}`);
+      }
+
       // Generate unique trainee ID
       const { generateUniqueTraineeId } = require('../config/database');
       const connection = await req.db.getConnection();
-      const traineeId = await generateUniqueTraineeId(connection);
-      connection.release();
 
-      // Normalize areaOfSpecialization: support multi-select (array) or single value
-      let normalizedAreaOfSpecialization = null;
-      if (Array.isArray(areaOfSpecialization)) {
-        normalizedAreaOfSpecialization = areaOfSpecialization.join(', ');
-      } else if (areaOfSpecialization) {
-        normalizedAreaOfSpecialization = areaOfSpecialization;
+      try {
+        await connection.beginTransaction();
+        const traineeId = await generateUniqueTraineeId(connection);
+        const designationId = await ensureDesignationId(connection, designation);
+
+        const [insertResult] = await connection.query(
+          `INSERT INTO trainees (
+            trainee_id, email, password, first_name, last_name, 
+            ic_passport, handphone_number, healthcare_id, designation_id, 
+            device_serial_number_id, trainee_status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'registered')`,
+          [
+            traineeId, email, hashedPassword, firstName, lastName,
+            icPassport, handphoneNumber, healthcareId, designationId,
+            deviceSerialNumberId
+          ]
+        );
+
+        for (const areaId of areaResolution.ids) {
+          await connection.query(
+            'INSERT INTO trainee_area_of_specializations (trainee_id, area_of_specialization_id) VALUES (?, ?)',
+            [insertResult.insertId, areaId]
+          );
+        }
+
+        await connection.commit();
+      } catch (transactionError) {
+        await connection.rollback();
+        throw transactionError;
+      } finally {
+        connection.release();
       }
-      
-      // Insert trainee with all required fields
-      await req.db.query(
-        `INSERT INTO trainees (
-          trainee_id, email, password, first_name, last_name, 
-          ic_passport, handphone_number, healthcare, designation, 
-          area_of_specialization, serial_number, trainee_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'registered')`,
-        [
-          traineeId, email, hashedPassword, firstName, lastName,
-          icPassport, handphoneNumber, healthcare, designation,
-          normalizedAreaOfSpecialization, serialNumber || null
-        ]
-      );
     } else {
       // Register as admin or trainer
       // Check if user exists
