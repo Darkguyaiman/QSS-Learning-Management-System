@@ -4,14 +4,14 @@
   const affiliatedBrand = affiliatedCompany === 'PMS'
     ? { code: 'PMS', name: 'Photomedic Solutions Sdn. Bhd.', shortName: 'PMS', logo: '/images/Affiliated%20Companies/pmslogo.svg' }
     : { code: 'QSS', name: 'Quick Stop Solution Sdn. Bhd.', shortName: 'QSS', logo: '/images/Affiliated%20Companies/qsslogo.svg' };
-  const selectedHealthcareId = Array.isArray(trainingHealthcare) && trainingHealthcare.length > 0
-    ? String(trainingHealthcare[0].healthcare_id || '')
-    : '';
-  const selectedHealthcare = Array.isArray(allHealthcare)
-    ? allHealthcare.find(item => String(item.id) === selectedHealthcareId)
-    : null;
-  const defaultHospitalName = selectedHealthcare?.name || '';
-  const defaultHospitalAddress = selectedHealthcare?.hospital_address || '';
+  const packageHealthcareOptions = Array.isArray(trainingHealthcare) && Array.isArray(allHealthcare)
+    ? trainingHealthcare
+        .map(th => allHealthcare.find(item => String(item.id) === String(th.healthcare_id || '')))
+        .filter(Boolean)
+    : [];
+  const defaultHealthcare = packageHealthcareOptions[0] || null;
+  const defaultHospitalName = defaultHealthcare?.name || '';
+  const defaultHospitalAddress = defaultHealthcare?.hospital_address || '';
   let defaultModelName = '';
   if (Array.isArray(allDeviceModels)) {
     const model = allDeviceModels.find(m => String(m.id) === String(training.device_model_id));
@@ -32,9 +32,20 @@
         <label>Affiliated Company</label>
         <input type="text" class="form-input" value="<%= affiliatedBrand.shortName %>" readonly>
       </div>
-      <div class="form-group package-hidden-field">
-        <label for="package-hospital-name">Hospital Name</label>
-        <input id="package-hospital-name" class="form-input" type="text" value="<%= defaultHospitalName %>" readonly>
+      <div class="form-group">
+        <label for="package-healthcare-select">Letter Healthcare Centre</label>
+        <select id="package-healthcare-select" class="form-input" <%= packageHealthcareOptions.length ? '' : 'disabled' %>>
+          <option value="">Select healthcare centre</option>
+          <% packageHealthcareOptions.forEach(hc => { %>
+            <option
+              value="<%= hc.id %>"
+              data-name="<%= hc.name %>"
+              data-address="<%= hc.hospital_address || '' %>"
+              <%= defaultHealthcare && String(defaultHealthcare.id) === String(hc.id) ? 'selected' : '' %>>
+              <%= hc.name %>
+            </option>
+          <% }); %>
+        </select>
       </div>
       <div class="form-group">
         <label for="package-device-model">Device Model</label>
@@ -134,6 +145,30 @@
     marksData: <%- JSON.stringify(Array.isArray(marksData) ? marksData : []) %>,
     attendanceData: <%- JSON.stringify(Array.isArray(attendanceData) ? attendanceData : []) %>
   };
+</script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const healthcareSelect = document.getElementById('package-healthcare-select');
+    const hospitalNameInput = document.getElementById('package-hospital-name-hidden');
+    const addressInput = document.getElementById('package-address-hidden');
+    const addressTextarea = document.getElementById('package-address');
+
+    function syncPackageHealthcare() {
+      if (!healthcareSelect) return;
+      const selectedOption = healthcareSelect.options[healthcareSelect.selectedIndex];
+      const hospitalName = selectedOption ? (selectedOption.getAttribute('data-name') || '') : '';
+      const address = selectedOption ? (selectedOption.getAttribute('data-address') || '') : '';
+
+      if (hospitalNameInput) hospitalNameInput.value = hospitalName;
+      if (addressInput) addressInput.value = address;
+      if (addressTextarea) addressTextarea.value = address;
+    }
+
+    if (healthcareSelect) {
+      healthcareSelect.addEventListener('change', syncPackageHealthcare);
+      syncPackageHealthcare();
+    }
+  });
 </script>
 <script src="/js/training/package/package-common.js"></script>
 <script src="/js/training/package/attendance-report.js"></script>

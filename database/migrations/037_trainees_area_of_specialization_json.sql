@@ -4,14 +4,6 @@
 USE lms_db;
 
 ALTER TABLE trainees
-  ADD COLUMN IF NOT EXISTS healthcare VARCHAR(255) NULL AFTER handphone_number,
-  ADD COLUMN IF NOT EXISTS designation VARCHAR(255) NULL AFTER healthcare,
-  ADD COLUMN IF NOT EXISTS area_of_specialization VARCHAR(255) NULL AFTER designation;
-
-ALTER TABLE trainees
-  ADD COLUMN IF NOT EXISTS serial_number VARCHAR(100) NULL AFTER area_of_specialization;
-
-ALTER TABLE trainees
   ADD COLUMN area_of_specialization_json JSON NULL AFTER designation;
 
 UPDATE trainees

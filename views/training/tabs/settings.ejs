@@ -1,6 +1,66 @@
 <!-- Settings Tab (Admin/Trainer Only) -->
 <% if (['admin', 'trainer'].includes(user.userRole)) { %>
   <%
+    const selectedHealthcareIds = new Set(
+      Array.isArray(trainingHealthcare)
+        ? trainingHealthcare.map(th => String(th.healthcare_id))
+        : []
+    );
+    const orderedHealthcare = Array.isArray(allHealthcare)
+      ? [...allHealthcare].sort((a, b) => {
+          const aSelected = selectedHealthcareIds.has(String(a.id)) ? 0 : 1;
+          const bSelected = selectedHealthcareIds.has(String(b.id)) ? 0 : 1;
+          if (aSelected !== bSelected) return aSelected - bSelected;
+          return String(a.name || '').localeCompare(String(b.name || ''));
+        })
+      : [];
+    const selectedTraineeIds = new Set(
+      Array.isArray(enrolledTrainees)
+        ? enrolledTrainees.map(tr => String(tr.id))
+        : []
+    );
+    const orderedTrainees = Array.isArray(allTrainees)
+      ? [...allTrainees].sort((a, b) => {
+          const aSelected = selectedTraineeIds.has(String(a.id)) ? 0 : 1;
+          const bSelected = selectedTraineeIds.has(String(b.id)) ? 0 : 1;
+          if (aSelected !== bSelected) return aSelected - bSelected;
+          const aName = `${a.first_name || ''} ${a.last_name || ''}`.trim();
+          const bName = `${b.first_name || ''} ${b.last_name || ''}`.trim();
+          return aName.localeCompare(bName);
+        })
+      : [];
+    const selectedDeviceIds = new Set(
+      Array.isArray(trainingDevices)
+        ? trainingDevices
+            .map(td => td.device_serial_number_id)
+            .filter(Boolean)
+            .map(id => String(id))
+        : []
+    );
+    const orderedDevices = Array.isArray(allDevices)
+      ? [...allDevices].sort((a, b) => {
+          const aSelected = selectedDeviceIds.has(String(a.id)) ? 0 : 1;
+          const bSelected = selectedDeviceIds.has(String(b.id)) ? 0 : 1;
+          if (aSelected !== bSelected) return aSelected - bSelected;
+          return String(a.serial_number || '').localeCompare(String(b.serial_number || ''));
+        })
+      : [];
+    const selectedTrainerIds = new Set(
+      Array.isArray(trainers)
+        ? trainers.map(tr => String(tr.id))
+        : []
+    );
+    const orderedTrainers = Array.isArray(allTrainers)
+      ? [...allTrainers].sort((a, b) => {
+          const aSelected = selectedTrainerIds.has(String(a.id)) ? 0 : 1;
+          const bSelected = selectedTrainerIds.has(String(b.id)) ? 0 : 1;
+          if (aSelected !== bSelected) return aSelected - bSelected;
+          const aName = `${a.first_name || ''} ${a.last_name || ''}`.trim();
+          const bName = `${b.first_name || ''} ${b.last_name || ''}`.trim();
+          return aName.localeCompare(bName);
+        })
+      : [];
+
     function toLocalInputValue(dateValue) {
       if (!dateValue) return '';
       const d = new Date(dateValue);
@@ -132,22 +192,25 @@
           <div class="form-group">
             <label>
               <i class="fas fa-building"></i>
-              Select Healthcare Centre *
+              Select Healthcare Centre(s) *
             </label>
             <div class="multiselect-container">
               <input type="text" class="multiselect-search" placeholder="Search healthcare centres..." id="settings-healthcare-search">
               <div class="multiselect-options" id="settings-healthcare-options">
-                <% if (typeof allHealthcare !== 'undefined' && allHealthcare) { %>
-                  <% allHealthcare.forEach(hc => { %>
-                    <% const isSelected = typeof trainingHealthcare !== 'undefined' && trainingHealthcare.some(th => th.healthcare_id === hc.id); %>
+                <% if (orderedHealthcare.length) { %>
+                  <% orderedHealthcare.forEach(hc => { %>
+                    <% const isSelected = selectedHealthcareIds.has(String(hc.id)); %>
                     <label class="multiselect-option">
-                      <input type="radio" name="healthcare_id" value="<%= hc.id %>" class="settings-healthcare-radio" <%= isSelected ? 'checked' : '' %> <%= training.is_locked ? 'disabled' : '' %> required>
+                      <input type="checkbox" name="healthcare_ids[]" value="<%= hc.id %>" class="settings-healthcare-checkbox" <%= isSelected ? 'checked' : '' %> <%= training.is_locked ? 'disabled' : '' %>>
                       <span><%= hc.name %></span>
                     </label>
                   <% }); %>
                 <% } %>
               </div>
             </div>
+            <small style="color: #6B7280; font-size: 0.875rem; margin-top: 0.5rem; display: block;">
+              Selected healthcare centres appear first. Only trainees from the selected healthcare centres will be shown.
+            </small>
           </div>
         </div>
         
@@ -165,9 +228,9 @@
             <div class="multiselect-container">
               <input type="text" class="multiselect-search" placeholder="Search devices by serial number or model..." id="settings-device-search">
               <div class="multiselect-options" id="settings-device-options">
-                <% if (typeof allDevices !== 'undefined' && allDevices) { %>
-                  <% allDevices.forEach(device => { %>
-                    <% const isSelected = typeof trainingDevices !== 'undefined' && trainingDevices.some(td => td.device_serial_number_id === device.id); %>
+                <% if (orderedDevices.length) { %>
+                  <% orderedDevices.forEach(device => { %>
+                    <% const isSelected = selectedDeviceIds.has(String(device.id)); %>
                     <label class="multiselect-option">
                       <input type="checkbox" name="device_ids[]" value="<%= device.id %>" <%= isSelected ? 'checked' : '' %>>
                       <span><%= device.serial_number %> <% if (device.model_name) { %>(<%= device.model_name %>)<% } %></span>
@@ -176,6 +239,9 @@
                 <% } %>
               </div>
             </div>
+            <small style="color: #6B7280; font-size: 0.875rem; margin-top: 0.5rem; display: block;">
+              Selected serial numbers appear first in the list.
+            </small>
           </div>
           
           <div class="form-group" id="settings-custom-devices-container">
@@ -219,9 +285,9 @@
             <div class="multiselect-container">
               <input type="text" class="multiselect-search" placeholder="Search trainers by name or email..." id="settings-trainer-search">
               <div class="multiselect-options" id="settings-trainer-options">
-                <% if (typeof allTrainers !== 'undefined' && allTrainers) { %>
-                  <% allTrainers.forEach(t => { %>
-                    <% const isSelected = typeof trainers !== 'undefined' && trainers.some(tr => tr.id === t.id); %>
+                <% if (orderedTrainers.length) { %>
+                  <% orderedTrainers.forEach(t => { %>
+                    <% const isSelected = selectedTrainerIds.has(String(t.id)); %>
                     <label class="multiselect-option trainer-option">
                       <input type="checkbox" name="trainer_ids[]" value="<%= t.id %>" <%= isSelected ? 'checked' : '' %>>
                       <div class="trainer-option-content">
@@ -239,6 +305,9 @@
                 <% } %>
               </div>
             </div>
+            <small style="color: #6B7280; font-size: 0.875rem; margin-top: 0.5rem; display: block;">
+              Selected trainers appear first in the list.
+            </small>
           </div>
         </div>
         
@@ -256,9 +325,9 @@
             <div class="multiselect-container" id="settings-trainee-container">
               <input type="text" class="multiselect-search" placeholder="Search by name, email, healthcare, IC/Passport, or Trainee ID..." id="settings-trainee-search">
               <div class="multiselect-options" id="settings-trainee-options">
-                <% if (typeof allTrainees !== 'undefined' && allTrainees) { %>
-                  <% allTrainees.forEach(t => { %>
-                    <% const isSelected = typeof enrolledTrainees !== 'undefined' && enrolledTrainees.some(tr => tr.id === t.id); %>
+                <% if (orderedTrainees.length) { %>
+                  <% orderedTrainees.forEach(t => { %>
+                    <% const isSelected = selectedTraineeIds.has(String(t.id)); %>
                     <label class="multiselect-option trainee-option" data-healthcare-id="<%= t.healthcare_id || '' %>" data-search-text="<%= (t.healthcare || '') + ' ' + t.first_name + ' ' + t.last_name + ' ' + t.email + ' ' + (t.ic_passport || '') + ' ' + (t.trainee_id || '') %>">
                       <input type="checkbox" name="trainee_ids[]" value="<%= t.id %>" <%= isSelected ? 'checked' : '' %>>
                       <div class="trainee-option-content">
@@ -286,6 +355,9 @@
                 <% } %>
               </div>
             </div>
+            <small style="color: #6B7280; font-size: 0.875rem; margin-top: 0.5rem; display: block;">
+              Selected trainees appear first in the list.
+            </small>
           </div>
         </div>
         

@@ -1262,9 +1262,9 @@
       });
     }
     
-    function getSelectedSettingsHealthcareId() {
-      const selected = document.querySelector('#settings-form input[name="healthcare_id"]:checked');
-      return selected ? String(selected.value) : '';
+    function getSelectedSettingsHealthcareIds() {
+      return Array.from(document.querySelectorAll('#settings-form input[name="healthcare_ids[]"]:checked'))
+        .map(input => String(input.value));
     }
 
     function applySettingsTraineeFilter() {
@@ -1272,14 +1272,14 @@
       const traineeOptions = document.getElementById('settings-trainee-options');
       if (!traineeOptions) return;
 
-      const selectedHealthcareId = getSelectedSettingsHealthcareId();
+      const selectedHealthcareIds = getSelectedSettingsHealthcareIds();
       const searchTerm = String(traineeSearch?.value || '').toLowerCase();
       const options = traineeOptions.querySelectorAll('.trainee-option');
 
       options.forEach(option => {
         const optionHealthcareId = String(option.getAttribute('data-healthcare-id') || '');
         const searchText = String(option.getAttribute('data-search-text') || '').toLowerCase();
-        const matchesHealthcare = selectedHealthcareId && optionHealthcareId === selectedHealthcareId;
+        const matchesHealthcare = selectedHealthcareIds.length > 0 && selectedHealthcareIds.includes(optionHealthcareId);
         const matchesSearch = !searchTerm || searchText.includes(searchTerm);
         const visible = matchesHealthcare && matchesSearch;
 
@@ -1299,8 +1299,8 @@
         traineeSearch.addEventListener('input', applySettingsTraineeFilter);
       }
 
-      document.querySelectorAll('#settings-form input[name="healthcare_id"]').forEach(radio => {
-        radio.addEventListener('change', applySettingsTraineeFilter);
+      document.querySelectorAll('#settings-form input[name="healthcare_ids[]"]').forEach(checkbox => {
+        checkbox.addEventListener('change', applySettingsTraineeFilter);
       });
 
       applySettingsTraineeFilter();
@@ -1376,13 +1376,15 @@
       formData.append('start_datetime', form.querySelector('[name="start_datetime"]').value || '');
       formData.append('end_datetime', form.querySelector('[name="end_datetime"]').value || '');
       
-      // Add healthcare ID (single selection)
-      const selectedHealthcare = form.querySelector('[name="healthcare_id"]:checked');
-      if (!selectedHealthcare) {
-        qssShowError('Please select one healthcare centre.');
+      // Add healthcare IDs (multi selection)
+      const selectedHealthcare = form.querySelectorAll('[name="healthcare_ids[]"]:checked');
+      if (selectedHealthcare.length === 0) {
+        qssShowError('Please select at least one healthcare centre.');
         return;
       }
-      formData.append('healthcare_id', selectedHealthcare.value);
+      selectedHealthcare.forEach(checkbox => {
+        formData.append('healthcare_ids[]', checkbox.value);
+      });
       
       // Add device data - pair device_type[] with device_ids[] or device_customs[]
       const deviceCheckboxes = form.querySelectorAll('[name="device_ids[]"]:checked');

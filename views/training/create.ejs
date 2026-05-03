@@ -843,19 +843,22 @@
               <div class="form-group">
                 <label>
                   <i class="fas fa-building"></i>
-                  Select Healthcare Centre *
+                  Select Healthcare Centre(s) *
                 </label>
                 <div class="multiselect-container">
                   <input type="text" class="multiselect-search" placeholder="Search healthcare centres..." id="healthcare-search">
                   <div class="multiselect-options" id="healthcare-options">
                     <% healthcare.forEach(hc => { %>
                       <label class="multiselect-option">
-                        <input type="radio" name="healthcare_id" value="<%= hc.id %>" class="healthcare-radio" required>
+                        <input type="checkbox" name="healthcare_ids[]" value="<%= hc.id %>" class="healthcare-checkbox">
                         <span><%= hc.name %></span>
                       </label>
                     <% }); %>
                   </div>
                 </div>
+                <small style="color: #6B7280; font-size: 0.875rem; margin-top: 0.5rem; display: block;">
+                  You can select multiple healthcare centres. Only trainees from the selected healthcare centres will be shown.
+                </small>
               </div>
             </div>
             
@@ -1033,9 +1036,9 @@
       });
     }
 
-    function getSelectedHealthcareId() {
-      const selected = document.querySelector('input[name="healthcare_id"]:checked');
-      return selected ? String(selected.value) : '';
+    function getSelectedHealthcareIds() {
+      return Array.from(document.querySelectorAll('input[name="healthcare_ids[]"]:checked'))
+        .map(input => String(input.value));
     }
 
     function filterCreateTraineesByHealthcareAndSearch() {
@@ -1043,14 +1046,14 @@
       const traineeSearchEl = document.getElementById('trainee-search');
       if (!traineeOptionsEl) return;
 
-      const selectedHealthcareId = getSelectedHealthcareId();
+      const selectedHealthcareIds = getSelectedHealthcareIds();
       const searchTerm = String(traineeSearchEl?.value || '').toLowerCase();
       const options = traineeOptionsEl.querySelectorAll('.trainee-option');
 
       options.forEach(option => {
         const optionHealthcareId = String(option.getAttribute('data-healthcare-id') || '');
         const searchText = String(option.getAttribute('data-search-text') || '').toLowerCase();
-        const matchesHealthcare = selectedHealthcareId && optionHealthcareId === selectedHealthcareId;
+        const matchesHealthcare = selectedHealthcareIds.length > 0 && selectedHealthcareIds.includes(optionHealthcareId);
         const matchesSearch = !searchTerm || searchText.includes(searchTerm);
         const visible = matchesHealthcare && matchesSearch;
 
@@ -1063,8 +1066,8 @@
       });
     }
 
-    document.querySelectorAll('input[name="healthcare_id"]').forEach(radio => {
-      radio.addEventListener('change', filterCreateTraineesByHealthcareAndSearch);
+    document.querySelectorAll('input[name="healthcare_ids[]"]').forEach(checkbox => {
+      checkbox.addEventListener('change', filterCreateTraineesByHealthcareAndSearch);
     });
     
     // Custom device management
@@ -1222,13 +1225,13 @@
     
     // Form validation - ensure at least one trainee is selected
     document.querySelector('form').addEventListener('submit', function(e) {
-      const selectedHealthcare = document.querySelector('input[name="healthcare_id"]:checked');
+      const selectedHealthcare = document.querySelectorAll('input[name="healthcare_ids[]"]:checked');
       const traineeCheckboxes = document.querySelectorAll('.trainee-checkbox:checked');
       const traineeError = document.getElementById('trainee-error');
       
-      if (!selectedHealthcare) {
+      if (selectedHealthcare.length === 0) {
         e.preventDefault();
-        qssShowError('Please select one healthcare centre.');
+        qssShowError('Please select at least one healthcare centre.');
         return false;
       }
 

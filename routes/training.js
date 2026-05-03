@@ -692,7 +692,27 @@ async function getHealthcareById(db, rawHealthcareId) {
   return rows?.[0] || null;
 }
 
-async function getTraineesOutsideHealthcare(db, traineeIds, healthcareName) {
+async function getHealthcareByIds(db, rawHealthcareIds) {
+  const healthcareIds = [...new Set(
+    (Array.isArray(rawHealthcareIds) ? rawHealthcareIds : [rawHealthcareIds])
+      .map(id => parseInt(String(id || '').trim(), 10))
+      .filter(id => Number.isFinite(id) && id > 0)
+  )];
+
+  if (healthcareIds.length === 0) {
+    return [];
+  }
+
+  const placeholders = healthcareIds.map(() => '?').join(',');
+  const [rows] = await db.query(
+    `SELECT id, name FROM healthcare WHERE id IN (${placeholders}) ORDER BY name ASC`,
+    healthcareIds
+  );
+
+  return rows || [];
+}
+
+async function getTraineesOutsideHealthcare(db, traineeIds, healthcareIds) {
   const normalizedIds = [...new Set(
     (Array.isArray(traineeIds) ? traineeIds : [traineeIds])
       .map(id => String(id || '').trim())
@@ -705,7 +725,7 @@ async function getTraineesOutsideHealthcare(db, traineeIds, healthcareName) {
 
   const placeholders = normalizedIds.map(() => '?').join(',');
   const [rows] = await db.query(
-    `SELECT id, first_name, last_name, healthcare
+    `SELECT id, first_name, last_name, healthcare_id
      FROM trainees
      WHERE id IN (${placeholders})`,
     normalizedIds
@@ -713,13 +733,17 @@ async function getTraineesOutsideHealthcare(db, traineeIds, healthcareName) {
 
   const byId = new Map(rows.map(row => [String(row.id), row]));
   const invalid = [];
-  const normalizedHealthcare = String(healthcareName || '').trim().toLowerCase();
+  const allowedHealthcareIds = new Set(
+    (Array.isArray(healthcareIds) ? healthcareIds : [healthcareIds])
+      .map(id => String(id || '').trim())
+      .filter(Boolean)
+  );
 
   for (const id of normalizedIds) {
     const trainee = byId.get(id);
-    const traineeHealthcare = String(trainee?.healthcare || '').trim().toLowerCase();
-    if (!trainee || traineeHealthcare !== normalizedHealthcare) {
-      invalid.push(trainee || { id, first_name: 'Unknown', last_name: `ID ${id}`, healthcare: null });
+    const traineeHealthcareId = String(trainee?.healthcare_id || '').trim();
+    if (!trainee || !allowedHealthcareIds.has(traineeHealthcareId)) {
+      invalid.push(trainee || { id, first_name: 'Unknown', last_name: `ID ${id}`, healthcare_id: null });
     }
   }
 
@@ -1123,7 +1147,7 @@ router.post('/create', async (req, res) => {
     device_model_id,
     start_datetime,
     end_datetime,
-    healthcare_id, // Single healthcare ID
+    healthcare_ids, // Array of healthcare IDs
     trainer_ids, // Array of trainer IDs
     trainee_ids, // Array of trainee IDs
     device_ids, // Array of device_serial_numbers IDs
@@ -1210,18 +1234,20 @@ router.post('/create', async (req, res) => {
     }
     
     const traineeIdsArray = trainee_ids ? (Array.isArray(trainee_ids) ? trainee_ids : [trainee_ids]) : [];
-    const selectedHealthcare = await getHealthcareById(req.db, healthcare_id);
-    if (!selectedHealthcare) {
-      throw new Error('Please select one healthcare centre for this training.');
+    const submittedHealthcareIds = req.body['healthcare_ids[]'] || healthcare_ids || [];
+    const selectedHealthcareList = await getHealthcareByIds(req.db, submittedHealthcareIds);
+    if (selectedHealthcareList.length === 0) {
+      throw new Error('Please select at least one healthcare centre for this training.');
     }
 
     const nonActiveTrainees = await getNonActiveTrainees(req.db, traineeIdsArray);
     if (nonActiveTrainees.length > 0) {
       throw new Error('Only active trainees can be added to trainings. Registered, inactive, and suspended trainees are not allowed.');
     }
-    const invalidHealthcareTrainees = await getTraineesOutsideHealthcare(req.db, traineeIdsArray, selectedHealthcare.name);
+    const selectedHealthcareIds = selectedHealthcareList.map(item => item.id);
+    const invalidHealthcareTrainees = await getTraineesOutsideHealthcare(req.db, traineeIdsArray, selectedHealthcareIds);
     if (invalidHealthcareTrainees.length > 0) {
-      throw new Error(`All selected trainees must belong to ${selectedHealthcare.name}.`);
+      throw new Error(`All selected trainees must belong to the selected healthcare centre(s): ${selectedHealthcareList.map(item => item.name).join(', ')}.`);
     }
 
     // Get a connection from the pool for transaction
@@ -1248,11 +1274,13 @@ router.post('/create', async (req, res) => {
         );
       }
       
-      // Insert healthcare relationship (exactly one healthcare per training)
-      await connection.query(
-        'INSERT INTO training_healthcare (training_id, healthcare_id) VALUES (?, ?)',
-        [trainingId, selectedHealthcare.id]
-      );
+      // Insert healthcare relationships
+      for (const healthcare of selectedHealthcareList) {
+        await connection.query(
+          'INSERT INTO training_healthcare (training_id, healthcare_id) VALUES (?, ?)',
+          [trainingId, healthcare.id]
+        );
+      }
       
       // Insert device relationships (from settings)
       if (device_ids && Array.isArray(device_ids)) {
@@ -2602,7 +2630,7 @@ router.post('/:id/update', async (req, res) => {
   
   try {
     const trainingId = req.params.id;
-    const { title, description, status, start_datetime, end_datetime, healthcare_id, trainer_ids, trainee_ids, module_id, device_model_id, affiliated_company } = req.body;
+    const { title, description, status, start_datetime, end_datetime, healthcare_ids, trainer_ids, trainee_ids, module_id, device_model_id, affiliated_company } = req.body;
     const traineeArray = trainee_ids ? (Array.isArray(trainee_ids) ? trainee_ids.map(String) : [String(trainee_ids)]) : [];
     
     if (!module_id || !device_model_id) {
@@ -2616,13 +2644,15 @@ router.post('/:id/update', async (req, res) => {
         error: 'Only active trainees can be added to trainings. Registered, inactive, and suspended trainees are not allowed.'
       });
     }
-    const selectedHealthcare = await getHealthcareById(req.db, healthcare_id);
-    if (!selectedHealthcare) {
-      return res.json({ success: false, error: 'Please select one healthcare centre for this training.' });
+    const submittedHealthcareIds = req.body['healthcare_ids[]'] || healthcare_ids || [];
+    const selectedHealthcareList = await getHealthcareByIds(req.db, submittedHealthcareIds);
+    if (selectedHealthcareList.length === 0) {
+      return res.json({ success: false, error: 'Please select at least one healthcare centre for this training.' });
     }
-    const invalidHealthcareTrainees = await getTraineesOutsideHealthcare(req.db, traineeArray, selectedHealthcare.name);
+    const selectedHealthcareIds = selectedHealthcareList.map(item => item.id);
+    const invalidHealthcareTrainees = await getTraineesOutsideHealthcare(req.db, traineeArray, selectedHealthcareIds);
     if (invalidHealthcareTrainees.length > 0) {
-      return res.json({ success: false, error: `All selected trainees must belong to ${selectedHealthcare.name}.` });
+      return res.json({ success: false, error: `All selected trainees must belong to the selected healthcare centre(s): ${selectedHealthcareList.map(item => item.name).join(', ')}.` });
     }
     
     // Helper function to convert AM/PM format to MySQL datetime
@@ -2706,12 +2736,14 @@ router.post('/:id/update', async (req, res) => {
         [title, description || null, status, startDatetime, endDatetime, module_id, device_model_id, affiliatedCompany, trainingId]
       );
       
-      // Update healthcare centre (exactly one healthcare per training)
+      // Update healthcare centres
       await connection.query('DELETE FROM training_healthcare WHERE training_id = ?', [trainingId]);
-      await connection.query(
-        'INSERT INTO training_healthcare (training_id, healthcare_id) VALUES (?, ?)',
-        [trainingId, selectedHealthcare.id]
-      );
+      for (const healthcare of selectedHealthcareList) {
+        await connection.query(
+          'INSERT INTO training_healthcare (training_id, healthcare_id) VALUES (?, ?)',
+          [trainingId, healthcare.id]
+        );
+      }
       
       // Update devices
       await connection.query('DELETE FROM training_devices WHERE training_id = ?', [trainingId]);
