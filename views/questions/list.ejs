@@ -77,6 +77,16 @@
     .search-group {
       position: relative;
     }
+
+    .search-row {
+      display: flex;
+      gap: var(--spacing-sm);
+      align-items: center;
+    }
+
+    .search-row .search-group {
+      flex: 1;
+    }
     
     .search-input {
       width: 100%;
@@ -383,6 +393,60 @@
       color: var(--color-gray);
       font-size: 1.1rem;
     }
+
+    .pagination {
+      margin-top: var(--spacing-xl);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--spacing-md);
+      flex-wrap: wrap;
+      padding-top: var(--spacing-md);
+      border-top: 1px solid var(--color-gray-light);
+    }
+
+    .settings-search-summary {
+      color: var(--color-gray);
+      font-size: 0.9rem;
+    }
+
+    .pagination-links {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .pagination-page {
+      min-width: 32px;
+      text-align: center;
+      padding: 0.38rem 0.55rem;
+      border-radius: var(--border-radius);
+      border: 1px solid var(--color-gray-light);
+      background: #FFFFFF;
+      color: var(--color-dark);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.82rem;
+    }
+
+    .pagination-page.is-active {
+      background: var(--color-purple);
+      border-color: var(--color-purple);
+      color: #FFFFFF;
+    }
+
+    .pagination-links .btn {
+      width: 32px;
+      min-width: 32px;
+      font-size: 0.82rem;
+      min-height: 32px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
     
     /* Tablet styles */
     @media (max-width: 1024px) {
@@ -451,6 +515,11 @@
       .filter-controls {
         grid-template-columns: 1fr;
         gap: var(--spacing-md);
+      }
+
+      .search-row {
+        flex-direction: column;
+        align-items: stretch;
       }
       
       .filter-group {
@@ -664,6 +733,12 @@
       .no-results p {
         font-size: 0.9375rem;
       }
+
+      .pagination-links {
+        width: 100%;
+        margin-left: 0;
+        justify-content: center;
+      }
       
       .empty-state {
         padding: var(--spacing-xl) var(--spacing-md);
@@ -678,6 +753,35 @@
   </style>
 </head>
 <body class="has-sidebar">
+  <%
+    const questionFiltersActive = Boolean(searchQuery || selectedObjective || selectedModule || selectedTestType || selectedCreator);
+    const questionPagination = pagination || { currentPage: 1, totalPages: 1, totalItems: questions.length, pageSize: 10 };
+    const questionParams = new URLSearchParams();
+    if (searchQuery) questionParams.set('search', searchQuery);
+    if (selectedObjective) questionParams.set('objective', selectedObjective);
+    if (selectedModule) questionParams.set('module', selectedModule);
+    if (selectedTestType) questionParams.set('testType', selectedTestType);
+    if (selectedCreator) questionParams.set('creator', selectedCreator);
+    const buildQuestionListUrl = (page) => {
+      const params = new URLSearchParams(questionParams.toString());
+      if (page > 1) {
+        params.set('page', String(page));
+      } else {
+        params.delete('page');
+      }
+      const query = params.toString();
+      return `/questions${query ? `?${query}` : ''}`;
+    };
+    const buildQuestionClearSearchUrl = () => {
+      const params = new URLSearchParams(questionParams.toString());
+      params.delete('search');
+      params.delete('page');
+      const query = params.toString();
+      return `/questions${query ? `?${query}` : ''}`;
+    };
+    const questionPageStart = Math.max(1, questionPagination.currentPage - 2);
+    const questionPageEnd = Math.min(questionPagination.totalPages, questionPagination.currentPage + 2);
+  %>
   <%- include('../partials/sidebar', { user }) %>
   
   <main class="main-content">
@@ -692,11 +796,19 @@
       
       <% if (questions.length === 0) { %>
         <div class="empty-state">
-          <p>No questions found. Create your first question to get started.</p>
-          <a href="/questions/create" class="btn btn-primary btn-lg">
-            <i class="fas fa-plus-circle"></i>
-            Create Question
-          </a>
+          <% if (questionFiltersActive) { %>
+            <p>No questions match your current filters.</p>
+            <a href="/questions" class="btn btn-primary btn-lg">
+              <i class="fas fa-rotate-left"></i>
+              Clear Filters
+            </a>
+          <% } else { %>
+            <p>No questions found. Create your first question to get started.</p>
+            <a href="/questions/create" class="btn btn-primary btn-lg">
+              <i class="fas fa-plus-circle"></i>
+              Create Question
+            </a>
+          <% } %>
         </div>
       <% } else { %>
         <!-- Filter Section -->
@@ -708,13 +820,21 @@
             </div>
             <div class="question-count" id="questionCount">
               <i class="fas fa-list"></i>
-              <span id="visibleCount"><%= questions.length %></span> out of <span id="totalCount"><%= questions.length %></span> questions
+              <span id="visibleCount"><%= questions.length %></span> out of <span id="totalCount"><%= questionPagination.totalItems %></span> questions
             </div>
           </div>
           <div class="filter-controls">
-            <div class="search-group">
-              <i class="fas fa-search search-icon"></i>
-              <input type="text" id="searchInput" class="search-input" placeholder="Search by question text or answer options...">
+            <div class="search-row">
+              <div class="search-group">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="searchInput" class="search-input" placeholder="Search by question text or answer options..." value="<%= searchQuery || '' %>">
+              </div>
+              <% if (searchQuery) { %>
+                <a href="<%= buildQuestionClearSearchUrl() %>" class="btn btn-outline">
+                  <i class="fas fa-times"></i>
+                  Clear
+                </a>
+              <% } %>
             </div>
             
             <div class="filter-group">
@@ -881,11 +1001,47 @@
             </div>
           <% }); %>
         </div>
-        
-        <div class="no-results hidden" id="noResults">
-          <i class="fas fa-search"></i>
-          <p>No questions match your search criteria.</p>
+
+        <% if (questionPagination.totalPages > 1 || questionPagination.totalItems > 0) { %>
+        <div class="pagination">
+          <div class="settings-search-summary">
+            <%= questionPagination.totalItems %> question<%= questionPagination.totalItems === 1 ? '' : 's' %>
+          </div>
+            <% if (questionPagination.totalPages > 1) { %>
+            <div class="pagination-links">
+              <% if (questionPagination.currentPage > 1) { %>
+                <a href="<%= buildQuestionListUrl(questionPagination.currentPage - 1) %>" class="btn btn-secondary" aria-label="Previous page">
+                  <i class="fas fa-chevron-left"></i>
+                </a>
+              <% } %>
+
+              <% if (questionPageStart > 1) { %>
+                <a href="<%= buildQuestionListUrl(1) %>" class="pagination-page">1</a>
+                <% if (questionPageStart > 2) { %>
+                  <span class="settings-search-summary">...</span>
+                <% } %>
+              <% } %>
+
+              <% for (let pageNumber = questionPageStart; pageNumber <= questionPageEnd; pageNumber++) { %>
+                <a href="<%= buildQuestionListUrl(pageNumber) %>" class="pagination-page <%= pageNumber === questionPagination.currentPage ? 'is-active' : '' %>"><%= pageNumber %></a>
+              <% } %>
+
+              <% if (questionPageEnd < questionPagination.totalPages) { %>
+                <% if (questionPageEnd < questionPagination.totalPages - 1) { %>
+                  <span class="settings-search-summary">...</span>
+                <% } %>
+                <a href="<%= buildQuestionListUrl(questionPagination.totalPages) %>" class="pagination-page"><%= questionPagination.totalPages %></a>
+              <% } %>
+
+              <% if (questionPagination.currentPage < questionPagination.totalPages) { %>
+                <a href="<%= buildQuestionListUrl(questionPagination.currentPage + 1) %>" class="btn btn-secondary" aria-label="Next page">
+                  <i class="fas fa-chevron-right"></i>
+                </a>
+              <% } %>
+            </div>
+            <% } %>
         </div>
+        <% } %>
       <% } %>
     </div>
   </main>
@@ -894,10 +1050,10 @@
   <script>
     (function() {
       // ---- Filter state ----
-      var activeObjective = '';
-      var activeModule = '';
-      var activeTestType  = '';
-      var activeCreator   = '';
+      var activeObjective = <%- JSON.stringify(selectedObjective || '') %>;
+      var activeModule = <%- JSON.stringify(selectedModule || '') %>;
+      var activeTestType  = <%- JSON.stringify(selectedTestType || '') %>;
+      var activeCreator   = <%- JSON.stringify(selectedCreator || '') %>;
 
       // ---- Build Objective dropdown ----
       var objectiveItems = [{ label: 'All Objectives', value: '' }];
@@ -909,8 +1065,8 @@
         items: objectiveItems,
         placeholder: 'All Objectives',
         multiSelect: false,
-        initialValue: '',
-        onChange: function(val) { activeObjective = val || ''; filterQuestions(); }
+        initialValue: <%- JSON.stringify(selectedObjective || '') %>,
+        onChange: function(val) { activeObjective = val || ''; applyFilters(); }
       });
 
       // ---- Build Module dropdown ----
@@ -923,8 +1079,8 @@
         items: moduleItems,
         placeholder: 'All Modules',
         multiSelect: false,
-        initialValue: '',
-        onChange: function(val) { activeModule = val || ''; filterQuestions(); }
+        initialValue: <%- JSON.stringify(selectedModule || '') %>,
+        onChange: function(val) { activeModule = val || ''; applyFilters(); }
       });
 
       // ---- Build Test Type dropdown ----
@@ -933,12 +1089,13 @@
           { label: 'All Types',              value: '' },
           { label: 'Pre-Test',               value: 'pre_test' },
           { label: 'Post-Test',              value: 'post_test' },
+          { label: 'Refresher Training',     value: 'refresher_training' },
           { label: 'Certificate Enrolment',  value: 'certificate_enrolment' }
         ],
         placeholder: 'All Types',
         multiSelect: false,
-        initialValue: '',
-        onChange: function(val) { activeTestType = val || ''; filterQuestions(); }
+        initialValue: <%- JSON.stringify(selectedTestType || '') %>,
+        onChange: function(val) { activeTestType = val || ''; applyFilters(); }
       });
 
       // ---- Build Creator dropdown ----
@@ -952,8 +1109,8 @@
         items: <%- JSON.stringify(creatorItems) %>,
         placeholder: 'All Creators',
         multiSelect: false,
-        initialValue: '',
-        onChange: function(val) { activeCreator = val || ''; filterQuestions(); }
+        initialValue: <%- JSON.stringify(selectedCreator || '') %>,
+        onChange: function(val) { activeCreator = val || ''; applyFilters(); }
       });
 
       // ---- Delete confirmation with TailwindModal ----
@@ -974,60 +1131,39 @@
         if (confirmed) form.submit();
       });
 
-      // ---- Filter logic ----
-      const searchInput   = document.getElementById('searchInput');
-      const questionCards = document.querySelectorAll('.question-card');
-      const noResults     = document.getElementById('noResults');
+      // ---- Filter/pagination navigation ----
+      const searchInput = document.getElementById('searchInput');
+      var searchDebounce;
 
-      function filterQuestions() {
-        var searchTerm = (searchInput ? searchInput.value : '').toLowerCase().trim();
-        var visibleCount = 0;
-        var totalCount   = questionCards.length;
+      function applyFilters() {
+        var url = new URL(window.location.href);
+        var searchTerm = (searchInput ? searchInput.value : '').trim();
 
-        questionCards.forEach(function(card) {
-          var questionText = card.dataset.question  || '';
-          var optionA      = card.dataset.optionA   || '';
-          var optionB      = card.dataset.optionB   || '';
-          var optionC      = card.dataset.optionC   || '';
-          var optionD      = card.dataset.optionD   || '';
-          var objectiveId  = card.dataset.objectiveId || '';
-          var moduleId = card.dataset.moduleId || '';
-          var testType     = card.dataset.testType  || '';
-          var creatorId    = card.dataset.creatorId || '';
+        url.searchParams.delete('page');
+        if (searchTerm) url.searchParams.set('search', searchTerm);
+        else url.searchParams.delete('search');
 
-          var matchesSearch = !searchTerm ||
-            questionText.includes(searchTerm) ||
-            optionA.includes(searchTerm) ||
-            optionB.includes(searchTerm) ||
-            optionC.includes(searchTerm) ||
-            optionD.includes(searchTerm);
+        if (activeObjective) url.searchParams.set('objective', activeObjective);
+        else url.searchParams.delete('objective');
 
-          var matchesObjective = !activeObjective || objectiveId === activeObjective;
-          var matchesModule = !activeModule || moduleId === activeModule;
-          var matchesTestType  = !activeTestType  || testType    === activeTestType;
-          var matchesCreator   = !activeCreator   || creatorId   === activeCreator;
+        if (activeModule) url.searchParams.set('module', activeModule);
+        else url.searchParams.delete('module');
 
-          if (matchesSearch && matchesObjective && matchesModule && matchesTestType && matchesCreator) {
-            card.classList.remove('hidden');
-            visibleCount++;
-          } else {
-            card.classList.add('hidden');
-          }
-        });
+        if (activeTestType) url.searchParams.set('testType', activeTestType);
+        else url.searchParams.delete('testType');
 
-        var visibleCountEl = document.getElementById('visibleCount');
-        if (visibleCountEl) visibleCountEl.textContent = visibleCount;
+        if (activeCreator) url.searchParams.set('creator', activeCreator);
+        else url.searchParams.delete('creator');
 
-        if (noResults) {
-          if (visibleCount === 0 && totalCount > 0) {
-            noResults.classList.remove('hidden');
-          } else {
-            noResults.classList.add('hidden');
-          }
-        }
+        window.location.href = url.toString();
       }
 
-      if (searchInput) searchInput.addEventListener('input', filterQuestions);
+      if (searchInput) {
+        searchInput.addEventListener('input', function() {
+          window.clearTimeout(searchDebounce);
+          searchDebounce = window.setTimeout(applyFilters, 300);
+        });
+      }
     })();
   </script>
 </body>

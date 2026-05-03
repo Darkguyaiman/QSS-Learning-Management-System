@@ -11,6 +11,12 @@ const {
 const TRAINEE_IMPORT_ADMIN_EMAIL = 'admin@lms.com';
 const TRAINEE_IMPORT_DEFAULT_PASSWORD =
   process.env.TRAINEE_IMPORT_DEFAULT_PASSWORD || 'LmsTraineeImport#1';
+const DEFAULT_TRAINEE_PAGE_SIZE = 10;
+
+function parsePositiveInteger(value, fallback) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 async function isTraineeExcelImportAdmin(db, session) {
   if (!session.userId || session.userRole !== 'admin') return false;
@@ -265,9 +271,9 @@ router.get('/', async (req, res) => {
     const statusFilter = req.query.status ? (Array.isArray(req.query.status) ? req.query.status : [req.query.status]) : [];
     const healthcareFilter = req.query.healthcare || null;
     const searchQuery = req.query.search || '';
+    const pageSize = DEFAULT_TRAINEE_PAGE_SIZE;
     
-    let query = `
-      ${TRAINEE_SELECT_SQL}
+    let whereSql = `
       WHERE 1=1
     `;
     
@@ -276,26 +282,26 @@ router.get('/', async (req, res) => {
     // Apply status filter
     if (statusFilter.length > 0) {
       const placeholders = statusFilter.map(() => '?').join(',');
-      query += ` AND trainee_status IN (${placeholders})`;
+      whereSql += ` AND t.trainee_status IN (${placeholders})`;
       queryParams.push(...statusFilter);
     }
     
     // Apply healthcare filter
     if (healthcareFilter) {
-      query += ` AND h.name = ?`;
+      whereSql += ` AND h.name = ?`;
       queryParams.push(healthcareFilter);
     }
     
     // Add search filter if provided
     if (searchQuery) {
-      query += ` AND (
-        trainee_id LIKE ? OR
-        first_name LIKE ? OR
-        last_name LIKE ? OR
-        CONCAT(first_name, ' ', last_name) LIKE ? OR
-        email LIKE ? OR
-        ic_passport LIKE ? OR
-        handphone_number LIKE ? OR
+      whereSql += ` AND (
+        t.trainee_id LIKE ? OR
+        t.first_name LIKE ? OR
+        t.last_name LIKE ? OR
+        CONCAT(t.first_name, ' ', t.last_name) LIKE ? OR
+        t.email LIKE ? OR
+        t.ic_passport LIKE ? OR
+        t.handphone_number LIKE ? OR
         h.name LIKE ? OR
         d.name LIKE ? OR
         aos.name LIKE ? OR
@@ -304,13 +310,36 @@ router.get('/', async (req, res) => {
       const searchTerm = `%${searchQuery}%`;
       queryParams.push(
         searchTerm, searchTerm, searchTerm, searchTerm,
-        searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm
+        searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm,
+        searchTerm
       );
     }
+
+    const [countRows] = await req.db.query(`
+      SELECT COUNT(DISTINCT t.id) AS total
+      FROM trainees t
+      LEFT JOIN healthcare h ON h.id = t.healthcare_id
+      LEFT JOIN designations d ON d.id = t.designation_id
+      LEFT JOIN device_serial_numbers dsn ON dsn.id = t.device_serial_number_id
+      LEFT JOIN trainee_area_of_specializations taos ON taos.trainee_id = t.id
+      LEFT JOIN areas_of_specialization aos ON aos.id = taos.area_of_specialization_id
+      ${whereSql}
+    `, queryParams);
+
+    const totalItems = countRows[0]?.total || 0;
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    const currentPage = Math.min(parsePositiveInteger(req.query.page, 1), totalPages);
+    const offset = (currentPage - 1) * pageSize;
     
-    query += ` ${TRAINEE_GROUP_BY_SQL} ORDER BY t.created_at DESC`;
+    let query = `
+      ${TRAINEE_SELECT_SQL}
+      ${whereSql}
+      ${TRAINEE_GROUP_BY_SQL}
+      ORDER BY t.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
     
-    const [trainees] = await req.db.query(query, queryParams);
+    const [trainees] = await req.db.query(query, [...queryParams, pageSize, offset]);
     const normalizedTrainees = normalizeTraineeRecords(trainees);
     
     // Fetch distinct healthcare centers from trainees
@@ -330,7 +359,13 @@ router.get('/', async (req, res) => {
       selectedStatuses: statusFilter,
       selectedHealthcare: healthcareFilter,
       healthcare: healthcareList,
-      traineeImportEnabled
+      traineeImportEnabled,
+      pagination: {
+        currentPage,
+        totalPages,
+        totalItems,
+        pageSize
+      }
     });
   } catch (error) {
     console.error('Trainees list error:', error);

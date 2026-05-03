@@ -6,6 +6,12 @@ const ExcelJS = require('exceljs');
 const TEST_TYPE_DROPDOWN_LABELS = ['Post Test', 'Pre Test', 'Certificate Enrolment'];
 const CORRECT_ANSWERS = ['A', 'B', 'C', 'D'];
 const TEMPLATE_DATA_LAST_ROW = 5000;
+const DEFAULT_QUESTION_PAGE_SIZE = 10;
+
+function parsePositiveInteger(value, fallback) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 /** Accept dropdown labels, legacy underscores, or common variants; returns DB enum value or null. */
 function normalizeBulkTestType(raw) {
@@ -129,6 +135,59 @@ async function buildQuestionsBulkTemplateBuffer(db) {
 // List questions
 router.get('/', async (req, res) => {
   try {
+    const searchQuery = String(req.query.search || '').trim();
+    const selectedObjective = String(req.query.objective || '').trim();
+    const selectedModule = String(req.query.module || '').trim();
+    const selectedTestType = String(req.query.testType || '').trim();
+    const selectedCreator = String(req.query.creator || '').trim();
+    const pageSize = DEFAULT_QUESTION_PAGE_SIZE;
+
+    let whereSql = 'WHERE 1=1';
+    const whereParams = [];
+
+    if (searchQuery) {
+      whereSql += ` AND (
+        q.question_text LIKE ? OR
+        q.option_a LIKE ? OR
+        q.option_b LIKE ? OR
+        q.option_c LIKE ? OR
+        q.option_d LIKE ?
+      )`;
+      const searchTerm = `%${searchQuery}%`;
+      whereParams.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+    }
+
+    if (selectedObjective) {
+      whereSql += ' AND q.objective_id = ?';
+      whereParams.push(selectedObjective);
+    }
+
+    if (selectedModule) {
+      whereSql += ' AND q.module_id = ?';
+      whereParams.push(selectedModule);
+    }
+
+    if (selectedTestType) {
+      whereSql += ' AND q.test_type = ?';
+      whereParams.push(selectedTestType);
+    }
+
+    if (selectedCreator) {
+      whereSql += ' AND q.created_by = ?';
+      whereParams.push(selectedCreator);
+    }
+
+    const [countRows] = await req.db.query(`
+      SELECT COUNT(*) AS total
+      FROM questions q
+      ${whereSql}
+    `, whereParams);
+
+    const totalItems = countRows[0]?.total || 0;
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    const currentPage = Math.min(parsePositiveInteger(req.query.page, 1), totalPages);
+    const offset = (currentPage - 1) * pageSize;
+
     const [questions] = await req.db.query(`
       SELECT q.*, o.name as objective_name, o.id as objective_id, u.first_name, u.last_name, q.created_by as creator_id,
              m.name as module_name
@@ -136,8 +195,10 @@ router.get('/', async (req, res) => {
       LEFT JOIN objectives o ON q.objective_id = o.id
       LEFT JOIN users u ON q.created_by = u.id
       LEFT JOIN modules m ON q.module_id = m.id
+      ${whereSql}
       ORDER BY q.created_at DESC
-    `);
+      LIMIT ? OFFSET ?
+    `, [...whereParams, pageSize, offset]);
     
     // Get unique objectives and creators for filters
     const [objectives] = await req.db.query('SELECT DISTINCT id, name FROM objectives ORDER BY name ASC');
@@ -154,7 +215,18 @@ router.get('/', async (req, res) => {
       questions,
       objectives,
       modules,
-      creators
+      creators,
+      searchQuery,
+      selectedObjective,
+      selectedModule,
+      selectedTestType,
+      selectedCreator,
+      pagination: {
+        currentPage,
+        totalPages,
+        totalItems,
+        pageSize
+      }
     });
   } catch (error) {
     console.error('Question list error:', error);

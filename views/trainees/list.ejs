@@ -525,6 +525,60 @@
       flex: 0 0 auto;
       justify-content: center;
     }
+
+    .pagination {
+      margin-top: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      padding-top: var(--spacing-md);
+      border-top: 1px solid var(--color-gray-light);
+    }
+
+    .settings-search-summary {
+      font-size: 0.9rem;
+      color: var(--color-gray);
+    }
+
+    .pagination-links {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .pagination-page {
+      min-width: 32px;
+      text-align: center;
+      padding: 0.38rem 0.55rem;
+      border-radius: var(--border-radius);
+      border: 1px solid var(--color-gray-light);
+      background: #FFFFFF;
+      color: var(--color-dark);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.82rem;
+    }
+
+    .pagination-page.is-active {
+      background: var(--color-purple);
+      border-color: var(--color-purple);
+      color: #FFFFFF;
+    }
+
+    .pagination-links .btn {
+      width: 32px;
+      min-width: 32px;
+      font-size: 0.82rem;
+      min-height: 32px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
     
     /* Two column grid for tablets */
     @media (min-width: 768px) and (max-width: 1024px) {
@@ -747,10 +801,37 @@
       .trainee-card-actions {
         flex-wrap: wrap;
       }
+
+      .pagination-links {
+        width: 100%;
+        margin-left: 0;
+        justify-content: center;
+      }
     }
   </style>
 </head>
 <body class="has-sidebar">
+  <%
+    const traineePagination = pagination || { currentPage: 1, totalPages: 1, totalItems: trainees.length, pageSize: 10 };
+    const traineeParams = new URLSearchParams();
+    if (typeof searchQuery !== 'undefined' && searchQuery) traineeParams.set('search', searchQuery);
+    if (typeof selectedHealthcare !== 'undefined' && selectedHealthcare) traineeParams.set('healthcare', selectedHealthcare);
+    if (typeof selectedStatuses !== 'undefined' && selectedStatuses) {
+      selectedStatuses.forEach(status => traineeParams.append('status', status));
+    }
+    const buildTraineeListUrl = (page) => {
+      const params = new URLSearchParams(traineeParams.toString());
+      if (page > 1) {
+        params.set('page', String(page));
+      } else {
+        params.delete('page');
+      }
+      const query = params.toString();
+      return `/trainees${query ? `?${query}` : ''}`;
+    };
+    const traineePageStart = Math.max(1, traineePagination.currentPage - 2);
+    const traineePageEnd = Math.min(traineePagination.totalPages, traineePagination.currentPage + 2);
+  %>
   <%- include('../partials/sidebar', { user }) %>
   
   <main class="main-content">
@@ -1070,10 +1151,43 @@
         </div>
         </form>
         
-        <div style="margin-top: var(--spacing-lg); padding: var(--spacing-md); background: var(--color-white); border-radius: var(--border-radius); box-shadow: var(--shadow); text-align: center;">
-          <p style="margin: 0; color: var(--color-gray); font-size: 0.9rem;">
-            <i class="fas fa-info-circle"></i> Total trainees: <strong><%= trainees.length %></strong>
-          </p>
+        <div class="pagination">
+          <div class="settings-search-summary">
+            <%= traineePagination.totalItems %> trainee<%= traineePagination.totalItems === 1 ? '' : 's' %>
+          </div>
+            <% if (traineePagination.totalPages > 1) { %>
+              <div class="pagination-links">
+                <% if (traineePagination.currentPage > 1) { %>
+                  <a href="<%= buildTraineeListUrl(traineePagination.currentPage - 1) %>" class="btn btn-secondary" aria-label="Previous page">
+                    <i class="fas fa-chevron-left"></i>
+                  </a>
+                <% } %>
+
+                <% if (traineePageStart > 1) { %>
+                  <a href="<%= buildTraineeListUrl(1) %>" class="pagination-page">1</a>
+                  <% if (traineePageStart > 2) { %>
+                    <span class="settings-search-summary">...</span>
+                  <% } %>
+                <% } %>
+
+                <% for (let pageNumber = traineePageStart; pageNumber <= traineePageEnd; pageNumber++) { %>
+                  <a href="<%= buildTraineeListUrl(pageNumber) %>" class="pagination-page <%= pageNumber === traineePagination.currentPage ? 'is-active' : '' %>"><%= pageNumber %></a>
+                <% } %>
+
+                <% if (traineePageEnd < traineePagination.totalPages) { %>
+                  <% if (traineePageEnd < traineePagination.totalPages - 1) { %>
+                    <span class="settings-search-summary">...</span>
+                  <% } %>
+                  <a href="<%= buildTraineeListUrl(traineePagination.totalPages) %>" class="pagination-page"><%= traineePagination.totalPages %></a>
+                <% } %>
+
+                <% if (traineePagination.currentPage < traineePagination.totalPages) { %>
+                  <a href="<%= buildTraineeListUrl(traineePagination.currentPage + 1) %>" class="btn btn-secondary" aria-label="Next page">
+                    <i class="fas fa-chevron-right"></i>
+                  </a>
+                <% } %>
+              </div>
+            <% } %>
         </div>
       <% } %>
     </div>
@@ -1254,7 +1368,6 @@
       // Add new filters
       if (search) url.searchParams.set('search', search);
       if (healthcare) url.searchParams.set('healthcare', healthcare);
-      
       window.location.href = url.toString();
     }
     
@@ -1277,6 +1390,7 @@
       // Preserve other filters
       const search = document.getElementById('global-search')?.value.trim();
       const healthcare = document.getElementById('healthcare-filter')?.value;
+      url.searchParams.delete('page');
       
       if (search) url.searchParams.set('search', search);
       if (healthcare) url.searchParams.set('healthcare', healthcare);
