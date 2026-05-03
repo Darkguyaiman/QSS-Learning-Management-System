@@ -405,7 +405,7 @@ CREATE TABLE certificate_issues (
   FOREIGN KEY (trainee_id) REFERENCES trainees(id) ON DELETE CASCADE
 );
 
--- Training Healthcare (one healthcare per training)
+-- Training Healthcare (many-to-many relationship)
 CREATE TABLE training_healthcare (
   id INT AUTO_INCREMENT PRIMARY KEY,
   training_id INT NOT NULL,
@@ -413,7 +413,7 @@ CREATE TABLE training_healthcare (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE CASCADE,
   FOREIGN KEY (healthcare_id) REFERENCES healthcare(id) ON DELETE CASCADE,
-  UNIQUE KEY unique_training_healthcare_training (training_id)
+  UNIQUE KEY unique_training_healthcare (training_id, healthcare_id)
 );
 
 -- Training Devices (many-to-many relationship)

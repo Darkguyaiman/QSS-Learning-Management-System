@@ -2,6 +2,18 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const router = express.Router();
+
+function normalizeIdArray(value) {
+  if (!value) return [];
+  const values = Array.isArray(value) ? value : [value];
+  return Array.from(
+    new Set(
+      values
+        .map(item => String(item).trim())
+        .filter(Boolean)
+    )
+  );
+}
 const fs = require('fs');
 const sharp = require('sharp');
 const packageGenerator = require('./package-generator');
@@ -1233,7 +1245,7 @@ router.post('/create', async (req, res) => {
       });
     }
     
-    const traineeIdsArray = trainee_ids ? (Array.isArray(trainee_ids) ? trainee_ids : [trainee_ids]) : [];
+    const traineeIdsArray = normalizeIdArray(trainee_ids);
     const submittedHealthcareIds = req.body['healthcare_ids[]'] || healthcare_ids || [];
     const selectedHealthcareList = await getHealthcareByIds(req.db, submittedHealthcareIds);
     if (selectedHealthcareList.length === 0) {
@@ -2631,7 +2643,7 @@ router.post('/:id/update', async (req, res) => {
   try {
     const trainingId = req.params.id;
     const { title, description, status, start_datetime, end_datetime, healthcare_ids, trainer_ids, trainee_ids, module_id, device_model_id, affiliated_company } = req.body;
-    const traineeArray = trainee_ids ? (Array.isArray(trainee_ids) ? trainee_ids.map(String) : [String(trainee_ids)]) : [];
+    const traineeArray = normalizeIdArray(trainee_ids);
     
     if (!module_id || !device_model_id) {
       return res.json({ success: false, error: !module_id ? 'Module is required.' : 'Device model is required.' });
