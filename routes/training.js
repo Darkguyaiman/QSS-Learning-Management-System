@@ -1779,16 +1779,25 @@ router.get('/:id', async (req, res) => {
         ORDER BY last_name, first_name
       `);
       
-      // Get trainees for the selected healthcare only
-      const selectedHealthcareId = trainingHealthcare[0]?.healthcare_id || null;
-      [allTrainees] = await req.db.query(`
-        SELECT t.id, t.trainee_id, t.first_name, t.last_name, t.email, h.name AS healthcare, t.ic_passport, h.id AS healthcare_id
-        FROM trainees t
-        LEFT JOIN healthcare h ON h.id = t.healthcare_id
-        WHERE t.trainee_status = 'active'
-          AND (? IS NULL OR h.id = ?)
-        ORDER BY t.last_name, t.first_name
-      `, [selectedHealthcareId, selectedHealthcareId]);
+      // Get trainees across all healthcare centres linked to this training
+      const selectedHealthcareIds = trainingHealthcare
+        .map(row => row?.healthcare_id)
+        .filter(id => Number.isFinite(Number(id)))
+        .map(id => Number(id));
+
+      if (selectedHealthcareIds.length > 0) {
+        const placeholders = selectedHealthcareIds.map(() => '?').join(',');
+        [allTrainees] = await req.db.query(`
+          SELECT t.id, t.trainee_id, t.first_name, t.last_name, t.email, h.name AS healthcare, t.ic_passport, h.id AS healthcare_id
+          FROM trainees t
+          LEFT JOIN healthcare h ON h.id = t.healthcare_id
+          WHERE t.trainee_status = 'active'
+            AND h.id IN (${placeholders})
+          ORDER BY t.last_name, t.first_name
+        `, selectedHealthcareIds);
+      } else {
+        allTrainees = [];
+      }
     }
     
     res.render('training/view', { 
