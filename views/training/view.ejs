@@ -1874,7 +1874,6 @@
           const preTest = data.tests.find(t => t.test_type === 'pre_test');
           const postTest = data.tests.find(t => t.test_type === 'post_test');
           const certificateTest = data.tests.find(t => t.test_type === 'certificate_enrolment');
-          const refresher_trainingTest = data.tests.find(t => t.test_type === 'refresher_training');
           
           // Helper function to render test section
           const renderTestSection = (test, title, icon, color) => {
@@ -1948,9 +1947,6 @@
             modalContent += renderTestSection(certificateTest, 'Certificate Enrolment Test', '🎓', '#EA4335');
           }
           
-          if (refresher_trainingTest) {
-            modalContent += renderTestSection(refresher_trainingTest, 'Refresher Training Test', '🔄', '#9C27B0');
-          }
         }
         
         modalContent += `

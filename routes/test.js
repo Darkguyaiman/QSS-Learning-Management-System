@@ -224,8 +224,8 @@ router.post('/submit/:attemptId', async (req, res) => {
  * Calculate objective understanding scores after test completion
  */
 async function calculateObjectiveScores(db, enrollmentId, testType, objectiveStats) {
-  // Only calculate for post_test, refresher_training, and certificate_enrolment
-  if (!['post_test', 'refresher_training', 'certificate_enrolment'].includes(testType)) {
+  // Only calculate for post_test and certificate_enrolment
+  if (!['post_test', 'certificate_enrolment'].includes(testType)) {
     return;
   }
   

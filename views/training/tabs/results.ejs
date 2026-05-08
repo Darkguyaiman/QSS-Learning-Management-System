@@ -45,7 +45,6 @@
             const preTest = getBestTest(marksData && marksData.tests, 'pre_test');
             const postTest = getBestTest(marksData && marksData.tests, 'post_test');
             const certificateEnrolmentTest = getBestTest(marksData && marksData.tests, 'certificate_enrolment');
-            const refresher_trainingTest = getBestTest(marksData && marksData.tests, 'refresher_training');
             const showCertificationCelebration = !!(certificateEnrolmentTest && (parseFloat(certificateEnrolmentTest.score) || 0) >= 80);
           %>
 
@@ -102,22 +101,6 @@
               </div>
             <% } %>
           <% } else { %>
-            <% if (refresher_trainingTest) { %>
-              <div class="test-card refresher_training-test">
-                <div class="test-icon">
-                  <i class="fas fa-sync-alt"></i>
-                </div>
-                <div class="test-content">
-                  <h3>Refresher Training Test</h3>
-                  <p class="test-description">Refresher Training Assessment</p>
-                  <div class="test-score <%= refresher_trainingTest.score >= 80 ? 'passed' : 'failed' %>">
-                    <span class="score-value"><%= refresher_trainingTest.score.toFixed(1) %>%</span>
-                    <span class="score-status"><%= refresher_trainingTest.score >= 80 ? 'Outstanding' : 'Not Passed' %></span>
-                  </div>
-                </div>
-              </div>
-            <% } %>
-            
             <% if (certificateEnrolmentTest) { %>
               <div class="test-card certificate-test">
                 <div class="test-icon">

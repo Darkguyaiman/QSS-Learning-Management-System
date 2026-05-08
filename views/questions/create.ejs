@@ -131,6 +131,16 @@
       padding: 1rem;
       transition: all 0.3s ease;
     }
+
+    .option-card.is-disabled {
+      opacity: 0.55;
+      pointer-events: none;
+    }
+
+    .btn.is-faded {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
     
     .option-card:focus-within {
       border-color: #573FD7;
@@ -1096,6 +1106,12 @@
       const correctAnswerSelect = document.getElementById('correctAnswer');
       const correctAnswerC = document.getElementById('correctAnswerC');
       const correctAnswerD = document.getElementById('correctAnswerD');
+
+      function setButtonDisabled(button, disabled) {
+        if (!button) return;
+        button.disabled = disabled;
+        button.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+      }
       
       // Initialize: Hide option C and D by default
       if (optionCContainer) optionCContainer.style.display = 'none';
@@ -1105,9 +1121,32 @@
       if (removeOptionC) removeOptionC.style.display = 'none';
       if (removeOptionD) removeOptionD.style.display = 'none';
       
+      function updateOptionSequenceState() {
+        const hasC = optionCContainer && optionCContainer.style.display !== 'none';
+        const hasD = optionDContainer && optionDContainer.style.display !== 'none';
+
+        if (!hasC && hasD) {
+          if (optionDContainer) optionDContainer.style.display = 'none';
+          if (optionDInput) optionDInput.value = '';
+          if (removeOptionD) removeOptionD.style.display = 'none';
+          if (addOptionD) addOptionD.style.display = 'inline-flex';
+        }
+
+        const canManageD = optionCContainer && optionCContainer.style.display !== 'none';
+        setButtonDisabled(addOptionD, !canManageD);
+        if (addOptionD) {
+          addOptionD.classList.toggle('is-faded', !canManageD);
+          addOptionD.title = canManageD ? '' : 'Add Option C first';
+        }
+        if (optionDContainer) {
+          optionDContainer.classList.toggle('is-disabled', !canManageD);
+        }
+      }
+
       function updateCorrectAnswerOptions() {
-        const hasC = optionCContainer && optionCContainer.style.display !== 'none' && optionCInput && optionCInput.value.trim() !== '';
-        const hasD = optionDContainer && optionDContainer.style.display !== 'none' && optionDInput && optionDInput.value.trim() !== '';
+        updateOptionSequenceState();
+        const hasC = optionCContainer && optionCContainer.style.display !== 'none';
+        const hasD = optionDContainer && optionDContainer.style.display !== 'none';
         
         if (correctAnswerC) {
           correctAnswerC.style.display = hasC ? 'block' : 'none';
@@ -1177,6 +1216,7 @@
       // Add Option D
       if (addOptionD) {
         addOptionD.addEventListener('click', function() {
+          if (addOptionD.disabled) return;
           if (optionDContainer) optionDContainer.style.display = 'block';
           if (addOptionD) addOptionD.style.display = 'none';
           if (removeOptionD) removeOptionD.style.display = 'inline-flex';

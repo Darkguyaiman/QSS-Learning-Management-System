@@ -366,17 +366,10 @@
                   ? enrollment.hands_on_completed >= enrollment.hands_on_total
                   : false;
 
-                if (enrollment.type === 'main') {
-                  totalActivities += 3; // Post-test + Practical learning outcome assessment + Certificate enrolment
-                  completedActivities += enrollment.post_test_completed ? 1 : 0;
-                  completedActivities += handsOnDone ? 1 : 0;
-                  completedActivities += enrollment.certificate_enrolment_test_completed ? 1 : 0;
-                } else {
-                  // Refresher: 100% when both certificate enrolment + refresher test are completed
-                  totalActivities = 2;
-                  completedActivities = (enrollment.certificate_enrolment_test_completed ? 1 : 0)
-                    + (enrollment.refresher_training_test_completed ? 1 : 0);
-                }
+                totalActivities += 3; // Post-test + Practical learning outcome assessment + Certificate enrolment
+                completedActivities += enrollment.post_test_completed ? 1 : 0;
+                completedActivities += handsOnDone ? 1 : 0;
+                completedActivities += enrollment.certificate_enrolment_test_completed ? 1 : 0;
 
                 const completionPercentage = Math.round((completedActivities / totalActivities) * 100);
                 const isCompleted = completionPercentage === 100;
@@ -387,8 +380,8 @@
                 <div class="training-card-header">
                   <div class="training-badge">
                     <span class="badge badge-<%= enrollment.type %>">
-                      <i class="fas fa-<%= enrollment.type === 'main' ? 'star' : 'refresh' %>"></i>
-                      <%= enrollment.type %>
+                      <i class="fas fa-star"></i>
+                      Main Training
                     </span>
                   </div>
                   <div class="training-status">
@@ -463,15 +456,6 @@
                       <div class="checklist-item <%= enrollment.post_test_completed ? 'completed' : 'pending' %>">
                         <i class="fas fa-<%= enrollment.post_test_completed ? 'check-circle' : 'circle' %>"></i>
                         <span>Post-Test</span>
-                      </div>
-                      <div class="checklist-item <%= enrollment.certificate_enrolment_test_completed ? 'completed' : 'pending' %>">
-                        <i class="fas fa-<%= enrollment.certificate_enrolment_test_completed ? 'check-circle' : 'circle' %>"></i>
-                        <span>Certificate Enrolment</span>
-                      </div>
-                    <% } else { %>
-                      <div class="checklist-item <%= enrollment.refresher_training_test_completed ? 'completed' : 'pending' %>">
-                        <i class="fas fa-<%= enrollment.refresher_training_test_completed ? 'check-circle' : 'circle' %>"></i>
-                        <span>Refresher Training Test</span>
                       </div>
                       <div class="checklist-item <%= enrollment.certificate_enrolment_test_completed ? 'completed' : 'pending' %>">
                         <i class="fas fa-<%= enrollment.certificate_enrolment_test_completed ? 'check-circle' : 'circle' %>"></i>

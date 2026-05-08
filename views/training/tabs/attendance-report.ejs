@@ -1265,7 +1265,7 @@
     (state.records || []).forEach((r, idx) => {
       const marks = marksLookup.get(String(r.trainee_id || '').trim());
       const pre = marks ? getBestTestScore(marks.tests, 'pre_test') : null;
-      const post = marks ? (getBestTestScore(marks.tests, 'post_test') || getBestTestScore(marks.tests, 'refresher_training')) : null;
+      const post = marks ? getBestTestScore(marks.tests, 'post_test') : null;
       const cert = marks ? getBestTestScore(marks.tests, 'certificate_enrolment') : null;
       const handsOn = marks ? summarizeHandsOn(marks.handsOnScores) : { percentage: null };
 
@@ -1311,9 +1311,8 @@
     const handsOn = summarizeHandsOn(marks?.handsOnScores || []);
     const pre = getBestTestScore(marks?.tests || [], 'pre_test');
     const post = getBestTestScore(marks?.tests || [], 'post_test');
-    const refresher = getBestTestScore(marks?.tests || [], 'refresher_training');
     const cert = getBestTestScore(marks?.tests || [], 'certificate_enrolment');
-    const effectiveMidTest = post || refresher;
+    const effectiveMidTest = post;
 
     let y = margin;
     doc.setFont('helvetica', 'bold');

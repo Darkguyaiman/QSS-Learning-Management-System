@@ -1,7 +1,9 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const ExcelJS = require('exceljs');
 const router = express.Router();
+const { calculateFinalGrades } = require('./results');
 
 function normalizeIdArray(value) {
   if (!value) return [];
@@ -19,10 +21,96 @@ const sharp = require('sharp');
 const packageGenerator = require('./package-generator');
 const packageJobQueue = require('./package-job-queue');
 
+const TRAINING_IMPORT_ALLOWED_ROLES = new Set(['admin', 'trainer']);
+const TRAINING_IMPORT_TEST_TYPES = new Set([
+  'pre_test',
+  'post_test',
+  'certificate_enrolment'
+]);
+
+function canUseTrainingImport(session) {
+  return Boolean(session?.userRole && TRAINING_IMPORT_ALLOWED_ROLES.has(session.userRole));
+}
+
+function splitImportList(value) {
+  return Array.from(
+    new Set(
+      String(value || '')
+        .split(/[;,]/)
+        .map(item => item.trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function normalizeBooleanImportValue(value) {
+  const normalized = String(value == null ? '' : value).trim().toLowerCase();
+  return ['1', 'true', 'yes', 'y'].includes(normalized);
+}
+
+function parseTrainingImportDateTime(value) {
+  if (value == null || value === '') return null;
+
+  if (typeof value === 'number' && !Number.isNaN(value)) {
+    const excelDate = new Date(Math.round((value - 25569) * 86400 * 1000));
+    if (!Number.isNaN(excelDate.getTime())) {
+      return excelDate.toISOString().slice(0, 19).replace('T', ' ');
+    }
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 19).replace('T', ' ');
+  }
+
+  const match = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?:\s*(AM|PM))?)?$/i);
+  if (!match) return null;
+
+  let year = Number.parseInt(match[3], 10);
+  if (year < 100) year += 2000;
+  let hours = Number.parseInt(match[4] || '0', 10);
+  const minutes = Number.parseInt(match[5] || '0', 10);
+  const meridiem = String(match[6] || '').toUpperCase();
+  if (meridiem === 'PM' && hours < 12) hours += 12;
+  if (meridiem === 'AM' && hours === 12) hours = 0;
+
+  const dt = new Date(Date.UTC(year, Number.parseInt(match[2], 10) - 1, Number.parseInt(match[1], 10), hours, minutes, 0));
+  return Number.isNaN(dt.getTime()) ? null : dt.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+function normalizeTrainingImportStatus(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return ['in_progress', 'completed', 'canceled', 'rescheduled'].includes(normalized)
+    ? normalized
+    : 'in_progress';
+}
+
+function normalizeEnrollmentImportStatus(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return ['active', 'completed', 'dropped'].includes(normalized) ? normalized : 'active';
+}
+
+function normalizeAttemptImportStatus(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return ['completed', 'in_progress'].includes(normalized) ? normalized : 'completed';
+}
+
+function normalizeTrainingTypeImport(value) {
+  return 'main';
+}
+
+function parseOptionalNumber(value) {
+  if (value == null || value === '') return null;
+  const parsed = Number.parseFloat(String(value).trim());
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 const TEST_TYPE_LABELS = {
   pre_test: 'Pre-Test',
   post_test: 'Post-Test',
-  refresher_training: 'Refresher Training Test',
   certificate_enrolment: 'Certificate Enrolment Test'
 };
 
@@ -63,7 +151,7 @@ async function getNonActiveTrainees(db, traineeIds) {
  * Helper function to randomly select questions for a test
  * Ensures at least 2 questions from each objective
  * @param {Object} db - Database connection
- * @param {string} testType - Type of test (pre_test, post_test, refresher_training, certificate_enrolment)
+ * @param {string} testType - Type of test (pre_test, post_test, certificate_enrolment)
  * @param {number} totalQuestions - Total number of questions needed
  * @param {number} moduleId - Module ID
  * @returns {Promise<Array>} Array of question IDs
@@ -156,7 +244,7 @@ async function selectQuestionsForTest(db, testType, totalQuestions, moduleId) {
 /**
  * Validate if there are enough questions available for test creation
  * @param {Object} db - Database connection
- * @param {string} trainingType - Type of training (main or refresher_training)
+ * @param {string} trainingType - Type of training
  * @param {number} moduleId - Module ID
  * @returns {Promise<{valid: boolean, errors: string[]}>}
  */
@@ -211,39 +299,6 @@ async function validateTestQuestions(db, trainingType, moduleId) {
         [test.type, moduleId]
       );
       
-      if (totalQuestions[0].count < test.count) {
-        errors.push(`${test.type}: Not enough total questions available. Need ${test.count}, found ${totalQuestions[0].count}.`);
-      }
-    }
-  } else if (trainingType === 'refresher_training') {
-    // Refresher training: certificate enrolment only (40)
-    const tests = [
-      { type: 'certificate_enrolment', count: 40 }
-    ];
-
-    for (const test of tests) {
-      if (test.count < requiredPerObjective) {
-        errors.push(`${test.type}: Need at least ${requiredPerObjective} questions (2 per objective for ${objectives.length} objectives), but only ${test.count} requested.`);
-        continue;
-      }
-
-      for (const objective of objectives) {
-        const [questions] = await db.query(
-          'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND objective_id = ? AND module_id = ?',
-          [test.type, objective.id, moduleId]
-        );
-
-        const questionCount = questions[0].count;
-        if (questionCount < minPerObjective) {
-          errors.push(`${test.type}: Not enough questions for objective ID ${objective.id}. Need at least ${minPerObjective}, found ${questionCount}.`);
-        }
-      }
-
-      const [totalQuestions] = await db.query(
-        'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND module_id = ?',
-        [test.type, moduleId]
-      );
-
       if (totalQuestions[0].count < test.count) {
         errors.push(`${test.type}: Not enough total questions available. Need ${test.count}, found ${totalQuestions[0].count}.`);
       }
@@ -336,9 +391,9 @@ async function buildQuestionValidationSummary(db, errors, moduleId) {
     ...Object.keys(requested)
   ]);
 
-  const orderedTestTypes = ['pre_test', 'post_test', 'certificate_enrolment', 'refresher_training']
+  const orderedTestTypes = ['pre_test', 'post_test', 'certificate_enrolment']
     .filter(type => testTypes.has(type))
-    .concat(Array.from(testTypes).filter(type => !['pre_test', 'post_test', 'certificate_enrolment', 'refresher_training'].includes(type)));
+    .concat(Array.from(testTypes).filter(type => !['pre_test', 'post_test', 'certificate_enrolment'].includes(type)));
 
   summary.sections = orderedTestTypes.map(testType => {
     const objectives = (perObjective[testType] || []).map(entry => ({
@@ -362,7 +417,7 @@ async function buildQuestionValidationSummary(db, errors, moduleId) {
  * Create tests for a training
  * @param {Object} db - Database connection
  * @param {number} trainingId - Training ID
- * @param {string} trainingType - Type of training (main or refresher_training)
+ * @param {string} trainingType - Type of training
  * @param {number} moduleId - Module ID
  */
 async function createTrainingTests(db, trainingId, trainingType, moduleId) {
@@ -388,27 +443,6 @@ async function createTrainingTests(db, trainingId, trainingType, moduleId) {
         const trainingTestId = testResult.insertId;
         
         // Insert selected questions
-        for (let i = 0; i < questionIds.length; i++) {
-          await db.query(
-            'INSERT INTO training_test_questions (training_test_id, question_id, question_order) VALUES (?, ?, ?)',
-            [trainingTestId, questionIds[i], i + 1]
-          );
-        }
-      }
-    } else if (trainingType === 'refresher_training') {
-      // Refresher training: certificate enrolment only (40)
-      const tests = [
-        { type: 'certificate_enrolment', count: 40 }
-      ];
-
-      for (const test of tests) {
-        const questionIds = await selectQuestionsForTest(db, test.type, test.count, moduleId);
-        const [testResult] = await db.query(
-          'INSERT INTO training_tests (training_id, test_type, total_questions) VALUES (?, ?, ?)',
-          [trainingId, test.type, test.count]
-        );
-
-        const trainingTestId = testResult.insertId;
         for (let i = 0; i < questionIds.length; i++) {
           await db.query(
             'INSERT INTO training_test_questions (training_test_id, question_id, question_order) VALUES (?, ?, ?)',
@@ -1117,11 +1151,651 @@ router.get('/', async (req, res) => {
       searchQuery: searchQuery,
       trainers,
       healthcare,
+      trainingImportEnabled: canUseTrainingImport(req.session),
       devices: [...devices, ...customDevices.map(d => ({ id: d.serial_number, serial_number: d.serial_number, model_name: 'Custom' }))],
     });
   } catch (error) {
     console.error('Training list error:', error);
     res.status(500).send('Error loading trainings');
+  }
+});
+
+router.get('/import/template', async (req, res) => {
+  if (!canUseTrainingImport(req.session)) {
+    return res.status(403).send('Access denied');
+  }
+
+  try {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'LMS';
+
+    const trainingsSheet = workbook.addWorksheet('Trainings');
+    trainingsSheet.addRow([
+      'Training Key',
+      'Title',
+      'Description',
+      'Type',
+      'Module',
+      'Device Model',
+      'Affiliated Company',
+      'Status',
+      'Start Datetime',
+      'End Datetime',
+      'Trainer Emails',
+      'Healthcare Names',
+      'Device Serial Numbers'
+    ]);
+
+    const enrollmentsSheet = workbook.addWorksheet('Enrollments');
+    enrollmentsSheet.addRow([
+      'Training Key',
+      'Trainee Email',
+      'Enrollment Status',
+      'Can Download Results'
+    ]);
+
+    const attemptsSheet = workbook.addWorksheet('Test Attempts');
+    attemptsSheet.addRow([
+      'Attempt Key',
+      'Training Key',
+      'Trainee Email',
+      'Test Type',
+      'Score',
+      'Total Questions',
+      'Status',
+      'Completed At'
+    ]);
+
+    const answersSheet = workbook.addWorksheet('Test Answers');
+    answersSheet.addRow([
+      'Attempt Key',
+      'Question ID',
+      'Selected Answer',
+      'Answered At'
+    ]);
+
+    const lookupsSheet = workbook.addWorksheet('Lookups');
+    const listsSheet = workbook.addWorksheet('Lists');
+    lookupsSheet.addRow(['Field', 'Allowed / Existing Values']);
+    const [modules] = await req.db.query('SELECT name FROM modules ORDER BY name');
+    const [deviceModels] = await req.db.query('SELECT model_name FROM device_models ORDER BY model_name');
+    const [healthcareRows] = await req.db.query('SELECT name FROM healthcare ORDER BY name');
+    const [trainerRows] = await req.db.query(
+      "SELECT email FROM users WHERE role IN ('admin', 'trainer') ORDER BY email"
+    );
+    const [deviceRows] = await req.db.query('SELECT serial_number FROM device_serial_numbers ORDER BY serial_number');
+    const [questionRows] = await req.db.query('SELECT id FROM questions ORDER BY id');
+    lookupsSheet.addRows([
+      ['Type', 'main'],
+      ['Affiliated Company', 'QSS, PMS'],
+      ['Training Status', 'in_progress, completed, canceled, rescheduled'],
+      ['Enrollment Status', 'active, completed, dropped'],
+      ['Attempt Status', 'completed, in_progress'],
+      ['Test Type', 'pre_test, post_test, certificate_enrolment'],
+      ['Modules', modules.map(row => row.name).join(', ')],
+      ['Device Models', deviceModels.map(row => row.model_name).join(', ')],
+      ['Healthcare', healthcareRows.map(row => row.name).join(', ')],
+      ['Trainer Emails', trainerRows.map(row => row.email).join(', ')],
+      ['Device Serial Numbers', deviceRows.map(row => row.serial_number).join(', ')],
+      ['Question IDs', questionRows.map(row => row.id).join(', ')],
+      ['Test Answers', 'Use question IDs from your existing question bank.']
+    ]);
+
+    const listColumns = [
+      { title: 'TrainingImportType', values: ['main'] },
+      { title: 'TrainingImportAffiliatedCompany', values: ['QSS', 'PMS'] },
+      { title: 'TrainingImportStatus', values: ['in_progress', 'completed', 'canceled', 'rescheduled'] },
+      { title: 'TrainingImportModules', values: modules.map(row => row.name) },
+      { title: 'TrainingImportDeviceModels', values: deviceModels.map(row => row.model_name) },
+      { title: 'TrainingImportTrainerEmails', values: trainerRows.map(row => row.email) },
+      { title: 'TrainingImportHealthcareNames', values: healthcareRows.map(row => row.name) },
+      { title: 'TrainingImportDeviceSerialNumbers', values: deviceRows.map(row => row.serial_number) },
+      { title: 'TrainingImportEnrollmentStatus', values: ['active', 'completed', 'dropped'] },
+      { title: 'TrainingImportYesNo', values: ['Yes', 'No'] },
+      { title: 'TrainingImportAttemptStatus', values: ['completed', 'in_progress'] },
+      { title: 'TrainingImportTestTypes', values: ['pre_test', 'post_test', 'certificate_enrolment'] },
+      { title: 'TrainingImportQuestionIds', values: questionRows.map(row => String(row.id)) }
+    ];
+
+    listColumns.forEach((column, index) => {
+      const col = index + 1;
+      listsSheet.getCell(1, col).value = column.title;
+      column.values.forEach((value, valueIndex) => {
+        listsSheet.getCell(valueIndex + 2, col).value = value;
+      });
+      const colLetter = listsSheet.getColumn(col).letter;
+      workbook.definedNames.add(`Lists!$${colLetter}$2:$${colLetter}$${Math.max(column.values.length + 1, 2)}`, column.title);
+    });
+
+    const applyDropdown = (sheet, range, formula, prompt) => {
+      for (let row = 2; row <= 500; row++) {
+        sheet.getCell(`${range}${row}`).dataValidation = {
+          type: 'list',
+          allowBlank: true,
+          formulae: [formula],
+          showErrorMessage: true,
+          errorStyle: 'error',
+          errorTitle: 'Invalid value',
+          error: 'Please select a value from the dropdown list.',
+          promptTitle: 'Select from list',
+          prompt
+        };
+      }
+    };
+
+    applyDropdown(trainingsSheet, 'D', '=TrainingImportType', 'Choose one training type.');
+    applyDropdown(trainingsSheet, 'E', '=TrainingImportModules', 'Choose a module.');
+    applyDropdown(trainingsSheet, 'F', '=TrainingImportDeviceModels', 'Choose a device model.');
+    applyDropdown(trainingsSheet, 'G', '=TrainingImportAffiliatedCompany', 'Choose one affiliated company.');
+    applyDropdown(trainingsSheet, 'H', '=TrainingImportStatus', 'Choose one training status.');
+    applyDropdown(enrollmentsSheet, 'C', '=TrainingImportEnrollmentStatus', 'Choose one enrollment status.');
+    applyDropdown(enrollmentsSheet, 'D', '=TrainingImportYesNo', 'Choose Yes or No.');
+    applyDropdown(attemptsSheet, 'D', '=TrainingImportTestTypes', 'Choose one test type.');
+    applyDropdown(attemptsSheet, 'G', '=TrainingImportAttemptStatus', 'Choose one attempt status.');
+    applyDropdown(answersSheet, 'B', '=TrainingImportQuestionIds', 'Choose a question ID from the question bank.');
+    applyDropdown(answersSheet, 'C', '="A,B,C,D"', 'Choose the selected answer.');
+
+    listsSheet.state = 'veryHidden';
+
+    for (const sheet of workbook.worksheets) {
+      sheet.getRow(1).font = { bold: true };
+      sheet.columns.forEach(column => {
+        column.width = 24;
+      });
+    }
+
+    const buf = await workbook.xlsx.writeBuffer();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="Training Import Template.xlsx"');
+    res.send(Buffer.from(buf));
+  } catch (error) {
+    console.error('Training import template error:', error);
+    res.status(500).send('Error generating training import template');
+  }
+});
+
+router.post('/import/bulk', async (req, res) => {
+  if (!canUseTrainingImport(req.session)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+
+  const trainingRows = Array.isArray(req.body.trainings) ? req.body.trainings : [];
+  const enrollmentRows = Array.isArray(req.body.enrollments) ? req.body.enrollments : [];
+  const attemptRows = Array.isArray(req.body.attempts) ? req.body.attempts : [];
+  const answerRows = Array.isArray(req.body.answers) ? req.body.answers : [];
+
+  if (!trainingRows.length) {
+    return res.status(400).json({ success: false, error: 'The Trainings sheet is empty.' });
+  }
+
+  try {
+    const errors = [];
+    const [modules, deviceModels, healthcareRows, trainerRows, traineeRows, questionRows] = await Promise.all([
+      req.db.query('SELECT id, name FROM modules'),
+      req.db.query('SELECT id, model_name FROM device_models'),
+      req.db.query('SELECT id, name FROM healthcare'),
+      req.db.query("SELECT id, email FROM users WHERE role IN ('admin', 'trainer')"),
+      req.db.query('SELECT id, email FROM trainees'),
+      req.db.query('SELECT id, module_id, test_type, correct_answer, objective_id FROM questions')
+    ]);
+
+    const moduleByName = new Map(modules[0].map(row => [String(row.name).toLowerCase(), row]));
+    const deviceModelByName = new Map(deviceModels[0].map(row => [String(row.model_name).toLowerCase(), row]));
+    const healthcareByName = new Map(healthcareRows[0].map(row => [String(row.name).toLowerCase(), row]));
+    const trainerByEmail = new Map(trainerRows[0].map(row => [String(row.email).toLowerCase(), row]));
+    const traineeByEmail = new Map(traineeRows[0].map(row => [String(row.email).toLowerCase(), row]));
+    const questionById = new Map(questionRows[0].map(row => [String(row.id), row]));
+
+    const normalizedTrainings = [];
+    const trainingByKey = new Map();
+    const seenTrainingKeys = new Set();
+
+    for (let i = 0; i < trainingRows.length; i++) {
+      const rowNum = i + 2;
+      const trainingKey = String(trainingRows[i]['Training Key'] || trainingRows[i].training_key || '').trim();
+      const title = String(trainingRows[i].Title || trainingRows[i].title || '').trim();
+      const type = normalizeTrainingTypeImport(trainingRows[i].Type || trainingRows[i].type);
+      const moduleName = String(trainingRows[i].Module || trainingRows[i].module || '').trim();
+      const deviceModelName = String(trainingRows[i]['Device Model'] || trainingRows[i].device_model || '').trim();
+
+      if (!trainingKey) {
+        errors.push(`Trainings row ${rowNum}: Training Key is required.`);
+        continue;
+      }
+      if (seenTrainingKeys.has(trainingKey)) {
+        errors.push(`Trainings row ${rowNum}: Duplicate Training Key "${trainingKey}".`);
+        continue;
+      }
+      seenTrainingKeys.add(trainingKey);
+
+      if (!title || !moduleName || !deviceModelName) {
+        errors.push(`Trainings row ${rowNum}: Title, Module, and Device Model are required.`);
+        continue;
+      }
+
+      const moduleRow = moduleByName.get(moduleName.toLowerCase());
+      const deviceModelRow = deviceModelByName.get(deviceModelName.toLowerCase());
+      if (!moduleRow) errors.push(`Trainings row ${rowNum}: Module "${moduleName}" was not found.`);
+      if (!deviceModelRow) errors.push(`Trainings row ${rowNum}: Device Model "${deviceModelName}" was not found.`);
+
+      const trainerEmails = splitImportList(trainingRows[i]['Trainer Emails'] || trainingRows[i].trainer_emails);
+      const healthcareNames = splitImportList(trainingRows[i]['Healthcare Names'] || trainingRows[i].healthcare_names);
+      const deviceSerialNumbers = splitImportList(trainingRows[i]['Device Serial Numbers'] || trainingRows[i].device_serial_numbers);
+
+      const trainerIds = [];
+      for (const email of trainerEmails) {
+        const trainer = trainerByEmail.get(email.toLowerCase());
+        if (!trainer) {
+          errors.push(`Trainings row ${rowNum}: Trainer "${email}" was not found.`);
+        } else {
+          trainerIds.push(trainer.id);
+        }
+      }
+
+      const healthcareIds = [];
+      for (const name of healthcareNames) {
+        const healthcare = healthcareByName.get(name.toLowerCase());
+        if (!healthcare) {
+          errors.push(`Trainings row ${rowNum}: Healthcare "${name}" was not found.`);
+        } else {
+          healthcareIds.push(healthcare.id);
+        }
+      }
+
+      normalizedTrainings.push({
+        trainingKey,
+        title,
+        description: String(trainingRows[i].Description || trainingRows[i].description || '').trim(),
+        type,
+        moduleId: moduleRow?.id || null,
+        moduleName,
+        deviceModelId: deviceModelRow?.id || null,
+        affiliatedCompany: String(trainingRows[i]['Affiliated Company'] || trainingRows[i].affiliated_company || 'QSS').trim() === 'PMS' ? 'PMS' : 'QSS',
+        status: normalizeTrainingImportStatus(trainingRows[i].Status || trainingRows[i].status),
+        startDatetime: parseTrainingImportDateTime(trainingRows[i]['Start Datetime'] || trainingRows[i].start_datetime),
+        endDatetime: parseTrainingImportDateTime(trainingRows[i]['End Datetime'] || trainingRows[i].end_datetime),
+        trainerIds: [...new Set(trainerIds)],
+        healthcareIds: [...new Set(healthcareIds)],
+        deviceSerialNumbers
+      });
+      trainingByKey.set(trainingKey, normalizedTrainings[normalizedTrainings.length - 1]);
+    }
+
+    const normalizedEnrollments = [];
+    for (let i = 0; i < enrollmentRows.length; i++) {
+      const rowNum = i + 2;
+      const trainingKey = String(enrollmentRows[i]['Training Key'] || enrollmentRows[i].training_key || '').trim();
+      const traineeEmail = String(enrollmentRows[i]['Trainee Email'] || enrollmentRows[i].trainee_email || '').trim().toLowerCase();
+
+      if (!trainingKey || !trainingByKey.has(trainingKey)) {
+        errors.push(`Enrollments row ${rowNum}: Training Key is missing or not present in the Trainings sheet.`);
+        continue;
+      }
+      if (!traineeEmail) {
+        errors.push(`Enrollments row ${rowNum}: Trainee Email is required.`);
+        continue;
+      }
+      const trainee = traineeByEmail.get(traineeEmail);
+      if (!trainee) {
+        errors.push(`Enrollments row ${rowNum}: Trainee "${traineeEmail}" was not found.`);
+        continue;
+      }
+
+      normalizedEnrollments.push({
+        trainingKey,
+        traineeEmail,
+        traineeId: trainee.id,
+        status: normalizeEnrollmentImportStatus(enrollmentRows[i]['Enrollment Status'] || enrollmentRows[i].enrollment_status),
+        canDownloadResults: normalizeBooleanImportValue(enrollmentRows[i]['Can Download Results'] || enrollmentRows[i].can_download_results)
+      });
+    }
+
+    const normalizedAttempts = [];
+    const attemptByKey = new Map();
+    for (let i = 0; i < attemptRows.length; i++) {
+      const rowNum = i + 2;
+      const attemptKey = String(attemptRows[i]['Attempt Key'] || attemptRows[i].attempt_key || '').trim();
+      const trainingKey = String(attemptRows[i]['Training Key'] || attemptRows[i].training_key || '').trim();
+      const traineeEmail = String(attemptRows[i]['Trainee Email'] || attemptRows[i].trainee_email || '').trim().toLowerCase();
+      const testType = String(attemptRows[i]['Test Type'] || attemptRows[i].test_type || '').trim().toLowerCase();
+
+      if (!attemptKey) {
+        errors.push(`Test Attempts row ${rowNum}: Attempt Key is required.`);
+        continue;
+      }
+      if (attemptByKey.has(attemptKey)) {
+        errors.push(`Test Attempts row ${rowNum}: Duplicate Attempt Key "${attemptKey}".`);
+        continue;
+      }
+      if (!trainingKey || !trainingByKey.has(trainingKey)) {
+        errors.push(`Test Attempts row ${rowNum}: Training Key is missing or not present in the Trainings sheet.`);
+        continue;
+      }
+      if (!traineeEmail || !traineeByEmail.has(traineeEmail)) {
+        errors.push(`Test Attempts row ${rowNum}: Trainee Email is missing or not found.`);
+        continue;
+      }
+      if (!TRAINING_IMPORT_TEST_TYPES.has(testType)) {
+        errors.push(`Test Attempts row ${rowNum}: Test Type "${testType}" is invalid.`);
+        continue;
+      }
+
+      const training = trainingByKey.get(trainingKey);
+      attemptByKey.set(attemptKey, {
+        attemptKey,
+        trainingKey,
+        traineeEmail,
+        traineeId: traineeByEmail.get(traineeEmail).id,
+        testType,
+        score: parseOptionalNumber(attemptRows[i].Score || attemptRows[i].score),
+        totalQuestions: parseOptionalNumber(attemptRows[i]['Total Questions'] || attemptRows[i].total_questions),
+        status: normalizeAttemptImportStatus(attemptRows[i].Status || attemptRows[i].status),
+        completedAt: parseTrainingImportDateTime(attemptRows[i]['Completed At'] || attemptRows[i].completed_at),
+        moduleId: training.moduleId
+      });
+      normalizedAttempts.push(attemptByKey.get(attemptKey));
+    }
+
+    const normalizedAnswers = [];
+    for (let i = 0; i < answerRows.length; i++) {
+      const rowNum = i + 2;
+      const attemptKey = String(answerRows[i]['Attempt Key'] || answerRows[i].attempt_key || '').trim();
+      const questionId = String(answerRows[i]['Question ID'] || answerRows[i].question_id || '').trim();
+      const selectedAnswer = String(answerRows[i]['Selected Answer'] || answerRows[i].selected_answer || '').trim().toUpperCase();
+
+      if (!attemptKey || !attemptByKey.has(attemptKey)) {
+        errors.push(`Test Answers row ${rowNum}: Attempt Key is missing or not present in the Test Attempts sheet.`);
+        continue;
+      }
+      if (!questionId || !questionById.has(questionId)) {
+        errors.push(`Test Answers row ${rowNum}: Question ID "${questionId}" was not found.`);
+        continue;
+      }
+      if (!['A', 'B', 'C', 'D'].includes(selectedAnswer)) {
+        errors.push(`Test Answers row ${rowNum}: Selected Answer must be A, B, C, or D.`);
+        continue;
+      }
+
+      const attempt = attemptByKey.get(attemptKey);
+      const question = questionById.get(questionId);
+      if (String(question.test_type) !== attempt.testType) {
+        errors.push(`Test Answers row ${rowNum}: Question ${questionId} does not belong to test type "${attempt.testType}".`);
+        continue;
+      }
+      if (Number(question.module_id) !== Number(attempt.moduleId)) {
+        errors.push(`Test Answers row ${rowNum}: Question ${questionId} does not belong to the training module for attempt "${attemptKey}".`);
+        continue;
+      }
+
+      normalizedAnswers.push({
+        attemptKey,
+        questionId: Number(questionId),
+        selectedAnswer,
+        answeredAt: parseTrainingImportDateTime(answerRows[i]['Answered At'] || answerRows[i].answered_at),
+        isCorrect: String(question.correct_answer) === selectedAnswer,
+        objectiveId: question.objective_id ? Number(question.objective_id) : null
+      });
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({ success: false, errors });
+    }
+
+    const validation = new Map();
+    for (const training of normalizedTrainings) {
+      validation.set(training.trainingKey, await validateTestQuestions(req.db, training.type, training.moduleId));
+      if (!(validation.get(training.trainingKey)?.valid)) {
+        errors.push(`Training "${training.title}" cannot be imported because its module does not have enough questions in the bank.`);
+      }
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({ success: false, errors });
+    }
+
+    const connection = await req.db.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      const [deviceRows] = await connection.query('SELECT id, serial_number FROM device_serial_numbers');
+      const deviceBySerial = new Map(deviceRows.map(row => [String(row.serial_number).toLowerCase(), row]));
+      const trainingIdByKey = new Map();
+      const enrollmentIdByCompoundKey = new Map();
+      const attemptIdByKey = new Map();
+      const attemptStats = new Map();
+      const testQuestionSets = new Map();
+      const touchedEnrollmentIds = new Set();
+
+      for (const training of normalizedTrainings) {
+        const [insertTraining] = await connection.query(
+          `INSERT INTO trainings
+            (title, description, type, module_id, device_model_id, created_by, affiliated_company, status, start_datetime, end_datetime, header_image)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            training.title,
+            training.description || null,
+            training.type,
+            training.moduleId,
+            training.deviceModelId,
+            req.session.userId,
+            training.affiliatedCompany,
+            training.status,
+            training.startDatetime,
+            training.endDatetime,
+            '/images/Training Headers/Header 2.jpg'
+          ]
+        );
+
+        const trainingId = insertTraining.insertId;
+        trainingIdByKey.set(training.trainingKey, trainingId);
+
+        for (const trainerId of training.trainerIds) {
+          await connection.query(
+            'INSERT INTO training_trainers (training_id, trainer_id) VALUES (?, ?)',
+            [trainingId, trainerId]
+          );
+        }
+
+        for (const healthcareId of training.healthcareIds) {
+          await connection.query(
+            'INSERT INTO training_healthcare (training_id, healthcare_id) VALUES (?, ?)',
+            [trainingId, healthcareId]
+          );
+        }
+
+        for (const serial of training.deviceSerialNumbers) {
+          const device = deviceBySerial.get(serial.toLowerCase());
+          if (!device) {
+            throw new Error(`Device serial number "${serial}" was not found.`);
+          }
+          await connection.query(
+            'INSERT INTO training_devices (training_id, device_serial_number_id) VALUES (?, ?)',
+            [trainingId, device.id]
+          );
+        }
+
+        if (training.type === 'main') {
+          const [aspects] = await connection.query('SELECT aspect_name, description, max_score FROM practical_learning_outcomes_settings');
+          for (const aspect of aspects) {
+            await connection.query(
+              'INSERT INTO practical_learning_outcomes (training_id, aspect_name, description, max_score) VALUES (?, ?, ?, ?)',
+              [trainingId, aspect.aspect_name, aspect.description, aspect.max_score]
+            );
+          }
+        }
+
+        await createTrainingTests(connection, trainingId, training.type, training.moduleId);
+      }
+
+      const enrollmentSeedRows = [...normalizedEnrollments];
+      for (const attempt of normalizedAttempts) {
+        if (!enrollmentSeedRows.find(row => row.trainingKey === attempt.trainingKey && row.traineeEmail === attempt.traineeEmail)) {
+          enrollmentSeedRows.push({
+            trainingKey: attempt.trainingKey,
+            traineeEmail: attempt.traineeEmail,
+            traineeId: attempt.traineeId,
+            status: 'active',
+            canDownloadResults: false
+          });
+        }
+      }
+
+      for (const enrollment of enrollmentSeedRows) {
+        const trainingId = trainingIdByKey.get(enrollment.trainingKey);
+        await connection.query(
+          'INSERT IGNORE INTO training_trainees (training_id, trainee_id) VALUES (?, ?)',
+          [trainingId, enrollment.traineeId]
+        );
+        await connection.query(
+          `INSERT INTO enrollments (trainee_id, training_id, status, can_download_results)
+           VALUES (?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE
+             status = VALUES(status),
+             can_download_results = VALUES(can_download_results)`,
+          [enrollment.traineeId, trainingId, enrollment.status, enrollment.canDownloadResults]
+        );
+        const [enrollmentRowsDb] = await connection.query(
+          'SELECT id FROM enrollments WHERE trainee_id = ? AND training_id = ? LIMIT 1',
+          [enrollment.traineeId, trainingId]
+        );
+        const enrollmentId = enrollmentRowsDb[0].id;
+        enrollmentIdByCompoundKey.set(`${enrollment.trainingKey}::${enrollment.traineeEmail}`, enrollmentId);
+      }
+
+      for (const attempt of normalizedAttempts) {
+        const enrollmentId = enrollmentIdByCompoundKey.get(`${attempt.trainingKey}::${attempt.traineeEmail}`);
+        const [insertAttempt] = await connection.query(
+          `INSERT INTO test_attempts (enrollment_id, test_type, score, total_questions, completed_at, status)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            enrollmentId,
+            attempt.testType,
+            attempt.score,
+            attempt.totalQuestions,
+            attempt.status === 'completed' ? attempt.completedAt : null,
+            attempt.status
+          ]
+        );
+        attemptIdByKey.set(attempt.attemptKey, insertAttempt.insertId);
+        attemptStats.set(attempt.attemptKey, {
+          attemptId: insertAttempt.insertId,
+          enrollmentId,
+          trainingId: trainingIdByKey.get(attempt.trainingKey),
+          testType: attempt.testType,
+          row: attempt,
+          answerCount: 0,
+          correctCount: 0,
+          objectiveStats: new Map()
+        });
+        touchedEnrollmentIds.add(enrollmentId);
+      }
+
+      for (const answer of normalizedAnswers) {
+        const attemptStat = attemptStats.get(answer.attemptKey);
+        await connection.query(
+          `INSERT INTO test_answers (attempt_id, question_id, selected_answer, is_correct, answered_at)
+           VALUES (?, ?, ?, ?, COALESCE(?, NOW()))`,
+          [attemptStat.attemptId, answer.questionId, answer.selectedAnswer, answer.isCorrect, answer.answeredAt]
+        );
+
+        attemptStat.answerCount += 1;
+        if (answer.isCorrect) attemptStat.correctCount += 1;
+        if (answer.objectiveId) {
+          const current = attemptStat.objectiveStats.get(answer.objectiveId) || { total: 0, correct: 0 };
+          current.total += 1;
+          if (answer.isCorrect) current.correct += 1;
+          attemptStat.objectiveStats.set(answer.objectiveId, current);
+        }
+
+        const testQuestionKey = `${attemptStat.trainingId}::${attemptStat.testType}`;
+        if (!testQuestionSets.has(testQuestionKey)) {
+          testQuestionSets.set(testQuestionKey, new Set());
+        }
+        testQuestionSets.get(testQuestionKey).add(answer.questionId);
+      }
+
+      for (const stat of attemptStats.values()) {
+        const finalTotalQuestions = stat.row.totalQuestions ?? stat.answerCount;
+        const finalScore = stat.row.score ?? (finalTotalQuestions > 0 ? (stat.correctCount / finalTotalQuestions) * 100 : 0);
+        if (stat.row.totalQuestions == null || stat.row.score == null || (stat.row.status === 'completed' && !stat.row.completedAt)) {
+          await connection.query(
+            `UPDATE test_attempts
+             SET score = ?,
+                 total_questions = ?,
+                 completed_at = CASE
+                   WHEN status = 'completed' THEN COALESCE(completed_at, NOW())
+                   ELSE completed_at
+                 END
+             WHERE id = ?`,
+            [finalScore, finalTotalQuestions, stat.attemptId]
+          );
+        }
+
+        if (['post_test', 'certificate_enrolment'].includes(stat.testType)) {
+          for (const [objectiveId, objectiveStat] of stat.objectiveStats.entries()) {
+            const understanding = objectiveStat.total > 0
+              ? (objectiveStat.correct / objectiveStat.total) * 100
+              : 0;
+            await connection.query(
+              `INSERT INTO objective_scores
+                (enrollment_id, objective_id, test_type, questions_answered, questions_correct, understanding_percentage)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON DUPLICATE KEY UPDATE
+                 questions_answered = VALUES(questions_answered),
+                 questions_correct = VALUES(questions_correct),
+                 understanding_percentage = VALUES(understanding_percentage),
+                 calculated_at = NOW()`,
+              [stat.enrollmentId, objectiveId, stat.testType, objectiveStat.total, objectiveStat.correct, understanding]
+            );
+          }
+        }
+      }
+
+      for (const [key, questionIds] of testQuestionSets.entries()) {
+        const [trainingId, testType] = key.split('::');
+        const [trainingTests] = await connection.query(
+          'SELECT id FROM training_tests WHERE training_id = ? AND test_type = ? LIMIT 1',
+          [trainingId, testType]
+        );
+        if (!trainingTests.length) continue;
+        const trainingTestId = trainingTests[0].id;
+        const [existingRows] = await connection.query(
+          'SELECT question_id, question_order FROM training_test_questions WHERE training_test_id = ? ORDER BY question_order',
+          [trainingTestId]
+        );
+        const existingQuestionIds = new Set(existingRows.map(row => Number(row.question_id)));
+        let nextOrder = existingRows.length + 1;
+        for (const questionId of questionIds) {
+          if (existingQuestionIds.has(questionId)) continue;
+          await connection.query(
+            'INSERT INTO training_test_questions (training_test_id, question_id, question_order) VALUES (?, ?, ?)',
+            [trainingTestId, questionId, nextOrder++]
+          );
+        }
+      }
+
+      for (const enrollmentId of touchedEnrollmentIds) {
+        await calculateFinalGrades(connection, enrollmentId);
+      }
+
+      await connection.commit();
+      res.json({
+        success: true,
+        insertedTrainings: normalizedTrainings.length,
+        insertedEnrollments: enrollmentSeedRows.length,
+        insertedAttempts: normalizedAttempts.length,
+        insertedAnswers: normalizedAnswers.length
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Training bulk import error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Training import failed.' });
   }
 });
 
@@ -1651,9 +2325,6 @@ router.get('/:id', async (req, res) => {
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') > 0 as post_test_completed,
           (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') as post_test_score,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed' AND score < 80) as post_test_failed_attempts,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed') > 0 as refresher_training_test_completed,
-          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed') as refresher_training_score,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed' AND score < 80) as refresher_training_failed_attempts,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') > 0 as certificate_enrolment_test_completed,
           (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') as certificate_enrolment_score,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed' AND score < 80) as certificate_enrolment_failed_attempts
@@ -3404,8 +4075,7 @@ router.get('/:id/enrollment/:enrollmentId/test-answers', async (req, res) => {
     const typeLabels = {
       pre_test: 'Pre-Test',
       post_test: 'Post-Test',
-      certificate_enrolment: 'Certificate Enrolment',
-      refresher_training: 'Refresher Training Test'
+      certificate_enrolment: 'Certificate Enrolment'
     };
 
     const availableTypes = Array.from(new Set((attempts || []).map(a => a.test_type))).filter(Boolean);
@@ -3440,7 +4110,7 @@ router.get('/:id/enrollment/:enrollmentId/test-answers', async (req, res) => {
       enrollmentId,
       traineeName,
       traineePublicId,
-      availableTypes: availableTypes.length > 0 ? availableTypes : ['pre_test', 'post_test', 'certificate_enrolment', 'refresher_training'],
+      availableTypes: availableTypes.length > 0 ? availableTypes : ['pre_test', 'post_test', 'certificate_enrolment'],
       selectedType,
       typeLabels,
       attempt,

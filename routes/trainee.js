@@ -61,7 +61,7 @@ router.get('/results/enrollment/:enrollmentId', async (req, res, next) => {
       FROM objective_scores os
       JOIN objectives o ON os.objective_id = o.id
       WHERE os.enrollment_id = ?
-      AND os.test_type IN ('post_test', 'refresher_training', 'certificate_enrolment')
+      AND os.test_type IN ('post_test', 'certificate_enrolment')
       ORDER BY o.name
     `, [req.params.enrollmentId]);
 

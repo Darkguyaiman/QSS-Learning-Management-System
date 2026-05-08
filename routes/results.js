@@ -71,7 +71,7 @@ router.get('/enrollment/:enrollmentId', async (req, res) => {
       FROM objective_scores os
       JOIN objectives o ON os.objective_id = o.id
       WHERE os.enrollment_id = ?
-      AND os.test_type IN ('post_test', 'refresher_training', 'certificate_enrolment')
+      AND os.test_type IN ('post_test', 'certificate_enrolment')
       ORDER BY o.name
     `, [req.params.enrollmentId]);
     
@@ -172,7 +172,7 @@ async function calculateFinalGrades(db, enrollmentId) {
       SELECT AVG(understanding_percentage) as avg_understanding
       FROM objective_scores
       WHERE enrollment_id = ? 
-      AND test_type IN ('post_test', 'refresher_training', 'certificate_enrolment')
+      AND test_type IN ('post_test', 'certificate_enrolment')
     `, [enrollmentId]);
     
     const objectiveUnderstanding = objectiveScores[0]?.avg_understanding || null;

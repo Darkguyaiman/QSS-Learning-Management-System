@@ -21,18 +21,15 @@
                 let score = null;
                 if (testType === 'pre_test') completed = enrollment.pre_test_completed;
                 else if (testType === 'post_test') completed = enrollment.post_test_completed;
-                else if (testType === 'refresher_training') completed = enrollment.refresher_training_test_completed;
                 else if (testType === 'certificate_enrolment') completed = enrollment.certificate_enrolment_test_completed;
                 
                 if (testType === 'pre_test') score = enrollment.pre_test_score;
                 else if (testType === 'post_test') score = enrollment.post_test_score;
-                else if (testType === 'refresher_training') score = enrollment.refresher_training_score;
                 else if (testType === 'certificate_enrolment') score = enrollment.certificate_enrolment_score;
 
                 let failedAttempts = 0;
                 if (testType === 'pre_test') failedAttempts = Number(enrollment.pre_test_failed_attempts || 0);
                 else if (testType === 'post_test') failedAttempts = Number(enrollment.post_test_failed_attempts || 0);
-                else if (testType === 'refresher_training') failedAttempts = Number(enrollment.refresher_training_failed_attempts || 0);
                 else if (testType === 'certificate_enrolment') failedAttempts = Number(enrollment.certificate_enrolment_failed_attempts || 0);
 
                 const passed = score !== null && Number(score) >= 80;

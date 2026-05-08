@@ -94,6 +94,11 @@ async function buildQuestionsBulkTemplateBuffer(db) {
   const nMod = Math.max(modules.length, 1);
   const nObj = Math.max(objectives.length, 1);
 
+  workbook.definedNames.add(`Lists!$A$1:$A$${nTest}`, 'QuestionTestTypes');
+  workbook.definedNames.add(`Lists!$B$1:$B$${nCorrect}`, 'QuestionCorrectAnswers');
+  workbook.definedNames.add(`Lists!$C$1:$C$${nMod}`, 'QuestionModules');
+  workbook.definedNames.add(`Lists!$D$1:$D$${nObj}`, 'QuestionObjectives');
+
   const listError = {
     showErrorMessage: true,
     errorStyle: 'error',
@@ -105,28 +110,28 @@ async function buildQuestionsBulkTemplateBuffer(db) {
     type: 'list',
     allowBlank: true,
     ...listError,
-    formulae: [`Lists!$A$1:$A$${nTest}`]
+    formulae: ['=QuestionTestTypes']
   });
 
   ws.dataValidations.add(`C2:C${TEMPLATE_DATA_LAST_ROW}`, {
     type: 'list',
     allowBlank: true,
     ...listError,
-    formulae: [`Lists!$C$1:$C$${nMod}`]
+    formulae: ['=QuestionModules']
   });
 
   ws.dataValidations.add(`D2:D${TEMPLATE_DATA_LAST_ROW}`, {
     type: 'list',
     allowBlank: true,
     ...listError,
-    formulae: [`Lists!$D$1:$D$${nObj}`]
+    formulae: ['=QuestionObjectives']
   });
 
   ws.dataValidations.add(`I2:I${TEMPLATE_DATA_LAST_ROW}`, {
     type: 'list',
     allowBlank: true,
     ...listError,
-    formulae: [`Lists!$B$1:$B$${nCorrect}`]
+    formulae: ['=QuestionCorrectAnswers']
   });
 
   return workbook.xlsx.writeBuffer();

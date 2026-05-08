@@ -6,7 +6,7 @@
     const ctx = window.PACKAGE_CONTEXT || {};
     const marks = marksMap.get(String(row.trainee_id || '').trim());
     const pre = marks ? utils.getBestTestScore(marks.tests, 'pre_test') : null;
-    const post = marks ? (utils.getBestTestScore(marks.tests, 'post_test') || utils.getBestTestScore(marks.tests, 'refresher_training')) : null;
+    const post = marks ? utils.getBestTestScore(marks.tests, 'post_test') : null;
     const cert = marks ? utils.getBestTestScore(marks.tests, 'certificate_enrolment') : null;
     const hands = Array.isArray(marks?.handsOnScores) ? marks.handsOnScores : [];
     const handsMax = hands.reduce((s, x) => s + (parseFloat(x.max_score) || 0), 0);
@@ -56,7 +56,7 @@
           </tr>
           ${[
             ['Pre-Test', parseFloat(pre?.score || 0)],
-            [post ? 'Post-Test' : 'Refresher Test', parseFloat(post?.score || 0)],
+            ['Post-Test', parseFloat(post?.score || 0)],
             ['Certificate Enrolment', parseFloat(cert?.score || 0)],
             ['Hands On', handsPct],
             ['Total', total]

@@ -207,7 +207,7 @@
           <div class="details-block">
             <div class="details-item"><strong>Date and Time:</strong> ${utils.escapeHtml(utils.formatTrainingPeriod())}</div>
             <div class="details-item"><strong>KLaser Model:</strong> ${utils.escapeHtml(formData.deviceModel)}</div>
-            <div class="details-item"><strong>Training Type:</strong> ${ctx.trainingType === 'main' ? 'Main Training' : 'Refresher Training'}</div>
+            <div class="details-item"><strong>Training Type:</strong> Main Training</div>
             <div class="details-item"><strong>Attendance Scope:</strong> all recorded sessions${attendanceSessionCount ? ` (${attendanceSessionCount} session${attendanceSessionCount === 1 ? '' : 's'})` : ''}</div>
             <div class="details-item"><strong>Group Report:</strong> please refer to Group Report.pdf</div>
             <div class="details-item"><strong>Total Participants:</strong> ${selectedRows.length}</div>
@@ -274,4 +274,3 @@
 
   pkg.buildTrainingLetterPdfBlob = buildTrainingLetterPdfBlob;
 })();
-

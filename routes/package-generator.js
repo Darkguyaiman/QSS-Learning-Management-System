@@ -613,7 +613,7 @@ function buildLetterHtml({ training, company, formData, attendanceSessionCount, 
   const header = headerDataUrl(company.code);
   const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const ref = docRef(company.code, training.id, training.start_datetime || training.end_datetime);
-  const trainingTypeLabel = String(training.type || '').toLowerCase() === 'main' ? 'Main Training' : 'Refresher Training';
+  const trainingTypeLabel = 'Main Training';
   const subjectTrainingTitle = String(training.title || 'In-House Training').toUpperCase();
   const moduleName = training.module_name || training.moduleName || formData.moduleName || formData.module || 'Module';
   const headerHtml = header ? `<img src="${header}" alt="${escapeHtml(company.code)} Header" class="header-image">` : '';
@@ -692,7 +692,7 @@ function buildGroupHtml({ training, company, attendanceRows, marksByEnrollmentId
   const overviewRowsHtml = attendanceRows.map((r) => {
     const marks = marksByEnrollmentId.get(String(r.enrollment_id));
     const pre = marks ? getBestTestScore(marks.tests, 'pre_test') : null;
-    const post = marks ? (getBestTestScore(marks.tests, 'post_test') || getBestTestScore(marks.tests, 'refresher_training')) : null;
+    const post = marks ? getBestTestScore(marks.tests, 'post_test') : null;
     const cert = marks ? getBestTestScore(marks.tests, 'certificate_enrolment') : null;
     const hands = Array.isArray(marks?.handsOnScores) ? marks.handsOnScores : [];
     const handsMax = hands.reduce((s, x) => s + (parseFloat(x.max_score) || 0), 0);
@@ -780,7 +780,7 @@ function buildIndividualHtml({ company, formData, row, marksByEnrollmentId, obje
   const currentDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   const ref = docRef(company.code, row.enrollment_id || row.trainee_db_id || row.trainee_id || '0', new Date());
   const pre = marks ? getBestTestScore(marks.tests, 'pre_test') : null;
-  const post = marks ? (getBestTestScore(marks.tests, 'post_test') || getBestTestScore(marks.tests, 'refresher_training')) : null;
+  const post = marks ? getBestTestScore(marks.tests, 'post_test') : null;
   const cert = marks ? getBestTestScore(marks.tests, 'certificate_enrolment') : null;
   const hands = Array.isArray(marks?.handsOnScores) ? marks.handsOnScores : [];
   const handsMax = hands.reduce((s, x) => s + (parseFloat(x.max_score) || 0), 0);

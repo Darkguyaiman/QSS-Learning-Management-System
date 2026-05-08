@@ -159,7 +159,7 @@ CREATE TABLE trainings (
   id INT AUTO_INCREMENT PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
   description TEXT,
-  type ENUM('main', 'refresher_training') NOT NULL,
+  type ENUM('main') NOT NULL,
   module_id INT NOT NULL,
   device_model_id INT NOT NULL,
   created_by INT,
@@ -299,7 +299,7 @@ CREATE TABLE attendance (
 CREATE TABLE test_attempts (
   id INT AUTO_INCREMENT PRIMARY KEY,
   enrollment_id INT NOT NULL,
-  test_type ENUM('pre_test', 'post_test', 'refresher_training', 'certificate_enrolment') NOT NULL,
+  test_type ENUM('pre_test', 'post_test', 'certificate_enrolment') NOT NULL,
   score DECIMAL(5,2),
   total_questions INT,
   started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -325,7 +325,7 @@ CREATE TABLE objective_scores (
   id INT AUTO_INCREMENT PRIMARY KEY,
   enrollment_id INT NOT NULL,
   objective_id INT NOT NULL,
-  test_type ENUM('post_test', 'refresher_training', 'certificate_enrolment') NOT NULL,
+  test_type ENUM('post_test', 'certificate_enrolment') NOT NULL,
   questions_answered INT NOT NULL DEFAULT 0,
   questions_correct INT NOT NULL DEFAULT 0,
   understanding_percentage DECIMAL(5,2) NOT NULL DEFAULT 0,
@@ -335,11 +335,11 @@ CREATE TABLE objective_scores (
   UNIQUE KEY unique_objective_score (enrollment_id, objective_id, test_type)
 );
 
--- Training tests (main: pre/post/certificate, refresher: certificate only)
+-- Training tests (pre/post/certificate)
 CREATE TABLE training_tests (
   id INT AUTO_INCREMENT PRIMARY KEY,
   training_id INT NOT NULL,
-  test_type ENUM('pre_test', 'post_test', 'refresher_training', 'certificate_enrolment') NOT NULL,
+  test_type ENUM('pre_test', 'post_test', 'certificate_enrolment') NOT NULL,
   total_questions INT NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE CASCADE

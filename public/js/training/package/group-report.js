@@ -13,7 +13,7 @@
     const resultRows = rows.map(r => {
       const marks = marksMap.get(String(r.trainee_id || '').trim());
       const pre = marks ? utils.getBestTestScore(marks.tests, 'pre_test') : null;
-      const post = marks ? (utils.getBestTestScore(marks.tests, 'post_test') || utils.getBestTestScore(marks.tests, 'refresher_training')) : null;
+      const post = marks ? utils.getBestTestScore(marks.tests, 'post_test') : null;
       const cert = marks ? utils.getBestTestScore(marks.tests, 'certificate_enrolment') : null;
       const hands = Array.isArray(marks?.handsOnScores) ? marks.handsOnScores : [];
       const handsMax = hands.reduce((s, x) => s + (parseFloat(x.max_score) || 0), 0);
@@ -48,7 +48,7 @@
               <th style="padding:8px;text-align:left;">Name</th>
               <th style="padding:8px;text-align:left;">IC/Passport</th>
               <th style="padding:8px;text-align:center;">Pre</th>
-              <th style="padding:8px;text-align:center;">Post/Ref</th>
+              <th style="padding:8px;text-align:center;">Post</th>
               <th style="padding:8px;text-align:center;">Cert</th>
               <th style="padding:8px;text-align:center;">Hands On</th>
               <th style="padding:8px;text-align:left;">Performance</th>

@@ -14,7 +14,6 @@ router.get('/', async (req, res) => {
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') as pre_test_completed,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') as post_test_completed,
           (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') as certificate_enrolment_test_completed,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed') as refresher_training_test_completed,
           (SELECT COUNT(*) FROM practical_learning_outcome_scores WHERE enrollment_id = e.id) as hands_on_completed,
           (SELECT COUNT(*) FROM practical_learning_outcomes WHERE training_id = e.training_id) as hands_on_total
         FROM enrollments e
@@ -56,7 +55,6 @@ router.get('/', async (req, res) => {
           (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') as pre_max,
           (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') as post_max,
           (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') as cert_max,
-          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'refresher_training' AND status = 'completed') as refresher_max,
           (SELECT COUNT(*) FROM practical_learning_outcome_scores WHERE enrollment_id = e.id) as hands_on_completed,
           (SELECT COUNT(*) FROM practical_learning_outcomes WHERE training_id = e.training_id) as hands_on_total
         FROM enrollments e
@@ -69,7 +67,6 @@ router.get('/', async (req, res) => {
         if (parseFloat(row.pre_max) >= 80) count += 1;
         if (parseFloat(row.post_max) >= 80) count += 1;
         if (parseFloat(row.cert_max) >= 80) count += 1;
-        if (parseFloat(row.refresher_max) >= 80) count += 1;
         if (row.training_type === 'main' && row.hands_on_total > 0 && row.hands_on_completed >= row.hands_on_total) {
           count += 1;
         }

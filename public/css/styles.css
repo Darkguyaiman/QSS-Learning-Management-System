@@ -1601,11 +1601,6 @@ body.has-sidebar .main-content {
   color: var(--color-white);
 }
 
-.badge-refresher_training {
-  background-color: var(--color-orange);
-  color: var(--color-white);
-}
-
 .progress-section {
   margin: var(--spacing-md) 0;
 }
@@ -2499,10 +2494,6 @@ body.has-sidebar .main-content {
 
 .test-card.certificate-test::before {
   background: rgba(234, 67, 53, 0.85);
-}
-
-.test-card.refresher_training-test::before {
-  background: rgba(156, 39, 176, 0.8);
 }
 
 .test-card:hover {

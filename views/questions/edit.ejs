@@ -131,6 +131,16 @@
       padding: 1rem;
       transition: all 0.3s ease;
     }
+
+    .option-card.is-disabled {
+      opacity: 0.55;
+      pointer-events: none;
+    }
+
+    .btn.is-faded {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
     
     .option-card:focus-within {
       border-color: #573FD7;
@@ -463,9 +473,6 @@
                   <select id="testType" name="testType" required style="display:none;">
                     <option value="pre_test" <%= question.test_type === 'pre_test' ? 'selected' : '' %>>Pre-Test</option>
                     <option value="post_test" <%= question.test_type === 'post_test' ? 'selected' : '' %>>Post-Test</option>
-                    <% if (question.test_type === 'refresher_training') { %>
-                      <option value="refresher_training" selected>Refresher Training Test (Legacy)</option>
-                    <% } %>
                     <option value="certificate_enrolment" <%= question.test_type === 'certificate_enrolment' ? 'selected' : '' %>>Certificate Enrolment Test</option>
                   </select>
                 </div>
@@ -602,6 +609,12 @@
       const correctAnswerSelect = document.getElementById('correctAnswer');
       const correctAnswerC = document.getElementById('correctAnswerC');
       const correctAnswerD = document.getElementById('correctAnswerD');
+
+      function setButtonDisabled(button, disabled) {
+        if (!button) return;
+        button.disabled = disabled;
+        button.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+      }
       
       // Initialize based on existing data
       const hasOptionC = optionCInput && optionCInput.value.trim() !== '';
@@ -630,10 +643,33 @@
         if (removeOptionD) removeOptionD.style.display = 'none';
         if (correctAnswerD) correctAnswerD.style.display = 'none';
       }
+
+      function updateOptionSequenceState() {
+        const hasC = optionCContainer && optionCContainer.style.display !== 'none';
+        const hasD = optionDContainer && optionDContainer.style.display !== 'none';
+
+        if (!hasC && hasD) {
+          if (optionDContainer) optionDContainer.style.display = 'none';
+          if (optionDInput) optionDInput.value = '';
+          if (removeOptionD) removeOptionD.style.display = 'none';
+          if (addOptionD) addOptionD.style.display = 'inline-flex';
+        }
+
+        const canManageD = optionCContainer && optionCContainer.style.display !== 'none';
+        setButtonDisabled(addOptionD, !canManageD);
+        if (addOptionD) {
+          addOptionD.classList.toggle('is-faded', !canManageD);
+          addOptionD.title = canManageD ? '' : 'Add Option C first';
+        }
+        if (optionDContainer) {
+          optionDContainer.classList.toggle('is-disabled', !canManageD);
+        }
+      }
       
       function updateCorrectAnswerOptions() {
-        const hasC = optionCContainer && optionCContainer.style.display !== 'none' && optionCInput && optionCInput.value.trim() !== '';
-        const hasD = optionDContainer && optionDContainer.style.display !== 'none' && optionDInput && optionDInput.value.trim() !== '';
+        updateOptionSequenceState();
+        const hasC = optionCContainer && optionCContainer.style.display !== 'none';
+        const hasD = optionDContainer && optionDContainer.style.display !== 'none';
         
         if (correctAnswerC) {
           correctAnswerC.style.display = hasC ? 'block' : 'none';
@@ -703,6 +739,7 @@
       // Add Option D
       if (addOptionD) {
         addOptionD.addEventListener('click', function() {
+          if (addOptionD.disabled) return;
           if (optionDContainer) optionDContainer.style.display = 'block';
           if (addOptionD) addOptionD.style.display = 'none';
           if (removeOptionD) removeOptionD.style.display = 'inline-flex';
@@ -738,9 +775,6 @@
         items: [
           { label: 'Pre-Test',                   value: 'pre_test' },
           { label: 'Post-Test',                  value: 'post_test' },
-          <% if (question.test_type === 'refresher_training') { %>
-          { label: 'Refresher Training Test (Legacy)',  value: 'refresher_training' },
-          <% } %>
           { label: 'Certificate Enrolment Test', value: 'certificate_enrolment' }
         ],
         placeholder: 'Select test type',

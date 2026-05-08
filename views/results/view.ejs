@@ -126,7 +126,7 @@
                 <% bestTests.forEach(test => { %>
                   <tr>
                     <td>
-                      <span class="badge badge-<%= test.test_type === 'pre_test' || test.test_type === 'post_test' ? 'main' : 'refresher_training' %>">
+                      <span class="badge badge-main">
                         <%= test.test_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %>
                       </span>
                     </td>
@@ -203,7 +203,7 @@
                     <td><strong>Training Grade</strong></td>
                     <td><%= finalGrades.training_grade.toFixed(1) %>%</td>
                     <td>
-                      <%= enrollment.type === 'main' ? '60% Practical Learning Outcome + 40% Certificate Enrolment' : 'Refresher Training Test' %>
+                      <%= enrollment.type === 'main' ? '60% Practical Learning Outcome + 40% Certificate Enrolment' : 'Certificate Enrolment Test' %>
                     </td>
                   </tr>
                 <% } %>

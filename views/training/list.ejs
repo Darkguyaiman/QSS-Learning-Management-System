@@ -81,11 +81,6 @@
       color: #1967D2;
     }
     
-    .badge-refresher_training {
-      background: #FEF7E0;
-      color: #F9AB00;
-    }
-    
     .status-badge {
       display: inline-flex;
       align-items: center;
@@ -113,6 +108,19 @@
     .status-rescheduled {
       background: #FFF3E0;
       color: #F57C00;
+    }
+
+    .dashboard-header .btn.btn-success {
+      background: #217346;
+      border-color: #217346;
+      color: #FFFFFF;
+    }
+
+    .dashboard-header .btn.btn-success:hover,
+    .dashboard-header .btn.btn-success:focus {
+      background: #1a5c39;
+      border-color: #1a5c39;
+      color: #FFFFFF;
     }
     
     .classroom-info {
@@ -153,9 +161,19 @@
     <div class="container">
       <div class="dashboard-header">
         <h1><i class="fas fa-graduation-cap" style="color:#573FD7;"></i> All Trainings</h1>
-        <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-          <a href="/training/create" class="btn btn-primary">Create New Training</a>
-        <% } %>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+          <% if (typeof trainingImportEnabled !== 'undefined' && trainingImportEnabled) { %>
+            <a href="/training/import/template" class="btn btn-success">
+              <i class="fas fa-file-excel"></i> Download import template
+            </a>
+            <button type="button" class="btn btn-success" id="trainingImportExcelBtn">
+              <i class="fas fa-upload"></i> Import Excel
+            </button>
+          <% } %>
+          <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+            <a href="/training/create" class="btn btn-primary">Create New Training</a>
+          <% } %>
+        </div>
       </div>
 
       <% if (trainings.length === 0) { %>
@@ -173,8 +191,8 @@
               <div class="classroom-body">
                 <h3 class="classroom-title"><%= training.title %></h3>
                 <div class="classroom-meta">
-                  <span class="classroom-badge badge-<%= training.type %>">
-                    <%= training.type === 'main' ? 'Main Training' : 'Refresher Training' %>
+                  <span class="classroom-badge badge-main">
+                    Main Training
                   </span>
                   <% 
                     const statusLabels = {
@@ -219,6 +237,83 @@
     </div>
   </main>
   
+  <% if (typeof trainingImportEnabled !== 'undefined' && trainingImportEnabled) { %>
+  <input type="file" id="trainingImportFile" accept=".xlsx,.xls" style="display:none" />
+  <% } %>
+  <% if (typeof trainingImportEnabled !== 'undefined' && trainingImportEnabled) { %>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <% } %>
   <script src="/js/main.js"></script>
+  <% if (typeof trainingImportEnabled !== 'undefined' && trainingImportEnabled) { %>
+  <script>
+    (function () {
+      const importBtn = document.getElementById('trainingImportExcelBtn');
+      const fileInput = document.getElementById('trainingImportFile');
+      if (!importBtn || !fileInput || typeof XLSX === 'undefined') return;
+
+      function sheetRows(workbook, sheetName) {
+        const sheet = workbook.Sheets[sheetName];
+        if (!sheet) return null;
+        return XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      }
+
+      importBtn.addEventListener('click', function () {
+        fileInput.value = '';
+        fileInput.click();
+      });
+
+      fileInput.addEventListener('change', async function (event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const trainings = sheetRows(workbook, 'Trainings');
+        const enrollments = sheetRows(workbook, 'Enrollments') || [];
+        const attempts = sheetRows(workbook, 'Test Attempts') || [];
+        const answers = sheetRows(workbook, 'Test Answers') || [];
+
+        if (!trainings) {
+          window.alert('The workbook must contain a "Trainings" sheet.');
+          return;
+        }
+
+        const confirmation = window.confirm(
+          `Import ${trainings.length} training row(s), ${enrollments.length} enrollment row(s), ${attempts.length} attempt row(s), and ${answers.length} answer row(s)?`
+        );
+        if (!confirmation) return;
+
+        importBtn.disabled = true;
+        const originalHtml = importBtn.innerHTML;
+        importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+
+        try {
+          const response = await fetch('/training/import/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ trainings, enrollments, attempts, answers })
+          });
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            const message = Array.isArray(data.errors) ? data.errors.join('\n') : (data.error || 'Import failed.');
+            window.alert(message);
+            return;
+          }
+
+          window.alert(
+            `Imported ${data.insertedTrainings} training(s), ${data.insertedEnrollments} enrollment(s), ${data.insertedAttempts} attempt(s), and ${data.insertedAnswers} answer(s).`
+          );
+          window.location.reload();
+        } catch (error) {
+          window.alert(error.message || 'Import failed.');
+        } finally {
+          importBtn.disabled = false;
+          importBtn.innerHTML = originalHtml;
+        }
+      });
+    })();
+  </script>
+  <% } %>
 </body>
 </html>
