@@ -359,6 +359,61 @@
       border: none;
       font-size: 0.9rem;
     }
+
+    .practical-grading-criteria {
+      margin: 0 auto var(--spacing-xl);
+      border: 1px solid #DADCE0;
+      border-radius: var(--border-radius-lg);
+      overflow: hidden;
+      background: #FFFFFF;
+      width: 100%;
+      max-width: 1080px;
+    }
+
+    .practical-grading-criteria__header {
+      padding: 0.7rem 0.9rem;
+      background: #F8F9FA;
+      border-bottom: 1px solid #E8EAED;
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: var(--color-dark);
+    }
+
+    .practical-grading-criteria__table-wrap {
+      overflow-x: auto;
+    }
+
+    .practical-grading-criteria__table {
+      width: 100%;
+      min-width: 820px;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+      line-height: 1.4;
+    }
+
+    .practical-grading-criteria__table th,
+    .practical-grading-criteria__table td {
+      border: 1px solid #DADCE0;
+      vertical-align: top;
+      padding: 0.65rem 0.75rem;
+    }
+
+    .practical-grading-criteria__table th {
+      background: #111111;
+      color: #FFFFFF;
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .practical-grading-criteria__table ul {
+      margin: 0;
+      padding-left: 0.95rem;
+    }
+
+    .practical-grading-criteria__table li + li {
+      margin-top: 0.45rem;
+    }
     
     .btn-icon:hover {
       transform: translateY(-1px);
@@ -901,6 +956,9 @@
         </div>
       <% } else { %>
       <div class="settings-card">
+        <% if (typeof showPracticalGradingCriteria !== 'undefined' && showPracticalGradingCriteria) { %>
+          <%- include('../partials/practical-grading-criteria') %>
+        <% } %>
         <div class="<%= (typeof enableSearch !== 'undefined' && enableSearch) ? 'card-header-inline' : '' %>">
           <div class="card-title">Existing <%= pluralName %></div>
           <% if (typeof enableSearch !== 'undefined' && enableSearch) { %>
@@ -1009,7 +1067,7 @@
                       <% } %>
                       <% if (typeof hasMaxScore !== 'undefined' && hasMaxScore) { %>
                         <td>
-                          <%= item.max_score || 100 %>
+                          <%= item.max_score || maxScoreDefault || 100 %>
                         </td>
                       <% } %>
                     <% } %>
@@ -1113,10 +1171,10 @@
                         </div>
                       </div>
                     <% } %>
-                    <% if (typeof hasMaxScore !== 'undefined' && hasMaxScore && item.max_score) { %>
+                    <% if (typeof hasMaxScore !== 'undefined' && hasMaxScore && (item.max_score || typeof maxScoreDefault !== 'undefined')) { %>
                       <div class="item-card-row">
                         <div class="item-card-label">Max Score</div>
-                        <div class="item-card-value"><%= item.max_score %></div>
+                        <div class="item-card-value"><%= item.max_score || maxScoreDefault || 100 %></div>
                       </div>
                     <% } %>
                   <% } %>

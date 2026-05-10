@@ -13,7 +13,7 @@
 
     .settings-page {
       width: 100%;
-      max-width: 960px;
+      max-width: 1200px;
       margin: 0 auto;
       padding: var(--spacing-xl) var(--spacing-md);
       box-sizing: border-box;
@@ -318,6 +318,61 @@
         grid-template-columns: 1fr;
       }
     }
+
+    .practical-grading-criteria {
+      margin: 0 auto var(--spacing-xl);
+      border: 1px solid #DADCE0;
+      border-radius: var(--border-radius-lg);
+      overflow: hidden;
+      background: #FFFFFF;
+      width: 100%;
+      max-width: 1080px;
+    }
+
+    .practical-grading-criteria__header {
+      padding: 0.7rem 0.9rem;
+      background: #F8F9FA;
+      border-bottom: 1px solid #E8EAED;
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: var(--color-dark);
+    }
+
+    .practical-grading-criteria__table-wrap {
+      overflow-x: auto;
+    }
+
+    .practical-grading-criteria__table {
+      width: 100%;
+      min-width: 820px;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+      line-height: 1.4;
+    }
+
+    .practical-grading-criteria__table th,
+    .practical-grading-criteria__table td {
+      border: 1px solid #DADCE0;
+      vertical-align: top;
+      padding: 0.65rem 0.75rem;
+    }
+
+    .practical-grading-criteria__table th {
+      background: #111111;
+      color: #FFFFFF;
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .practical-grading-criteria__table ul {
+      margin: 0;
+      padding-left: 0.95rem;
+    }
+
+    .practical-grading-criteria__table li + li {
+      margin-top: 0.45rem;
+    }
   </style>
 </head>
 <body class="has-sidebar">
@@ -349,6 +404,9 @@
       <% } %>
 
       <div class="settings-card">
+        <% if (typeof showPracticalGradingCriteria !== 'undefined' && showPracticalGradingCriteria) { %>
+          <%- include('../partials/practical-grading-criteria') %>
+        <% } %>
         <div class="card-title"><%= formMode === 'edit' ? 'Edit' : 'Add New' %> <%= singularName %></div>
         <form action="<%= formAction %>" method="POST" <%= typeof pageType !== 'undefined' && pageType === 'users' ? 'enctype="multipart/form-data"' : '' %>>
           <% if (typeof pageType !== 'undefined' && pageType === 'users') { %>
@@ -489,7 +547,7 @@
             <% if (hasMaxScore) { %>
               <div class="form-group">
                 <label for="item-max-score">Max Score *</label>
-                <input type="number" id="item-max-score" name="max_score" value="<%= typeof item !== 'undefined' && item ? (item.max_score || 100) : 100 %>" min="1" required>
+                <input type="number" id="item-max-score" name="max_score" value="<%= typeof item !== 'undefined' && item ? (item.max_score || maxScoreDefault || 100) : (maxScoreDefault || 100) %>" min="1" required>
               </div>
             <% } %>
           <% } %>

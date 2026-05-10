@@ -3961,7 +3961,7 @@ router.post('/:id/aspect/:aspectId/update', async (req, res) => {
     
     await req.db.query(
       'UPDATE practical_learning_outcomes SET max_score = ? WHERE id = ?',
-      [max_score || 100, req.params.aspectId]
+      [max_score || 4, req.params.aspectId]
     );
     
     res.redirect(`/training/${req.params.id}`);

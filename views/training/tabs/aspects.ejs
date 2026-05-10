@@ -7,6 +7,7 @@
       </div>
     <% } else { %>
       <div class="section-card">
+        <%- include('../../partials/practical-grading-criteria') %>
         <div class="aspects-info">
           <i class="fas fa-info-circle"></i>
           <span>Aspects are configured when the training is created. Only the max score can be edited here.</span>
@@ -97,6 +98,61 @@
     .table-wrapper {
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
+    }
+
+    .practical-grading-criteria {
+      margin: 0 auto 1.5rem;
+      border: 1px solid #DADCE0;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #FFFFFF;
+      width: 100%;
+      max-width: 1080px;
+    }
+
+    .practical-grading-criteria__header {
+      padding: 0.7rem 0.9rem;
+      background: #F8F9FA;
+      border-bottom: 1px solid #E8EAED;
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: #202124;
+    }
+
+    .practical-grading-criteria__table-wrap {
+      overflow-x: auto;
+    }
+
+    .practical-grading-criteria__table {
+      width: 100%;
+      min-width: 820px;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+      line-height: 1.4;
+    }
+
+    .practical-grading-criteria__table th,
+    .practical-grading-criteria__table td {
+      border: 1px solid #DADCE0;
+      vertical-align: top;
+      padding: 0.65rem 0.75rem;
+    }
+
+    .practical-grading-criteria__table th {
+      background: #111111;
+      color: #FFFFFF;
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .practical-grading-criteria__table ul {
+      margin: 0;
+      padding-left: 0.95rem;
+    }
+
+    .practical-grading-criteria__table li + li {
+      margin-top: 0.45rem;
     }
 
     /* Mobile: turn the table into stacked cards */

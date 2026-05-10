@@ -1310,6 +1310,8 @@ router.get('/hands-on-aspects', async (req, res) => {
       hasModelDropdown: false,
       hasModelColumn: false,
       hasMaxScore: true,
+      maxScoreDefault: 4,
+      showPracticalGradingCriteria: true,
       enableSearch: true,
       searchQuery,
       searchPlaceholder: 'Search outcomes by aspect name or description'
@@ -1335,7 +1337,9 @@ router.get('/hands-on-aspects/new', (req, res) => {
     namePlaceholder: 'Enter aspect name',
     descriptionPlaceholder: 'Enter aspect description (optional)',
     hasModelDropdown: false,
-    hasMaxScore: true
+    hasMaxScore: true,
+    maxScoreDefault: 4,
+    showPracticalGradingCriteria: true
   });
 });
 
@@ -1362,6 +1366,8 @@ router.get('/hands-on-aspects/:id/edit', async (req, res) => {
       descriptionPlaceholder: 'Enter aspect description (optional)',
       hasModelDropdown: false,
       hasMaxScore: true,
+      maxScoreDefault: 4,
+      showPracticalGradingCriteria: true,
       item: rows[0]
     });
   } catch (error) {
@@ -1376,7 +1382,7 @@ router.post('/hands-on-aspects/create', async (req, res) => {
   try {
     await req.db.query(
       'INSERT INTO practical_learning_outcomes_settings (aspect_name, description, max_score) VALUES (?, ?, ?)',
-      [aspect_name, description || null, max_score || 100]
+      [aspect_name, description || null, max_score || 4]
     );
     res.redirect('/settings/hands-on-aspects');
   } catch (error) {
@@ -1396,7 +1402,7 @@ router.post('/hands-on-aspects/:id/update', async (req, res) => {
   try {
     await req.db.query(
       'UPDATE practical_learning_outcomes_settings SET aspect_name = ?, description = ?, max_score = ? WHERE id = ?',
-      [aspect_name, description || null, max_score || 100, req.params.id]
+      [aspect_name, description || null, max_score || 4, req.params.id]
     );
     res.redirect('/settings/hands-on-aspects');
   } catch (error) {
