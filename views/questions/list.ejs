@@ -834,12 +834,6 @@
                 <i class="fas fa-search search-icon"></i>
                 <input type="text" id="searchInput" class="search-input" placeholder="Search by question text or answer options..." value="<%= searchQuery || '' %>">
               </div>
-              <% if (searchQuery) { %>
-                <a href="<%= buildQuestionClearSearchUrl() %>" class="btn btn-outline">
-                  <i class="fas fa-times"></i>
-                  Clear
-                </a>
-              <% } %>
             </div>
             
             <div class="filter-group">

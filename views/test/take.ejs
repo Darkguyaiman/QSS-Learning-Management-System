@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Take Test - LMS</title>
   <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    .test-navigation-footer .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+    }
+
+    .test-submit-hint.is-hidden {
+      display: none;
+    }
+  </style>
 </head>
 <body class="has-sidebar">
   <%- include('../partials/sidebar', { user }) %>
@@ -119,7 +131,7 @@
               >
                 Submit Test
               </button>
-              <p class="text-muted" style="margin-top: var(--spacing-sm);">
+              <p class="text-muted test-submit-hint" id="submit-test-hint" style="margin-top: var(--spacing-sm);">
                 You can submit only after all questions are answered. Use the grid above to jump between questions.
               </p>
             </div>
@@ -145,6 +157,7 @@
       const prevBtn = document.getElementById('prev-question-btn');
       const nextBtn = document.getElementById('next-question-btn');
       const submitBtn = document.getElementById('submit-test-btn');
+      const submitHint = document.getElementById('submit-test-hint');
       const form = document.getElementById('testForm');
 
       let currentIndex = 0;
@@ -205,8 +218,10 @@
         // Enable submit only when all answered
         if (completed === totalQuestions) {
           submitBtn.disabled = false;
+          if (submitHint) submitHint.classList.add('is-hidden');
         } else {
           submitBtn.disabled = true;
+          if (submitHint) submitHint.classList.remove('is-hidden');
         }
       }
 
@@ -224,6 +239,8 @@
 
         prevBtn.disabled = index === 0;
         nextBtn.disabled = index === totalQuestions - 1;
+        nextBtn.style.display = index === totalQuestions - 1 ? 'none' : 'inline-flex';
+        submitBtn.style.display = index === totalQuestions - 1 ? 'inline-flex' : 'none';
 
         updateCountsAndGrid();
       }

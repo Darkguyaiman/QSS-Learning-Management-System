@@ -3683,49 +3683,104 @@ router.post('/:id/release-scores', async (req, res) => {
     }
 
     let eligibleEnrollmentIds = enrollment_ids;
+    const placeholders = enrollment_ids.map(() => '?').join(',');
 
-    if (training.type !== 'main') {
-      const placeholders = enrollment_ids.map(() => '?').join(',');
-      const [scoreRows] = await req.db.query(
-        `SELECT enrollment_id, test_type, MAX(score) as score
+    if (training.type === 'main') {
+      const [testRows] = await req.db.query(
+        `SELECT enrollment_id, test_type
          FROM test_attempts
          WHERE enrollment_id IN (${placeholders})
            AND status = "completed"
-           AND test_type = 'certificate_enrolment'
+           AND test_type IN ('pre_test', 'post_test', 'certificate_enrolment')
          GROUP BY enrollment_id, test_type`,
         enrollment_ids
       );
 
-      const scoresByEnrollment = scoreRows.reduce((acc, row) => {
-        if (!acc[row.enrollment_id]) acc[row.enrollment_id] = {};
-        acc[row.enrollment_id][row.test_type] = parseFloat(row.score) || 0;
+      const [aspectRows] = await req.db.query(
+        'SELECT id FROM practical_learning_outcomes WHERE training_id = ?',
+        [req.params.id]
+      );
+
+      const [handsOnRows] = await req.db.query(
+        `SELECT hs.enrollment_id, hs.aspect_id
+         FROM practical_learning_outcome_scores hs
+         JOIN practical_learning_outcomes plo ON plo.id = hs.aspect_id
+         WHERE hs.enrollment_id IN (${placeholders})
+           AND plo.training_id = ?
+         GROUP BY hs.enrollment_id, hs.aspect_id`,
+        [...enrollment_ids, req.params.id]
+      );
+
+      const requiredAspectCount = aspectRows.length;
+      const completedTestsByEnrollment = testRows.reduce((acc, row) => {
+        if (!acc[row.enrollment_id]) acc[row.enrollment_id] = new Set();
+        acc[row.enrollment_id].add(row.test_type);
+        return acc;
+      }, {});
+      const completedHandsOnByEnrollment = handsOnRows.reduce((acc, row) => {
+        if (!acc[row.enrollment_id]) acc[row.enrollment_id] = new Set();
+        acc[row.enrollment_id].add(String(row.aspect_id));
         return acc;
       }, {});
 
-      eligibleEnrollmentIds = enrollment_ids.filter(id => {
-        const entry = scoresByEnrollment[id] || {};
-        return (entry.certificate_enrolment || 0) >= 80;
+      eligibleEnrollmentIds = enrollment_ids.filter((id) => {
+        const completedTests = completedTestsByEnrollment[id] || new Set();
+        const completedHandsOn = completedHandsOnByEnrollment[id] || new Set();
+        return (
+          completedTests.has('pre_test') &&
+          completedTests.has('post_test') &&
+          completedTests.has('certificate_enrolment') &&
+          requiredAspectCount > 0 &&
+          completedHandsOn.size >= requiredAspectCount
+        );
       });
 
       if (eligibleEnrollmentIds.length === 0) {
         return res.status(400).json({
           success: false,
-          error: 'Scores can be released only after the Certificate Enrolment Test is Outstanding (80%+).'
+          error: 'Scores for main training can be released only after pre-test, post-test, certificate enrolment, and all practical learning outcomes are completed.'
         });
       }
 
       if (eligibleEnrollmentIds.length !== enrollment_ids.length) {
         return res.status(400).json({
           success: false,
-          error: 'Some trainees have not passed the Certificate Enrolment Test yet.'
+          error: 'Some trainees have not completed all required main training assessments yet.'
+        });
+      }
+    } else {
+      const [testRows] = await req.db.query(
+        `SELECT enrollment_id
+         FROM test_attempts
+         WHERE enrollment_id IN (${placeholders})
+           AND status = "completed"
+           AND test_type = 'certificate_enrolment'
+         GROUP BY enrollment_id`,
+        enrollment_ids
+      );
+
+      const completedEnrollmentIds = new Set((testRows || []).map((row) => String(row.enrollment_id)));
+      eligibleEnrollmentIds = enrollment_ids.filter((id) => completedEnrollmentIds.has(String(id)));
+
+      if (eligibleEnrollmentIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Scores can be released only after the Certificate Enrolment Test is completed.'
+        });
+      }
+
+      if (eligibleEnrollmentIds.length !== enrollment_ids.length) {
+        return res.status(400).json({
+          success: false,
+          error: 'Some trainees have not completed the Certificate Enrolment Test yet.'
         });
       }
     }
 
     // Update can_download_results for selected enrollments
-    const placeholders = eligibleEnrollmentIds.map(() => '?').join(',');
+    const updatePlaceholders = eligibleEnrollmentIds.map(() => '?').join(',');
     await req.db.query(
-      `UPDATE enrollments SET can_download_results = TRUE WHERE id IN (${placeholders}) AND training_id = ?`,
+      `UPDATE enrollments SET can_download_results = TRUE WHERE id IN (${updatePlaceholders}) AND training_id = ?`,
       [...eligibleEnrollmentIds, req.params.id]
     );
 

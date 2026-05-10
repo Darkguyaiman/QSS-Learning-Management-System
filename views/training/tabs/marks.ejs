@@ -29,6 +29,13 @@
         }
         return { total, max };
       };
+      const practicalOutcomeCompletedCount = (handsOnScores) => {
+        const aspectIds = new Set();
+        for (const s of handsOnScores || []) {
+          if (s && s.aspect_id != null) aspectIds.add(String(s.aspect_id));
+        }
+        return aspectIds.size;
+      };
     %>
     <% if (marksData.length === 0) { %>
       <div class="empty-state">
@@ -153,11 +160,17 @@
                       </a>
                     <% } %>
                     <% 
-                      const certPassed = certificateEnrolmentTest && certificateEnrolmentTest.score >= 80;
-                      const canReleaseRefresher = !data.can_download_results && certPassed;
+                      const completedHandsOnCount = practicalOutcomeCompletedCount(data.handsOnScores);
+                      const totalHandsOnCount = Array.isArray(aspects) ? aspects.length : 0;
+                      const certCompleted = !!certificateEnrolmentTest;
+                      const preCompleted = !!preTest;
+                      const postCompleted = !!postTest;
+                      const practicalCompleted = totalHandsOnCount > 0 && completedHandsOnCount >= totalHandsOnCount;
+                      const canReleaseMain = !data.can_download_results && preCompleted && postCompleted && certCompleted && practicalCompleted;
+                      const canReleaseRefresher = !data.can_download_results && certCompleted;
                     %>
                     <% if (training.type === 'main') { %>
-                      <% if (user.userRole === 'admin' && !data.can_download_results) { %>
+                      <% if (user.userRole === 'admin' && canReleaseMain) { %>
                         <button class="btn btn-sm btn-primary" onclick="releaseScores([<%= data.enrollment_id %>], this)">
                           <i class="fas fa-unlock"></i> Release
                         </button>
@@ -280,11 +293,17 @@
                     </a>
                   <% } %>
                   <% 
-                    const certPassed = certificateEnrolmentTest && certificateEnrolmentTest.score >= 80;
-                    const canReleaseRefresher = !data.can_download_results && certPassed;
+                    const completedHandsOnCount = practicalOutcomeCompletedCount(data.handsOnScores);
+                    const totalHandsOnCount = Array.isArray(aspects) ? aspects.length : 0;
+                    const certCompleted = !!certificateEnrolmentTest;
+                    const preCompleted = !!preTest;
+                    const postCompleted = !!postTest;
+                    const practicalCompleted = totalHandsOnCount > 0 && completedHandsOnCount >= totalHandsOnCount;
+                    const canReleaseMain = !data.can_download_results && preCompleted && postCompleted && certCompleted && practicalCompleted;
+                    const canReleaseRefresher = !data.can_download_results && certCompleted;
                   %>
                   <% if (training.type === 'main') { %>
-                    <% if (user.userRole === 'admin' && !data.can_download_results) { %>
+                    <% if (user.userRole === 'admin' && canReleaseMain) { %>
                       <button class="btn btn-sm btn-primary" onclick="releaseScores([<%= data.enrollment_id %>], this)">
                         <i class="fas fa-unlock"></i> Release
                       </button>
