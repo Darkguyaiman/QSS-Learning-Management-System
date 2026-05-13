@@ -1,5 +1,6 @@
 <!-- Stream Tab -->
 <div id="stream-tab" class="tab-content active">
+  <% const trainingTypeLabel = training.type === 'main' ? 'Main Training' : 'Refresher Training'; %>
   <div class="classroom-header-banner" style="background-image: url('<%= training.header_image || '/images/Training Headers/Header 2.jpg' %>');">
     <div class="classroom-header-overlay" aria-hidden="true"></div>
     <div class="classroom-header-content">
@@ -8,7 +9,7 @@
           <h1 class="classroom-title"><%= training.title %></h1>
           <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap;">
             <span style="background: rgba(0,0,0,0.35); padding: 0.25rem 0.75rem; border-radius: 16px; font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.25);">
-              Main Training
+              <%= trainingTypeLabel %>
             </span>
           </div>
         </div>

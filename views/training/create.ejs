@@ -707,12 +707,26 @@
                     </div>
                   </div>
                 </label>
+                <label class="type-card">
+                  <input type="radio" name="type" value="refresher_training" required>
+                  <div class="type-card-content">
+                    <div class="type-card-title">
+                      <i class="fas fa-certificate"></i>
+                      Refresher Training
+                    </div>
+                    <div class="type-card-desc">
+                      Includes only the certificate enrolment test. Results can be released by trainer or admin after completion.
+                    </div>
+                  </div>
+                </label>
               </div>
               
               <div class="info-box">
                 <i class="fas fa-info-circle"></i>
                 <p>
                   <strong>Main Training:</strong> Full training program with pre-test, hands-on practical assessment, post-test evaluation, and certificate enrolment.
+                  <br>
+                  <strong>Refresher Training:</strong> Certificate enrolment test only, with results released after the test is completed.
                 </p>
               </div>
             </div>
@@ -955,17 +969,29 @@
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="/js/main.js"></script>
   <script>
-    // Add visual feedback for radio selection
-    document.querySelectorAll('.type-card input[type="radio"]').forEach(radio => {
-      radio.addEventListener('change', function() {
-        document.querySelectorAll('.type-card').forEach(card => {
-          card.classList.remove('selected');
-        });
-        if (this.checked) {
-          this.closest('.type-card').classList.add('selected');
-        }
+    function syncTrainingTypeSelection() {
+      document.querySelectorAll('.type-card').forEach(card => {
+        const radio = card.querySelector('input[type="radio"]');
+        card.classList.toggle('selected', Boolean(radio && radio.checked));
+      });
+    }
+
+    // Keep card UI and posted radio value aligned across browsers.
+    document.querySelectorAll('.type-card').forEach(card => {
+      const radio = card.querySelector('input[type="radio"]');
+      if (!radio) return;
+
+      card.addEventListener('click', function() {
+        radio.checked = true;
+        radio.dispatchEvent(new Event('change', { bubbles: true }));
       });
     });
+
+    document.querySelectorAll('.type-card input[type="radio"]').forEach(radio => {
+      radio.addEventListener('change', syncTrainingTypeSelection);
+    });
+
+    syncTrainingTypeSelection();
 
     const trainingTitleSelect = document.getElementById('title');
     const trainingDescriptionField = document.getElementById('description');
@@ -1101,7 +1127,7 @@
     }
 
     // Persist form state in localStorage
-    const formStorageKey = 'training-create-form-v1';
+    const formStorageKey = 'training-create-form-v2';
     const trainingForm = document.querySelector('form');
 
     function collectFormState() {
@@ -1194,6 +1220,8 @@
           });
         }
       }
+
+      syncTrainingTypeSelection();
     }
 
     if (trainingForm) {

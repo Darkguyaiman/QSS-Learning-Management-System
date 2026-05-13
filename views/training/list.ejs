@@ -80,6 +80,11 @@
       background: #E8F0FE;
       color: #1967D2;
     }
+
+    .badge-refresher {
+      background: #FFF3E0;
+      color: #C26A00;
+    }
     
     .status-badge {
       display: inline-flex;
@@ -186,13 +191,18 @@
       <% } else { %>
         <div class="training-grid">
           <% trainings.forEach(training => { %>
+            <%
+              const isMainTraining = training.type === 'main';
+              const trainingTypeLabel = isMainTraining ? 'Main Training' : 'Refresher Training';
+              const trainingTypeBadgeClass = isMainTraining ? 'badge-main' : 'badge-refresher';
+            %>
             <a href="/training/<%= training.id %>" class="classroom-card" style="text-decoration: none; color: inherit;">
               <div class="classroom-header" style="background-image: url('<%= training.header_image || '/images/Training Headers/Header 2.jpg' %>');"></div>
               <div class="classroom-body">
                 <h3 class="classroom-title"><%= training.title %></h3>
                 <div class="classroom-meta">
-                  <span class="classroom-badge badge-main">
-                    Main Training
+                  <span class="classroom-badge <%= trainingTypeBadgeClass %>">
+                    <%= trainingTypeLabel %>
                   </span>
                   <% 
                     const statusLabels = {

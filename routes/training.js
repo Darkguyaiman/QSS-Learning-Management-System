@@ -99,6 +99,10 @@ function normalizeAttemptImportStatus(value) {
 }
 
 function normalizeTrainingTypeImport(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'refresher_training' || normalized === 'refresher training') {
+    return 'refresher_training';
+  }
   return 'main';
 }
 
@@ -265,43 +269,42 @@ async function validateTestQuestions(db, trainingType, moduleId) {
   const minPerObjective = 2;
   const requiredPerObjective = objectives.length * minPerObjective;
   
-  if (trainingType === 'main') {
-    // Main training: pre_test (10), post_test (10), certificate_enrolment (40)
-    const tests = [
-      { type: 'pre_test', count: 10 },
-      { type: 'post_test', count: 10 },
-      { type: 'certificate_enrolment', count: 40 }
-    ];
+  const tests = trainingType === 'refresher_training'
+    ? [{ type: 'certificate_enrolment', count: 40 }]
+    : [
+        { type: 'pre_test', count: 10 },
+        { type: 'post_test', count: 10 },
+        { type: 'certificate_enrolment', count: 40 }
+      ];
+
+  for (const test of tests) {
+    // Check if we have enough questions for this test type
+    if (test.count < requiredPerObjective) {
+      errors.push(`${test.type}: Need at least ${requiredPerObjective} questions (2 per objective for ${objectives.length} objectives), but only ${test.count} requested.`);
+      continue;
+    }
     
-    for (const test of tests) {
-      // Check if we have enough questions for this test type
-      if (test.count < requiredPerObjective) {
-        errors.push(`${test.type}: Need at least ${requiredPerObjective} questions (2 per objective for ${objectives.length} objectives), but only ${test.count} requested.`);
-        continue;
-      }
-      
-      // Check each objective has enough questions
-      for (const objective of objectives) {
-        const [questions] = await db.query(
-          'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND objective_id = ? AND module_id = ?',
-          [test.type, objective.id, moduleId]
-        );
-        
-        const questionCount = questions[0].count;
-        if (questionCount < minPerObjective) {
-          errors.push(`${test.type}: Not enough questions for objective ID ${objective.id}. Need at least ${minPerObjective}, found ${questionCount}.`);
-        }
-      }
-      
-      // Check total available questions
-      const [totalQuestions] = await db.query(
-        'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND module_id = ?',
-        [test.type, moduleId]
+    // Check each objective has enough questions
+    for (const objective of objectives) {
+      const [questions] = await db.query(
+        'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND objective_id = ? AND module_id = ?',
+        [test.type, objective.id, moduleId]
       );
       
-      if (totalQuestions[0].count < test.count) {
-        errors.push(`${test.type}: Not enough total questions available. Need ${test.count}, found ${totalQuestions[0].count}.`);
+      const questionCount = questions[0].count;
+      if (questionCount < minPerObjective) {
+        errors.push(`${test.type}: Not enough questions for objective ID ${objective.id}. Need at least ${minPerObjective}, found ${questionCount}.`);
       }
+    }
+    
+    // Check total available questions
+    const [totalQuestions] = await db.query(
+      'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND module_id = ?',
+      [test.type, moduleId]
+    );
+    
+    if (totalQuestions[0].count < test.count) {
+      errors.push(`${test.type}: Not enough total questions available. Need ${test.count}, found ${totalQuestions[0].count}.`);
     }
   }
   
@@ -422,33 +425,32 @@ async function buildQuestionValidationSummary(db, errors, moduleId) {
  */
 async function createTrainingTests(db, trainingId, trainingType, moduleId) {
   try {
-    if (trainingType === 'main') {
-      // Main training: pre_test (10), post_test (10), certificate_enrolment (40)
-      const tests = [
-        { type: 'pre_test', count: 10 },
-        { type: 'post_test', count: 10 },
-        { type: 'certificate_enrolment', count: 40 }
-      ];
+    const tests = trainingType === 'refresher_training'
+      ? [{ type: 'certificate_enrolment', count: 40 }]
+      : [
+          { type: 'pre_test', count: 10 },
+          { type: 'post_test', count: 10 },
+          { type: 'certificate_enrolment', count: 40 }
+        ];
+
+    for (const test of tests) {
+      // Select questions
+      const questionIds = await selectQuestionsForTest(db, test.type, test.count, moduleId);
       
-      for (const test of tests) {
-        // Select questions
-        const questionIds = await selectQuestionsForTest(db, test.type, test.count, moduleId);
-        
-        // Create training_test record
-        const [testResult] = await db.query(
-          'INSERT INTO training_tests (training_id, test_type, total_questions) VALUES (?, ?, ?)',
-          [trainingId, test.type, test.count]
+      // Create training_test record
+      const [testResult] = await db.query(
+        'INSERT INTO training_tests (training_id, test_type, total_questions) VALUES (?, ?, ?)',
+        [trainingId, test.type, test.count]
+      );
+      
+      const trainingTestId = testResult.insertId;
+      
+      // Insert selected questions
+      for (let i = 0; i < questionIds.length; i++) {
+        await db.query(
+          'INSERT INTO training_test_questions (training_test_id, question_id, question_order) VALUES (?, ?, ?)',
+          [trainingTestId, questionIds[i], i + 1]
         );
-        
-        const trainingTestId = testResult.insertId;
-        
-        // Insert selected questions
-        for (let i = 0; i < questionIds.length; i++) {
-          await db.query(
-            'INSERT INTO training_test_questions (training_test_id, question_id, question_order) VALUES (?, ?, ?)',
-            [trainingTestId, questionIds[i], i + 1]
-          );
-        }
       }
     }
   } catch (error) {
@@ -1226,7 +1228,7 @@ router.get('/import/template', async (req, res) => {
     const [deviceRows] = await req.db.query('SELECT serial_number FROM device_serial_numbers ORDER BY serial_number');
     const [questionRows] = await req.db.query('SELECT id FROM questions ORDER BY id');
     lookupsSheet.addRows([
-      ['Type', 'main'],
+      ['Type', 'main, refresher_training'],
       ['Affiliated Company', 'QSS, PMS'],
       ['Training Status', 'in_progress, completed, canceled, rescheduled'],
       ['Enrollment Status', 'active, completed, dropped'],
@@ -1242,7 +1244,7 @@ router.get('/import/template', async (req, res) => {
     ]);
 
     const listColumns = [
-      { title: 'TrainingImportType', values: ['main'] },
+      { title: 'TrainingImportType', values: ['main', 'refresher_training'] },
       { title: 'TrainingImportAffiliatedCompany', values: ['QSS', 'PMS'] },
       { title: 'TrainingImportStatus', values: ['in_progress', 'completed', 'canceled', 'rescheduled'] },
       { title: 'TrainingImportModules', values: modules.map(row => row.name) },
