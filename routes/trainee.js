@@ -73,7 +73,7 @@ router.get('/results/enrollment/:enrollmentId', async (req, res, next) => {
       attendance: attendance[0],
       finalGrades: finalGrades[0] || null,
       objectiveScores,
-      gradesReleased: enrollmentData.grades_released || false
+      gradesReleased: enrollmentData.can_download_results || false
     });
   } catch (error) {
     console.error('Trainee results view error:', error);

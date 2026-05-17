@@ -11,13 +11,31 @@ router.get('/', async (req, res) => {
       // Get enrolled trainings (limit to 6 most recent)
       const [enrollments] = await req.db.query(`
         SELECT e.*, t.title, t.type, t.description,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') as pre_test_completed,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') as post_test_completed,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') as certificate_enrolment_test_completed,
-          (SELECT COUNT(*) FROM practical_learning_outcome_scores WHERE enrollment_id = e.id) as hands_on_completed,
-          (SELECT COUNT(*) FROM practical_learning_outcomes WHERE training_id = e.training_id) as hands_on_total
+          COALESCE(ta.pre_test_completed, 0) as pre_test_completed,
+          COALESCE(ta.post_test_completed, 0) as post_test_completed,
+          COALESCE(ta.certificate_enrolment_test_completed, 0) as certificate_enrolment_test_completed,
+          COALESCE(hs.hands_on_completed, 0) as hands_on_completed,
+          COALESCE(ho.hands_on_total, 0) as hands_on_total
         FROM enrollments e
         JOIN trainings t ON e.training_id = t.id
+        LEFT JOIN (
+          SELECT enrollment_id,
+            SUM(CASE WHEN test_type = 'pre_test' AND status = 'completed' THEN 1 ELSE 0 END) as pre_test_completed,
+            SUM(CASE WHEN test_type = 'post_test' AND status = 'completed' THEN 1 ELSE 0 END) as post_test_completed,
+            SUM(CASE WHEN test_type = 'certificate_enrolment' AND status = 'completed' THEN 1 ELSE 0 END) as certificate_enrolment_test_completed
+          FROM test_attempts
+          GROUP BY enrollment_id
+        ) ta ON ta.enrollment_id = e.id
+        LEFT JOIN (
+          SELECT enrollment_id, COUNT(*) as hands_on_completed
+          FROM practical_learning_outcome_scores
+          GROUP BY enrollment_id
+        ) hs ON hs.enrollment_id = e.id
+        LEFT JOIN (
+          SELECT training_id, COUNT(*) as hands_on_total
+          FROM practical_learning_outcomes
+          GROUP BY training_id
+        ) ho ON ho.training_id = e.training_id
         WHERE e.trainee_id = ?
           AND e.status = 'active'
           AND t.status IN ('in_progress', 'completed', 'rescheduled')
@@ -39,26 +57,41 @@ router.get('/', async (req, res) => {
       // Get analytics data (completed + in-progress courses only)
       const [analytics] = await req.db.query(`
         SELECT
-          (SELECT COUNT(*)
-           FROM enrollments e
-           JOIN trainings t ON e.training_id = t.id
-           WHERE e.trainee_id = ? AND t.status = 'completed') as trainings_completed,
-          (SELECT COUNT(*)
-           FROM enrollments e
-           JOIN trainings t ON e.training_id = t.id
-           WHERE e.trainee_id = ? AND t.status IN ('completed', 'in_progress')) as total_enrolled
-      `, [userId, userId]);
+          SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) as trainings_completed,
+          SUM(CASE WHEN t.status IN ('completed', 'in_progress') THEN 1 ELSE 0 END) as total_enrolled
+        FROM enrollments e
+        JOIN trainings t ON e.training_id = t.id
+        WHERE e.trainee_id = ?
+      `, [userId]);
 
       // Activities completed = unique passed tests + hands-on (all time)
       const [activityRows] = await req.db.query(`
         SELECT e.id as enrollment_id, t.type as training_type,
-          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') as pre_max,
-          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') as post_max,
-          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') as cert_max,
-          (SELECT COUNT(*) FROM practical_learning_outcome_scores WHERE enrollment_id = e.id) as hands_on_completed,
-          (SELECT COUNT(*) FROM practical_learning_outcomes WHERE training_id = e.training_id) as hands_on_total
+          ta.pre_max,
+          ta.post_max,
+          ta.cert_max,
+          COALESCE(hs.hands_on_completed, 0) as hands_on_completed,
+          COALESCE(ho.hands_on_total, 0) as hands_on_total
         FROM enrollments e
         JOIN trainings t ON e.training_id = t.id
+        LEFT JOIN (
+          SELECT enrollment_id,
+            MAX(CASE WHEN test_type = 'pre_test' AND status = 'completed' THEN score END) as pre_max,
+            MAX(CASE WHEN test_type = 'post_test' AND status = 'completed' THEN score END) as post_max,
+            MAX(CASE WHEN test_type = 'certificate_enrolment' AND status = 'completed' THEN score END) as cert_max
+          FROM test_attempts
+          GROUP BY enrollment_id
+        ) ta ON ta.enrollment_id = e.id
+        LEFT JOIN (
+          SELECT enrollment_id, COUNT(*) as hands_on_completed
+          FROM practical_learning_outcome_scores
+          GROUP BY enrollment_id
+        ) hs ON hs.enrollment_id = e.id
+        LEFT JOIN (
+          SELECT training_id, COUNT(*) as hands_on_total
+          FROM practical_learning_outcomes
+          GROUP BY training_id
+        ) ho ON ho.training_id = e.training_id
         WHERE e.trainee_id = ?
       `, [userId]);
 
@@ -161,23 +194,24 @@ router.get('/', async (req, res) => {
           u.last_name,
           u.profile_picture,
           u.role,
-          (
-            SELECT COUNT(DISTINCT t.id)
-            FROM trainings t
-            WHERE (t.created_by = u.id OR EXISTS (
-              SELECT 1 FROM training_trainers tt WHERE tt.training_id = t.id AND tt.trainer_id = u.id
-            ))
-            AND t.status = 'completed'
-          ) as completed_trainings,
-          (
-            SELECT COUNT(DISTINCT t.id)
-            FROM trainings t
-            WHERE (t.created_by = u.id OR EXISTS (
-              SELECT 1 FROM training_trainers tt WHERE tt.training_id = t.id AND tt.trainer_id = u.id
-            ))
-            AND t.status = 'in_progress'
-          ) as in_progress_trainings
+          COALESCE(tt.completed_trainings, 0) as completed_trainings,
+          COALESCE(tt.in_progress_trainings, 0) as in_progress_trainings
         FROM users u
+        LEFT JOIN (
+          SELECT trainer_id,
+            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_trainings,
+            SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress_trainings
+          FROM (
+            SELECT created_by as trainer_id, id, status
+            FROM trainings
+            WHERE created_by IS NOT NULL
+            UNION DISTINCT
+            SELECT tt.trainer_id, t.id, t.status
+            FROM training_trainers tt
+            JOIN trainings t ON t.id = tt.training_id
+          ) trainer_trainings
+          GROUP BY trainer_id
+        ) tt ON tt.trainer_id = u.id
         WHERE u.role IN ('admin', 'trainer')
         ORDER BY u.last_name, u.first_name
       `);
@@ -211,8 +245,7 @@ router.get('/', async (req, res) => {
         JOIN trainees tr ON ci.trainee_id = tr.id
         JOIN trainings t ON ci.training_id = t.id
         LEFT JOIN healthcare h ON h.id = tr.healthcare_id
-        WHERE ci.validity_end IS NOT NULL
-          AND DATEDIFF(ci.validity_end, CURDATE()) BETWEEN 0 AND 60
+        WHERE ci.validity_end BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 60 DAY)
         ORDER BY h.name, days_remaining ASC
       `);
 
@@ -237,8 +270,7 @@ router.get('/', async (req, res) => {
           training_reminder_due_date,
           DATEDIFF(training_reminder_due_date, CURDATE()) as days_remaining
         FROM healthcare
-        WHERE training_reminder_due_date IS NOT NULL
-          AND DATEDIFF(training_reminder_due_date, CURDATE()) BETWEEN 0 AND 60
+        WHERE training_reminder_due_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 60 DAY)
         ORDER BY days_remaining ASC, name ASC, id ASC
       `);
       

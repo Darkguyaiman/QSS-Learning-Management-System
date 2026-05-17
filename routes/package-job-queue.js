@@ -14,8 +14,8 @@ const JOB_STATUS = {
 let bootstrapPromise = null;
 let workerPromise = null;
 
-function ensureJobStorageRoot() {
-  fs.mkdirSync(JOB_STORAGE_ROOT, { recursive: true });
+async function ensureJobStorageRoot() {
+  await fs.promises.mkdir(JOB_STORAGE_ROOT, { recursive: true });
 }
 
 function normalizeFormData(formDataRaw) {
@@ -46,7 +46,7 @@ function parseJobRow(row) {
 async function bootstrapQueue(db = pool) {
   if (!bootstrapPromise) {
     bootstrapPromise = (async () => {
-      ensureJobStorageRoot();
+      await ensureJobStorageRoot();
       await db.query(`
         CREATE TABLE IF NOT EXISTS package_generation_jobs (
           id INT AUTO_INCREMENT PRIMARY KEY,
@@ -220,19 +220,21 @@ async function processQueuedJob(job, db) {
     throw err;
   }
 
-  const zipBuffer = await packageGenerator.generatePackageZipBuffer({
-    db,
-    training,
-    formData: job.formData,
-    generatedByName: job.generated_by_name || '',
-    generatedByPosition: job.generated_by_position || ''
-  });
-
   const outputDir = path.join(JOB_STORAGE_ROOT, String(job.id));
   await fs.promises.mkdir(outputDir, { recursive: true });
   const outputFilename = buildPackageFilename(training);
   const outputPath = path.join(outputDir, outputFilename);
-  await fs.promises.writeFile(outputPath, zipBuffer);
+  const workDir = path.join(outputDir, 'work');
+
+  await packageGenerator.generatePackageZipFile({
+    db,
+    training,
+    formData: job.formData,
+    generatedByName: job.generated_by_name || '',
+    generatedByPosition: job.generated_by_position || '',
+    outputPath,
+    workDir
+  });
 
   await db.query(
     `UPDATE package_generation_jobs

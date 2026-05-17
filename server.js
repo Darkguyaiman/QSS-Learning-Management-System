@@ -19,10 +19,14 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'change-me-in-production';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const isProduction = NODE_ENV === 'production';
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'lms.sid';
-const SESSION_MAX_AGE_HOURS = parseInt(process.env.SESSION_MAX_AGE_HOURS || '24', 10);
+const SESSION_MAX_AGE_HOURS = parseInt(process.env.SESSION_MAX_AGE_HOURS || '168', 10);
 const SESSION_MAX_AGE = Math.max(1, SESSION_MAX_AGE_HOURS) * 60 * 60 * 1000;
-const SESSION_COOKIE_SECURE = process.env.SESSION_COOKIE_SECURE
-  ? process.env.SESSION_COOKIE_SECURE === 'true'
+const rawSessionCookieSecure = String(process.env.SESSION_COOKIE_SECURE || '').trim().toLowerCase();
+const SESSION_COOKIE_SECURE = rawSessionCookieSecure
+  ? (rawSessionCookieSecure === 'auto' ? 'auto' : rawSessionCookieSecure === 'true')
+  : 'auto';
+const TRUST_PROXY = process.env.TRUST_PROXY
+  ? process.env.TRUST_PROXY === 'true' || process.env.TRUST_PROXY === '1'
   : isProduction;
 const INIT_DB_ON_STARTUP = process.env.INIT_DB_ON_STARTUP === 'true';
 
@@ -31,6 +35,9 @@ if (isProduction) {
     console.error('SESSION_SECRET must be set to a strong value in production (at least 32 characters).');
     process.exit(1);
   }
+}
+
+if (TRUST_PROXY) {
   app.set('trust proxy', 1);
 }
 
@@ -87,14 +94,21 @@ app.use('/uploads/materials', (req, res) => {
 app.use('/uploads/training_media', (req, res) => {
   return res.status(403).send('Direct access to training media files is disabled');
 });
+app.use('/vendor/@fortawesome/fontawesome-free', express.static(path.join(__dirname, 'node_modules', '@fortawesome', 'fontawesome-free')));
+app.use('/vendor/@fontsource', express.static(path.join(__dirname, 'node_modules', '@fontsource')));
+app.use('/vendor/flatpickr', express.static(path.join(__dirname, 'node_modules', 'flatpickr')));
+app.use('/vendor/xlsx', express.static(path.join(__dirname, 'node_modules', 'xlsx')));
+app.use('/vendor/jspdf', express.static(path.join(__dirname, 'node_modules', 'jspdf')));
+app.use('/vendor/pdfjs-dist', express.static(path.join(__dirname, 'node_modules', 'pdfjs-dist')));
 app.use(express.static('public'));
 app.use(session({
   name: SESSION_COOKIE_NAME,
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
+  rolling: true,
   store: sessionStore,
-  proxy: isProduction,
+  proxy: TRUST_PROXY,
   cookie: {
     secure: SESSION_COOKIE_SECURE,
     maxAge: SESSION_MAX_AGE,

@@ -37,6 +37,43 @@ function calculateDurationHours(startTime, endTime) {
   return Math.round(durationHours * 100) / 100;
 }
 
+function normalizeDateOnlyInput(date) {
+  if (!date) return null;
+  const value = String(date).trim();
+  if (!value) return null;
+  if (value.includes('T')) return value.split('T')[0];
+  if (value.includes(' ')) return value.split(' ')[0];
+  return value;
+}
+
+function normalizeTimeForSql(time) {
+  const normalized = normalizeTimeInput(time);
+  if (!normalized) return null;
+  return normalized.length === 5 ? `${normalized}:00` : normalized;
+}
+
+function formatEndTime(timeValue, durationValue) {
+  const sqlTime = normalizeTimeForSql(timeValue);
+  const duration = parseFloat(durationValue);
+  if (!sqlTime || !Number.isFinite(duration)) return null;
+
+  const [hours, minutes, seconds] = sqlTime.split(':').map(Number);
+  const totalSeconds = (hours * 3600) + (minutes * 60) + (seconds || 0) + Math.round(duration * 3600);
+  const wrapped = ((totalSeconds % 86400) + 86400) % 86400;
+  const endHours = String(Math.floor(wrapped / 3600)).padStart(2, '0');
+  const endMinutes = String(Math.floor((wrapped % 3600) / 60)).padStart(2, '0');
+  const endSeconds = String(wrapped % 60).padStart(2, '0');
+  return `${endHours}:${endMinutes}:${endSeconds}`;
+}
+
+async function getTrainingEnrollmentIdsMap(dbOrConnection, trainingId) {
+  const [rows] = await dbOrConnection.query(
+    'SELECT id FROM enrollments WHERE training_id = ?',
+    [trainingId]
+  );
+  return new Set(rows.map(row => String(row.id)));
+}
+
 // View attendance for a training
 router.get('/training/:trainingId', async (req, res) => {
   try {
@@ -48,33 +85,22 @@ router.get('/training/:trainingId', async (req, res) => {
       return res.status(404).send('Training not found');
     }
     
-    // Get enrolled trainees
-    // Check if profile_picture column exists before including it in query
-    let includeProfilePicture = false;
-    try {
-      const [columns] = await req.db.query("SHOW COLUMNS FROM trainees LIKE 'profile_picture'");
-      includeProfilePicture = columns.length > 0;
-    } catch (e) {
-      // Column doesn't exist - that's fine
-    }
-    
-    const profilePictureSelect = includeProfilePicture ? ', tr.profile_picture' : '';
     const [enrollments] = await req.db.query(`
-      SELECT e.*, tr.first_name, tr.last_name, tr.email, tr.trainee_id${profilePictureSelect},
-        (SELECT COUNT(*) FROM attendance WHERE enrollment_id = e.id AND status = 'present') as present_count,
-        (SELECT COUNT(*) FROM attendance WHERE enrollment_id = e.id AND status = 'absent') as absent_count
+      SELECT e.*, tr.first_name, tr.last_name, tr.email, tr.trainee_id, tr.profile_picture,
+        COALESCE(att.present_count, 0) as present_count,
+        COALESCE(att.absent_count, 0) as absent_count
       FROM enrollments e
       JOIN trainees tr ON e.trainee_id = tr.id
+      LEFT JOIN (
+        SELECT enrollment_id,
+          SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_count,
+          SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_count
+        FROM attendance
+        GROUP BY enrollment_id
+      ) att ON att.enrollment_id = e.id
       WHERE e.training_id = ?
       ORDER BY tr.last_name, tr.first_name
     `, [req.params.trainingId]);
-    
-    // Ensure profile_picture is set to null if column doesn't exist
-    if (!includeProfilePicture) {
-      enrollments.forEach(enrollment => {
-        enrollment.profile_picture = null;
-      });
-    }
     
     // Get attendance grouped by date with pagination
     const page = parseInt(req.query.page) || 1;
@@ -103,8 +129,9 @@ router.get('/training/:trainingId', async (req, res) => {
     const totalPages = Math.ceil((totalDates[0]?.total || 0) / limit);
     
     // Get attendance records for each date
-    const attendanceByDate = [];
-    for (const dateGroup of dateGroups) {
+    let attendanceByDate = [];
+    if (dateGroups.length > 0) {
+      const placeholders = dateGroups.map(() => '?').join(',');
       const [records] = await req.db.query(`
         SELECT a.*, tr.first_name, tr.last_name, tr.trainee_id,
           u.first_name as marked_by_first, u.last_name as marked_by_last
@@ -112,17 +139,24 @@ router.get('/training/:trainingId', async (req, res) => {
         JOIN enrollments e ON a.enrollment_id = e.id
         JOIN trainees tr ON e.trainee_id = tr.id
         LEFT JOIN users u ON a.marked_by = u.id
-        WHERE a.date = ?
-        AND e.training_id = ?
-        ORDER BY tr.last_name, tr.first_name
-      `, [dateGroup.date, req.params.trainingId]);
-      
-      attendanceByDate.push({
+        WHERE e.training_id = ?
+          AND a.date IN (${placeholders})
+        ORDER BY a.date DESC, tr.last_name, tr.first_name
+      `, [req.params.trainingId, ...dateGroups.map(group => group.date)]);
+
+      const recordsByDate = new Map();
+      records.forEach(record => {
+        const key = normalizeDateOnlyInput(record.date);
+        if (!recordsByDate.has(key)) recordsByDate.set(key, []);
+        recordsByDate.get(key).push(record);
+      });
+
+      attendanceByDate = dateGroups.map(dateGroup => ({
         date: dateGroup.date,
         present_count: dateGroup.present_count,
         absent_count: dateGroup.absent_count,
-        records: records
-      });
+        records: recordsByDate.get(normalizeDateOnlyInput(dateGroup.date)) || []
+      }));
     }
     
     res.render('attendance/training', { 
@@ -146,10 +180,24 @@ router.post('/mark', async (req, res) => {
   try {
     if (!requireStaff(req, res)) return;
 
-    await req.db.query(
-      'INSERT INTO attendance (enrollment_id, date, status, marked_by, notes) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?, marked_by = ?, notes = ?',
-      [enrollmentId, date, status, req.session.userId, notes, status, req.session.userId, notes]
+    const dateOnly = normalizeDateOnlyInput(date);
+    if (!dateOnly) {
+      return res.status(400).json({ success: false, error: 'Valid attendance date is required' });
+    }
+
+    const [updateResult] = await req.db.query(
+      `UPDATE attendance
+       SET status = ?, marked_by = ?, notes = ?
+       WHERE enrollment_id = ? AND date = ? AND time IS NULL`,
+      [status, req.session.userId, notes || '', enrollmentId, dateOnly]
     );
+
+    if (updateResult.affectedRows === 0) {
+      await req.db.query(
+        'INSERT INTO attendance (enrollment_id, date, time, status, marked_by, notes) VALUES (?, ?, NULL, ?, ?, ?)',
+        [enrollmentId, dateOnly, status, req.session.userId, notes || '']
+      );
+    }
     
     res.json({ success: true });
   } catch (error) {
@@ -185,16 +233,20 @@ router.post('/mark-bulk', async (req, res) => {
       }
       
       // Extract date only (YYYY-MM-DD format)
-      let dateOnly = date;
-      if (dateOnly.includes(' ')) {
-        dateOnly = dateOnly.split(' ')[0];
+      const dateOnly = normalizeDateOnlyInput(date);
+      if (!dateOnly) {
+        throw new Error('Valid attendance date is required');
       }
       
       // Convert time format if needed (HH:mm to TIME format)
-      const timeValue = time;
+      const timeValue = normalizeTimeForSql(time);
+      const validEnrollmentIds = await getTrainingEnrollmentIdsMap(connection, training_id);
       
       for (const record of records) {
         const { enrollment_id, status, notes } = record;
+        if (!validEnrollmentIds.has(String(enrollment_id))) {
+          throw new Error('Attendance payload contains an enrollment that does not belong to this training');
+        }
         
         await connection.query(
           `INSERT INTO attendance (enrollment_id, date, time, duration, status, marked_by, notes) 
@@ -230,15 +282,14 @@ router.get('/sessions/:trainingId', async (req, res) => {
 
     const [sessions] = await req.db.query(`
       SELECT DISTINCT 
-        DATE_FORMAT(a.date, '%Y-%m-%d') as date,
-        TIME_FORMAT(a.time, '%H:%i:%s') as time,
-        TIME_FORMAT(ADDTIME(a.time, SEC_TO_TIME(ROUND(a.duration * 3600))), '%H:%i:%s') as end_time,
+        a.date,
+        a.time,
         a.duration,
-        CONCAT(DATE_FORMAT(a.date, '%Y-%m-%d'), '_', COALESCE(TIME_FORMAT(a.time, '%H:%i:%s'), '')) as id
+        CONCAT(a.date, '_', COALESCE(a.time, '')) as id
       FROM attendance a
       JOIN enrollments e ON a.enrollment_id = e.id
       WHERE e.training_id = ?
-      ORDER BY DATE_FORMAT(a.date, '%Y-%m-%d') DESC, TIME_FORMAT(a.time, '%H:%i:%s') DESC
+      ORDER BY a.date DESC, a.time DESC
     `, [req.params.trainingId]);
     
     // Format the sessions to ensure consistent date format
@@ -246,7 +297,7 @@ router.get('/sessions/:trainingId', async (req, res) => {
       ...session,
       date: session.date ? session.date.toString().split('T')[0] : null, // Ensure YYYY-MM-DD format
       time: session.time ? session.time.toString() : null,
-      end_time: session.end_time ? session.end_time.toString() : null,
+      end_time: formatEndTime(session.time, session.duration),
       duration: session.duration ? parseFloat(session.duration) : null
     }));
     
@@ -268,7 +319,7 @@ router.get('/session-details/:trainingId', async (req, res) => {
       return res.status(400).json({ error: 'Date and time parameters are required' });
     }
 
-    const normalizedTime = normalizeTimeInput(time);
+    const normalizedTime = normalizeTimeForSql(time);
     if (!normalizedTime) {
       return res.status(400).json({ error: 'Valid time parameter is required' });
     }
@@ -279,7 +330,7 @@ router.get('/session-details/:trainingId', async (req, res) => {
       FROM attendance a
       JOIN enrollments e ON a.enrollment_id = e.id
       JOIN trainees tr ON e.trainee_id = tr.id
-      WHERE e.training_id = ? AND a.date = ? AND TIME_FORMAT(a.time, '%H:%i') = ?
+      WHERE e.training_id = ? AND a.date = ? AND a.time = ?
       ORDER BY tr.last_name, tr.first_name
     `, [req.params.trainingId, date, normalizedTime]);
     
@@ -316,8 +367,8 @@ router.post('/update-bulk', async (req, res) => {
       }
       
       // Convert time format if needed
-      const timeValue = time;
-      const originalTimeValue = normalizeTimeInput(original_time);
+      const timeValue = normalizeTimeForSql(time);
+      const originalTimeValue = normalizeTimeForSql(original_time);
       if (!originalTimeValue) {
         throw new Error('Original session time is required');
       }
@@ -326,26 +377,20 @@ router.post('/update-bulk', async (req, res) => {
       console.log('Update attendance - Time received:', time, 'End time received:', endTime, 'Formatted:', timeValue);
       
       // Extract date only
-      let dateOnly = date;
-      if (dateOnly.includes('T')) {
-        dateOnly = dateOnly.split('T')[0];
-      } else if (dateOnly.includes(' ')) {
-        dateOnly = dateOnly.split(' ')[0];
+      const dateOnly = normalizeDateOnlyInput(date);
+      if (!dateOnly) {
+        throw new Error('Valid attendance date is required');
       }
-      
-      // Get all enrollment IDs for this training
-      const [enrollments] = await connection.query(
-        'SELECT id FROM enrollments WHERE training_id = ?',
-        [training_id]
-      );
-      const enrollmentIds = enrollments.map(e => e.id);
+
+      const validEnrollmentIds = await getTrainingEnrollmentIdsMap(connection, training_id);
+      const enrollmentIds = Array.from(validEnrollmentIds);
       
       // Delete only the original session being edited
       if (enrollmentIds.length > 0) {
         const placeholders = enrollmentIds.map(() => '?').join(',');
         await connection.query(`
           DELETE FROM attendance 
-          WHERE enrollment_id IN (${placeholders}) AND date = ? AND TIME_FORMAT(time, '%H:%i') = ?
+          WHERE enrollment_id IN (${placeholders}) AND date = ? AND time = ?
         `, [...enrollmentIds, dateOnly, originalTimeValue]);
       }
       
@@ -353,6 +398,9 @@ router.post('/update-bulk', async (req, res) => {
       // This handles the case where records might already exist
       for (const record of records) {
         const { enrollment_id, status, notes } = record;
+        if (!validEnrollmentIds.has(String(enrollment_id))) {
+          throw new Error('Attendance payload contains an enrollment that does not belong to this training');
+        }
         
         await connection.query(
           `INSERT INTO attendance (enrollment_id, date, time, duration, status, marked_by, notes) 

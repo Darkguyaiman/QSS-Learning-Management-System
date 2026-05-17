@@ -292,7 +292,8 @@ CREATE TABLE attendance (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE,
   FOREIGN KEY (marked_by) REFERENCES users(id) ON DELETE SET NULL,
-  UNIQUE KEY unique_attendance_session (enrollment_id, date, time)
+  UNIQUE KEY unique_attendance_session (enrollment_id, date, time),
+  INDEX idx_attendance_enrollment_date_time_status (enrollment_id, date, time, status)
 );
 
 -- Test attempts
@@ -402,7 +403,9 @@ CREATE TABLE certificate_issues (
   UNIQUE KEY unique_certificate_enrollment (enrollment_id),
   FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE,
   FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE CASCADE,
-  FOREIGN KEY (trainee_id) REFERENCES trainees(id) ON DELETE CASCADE
+  FOREIGN KEY (trainee_id) REFERENCES trainees(id) ON DELETE CASCADE,
+  INDEX idx_certificate_issues_validity_end (validity_end),
+  INDEX idx_certificate_issues_trainee_validity_end (trainee_id, validity_end)
 );
 
 -- Training Healthcare (many-to-many relationship)
@@ -479,6 +482,7 @@ CREATE INDEX idx_enrollment_trainee ON enrollments(trainee_id);
 CREATE INDEX idx_enrollment_training ON enrollments(training_id);
 CREATE INDEX idx_attendance_date ON attendance(date);
 CREATE INDEX idx_test_attempts_enrollment ON test_attempts(enrollment_id);
+CREATE INDEX idx_test_attempts_enrollment_status_type_completed_score ON test_attempts(enrollment_id, status, test_type, completed_at, score);
 CREATE INDEX idx_questions_training ON questions(training_id);
 CREATE INDEX idx_device_model ON device_serial_numbers(device_model_id);
 CREATE INDEX idx_questions_module ON questions(module_id);
@@ -487,3 +491,4 @@ CREATE INDEX idx_trainings_device_model ON trainings(device_model_id);
 CREATE INDEX idx_taos_area ON trainee_area_of_specializations(area_of_specialization_id);
 CREATE INDEX idx_package_generation_jobs_status ON package_generation_jobs(status, created_at);
 CREATE INDEX idx_package_generation_jobs_lookup ON package_generation_jobs(created_by, training_id, status, created_at);
+CREATE INDEX idx_healthcare_training_reminder_due_date ON healthcare(training_reminder_due_date);

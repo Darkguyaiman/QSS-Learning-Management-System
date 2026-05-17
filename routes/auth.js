@@ -3,6 +3,26 @@ const bcrypt = require('bcrypt');
 const router = express.Router();
 const { normalizeAreaValue } = require('../utils/area-of-specialization');
 
+function establishAuthenticatedSession(req, sessionData) {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate((regenerateError) => {
+      if (regenerateError) {
+        return reject(regenerateError);
+      }
+
+      Object.assign(req.session, sessionData);
+
+      req.session.save((saveError) => {
+        if (saveError) {
+          return reject(saveError);
+        }
+
+        resolve();
+      });
+    });
+  });
+}
+
 async function resolveHealthcareId(db, healthcareName) {
   const name = String(healthcareName || '').trim();
   if (!name) return null;
@@ -83,18 +103,15 @@ router.post('/login', async (req, res) => {
         return res.render('auth/login', { error: 'Invalid email or password' });
       }
       
-      req.session.userId = user.id;
-      req.session.userRole = user.role;
-      req.session.userName = `${user.first_name} ${user.last_name}`;
-      req.session.userProfile = user.profile_picture;
-      req.session.userPosition = user.position || '';
-
-      return req.session.save((saveErr) => {
-        if (saveErr) {
-          console.error('Session save error:', saveErr);
-        }
-        res.redirect('/dashboard');
+      await establishAuthenticatedSession(req, {
+        userId: user.id,
+        userRole: user.role,
+        userName: `${user.first_name} ${user.last_name}`,
+        userProfile: user.profile_picture,
+        userPosition: user.position || ''
       });
+
+      return res.redirect('/dashboard');
     }
     
     // Try to find in trainees table
@@ -116,18 +133,15 @@ router.post('/login', async (req, res) => {
         return res.render('auth/login', { error: 'Your account is not allowed to sign in. Please contact your administrator.' });
       }
       
-      req.session.userId = trainee.id;
-      req.session.userRole = 'trainee';
-      req.session.userName = `${trainee.first_name} ${trainee.last_name}`;
-      req.session.userProfile = trainee.profile_picture;
-      req.session.traineeId = trainee.trainee_id;
-
-      return req.session.save((saveErr) => {
-        if (saveErr) {
-          console.error('Session save error:', saveErr);
-        }
-        res.redirect('/dashboard');
+      await establishAuthenticatedSession(req, {
+        userId: trainee.id,
+        userRole: 'trainee',
+        userName: `${trainee.first_name} ${trainee.last_name}`,
+        userProfile: trainee.profile_picture,
+        traineeId: trainee.trainee_id
       });
+
+      return res.redirect('/dashboard');
     }
     
     return res.render('auth/login', { error: 'Invalid email or password' });

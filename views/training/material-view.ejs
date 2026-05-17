@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= material.title %> - LMS</title>
   <link rel="stylesheet" href="/css/styles.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/vendor/@fortawesome/fontawesome-free/css/all.min.css">
   <style>
     .material-view-container {
       max-width: 1200px;
@@ -364,16 +364,16 @@
   </main>
   
   <% if (material.type === 'document' && material.file_path && canPreviewInline && material.file_path.toLowerCase().endsWith('.pdf')) { %>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script>
+    <script type="module">
+      import * as pdfjsLib from '/vendor/pdfjs-dist/legacy/build/pdf.min.mjs';
+
       (function initPdfCanvasViewer() {
         const shell = document.getElementById('pdf-viewer-shell');
         const statusEl = document.getElementById('pdf-viewer-status');
-        if (!shell || !statusEl || !window['pdfjsLib']) return;
+        if (!shell || !statusEl) return;
 
         const contentUrl = '/training/<%= training.id %>/materials/<%= material.id %>/content';
-        const pdfjsLib = window['pdfjsLib'];
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs-dist/legacy/build/pdf.worker.min.mjs';
 
         async function renderPdf() {
           try {

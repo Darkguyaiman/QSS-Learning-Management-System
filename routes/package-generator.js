@@ -4,6 +4,8 @@ const JSZip = require('jszip');
 const puppeteer = require('puppeteer');
 
 let browserPromise = null;
+let browserExecutablePathPromise = null;
+let assetWarmupPromise = null;
 const headerCache = new Map();
 const logoCache = new Map();
 const PDF_RENDER_CONCURRENCY = 2;
@@ -318,53 +320,94 @@ function baseHtml(title, bodyHtml) {
 </html>`;
 }
 
-function headerDataUrl(companyCode) {
+async function pathExists(filePath) {
+  try {
+    await fs.promises.access(filePath, fs.constants.F_OK);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function loadHeaderDataUrl(companyCode) {
   if (headerCache.has(companyCode)) return headerCache.get(companyCode);
   const file = companyCode === 'PMS' ? 'PMS Header.jpg' : 'QSS Header.jpg';
   const headerPath = path.join(__dirname, '..', 'public', 'images', 'Headers', file);
   let value = '';
-  if (fs.existsSync(headerPath)) {
-    const raw = fs.readFileSync(headerPath);
+  if (await pathExists(headerPath)) {
+    const raw = await fs.promises.readFile(headerPath);
     value = `data:image/jpeg;base64,${raw.toString('base64')}`;
   }
   headerCache.set(companyCode, value);
   return value;
 }
 
-function logoDataUrl(companyCode) {
+async function loadLogoDataUrl(companyCode) {
   if (logoCache.has(companyCode)) return logoCache.get(companyCode);
   const file = companyCode === 'PMS' ? 'pmslogo.svg' : 'qsslogo.svg';
   const logoPath = path.join(__dirname, '..', 'public', 'images', 'Affiliated Companies', file);
   let value = '';
-  if (fs.existsSync(logoPath)) {
-    const raw = fs.readFileSync(logoPath, 'utf8');
+  if (await pathExists(logoPath)) {
+    const raw = await fs.promises.readFile(logoPath, 'utf8');
     value = `data:image/svg+xml;base64,${Buffer.from(raw, 'utf8').toString('base64')}`;
   }
   logoCache.set(companyCode, value);
   return value;
 }
 
-function resolveChromeExecutablePath() {
-  for (const envName of CHROME_ENV_PATHS) {
-    const value = String(process.env[envName] || '').trim();
-    if (value && fs.existsSync(value)) {
-      return value;
-    }
+async function warmBrandAssetCaches() {
+  if (!assetWarmupPromise) {
+    assetWarmupPromise = Promise.all([
+      loadHeaderDataUrl('QSS'),
+      loadHeaderDataUrl('PMS'),
+      loadLogoDataUrl('QSS'),
+      loadLogoDataUrl('PMS')
+    ]).catch((error) => {
+      assetWarmupPromise = null;
+      throw error;
+    });
   }
-
-  if (process.platform === 'linux') {
-    for (const candidate of LINUX_CHROME_PATHS) {
-      if (fs.existsSync(candidate)) {
-        return candidate;
-      }
-    }
-  }
-
-  return null;
+  await assetWarmupPromise;
 }
 
-function buildPuppeteerLaunchOptions() {
-  const executablePath = resolveChromeExecutablePath();
+function headerDataUrl(companyCode) {
+  return headerCache.get(companyCode) || '';
+}
+
+function logoDataUrl(companyCode) {
+  return logoCache.get(companyCode) || '';
+}
+
+async function resolveChromeExecutablePath() {
+  if (!browserExecutablePathPromise) {
+    browserExecutablePathPromise = (async () => {
+      for (const envName of CHROME_ENV_PATHS) {
+        const value = String(process.env[envName] || '').trim();
+        if (value && await pathExists(value)) {
+          return value;
+        }
+      }
+
+      if (process.platform === 'linux') {
+        for (const candidate of LINUX_CHROME_PATHS) {
+          if (await pathExists(candidate)) {
+            return candidate;
+          }
+        }
+      }
+
+      return null;
+    })().catch((error) => {
+      browserExecutablePathPromise = null;
+      throw error;
+    });
+  }
+
+  return browserExecutablePathPromise;
+}
+
+async function buildPuppeteerLaunchOptions() {
+  const executablePath = await resolveChromeExecutablePath();
   const options = {
     headless: true,
     args: DEFAULT_PUPPETEER_ARGS
@@ -377,12 +420,12 @@ function buildPuppeteerLaunchOptions() {
   return options;
 }
 
-function formatBrowserLaunchError(error) {
+async function formatBrowserLaunchError(error) {
   const rawMessage = String(error?.message || '');
   const missingLibrary = rawMessage.includes('error while loading shared libraries')
     || rawMessage.includes('cannot open shared object file')
     || rawMessage.includes('.so.');
-  const configuredPath = resolveChromeExecutablePath();
+  const configuredPath = await resolveChromeExecutablePath();
 
   if (missingLibrary) {
     const details = configuredPath
@@ -408,16 +451,17 @@ function formatBrowserLaunchError(error) {
 
 async function getBrowser() {
   if (!browserPromise) {
-    browserPromise = puppeteer.launch(buildPuppeteerLaunchOptions())
+    browserPromise = buildPuppeteerLaunchOptions()
+      .then((options) => puppeteer.launch(options))
       .then((browser) => {
         browser.on('disconnected', () => {
           browserPromise = null;
         });
         return browser;
       })
-      .catch((error) => {
+      .catch(async (error) => {
         browserPromise = null;
-        throw formatBrowserLaunchError(error);
+        throw await formatBrowserLaunchError(error);
       });
   }
   return browserPromise;
@@ -435,6 +479,32 @@ async function htmlToPdfBuffer(html, orientation = 'portrait') {
       margin: { top: '0.22in', right: '0.25in', bottom: '0.22in', left: '0.25in' }
     });
     return buffer;
+  } finally {
+    await page.close();
+  }
+}
+
+async function htmlToPdfFile(html, outputPath, orientation = 'portrait') {
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+  try {
+    await page.setContent(html, { waitUntil: 'domcontentloaded' });
+    const pdfStream = await page.createPDFStream({
+      format: 'A4',
+      landscape: orientation === 'landscape',
+      printBackground: true,
+      margin: { top: '0.22in', right: '0.25in', bottom: '0.22in', left: '0.25in' }
+    });
+
+    await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
+
+    await new Promise((resolve, reject) => {
+      const outStream = fs.createWriteStream(outputPath);
+      pdfStream.on('error', reject);
+      outStream.on('error', reject);
+      outStream.on('finish', resolve);
+      pdfStream.pipe(outStream);
+    });
   } finally {
     await page.close();
   }
@@ -482,11 +552,11 @@ async function fetchPackageData(db, trainingId, trainingType) {
       ORDER BY tr.last_name, tr.first_name
     `, [trainingId]),
     db.query(`
-      SELECT DISTINCT DATE_FORMAT(a.date, '%Y-%m-%d') as date, TIME_FORMAT(a.time, '%H:%i:%s') as time, a.duration
+      SELECT DISTINCT a.date, a.time, a.duration
       FROM attendance a
       JOIN enrollments e ON a.enrollment_id = e.id
       WHERE e.training_id = ?
-      ORDER BY DATE_FORMAT(a.date, '%Y-%m-%d') DESC, TIME_FORMAT(a.time, '%H:%i:%s') DESC
+      ORDER BY a.date DESC, a.time DESC
     `, [trainingId])
   ]);
 
@@ -1078,6 +1148,7 @@ function buildCertificateHtml({ certificate, company }) {
 }
 
 async function generatePackageZipBuffer({ db, training, formData, generatedByName, generatedByPosition }) {
+  await warmBrandAssetCaches();
   const company = normalizeCompany(training.affiliated_company);
   const { attendanceRows, marksByEnrollmentId, objectives, handsOnAspects } = await fetchPackageData(db, training.id, training.type);
   const missingIcRows = (attendanceRows || []).filter(row => !String(row.ic_passport || '').trim());
@@ -1163,7 +1234,114 @@ async function generatePackageZipBuffer({ db, training, formData, generatedByNam
   return zip.generateAsync({ type: 'nodebuffer', compression: 'STORE' });
 }
 
+async function generatePackageZipFile({ db, training, formData, generatedByName, generatedByPosition, outputPath, workDir }) {
+  await warmBrandAssetCaches();
+  const company = normalizeCompany(training.affiliated_company);
+  const { attendanceRows, marksByEnrollmentId, objectives, handsOnAspects } = await fetchPackageData(db, training.id, training.type);
+  const missingIcRows = (attendanceRows || []).filter(row => !String(row.ic_passport || '').trim());
+  if (missingIcRows.length > 0) {
+    const sample = missingIcRows.slice(0, 10).map(row => `${row.first_name || ''} ${row.last_name || ''}`.trim() || `Enrollment ${row.enrollment_id}`);
+    const extra = missingIcRows.length > sample.length ? ` and ${missingIcRows.length - sample.length} more` : '';
+    const err = new Error(`Cannot generate package: missing IC/Passport for ${missingIcRows.length} trainee(s): ${sample.join(', ')}${extra}.`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const [issuedCertificates] = await db.query(`
+    SELECT enrollment_id, certificate_number, participant_name, course_name, location, date_display
+    FROM certificate_issues
+    WHERE training_id = ?
+    ORDER BY participant_name ASC
+  `, [training.id]);
+
+  const certByEnrollmentId = new Map((issuedCertificates || []).map(c => [String(c.enrollment_id), c]));
+  const traineeRows = attendanceRows.map(row => ({
+    name: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
+    traineeId: String(row.ic_passport || row.trainee_id || ''),
+    certificateNumber: certByEnrollmentId.get(String(row.enrollment_id))?.certificate_number || 'Not Passed'
+  }));
+
+  await fs.promises.mkdir(workDir, { recursive: true });
+
+  try {
+    const zip = new JSZip();
+    const groupHtml = buildGroupHtml({ training, company, attendanceRows, marksByEnrollmentId, objectives, handsOnAspects });
+    const letterPath = path.join(workDir, 'In House Training Letter.pdf');
+    const groupPath = path.join(workDir, 'Group Report.pdf');
+
+    await Promise.all([
+      (async () => {
+        const buffer = await generateLetterPdfBuffer({
+          db,
+          training,
+          formData,
+          preloadedAttendanceRows: attendanceRows,
+          preloadedTraineeRows: traineeRows
+        });
+        await fs.promises.writeFile(letterPath, buffer);
+      })(),
+      htmlToPdfFile(groupHtml, groupPath, 'landscape')
+    ]);
+
+    zip.file('In House Training Letter.pdf', fs.createReadStream(letterPath));
+    zip.file('Group Report.pdf', fs.createReadStream(groupPath));
+
+    const individualFolder = zip.folder('Individual Reports');
+    const individualEntries = await mapWithConcurrency(
+      attendanceRows,
+      PDF_RENDER_CONCURRENCY,
+      async (row) => {
+        const html = buildIndividualHtml({ company, formData, row, marksByEnrollmentId, objectives });
+        const fullName = `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Trainee';
+        const traineeId = String(row.trainee_id || 'NA');
+        const fileName = `${sanitizeFileName(fullName)}_${sanitizeFileName(traineeId)}.pdf`;
+        const filePath = path.join(workDir, 'individual', fileName);
+        await htmlToPdfFile(html, filePath, 'portrait');
+        return { fileName, filePath };
+      }
+    );
+
+    for (const entry of individualEntries) {
+      individualFolder.file(entry.fileName, fs.createReadStream(entry.filePath));
+    }
+
+    if (Array.isArray(issuedCertificates) && issuedCertificates.length > 0) {
+      const certFolder = zip.folder('Certificates');
+      const certificateEntries = await mapWithConcurrency(
+        issuedCertificates,
+        PDF_RENDER_CONCURRENCY,
+        async (cert) => {
+          const certHtml = buildCertificateHtml({ certificate: cert, company });
+          const certName = sanitizeFileName(cert.participant_name || 'Participant');
+          const certNo = sanitizeFileName(cert.certificate_number || 'CERT');
+          const fileName = `${certNo}_${certName}.pdf`;
+          const filePath = path.join(workDir, 'certificates', fileName);
+          await htmlToPdfFile(certHtml, filePath, 'landscape');
+          return { fileName, filePath };
+        }
+      );
+
+      for (const entry of certificateEntries) {
+        certFolder.file(entry.fileName, fs.createReadStream(entry.filePath));
+      }
+    }
+
+    await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
+    await new Promise((resolve, reject) => {
+      const outputStream = fs.createWriteStream(outputPath);
+      const zipStream = zip.generateNodeStream({ type: 'nodebuffer', streamFiles: true, compression: 'STORE' });
+      outputStream.on('finish', resolve);
+      outputStream.on('error', reject);
+      zipStream.on('error', reject);
+      zipStream.pipe(outputStream);
+    });
+  } finally {
+    await fs.promises.rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 async function generateLetterPdfBuffer({ db, training, formData, preloadedAttendanceRows, preloadedTraineeRows }) {
+  await warmBrandAssetCaches();
   const company = normalizeCompany(training.affiliated_company);
   const attendanceRows = Array.isArray(preloadedAttendanceRows) ? preloadedAttendanceRows : (await fetchPackageData(db, training.id, training.type)).attendanceRows;
   const missingIcRows = (attendanceRows || []).filter(row => !String(row.ic_passport || '').trim());
@@ -1211,5 +1389,6 @@ module.exports = {
   sanitizeFileName,
   normalizeCompany,
   generatePackageZipBuffer,
+  generatePackageZipFile,
   generateLetterPdfBuffer
 };

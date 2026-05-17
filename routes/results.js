@@ -83,7 +83,7 @@ router.get('/enrollment/:enrollmentId', async (req, res) => {
       attendance: attendance[0],
       finalGrades: finalGrades[0] || null,
       objectiveScores,
-      gradesReleased: enrollmentData.grades_released || false
+      gradesReleased: enrollmentData.can_download_results || false
     });
   } catch (error) {
     console.error('Results view error:', error);
@@ -244,7 +244,7 @@ router.post('/release-grades/:enrollmentId', async (req, res) => {
     
     // Release grades
     await req.db.query(
-      'UPDATE enrollments SET grades_released = TRUE WHERE id = ?',
+      'UPDATE enrollments SET can_download_results = TRUE WHERE id = ?',
       [req.params.enrollmentId]
     );
     

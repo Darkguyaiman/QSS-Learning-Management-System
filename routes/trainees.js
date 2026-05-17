@@ -612,31 +612,46 @@ router.post('/import/bulk', async (req, res) => {
     }
 
     const areaLookup = await loadAreaLowerNameLookup(req.db);
+    const emails = normalized.map(row => row.email);
+    const traineeIds = normalized.map(row => row.trainee_id).filter(Boolean);
+    const healthcareNames = [...new Set(normalized.map(row => String(row.healthcare || '').trim()).filter(Boolean))];
+    const serialNumbers = [...new Set(normalized.map(row => String(row.serial_number || '').trim()).filter(Boolean))];
+    const [existingEmailRows, existingTraineeIdRows, healthcareRows, serialRows] = await Promise.all([
+      emails.length
+        ? req.db.query('SELECT id, email FROM trainees WHERE email IN (?)', [emails])
+        : Promise.resolve([[]]),
+      traineeIds.length
+        ? req.db.query('SELECT id, trainee_id FROM trainees WHERE trainee_id IN (?)', [traineeIds])
+        : Promise.resolve([[]]),
+      healthcareNames.length
+        ? req.db.query('SELECT id, name FROM healthcare WHERE name IN (?)', [healthcareNames])
+        : Promise.resolve([[]]),
+      serialNumbers.length
+        ? req.db.query('SELECT id, serial_number FROM device_serial_numbers WHERE serial_number IN (?)', [serialNumbers])
+        : Promise.resolve([[]])
+    ]);
+    const existingEmailSet = new Set((existingEmailRows[0] || []).map(row => String(row.email).trim().toLowerCase()));
+    const existingTraineeIdSet = new Set((existingTraineeIdRows[0] || []).map(row => String(row.trainee_id).trim()));
+    const healthcareIdByName = new Map((healthcareRows[0] || []).map(row => [String(row.name).trim().toLowerCase(), row.id]));
+    const deviceIdBySerial = new Map((serialRows[0] || []).map(row => [String(row.serial_number).trim().toLowerCase(), row.id]));
 
     for (let i = 0; i < normalized.length; i++) {
       const r = normalized[i];
       const rowNum = i + 2;
-      const [existsE] = await req.db.query('SELECT id FROM trainees WHERE email = ?', [r.email]);
-      if (existsE.length > 0) {
+      if (existingEmailSet.has(r.email)) {
         errors.push(`Row ${rowNum}: Email "${r.email}" already registered`);
       }
-      if (r.trainee_id) {
-        const [existsT] = await req.db.query(
-          'SELECT id FROM trainees WHERE trainee_id = ?',
-          [r.trainee_id]
-        );
-        if (existsT.length > 0) {
-          errors.push(`Row ${rowNum}: Trainee ID "${r.trainee_id}" already exists`);
-        }
+      if (r.trainee_id && existingTraineeIdSet.has(r.trainee_id)) {
+        errors.push(`Row ${rowNum}: Trainee ID "${r.trainee_id}" already exists`);
       }
       if (r.healthcare) {
-        const healthcareId = await resolveHealthcareId(req.db, r.healthcare);
+        const healthcareId = healthcareIdByName.get(r.healthcare.toLowerCase());
         if (!healthcareId) {
           errors.push(`Row ${rowNum}: Healthcare "${r.healthcare}" was not found in settings`);
         }
       }
       if (r.serial_number) {
-        const deviceSerialNumberId = await resolveDeviceSerialNumberId(req.db, r.serial_number);
+        const deviceSerialNumberId = deviceIdBySerial.get(r.serial_number.toLowerCase());
         if (!deviceSerialNumberId) {
           errors.push(`Row ${rowNum}: Serial Number "${r.serial_number}" was not found in device serial numbers`);
         }
@@ -656,15 +671,27 @@ router.post('/import/bulk', async (req, res) => {
 
     try {
       await connection.beginTransaction();
+      const designationIdCache = new Map();
 
       for (const r of normalized) {
         let finalTid = r.trainee_id;
         if (!finalTid) {
           finalTid = await generateUniqueTraineeId(connection);
         }
-        const healthcareId = await resolveHealthcareId(connection, r.healthcare);
-        const designationId = await ensureDesignationId(connection, r.designation);
-        const deviceSerialNumberId = await resolveDeviceSerialNumberId(connection, r.serial_number);
+        const healthcareId = r.healthcare
+          ? healthcareIdByName.get(r.healthcare.toLowerCase()) || null
+          : null;
+        const designationKey = String(r.designation || '').trim().toLowerCase();
+        let designationId = null;
+        if (designationKey) {
+          if (!designationIdCache.has(designationKey)) {
+            designationIdCache.set(designationKey, await ensureDesignationId(connection, r.designation));
+          }
+          designationId = designationIdCache.get(designationKey);
+        }
+        const deviceSerialNumberId = r.serial_number
+          ? deviceIdBySerial.get(r.serial_number.toLowerCase()) || null
+          : null;
         const areaResolution = resolveAreaIdsWithLookup(areaLookup, r.area_of_specialization);
 
         const [insertResult] = await connection.query(

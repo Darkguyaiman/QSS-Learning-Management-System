@@ -27,6 +27,28 @@ function normalizeBulkTestType(raw) {
   return null;
 }
 
+function buildQuestionDuplicateKey({
+  questionText,
+  optionA,
+  optionB,
+  optionC,
+  optionD,
+  testType,
+  correctAnswer,
+  moduleId
+}) {
+  return JSON.stringify([
+    String(questionText || ''),
+    String(optionA || ''),
+    String(optionB || ''),
+    optionC == null ? null : String(optionC),
+    optionD == null ? null : String(optionD),
+    String(testType || ''),
+    String(correctAnswer || ''),
+    Number(moduleId) || 0
+  ]);
+}
+
 /**
  * Build .xlsx buffer: Questions sheet + hidden Lists sheet for validation dropdowns.
  */
@@ -443,19 +465,50 @@ router.post('/bulk/upload', async (req, res) => {
     const errors = [];
     const validQuestions = [];
     
-    // Get all objectives for validation
-    const [objectives] = await req.db.query('SELECT id, name FROM objectives');
+    const [objectives, modules] = await Promise.all([
+      req.db.query('SELECT id, name FROM objectives'),
+      req.db.query('SELECT id, name FROM modules')
+    ]);
     const objectiveMap = {};
-    objectives.forEach(obj => {
+    objectives[0].forEach(obj => {
       objectiveMap[obj.name.toLowerCase()] = obj.id;
     });
-
-    // Get all modules for validation
-    const [modules] = await req.db.query('SELECT id, name FROM modules');
     const moduleMap = {};
-    modules.forEach(module => {
+    modules[0].forEach(module => {
       moduleMap[module.name.toLowerCase()] = module.id;
     });
+
+    const relevantModuleIds = new Set();
+    const relevantTestTypes = new Set();
+    for (const question of questions) {
+      const moduleId = moduleMap[String(question.module_name || '').trim().toLowerCase()];
+      const testTypeNorm = normalizeBulkTestType(question.test_type);
+      if (moduleId) relevantModuleIds.add(moduleId);
+      if (testTypeNorm) relevantTestTypes.add(testTypeNorm);
+    }
+
+    let existingSignatureSet = new Set();
+    if (relevantModuleIds.size && relevantTestTypes.size) {
+      const [existingRows] = await req.db.query(
+        `SELECT question_text, option_a, option_b, option_c, option_d, test_type, correct_answer, module_id
+         FROM questions
+         WHERE module_id IN (?) AND test_type IN (?)`,
+        [Array.from(relevantModuleIds), Array.from(relevantTestTypes)]
+      );
+      existingSignatureSet = new Set(
+        (existingRows || []).map(row => buildQuestionDuplicateKey({
+          questionText: row.question_text,
+          optionA: row.option_a,
+          optionB: row.option_b,
+          optionC: row.option_c,
+          optionD: row.option_d,
+          testType: row.test_type,
+          correctAnswer: row.correct_answer,
+          moduleId: row.module_id
+        }))
+      );
+    }
+    const uploadedSignatureSet = new Set();
     
     // Validate each question
     for (let i = 0; i < questions.length; i++) {
@@ -500,21 +553,18 @@ router.post('/bulk/upload', async (req, res) => {
         continue;
       }
 
-      // Check for duplicate question (same question, same options, same type, same correct answer, same module)
-      // Handle NULL values properly in the query
-      const [existing] = await req.db.query(`
-        SELECT id FROM questions 
-        WHERE question_text = ? 
-        AND option_a = ? 
-        AND option_b = ? 
-        AND (option_c = ? OR (option_c IS NULL AND ? IS NULL))
-        AND (option_d = ? OR (option_d IS NULL AND ? IS NULL))
-        AND test_type = ? 
-        AND correct_answer = ?
-        AND module_id = ?
-      `, [q.question_text, q.option_a, q.option_b, hasOptionC ? q.option_c : null, hasOptionC ? q.option_c : null, hasOptionD ? q.option_d : null, hasOptionD ? q.option_d : null, testTypeNorm, q.correct_answer, moduleId]);
-      
-      if (existing.length > 0) {
+      const duplicateKey = buildQuestionDuplicateKey({
+        questionText: q.question_text,
+        optionA: q.option_a,
+        optionB: q.option_b,
+        optionC: hasOptionC ? q.option_c : null,
+        optionD: hasOptionD ? q.option_d : null,
+        testType: testTypeNorm,
+        correctAnswer: q.correct_answer,
+        moduleId
+      });
+
+      if (existingSignatureSet.has(duplicateKey) || uploadedSignatureSet.has(duplicateKey)) {
         errors.push(`Row ${rowNum}: Duplicate question found (same question, options, type, correct answer, and module already exists)`);
         continue;
       }
@@ -538,6 +588,7 @@ router.post('/bulk/upload', async (req, res) => {
         objective_id: objectiveId,
         created_by: req.session.userId
       });
+      uploadedSignatureSet.add(duplicateKey);
     }
     
     if (errors.length > 0) {

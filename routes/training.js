@@ -259,15 +259,36 @@ async function validateTestQuestions(db, trainingType, moduleId) {
     return { valid: false, errors: ['Module is required for test generation.'] };
   }
   
-  // Get all objectives
-  const [objectives] = await db.query('SELECT id FROM objectives ORDER BY id');
+  const [objectives, questionCounts] = await Promise.all([
+    db.query('SELECT id FROM objectives ORDER BY id'),
+    db.query(
+      `SELECT test_type, objective_id, COUNT(*) as count
+       FROM questions
+       WHERE module_id = ?
+       GROUP BY test_type, objective_id`,
+      [moduleId]
+    )
+  ]);
   
-  if (objectives.length === 0) {
+  if (objectives[0].length === 0) {
     return { valid: false, errors: ['No objectives found in the system. Please create objectives first.'] };
   }
   
   const minPerObjective = 2;
-  const requiredPerObjective = objectives.length * minPerObjective;
+  const objectiveRows = objectives[0];
+  const requiredPerObjective = objectiveRows.length * minPerObjective;
+  const countsByTestType = new Map();
+
+  for (const row of questionCounts[0] || []) {
+    const testType = String(row.test_type || '');
+    if (!countsByTestType.has(testType)) {
+      countsByTestType.set(testType, { total: 0, byObjectiveId: new Map() });
+    }
+    const bucket = countsByTestType.get(testType);
+    const count = Number(row.count) || 0;
+    bucket.total += count;
+    bucket.byObjectiveId.set(Number(row.objective_id), count);
+  }
   
   const tests = trainingType === 'refresher_training'
     ? [{ type: 'certificate_enrolment', count: 40 }]
@@ -278,33 +299,24 @@ async function validateTestQuestions(db, trainingType, moduleId) {
       ];
 
   for (const test of tests) {
+    const counts = countsByTestType.get(test.type) || { total: 0, byObjectiveId: new Map() };
+
     // Check if we have enough questions for this test type
     if (test.count < requiredPerObjective) {
-      errors.push(`${test.type}: Need at least ${requiredPerObjective} questions (2 per objective for ${objectives.length} objectives), but only ${test.count} requested.`);
+      errors.push(`${test.type}: Need at least ${requiredPerObjective} questions (2 per objective for ${objectiveRows.length} objectives), but only ${test.count} requested.`);
       continue;
     }
     
     // Check each objective has enough questions
-    for (const objective of objectives) {
-      const [questions] = await db.query(
-        'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND objective_id = ? AND module_id = ?',
-        [test.type, objective.id, moduleId]
-      );
-      
-      const questionCount = questions[0].count;
+    for (const objective of objectiveRows) {
+      const questionCount = counts.byObjectiveId.get(Number(objective.id)) || 0;
       if (questionCount < minPerObjective) {
         errors.push(`${test.type}: Not enough questions for objective ID ${objective.id}. Need at least ${minPerObjective}, found ${questionCount}.`);
       }
     }
     
-    // Check total available questions
-    const [totalQuestions] = await db.query(
-      'SELECT COUNT(*) as count FROM questions WHERE test_type = ? AND module_id = ?',
-      [test.type, moduleId]
-    );
-    
-    if (totalQuestions[0].count < test.count) {
-      errors.push(`${test.type}: Not enough total questions available. Need ${test.count}, found ${totalQuestions[0].count}.`);
+    if (counts.total < test.count) {
+      errors.push(`${test.type}: Not enough total questions available. Need ${test.count}, found ${counts.total}.`);
     }
   }
   
@@ -434,22 +446,22 @@ async function createTrainingTests(db, trainingId, trainingType, moduleId) {
         ];
 
     for (const test of tests) {
-      // Select questions
       const questionIds = await selectQuestionsForTest(db, test.type, test.count, moduleId);
-      
-      // Create training_test record
       const [testResult] = await db.query(
         'INSERT INTO training_tests (training_id, test_type, total_questions) VALUES (?, ?, ?)',
         [trainingId, test.type, test.count]
       );
-      
       const trainingTestId = testResult.insertId;
-      
-      // Insert selected questions
-      for (let i = 0; i < questionIds.length; i++) {
+
+      if (questionIds.length > 0) {
+        const placeholders = questionIds.map(() => '(?, ?, ?)').join(', ');
+        const values = [];
+        for (let i = 0; i < questionIds.length; i++) {
+          values.push(trainingTestId, questionIds[i], i + 1);
+        }
         await db.query(
-          'INSERT INTO training_test_questions (training_test_id, question_id, question_order) VALUES (?, ?, ?)',
-          [trainingTestId, questionIds[i], i + 1]
+          `INSERT INTO training_test_questions (training_test_id, question_id, question_order) VALUES ${placeholders}`,
+          values
         );
       }
     }
@@ -468,15 +480,44 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+const mediaChunkTempRoot = path.join(__dirname, '..', 'public', 'uploads', 'training_media', 'tmp-incoming');
+
 // Chunk upload for training media (image-only, 750KB chunks)
 const mediaChunkUpload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      fs.promises.mkdir(mediaChunkTempRoot, { recursive: true })
+        .then(() => cb(null, mediaChunkTempRoot))
+        .catch(cb);
+    },
+    filename: (req, file, cb) => {
+      cb(null, `chunk-${Date.now()}-${Math.random().toString(16).slice(2)}.part`);
+    }
+  }),
   limits: { fileSize: 800 * 1024 } // allow a bit of overhead; client chunks at 750KB
 });
 
-function ensureDir(dirPath) {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
+async function ensureDir(dirPath) {
+  await fs.promises.mkdir(dirPath, { recursive: true });
+}
+
+async function pathExists(filePath) {
+  try {
+    await fs.promises.access(filePath, fs.constants.F_OK);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function unlinkIfExists(filePath) {
+  if (!filePath) return;
+  try {
+    await fs.promises.unlink(filePath);
+  } catch (error) {
+    if (error?.code !== 'ENOENT') {
+      throw error;
+    }
   }
 }
 
@@ -498,11 +539,19 @@ router.post('/:id/media/upload-chunk', mediaChunkUpload.single('chunk'), async (
 
   try {
     const trainingId = req.params.id;
+    const cleanupIncomingChunk = async () => {
+      if (req.file?.path) {
+        await fs.promises.unlink(req.file.path).catch(() => {});
+      }
+    };
+
     const [tRows] = await req.db.query('SELECT id, status, is_locked FROM trainings WHERE id = ?', [trainingId]);
     if (!tRows || tRows.length === 0) {
+      await cleanupIncomingChunk();
       return res.status(404).json({ success: false, error: 'Training not found' });
     }
     if (isTrainingLocked(tRows[0])) {
+      await cleanupIncomingChunk();
       return res.status(400).json({ success: false, error: 'Training is locked' });
     }
 
@@ -517,6 +566,7 @@ router.post('/:id/media/upload-chunk', mediaChunkUpload.single('chunk'), async (
     } = req.body || {};
 
     if (!upload_key || !file_id || !file_name || chunk_index === undefined || !total_chunks || !total_size) {
+      await cleanupIncomingChunk();
       return res.status(400).json({ success: false, error: 'Missing upload fields' });
     }
 
@@ -525,17 +575,20 @@ router.post('/:id/media/upload-chunk', mediaChunkUpload.single('chunk'), async (
     const totalChunksNum = parseInt(total_chunks, 10);
 
     if (!Number.isFinite(totalSizeNum) || totalSizeNum <= 0 || totalSizeNum > 5 * 1024 * 1024) {
+      await cleanupIncomingChunk();
       return res.status(400).json({ success: false, error: 'File size exceeds 5MB limit' });
     }
     if (!Number.isFinite(chunkIndexNum) || !Number.isFinite(totalChunksNum) || chunkIndexNum < 0 || chunkIndexNum >= totalChunksNum) {
+      await cleanupIncomingChunk();
       return res.status(400).json({ success: false, error: 'Invalid chunk index' });
     }
-    if (!req.file || !req.file.buffer) {
+    if (!req.file || !req.file.path) {
       return res.status(400).json({ success: false, error: 'Missing chunk file' });
     }
 
     // basic type gate (sharp will also validate)
     if (mime_type && !String(mime_type).toLowerCase().startsWith('image/')) {
+      await cleanupIncomingChunk();
       return res.status(400).json({ success: false, error: 'Only images are allowed' });
     }
 
@@ -543,17 +596,18 @@ router.post('/:id/media/upload-chunk', mediaChunkUpload.single('chunk'), async (
     const [countRows] = await req.db.query('SELECT COUNT(*) as cnt FROM training_media WHERE training_id = ?', [trainingId]);
     const currentCount = countRows?.[0]?.cnt || 0;
     if (currentCount >= 20) {
+      await cleanupIncomingChunk();
       return res.status(400).json({ success: false, error: 'Maximum 20 images allowed' });
     }
 
     const tmpBase = path.join(__dirname, '..', 'public', 'uploads', 'training_media', 'tmp', String(trainingId), upload_key, file_id);
-    ensureDir(tmpBase);
+    await ensureDir(tmpBase);
 
     const chunkPath = path.join(tmpBase, `${chunkIndexNum}.part`);
-    fs.writeFileSync(chunkPath, req.file.buffer);
+    await moveFileSafeAsync(req.file.path, chunkPath);
 
     // If not all chunks yet, return early
-    const parts = fs.readdirSync(tmpBase).filter(f => f.endsWith('.part'));
+    const parts = (await fs.promises.readdir(tmpBase)).filter(f => f.endsWith('.part'));
     if (parts.length < totalChunksNum) {
       return res.json({ success: true, completed: false, received: parts.length, total_chunks: totalChunksNum });
     }
@@ -561,20 +615,27 @@ router.post('/:id/media/upload-chunk', mediaChunkUpload.single('chunk'), async (
     // Assemble
     const assembledPath = path.join(tmpBase, `assembled-${Date.now()}.bin`);
     const outStream = fs.createWriteStream(assembledPath);
-    for (let i = 0; i < totalChunksNum; i++) {
-      const p = path.join(tmpBase, `${i}.part`);
-      if (!fs.existsSync(p)) {
-        outStream.close();
-        return res.status(400).json({ success: false, error: 'Missing chunk part(s)' });
+    try {
+      for (let i = 0; i < totalChunksNum; i++) {
+        const p = path.join(tmpBase, `${i}.part`);
+        try {
+          await fs.promises.access(p);
+        } catch (error) {
+          outStream.destroy();
+          return res.status(400).json({ success: false, error: 'Missing chunk part(s)' });
+        }
+        await appendFileToStream(p, outStream);
       }
-      outStream.write(fs.readFileSync(p));
-    }
-    outStream.end();
+      outStream.end();
 
-    await new Promise((resolve, reject) => {
-      outStream.on('finish', resolve);
-      outStream.on('error', reject);
-    });
+      await new Promise((resolve, reject) => {
+        outStream.on('finish', resolve);
+        outStream.on('error', reject);
+      });
+    } catch (assemblyError) {
+      outStream.destroy();
+      throw assemblyError;
+    }
 
     // Convert to WebP
     const baseName = safeBaseName(file_name);
@@ -590,27 +651,28 @@ router.post('/:id/media/upload-chunk', mediaChunkUpload.single('chunk'), async (
       return res.status(400).json({ success: false, error: 'Invalid image file' });
     } finally {
       // Cleanup assembled file + parts
-      try { fs.unlinkSync(assembledPath); } catch (e) {}
+      await fs.promises.unlink(assembledPath).catch(() => {});
       try {
-        fs.readdirSync(tmpBase).forEach(f => {
+        const tmpFiles = await fs.promises.readdir(tmpBase);
+        await Promise.all(tmpFiles.map(async (f) => {
           if (f.endsWith('.part')) {
-            try { fs.unlinkSync(path.join(tmpBase, f)); } catch (e) {}
+            await fs.promises.unlink(path.join(tmpBase, f)).catch(() => {});
           }
-        });
+        }));
       } catch (e) {}
     }
 
     // Move into final training folder + insert DB row
     const destDir = path.join(__dirname, '..', 'public', 'uploads', 'training_media', String(trainingId));
-    ensureDir(destDir);
+    await ensureDir(destDir);
     const finalName = `media-${Date.now()}-${Math.random().toString(16).slice(2)}.webp`;
     const destAbs = path.join(destDir, finalName);
-    moveFileSafe(webpAbsPath, destAbs);
+    await moveFileSafeAsync(webpAbsPath, destAbs);
 
     // Clean up tmp folder for this file_id
     try {
       const tmpKeyDir = path.join(__dirname, '..', 'public', 'uploads', 'training_media', 'tmp', String(trainingId), upload_key, file_id);
-      if (fs.existsSync(tmpKeyDir)) fs.rmSync(tmpKeyDir, { recursive: true, force: true });
+      await fs.promises.rm(tmpKeyDir, { recursive: true, force: true });
     } catch (e) {}
 
     const finalRel = `/uploads/training_media/${trainingId}/${finalName}`;
@@ -635,6 +697,9 @@ router.post('/:id/media/upload-chunk', mediaChunkUpload.single('chunk'), async (
       }
     });
   } catch (error) {
+    if (req.file?.path) {
+      await fs.promises.unlink(req.file.path).catch(() => {});
+    }
     console.error('Media chunk upload error:', error);
     return res.status(500).json({ success: false, error: 'Upload failed' });
   }
@@ -671,7 +736,7 @@ router.post('/:id/media/:mediaId/delete', async (req, res) => {
 
     await req.db.query('DELETE FROM training_media WHERE id = ? AND training_id = ?', [mediaId, trainingId]);
     try {
-      if (abs && fs.existsSync(abs)) fs.unlinkSync(abs);
+      await unlinkIfExists(abs);
     } catch (e) {}
 
     return res.json({ success: true });
@@ -681,15 +746,24 @@ router.post('/:id/media/:mediaId/delete', async (req, res) => {
   }
 });
 
-function moveFileSafe(srcAbs, destAbs) {
-  ensureDir(path.dirname(destAbs));
+async function moveFileSafeAsync(srcAbs, destAbs) {
+  await fs.promises.mkdir(path.dirname(destAbs), { recursive: true });
   try {
-    fs.renameSync(srcAbs, destAbs);
-  } catch (e) {
-    // Cross-device fallback
-    fs.copyFileSync(srcAbs, destAbs);
-    fs.unlinkSync(srcAbs);
+    await fs.promises.rename(srcAbs, destAbs);
+  } catch (error) {
+    await fs.promises.copyFile(srcAbs, destAbs);
+    await fs.promises.unlink(srcAbs).catch(() => {});
   }
+}
+
+async function appendFileToStream(srcAbs, writableStream) {
+  await new Promise((resolve, reject) => {
+    const readStream = fs.createReadStream(srcAbs);
+    readStream.on('error', reject);
+    writableStream.on('error', reject);
+    readStream.on('end', resolve);
+    readStream.pipe(writableStream, { end: false });
+  });
 }
 
 async function getMaterialWithTraining(db, materialId, trainingId) {
@@ -1007,12 +1081,21 @@ router.get('/', async (req, res) => {
 
     let query = `
       SELECT DISTINCT t.*,
-        (SELECT COUNT(*) FROM enrollments WHERE training_id = t.id) as enrolled_count,
-        (SELECT GROUP_CONCAT(CONCAT(u.first_name, ' ', u.last_name) SEPARATOR ', ')
-         FROM training_trainers tt
-         JOIN users u ON tt.trainer_id = u.id
-         WHERE tt.training_id = t.id) as trainer_names
+        COALESCE(ec.enrolled_count, 0) as enrolled_count,
+        trainer_agg.trainer_names
       FROM trainings t
+      LEFT JOIN (
+        SELECT training_id, COUNT(*) as enrolled_count
+        FROM enrollments
+        GROUP BY training_id
+      ) ec ON ec.training_id = t.id
+      LEFT JOIN (
+        SELECT tt.training_id,
+          GROUP_CONCAT(CONCAT(u.first_name, ' ', u.last_name) SEPARATOR ', ') as trainer_names
+        FROM training_trainers tt
+        JOIN users u ON tt.trainer_id = u.id
+        GROUP BY tt.training_id
+      ) trainer_agg ON trainer_agg.training_id = t.id
       LEFT JOIN training_healthcare th ON t.id = th.training_id
       LEFT JOIN training_devices td ON t.id = td.training_id
       WHERE 1=1
@@ -1545,8 +1628,11 @@ router.post('/import/bulk', async (req, res) => {
 
     const validation = new Map();
     for (const training of normalizedTrainings) {
-      validation.set(training.trainingKey, await validateTestQuestions(req.db, training.type, training.moduleId));
-      if (!(validation.get(training.trainingKey)?.valid)) {
+      const validationKey = `${training.type}::${training.moduleId}`;
+      if (!validation.has(validationKey)) {
+        validation.set(validationKey, await validateTestQuestions(req.db, training.type, training.moduleId));
+      }
+      if (!(validation.get(validationKey)?.valid)) {
         errors.push(`Training "${training.title}" cannot be imported because its module does not have enough questions in the bank.`);
       }
     }
@@ -1561,13 +1647,13 @@ router.post('/import/bulk', async (req, res) => {
       await connection.beginTransaction();
 
       const [deviceRows] = await connection.query('SELECT id, serial_number FROM device_serial_numbers');
+      const [aspectRows] = await connection.query('SELECT aspect_name, description, max_score FROM practical_learning_outcomes_settings');
       const deviceBySerial = new Map(deviceRows.map(row => [String(row.serial_number).toLowerCase(), row]));
       const trainingIdByKey = new Map();
       const enrollmentIdByCompoundKey = new Map();
-      const attemptIdByKey = new Map();
       const attemptStats = new Map();
-      const testQuestionSets = new Map();
       const touchedEnrollmentIds = new Set();
+      const enrollmentSeedKeys = new Set(normalizedEnrollments.map(row => `${row.trainingKey}::${row.traineeEmail}`));
 
       for (const training of normalizedTrainings) {
         const [insertTraining] = await connection.query(
@@ -1618,8 +1704,7 @@ router.post('/import/bulk', async (req, res) => {
         }
 
         if (training.type === 'main') {
-          const [aspects] = await connection.query('SELECT aspect_name, description, max_score FROM practical_learning_outcomes_settings');
-          for (const aspect of aspects) {
+          for (const aspect of aspectRows) {
             await connection.query(
               'INSERT INTO practical_learning_outcomes (training_id, aspect_name, description, max_score) VALUES (?, ?, ?, ?)',
               [trainingId, aspect.aspect_name, aspect.description, aspect.max_score]
@@ -1632,7 +1717,8 @@ router.post('/import/bulk', async (req, res) => {
 
       const enrollmentSeedRows = [...normalizedEnrollments];
       for (const attempt of normalizedAttempts) {
-        if (!enrollmentSeedRows.find(row => row.trainingKey === attempt.trainingKey && row.traineeEmail === attempt.traineeEmail)) {
+        const enrollmentSeedKey = `${attempt.trainingKey}::${attempt.traineeEmail}`;
+        if (!enrollmentSeedKeys.has(enrollmentSeedKey)) {
           enrollmentSeedRows.push({
             trainingKey: attempt.trainingKey,
             traineeEmail: attempt.traineeEmail,
@@ -1640,6 +1726,7 @@ router.post('/import/bulk', async (req, res) => {
             status: 'active',
             canDownloadResults: false
           });
+          enrollmentSeedKeys.add(enrollmentSeedKey);
         }
       }
 
@@ -1679,7 +1766,6 @@ router.post('/import/bulk', async (req, res) => {
             attempt.status
           ]
         );
-        attemptIdByKey.set(attempt.attemptKey, insertAttempt.insertId);
         attemptStats.set(attempt.attemptKey, {
           attemptId: insertAttempt.insertId,
           enrollmentId,
@@ -1709,12 +1795,6 @@ router.post('/import/bulk', async (req, res) => {
           if (answer.isCorrect) current.correct += 1;
           attemptStat.objectiveStats.set(answer.objectiveId, current);
         }
-
-        const testQuestionKey = `${attemptStat.trainingId}::${attemptStat.testType}`;
-        if (!testQuestionSets.has(testQuestionKey)) {
-          testQuestionSets.set(testQuestionKey, new Set());
-        }
-        testQuestionSets.get(testQuestionKey).add(answer.questionId);
       }
 
       for (const stat of attemptStats.values()) {
@@ -1751,29 +1831,6 @@ router.post('/import/bulk', async (req, res) => {
               [stat.enrollmentId, objectiveId, stat.testType, objectiveStat.total, objectiveStat.correct, understanding]
             );
           }
-        }
-      }
-
-      for (const [key, questionIds] of testQuestionSets.entries()) {
-        const [trainingId, testType] = key.split('::');
-        const [trainingTests] = await connection.query(
-          'SELECT id FROM training_tests WHERE training_id = ? AND test_type = ? LIMIT 1',
-          [trainingId, testType]
-        );
-        if (!trainingTests.length) continue;
-        const trainingTestId = trainingTests[0].id;
-        const [existingRows] = await connection.query(
-          'SELECT question_id, question_order FROM training_test_questions WHERE training_test_id = ? ORDER BY question_order',
-          [trainingTestId]
-        );
-        const existingQuestionIds = new Set(existingRows.map(row => Number(row.question_id)));
-        let nextOrder = existingRows.length + 1;
-        for (const questionId of questionIds) {
-          if (existingQuestionIds.has(questionId)) continue;
-          await connection.query(
-            'INSERT INTO training_test_questions (training_test_id, question_id, question_order) VALUES (?, ?, ?)',
-            [trainingTestId, questionId, nextOrder++]
-          );
         }
       }
 
@@ -1852,10 +1909,13 @@ router.post('/create', async (req, res) => {
     const path = require('path');
     const headersPath = path.join(__dirname, '..', 'public', 'images', 'Training Headers');
     const headerFiles = ['Header 1.jpg', 'Header 2.jpg', 'Header 3.png', 'Header 4.png', 'Header 5.png'];
-    const availableHeaders = headerFiles.filter(file => {
-      const filePath = path.join(headersPath, file);
-      return fs.existsSync(filePath);
-    });
+    const availableHeaderChecks = await Promise.all(
+      headerFiles.map(async (file) => {
+        const filePath = path.join(headersPath, file);
+        return (await pathExists(filePath)) ? file : null;
+      })
+    );
+    const availableHeaders = availableHeaderChecks.filter(Boolean);
     
     let headerImage = null;
     if (availableHeaders.length > 0) {
@@ -2271,48 +2331,55 @@ router.get('/:id', async (req, res) => {
     let marksData = [];
     if (['admin', 'trainer'].includes(req.session.userRole)) {
       // Get test results for all enrollments
-      const [allEnrollments] = await req.db.query(
-        'SELECT id, trainee_id, can_download_results FROM enrollments WHERE training_id = ?',
-        [req.params.id]
-      );
-      
-      for (const enrollment of allEnrollments) {
+      const [allEnrollments] = await req.db.query(`
+        SELECT e.id, e.trainee_id, e.can_download_results,
+          tr.first_name, tr.last_name, tr.trainee_id as trainee_public_id
+        FROM enrollments e
+        JOIN trainees tr ON tr.id = e.trainee_id
+        WHERE e.training_id = ?
+        ORDER BY tr.last_name, tr.first_name
+      `, [req.params.id]);
+
+      const enrollmentIds = allEnrollments.map(enrollment => enrollment.id);
+      const testsByEnrollmentId = new Map();
+      const handsOnByEnrollmentId = new Map();
+
+      if (enrollmentIds.length > 0) {
         const [tests] = await req.db.query(
-          'SELECT * FROM test_attempts WHERE enrollment_id = ? AND status = "completed" ORDER BY test_type',
-          [enrollment.id]
+          'SELECT * FROM test_attempts WHERE enrollment_id IN (?) AND status = "completed" ORDER BY enrollment_id, test_type',
+          [enrollmentIds]
         );
-        
-        // Convert scores to numbers (MySQL DECIMAL returns as string)
+
         tests.forEach(test => {
           test.score = parseFloat(test.score) || 0;
+          if (!testsByEnrollmentId.has(test.enrollment_id)) testsByEnrollmentId.set(test.enrollment_id, []);
+          testsByEnrollmentId.get(test.enrollment_id).push(test);
         });
-        
-        let handsOnScores = [];
+
         if (training.type === 'main') {
-          [handsOnScores] = await req.db.query(`
+          const [handsOnScores] = await req.db.query(`
             SELECT hs.*, ha.aspect_name, ha.max_score
             FROM practical_learning_outcome_scores hs
             JOIN practical_learning_outcomes ha ON hs.aspect_id = ha.id
-            WHERE hs.enrollment_id = ?
-          `, [enrollment.id]);
-        }
-        
-        const [traineeInfo] = await req.db.query(
-          'SELECT first_name, last_name, trainee_id FROM trainees WHERE id = ?',
-          [enrollment.trainee_id]
-        );
-        
-        if (traineeInfo.length > 0) {
-          marksData.push({
-            trainee_id: traineeInfo[0].trainee_id,
-            trainee_name: `${traineeInfo[0].first_name} ${traineeInfo[0].last_name}`,
-            enrollment_id: enrollment.id,
-            tests,
-            handsOnScores,
-            can_download_results: enrollment.can_download_results || false
+            WHERE hs.enrollment_id IN (?)
+            ORDER BY hs.enrollment_id, hs.id
+          `, [enrollmentIds]);
+
+          handsOnScores.forEach(score => {
+            if (!handsOnByEnrollmentId.has(score.enrollment_id)) handsOnByEnrollmentId.set(score.enrollment_id, []);
+            handsOnByEnrollmentId.get(score.enrollment_id).push(score);
           });
         }
       }
+
+      marksData = allEnrollments.map(enrollment => ({
+        trainee_id: enrollment.trainee_public_id,
+        trainee_name: `${enrollment.first_name} ${enrollment.last_name}`,
+        enrollment_id: enrollment.id,
+        tests: testsByEnrollmentId.get(enrollment.id) || [],
+        handsOnScores: handsOnByEnrollmentId.get(enrollment.id) || [],
+        can_download_results: enrollment.can_download_results || false
+      }));
     }
     
     // Check if user is enrolled
@@ -2321,16 +2388,30 @@ router.get('/:id', async (req, res) => {
     if (req.session.userRole === 'trainee') {
       const [enrollments] = await req.db.query(`
         SELECT e.*,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') > 0 as pre_test_completed,
-          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed') as pre_test_score,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'pre_test' AND status = 'completed' AND score < 80) as pre_test_failed_attempts,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') > 0 as post_test_completed,
-          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed') as post_test_score,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'post_test' AND status = 'completed' AND score < 80) as post_test_failed_attempts,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') > 0 as certificate_enrolment_test_completed,
-          (SELECT MAX(score) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed') as certificate_enrolment_score,
-          (SELECT COUNT(*) FROM test_attempts WHERE enrollment_id = e.id AND test_type = 'certificate_enrolment' AND status = 'completed' AND score < 80) as certificate_enrolment_failed_attempts
+          COALESCE(ta.pre_test_completed, 0) > 0 as pre_test_completed,
+          ta.pre_test_score,
+          COALESCE(ta.pre_test_failed_attempts, 0) as pre_test_failed_attempts,
+          COALESCE(ta.post_test_completed, 0) > 0 as post_test_completed,
+          ta.post_test_score,
+          COALESCE(ta.post_test_failed_attempts, 0) as post_test_failed_attempts,
+          COALESCE(ta.certificate_enrolment_test_completed, 0) > 0 as certificate_enrolment_test_completed,
+          ta.certificate_enrolment_score,
+          COALESCE(ta.certificate_enrolment_failed_attempts, 0) as certificate_enrolment_failed_attempts
         FROM enrollments e
+        LEFT JOIN (
+          SELECT enrollment_id,
+            SUM(CASE WHEN test_type = 'pre_test' AND status = 'completed' THEN 1 ELSE 0 END) as pre_test_completed,
+            MAX(CASE WHEN test_type = 'pre_test' AND status = 'completed' THEN score END) as pre_test_score,
+            SUM(CASE WHEN test_type = 'pre_test' AND status = 'completed' AND score < 80 THEN 1 ELSE 0 END) as pre_test_failed_attempts,
+            SUM(CASE WHEN test_type = 'post_test' AND status = 'completed' THEN 1 ELSE 0 END) as post_test_completed,
+            MAX(CASE WHEN test_type = 'post_test' AND status = 'completed' THEN score END) as post_test_score,
+            SUM(CASE WHEN test_type = 'post_test' AND status = 'completed' AND score < 80 THEN 1 ELSE 0 END) as post_test_failed_attempts,
+            SUM(CASE WHEN test_type = 'certificate_enrolment' AND status = 'completed' THEN 1 ELSE 0 END) as certificate_enrolment_test_completed,
+            MAX(CASE WHEN test_type = 'certificate_enrolment' AND status = 'completed' THEN score END) as certificate_enrolment_score,
+            SUM(CASE WHEN test_type = 'certificate_enrolment' AND status = 'completed' AND score < 80 THEN 1 ELSE 0 END) as certificate_enrolment_failed_attempts
+          FROM test_attempts
+          GROUP BY enrollment_id
+        ) ta ON ta.enrollment_id = e.id
         WHERE e.trainee_id = ? AND e.training_id = ?
       `, [req.session.userId, req.params.id]);
       enrollment = enrollments[0] || null;
@@ -2374,10 +2455,17 @@ router.get('/:id', async (req, res) => {
     if (['admin', 'trainer'].includes(req.session.userRole)) {
       const [attendanceResult] = await req.db.query(`
         SELECT e.*, tr.first_name, tr.last_name, tr.email, tr.trainee_id,
-          (SELECT COUNT(*) FROM attendance WHERE enrollment_id = e.id AND status = 'present') as present_count,
-          (SELECT COUNT(*) FROM attendance WHERE enrollment_id = e.id AND status = 'absent') as absent_count
+          COALESCE(att.present_count, 0) as present_count,
+          COALESCE(att.absent_count, 0) as absent_count
         FROM enrollments e
         JOIN trainees tr ON e.trainee_id = tr.id
+        LEFT JOIN (
+          SELECT enrollment_id,
+            SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_count,
+            SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_count
+          FROM attendance
+          GROUP BY enrollment_id
+        ) att ON att.enrollment_id = e.id
         WHERE e.training_id = ?
         ORDER BY tr.last_name, tr.first_name
       `, [req.params.id]);
@@ -2849,7 +2937,7 @@ router.get('/:id/media/:mediaId/content', async (req, res) => {
     }
 
     const absolutePath = resolveTrainingMediaAbsolutePath(media.file_path);
-    if (!absolutePath || !fs.existsSync(absolutePath)) {
+    if (!absolutePath || !(await pathExists(absolutePath))) {
       return res.status(404).send('Media file not found');
     }
 
@@ -2891,7 +2979,7 @@ router.get('/:id/materials/:materialId/content', async (req, res) => {
     }
 
     const absolutePath = resolveMaterialAbsolutePath(material.file_path);
-    if (!absolutePath || !fs.existsSync(absolutePath)) {
+    if (!absolutePath || !(await pathExists(absolutePath))) {
       return res.status(404).send('Material file not found');
     }
     if (!isInlinePreviewSupported(material.file_path)) {
@@ -4053,19 +4141,29 @@ router.get('/:id/enrollment/:enrollmentId/test-responses', async (req, res) => {
       [enrollmentId]
     );
     
-    const tests = [];
-    
-    for (const attempt of testAttempts) {
-      // Get answers with questions
-      const [answers] = await req.db.query(`
+    const attemptIds = (testAttempts || []).map(attempt => attempt.id);
+    const answersByAttemptId = new Map();
+    if (attemptIds.length > 0) {
+      const [answerRows] = await req.db.query(`
         SELECT ta.*, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_answer
         FROM test_answers ta
         JOIN questions q ON ta.question_id = q.id
-        WHERE ta.attempt_id = ?
-        ORDER BY ta.id
-      `, [attempt.id]);
-      
-      tests.push({
+        WHERE ta.attempt_id IN (?)
+        ORDER BY ta.attempt_id, ta.id
+      `, [attemptIds]);
+
+      for (const answer of answerRows || []) {
+        const key = Number(answer.attempt_id);
+        if (!answersByAttemptId.has(key)) {
+          answersByAttemptId.set(key, []);
+        }
+        answersByAttemptId.get(key).push(answer);
+      }
+    }
+
+    const tests = (testAttempts || []).map((attempt) => {
+      const answers = answersByAttemptId.get(Number(attempt.id)) || [];
+      return {
         test_type: attempt.test_type,
         score: parseFloat(attempt.score) || 0,
         completed_at: attempt.completed_at,
@@ -4079,8 +4177,8 @@ router.get('/:id/enrollment/:enrollmentId/test-responses', async (req, res) => {
           selected_answer: answer.selected_answer,
           is_correct: answer.selected_answer === answer.correct_answer
         }))
-      });
-    }
+      };
+    });
     
     res.json({ success: true, tests });
   } catch (error) {
@@ -4145,9 +4243,10 @@ router.get('/:id/enrollment/:enrollmentId/test-answers', async (req, res) => {
     let correctCount = 0;
 
     if (attemptRow) {
-      const [attemptFull] = await req.db.query('SELECT * FROM test_attempts WHERE id = ?', [attemptRow.id]);
-      attempt = attemptFull && attemptFull.length > 0 ? attemptFull[0] : null;
-      if (attempt) attempt.score = parseFloat(attempt.score) || 0;
+      attempt = {
+        ...attemptRow,
+        score: parseFloat(attemptRow.score) || 0
+      };
 
       const [rows] = await req.db.query(`
         SELECT ta.*, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_answer
@@ -4406,7 +4505,7 @@ router.get('/:id/package/jobs/:jobId/download', async (req, res) => {
     if (job.status !== 'completed') {
       return res.status(409).json({ success: false, error: 'Package job is not ready yet' });
     }
-    if (!job.output_path || !fs.existsSync(job.output_path)) {
+    if (!job.output_path || !(await pathExists(job.output_path))) {
       return res.status(410).json({ success: false, error: 'Package file is no longer available' });
     }
 
