@@ -10,6 +10,15 @@ const {
   canDownloadCertificate,
   canRequestCertificateReleaseOverride
 } = require('../utils/certificateEligibility');
+const {
+  getPendingCountsByTraining,
+  getPendingNotifications,
+  dismissNotificationsForEnrollments,
+  dismissNotificationById,
+  dismissAndEmitMarkReleaseNotifications,
+  emitMarkReleaseDismissed,
+  handleCertificateTestCompleted
+} = require('../utils/trainerNotifications');
 
 function normalizeIdArray(value) {
   if (!value) return [];
@@ -1111,7 +1120,7 @@ async function getTrainingCreateFormData(db, currentUserId) {
     FROM trainees t
     LEFT JOIN healthcare h ON h.id = t.healthcare_id
     WHERE t.trainee_status = "active"
-    ORDER BY t.first_name, t.last_name ASC
+    ORDER BY t.id DESC
   `);
   const [devices] = await db.query(`
     SELECT d.*, k.model_name 
@@ -1289,6 +1298,62 @@ function isPdfFile(filePathValue) {
 // (Old create-time media attachment removed; media is uploaded during training via course tab.)
 
 // List all trainings
+router.get('/notifications', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+
+  try {
+    const trainingId = req.query.trainingId ? parseInt(req.query.trainingId, 10) : null;
+    const trainingIds = Number.isFinite(trainingId) && trainingId > 0 ? [trainingId] : null;
+
+    const notifications = await getPendingNotifications(req.db, {
+      trainingIds,
+      userId: req.session.userId,
+      userRole: req.session.userRole
+    });
+
+    res.json({ success: true, notifications });
+  } catch (error) {
+    console.error('Training notifications fetch error:', error);
+    res.status(500).json({ success: false, error: 'Error loading notifications' });
+  }
+});
+
+router.post('/notifications/:notificationId/dismiss', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+
+  try {
+    const notificationId = parseInt(req.params.notificationId, 10);
+    if (!Number.isFinite(notificationId) || notificationId <= 0) {
+      return res.status(400).json({ success: false, error: 'Invalid notification id' });
+    }
+
+    const dismissed = await dismissNotificationById(req.db, notificationId, {
+      userId: req.session.userId,
+      userRole: req.session.userRole
+    });
+
+    if (!dismissed) {
+      return res.status(404).json({ success: false, error: 'Notification not found' });
+    }
+
+    const io = req.app.get('io');
+    emitMarkReleaseDismissed(io, {
+      notificationId,
+      trainingId: dismissed.training_id,
+      enrollmentId: dismissed.enrollment_id
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Training notification dismiss error:', error);
+    res.status(500).json({ success: false, error: 'Error dismissing notification' });
+  }
+});
+
 router.get('/', async (req, res) => {
   try {
     const statusFilter = req.query.status ? (Array.isArray(req.query.status) ? req.query.status : [req.query.status]) : [];
@@ -1443,10 +1508,23 @@ router.get('/', async (req, res) => {
       WHERE custom_serial_number IS NOT NULL
       ORDER BY custom_serial_number ASC
     `);
+
+    let notificationCounts = {};
+    if (['admin', 'trainer'].includes(req.session.userRole)) {
+      try {
+        notificationCounts = await getPendingCountsByTraining(req.db, {
+          userId: req.session.userId,
+          userRole: req.session.userRole
+        });
+      } catch (notificationError) {
+        console.error('Training notification counts error:', notificationError);
+      }
+    }
     
     res.render('training/list', { 
       user: req.session, 
       trainings,
+      notificationCounts,
       selectedStatuses: statusFilter,
       selectedTrainer: trainerFilter,
       selectedHealthcare: healthcareFilter,
@@ -2787,25 +2865,14 @@ router.get('/:id', async (req, res) => {
         ORDER BY last_name, first_name
       `);
       
-      // Get trainees across all healthcare centres linked to this training
-      const selectedHealthcareIds = trainingHealthcare
-        .map(row => row?.healthcare_id)
-        .filter(id => Number.isFinite(Number(id)))
-        .map(id => Number(id));
-
-      if (selectedHealthcareIds.length > 0) {
-        const placeholders = selectedHealthcareIds.map(() => '?').join(',');
-        [allTrainees] = await req.db.query(`
-          SELECT t.id, t.trainee_id, t.first_name, t.last_name, t.email, h.name AS healthcare, t.ic_passport, h.id AS healthcare_id
-          FROM trainees t
-          LEFT JOIN healthcare h ON h.id = t.healthcare_id
-          WHERE t.trainee_status = 'active'
-            AND h.id IN (${placeholders})
-          ORDER BY t.last_name, t.first_name
-        `, selectedHealthcareIds);
-      } else {
-        allTrainees = [];
-      }
+      // Load all active trainees; settings tab filters by selected healthcare client-side
+      [allTrainees] = await req.db.query(`
+        SELECT t.id, t.trainee_id, t.first_name, t.last_name, t.email, h.name AS healthcare, t.ic_passport, h.id AS healthcare_id
+        FROM trainees t
+        LEFT JOIN healthcare h ON h.id = t.healthcare_id
+        WHERE t.trainee_status = 'active'
+        ORDER BY t.id DESC
+      `);
     }
     
     res.render('training/view', { 
@@ -4122,6 +4189,9 @@ router.post('/:id/release-scores', async (req, res) => {
       [...eligibleEnrollmentIds, req.params.id]
     );
 
+    const dismissed = await dismissAndEmitMarkReleaseNotifications(req.db, req.app.get('io'), eligibleEnrollmentIds);
+    void dismissed;
+
     res.json({ success: true, message: `Scores released for ${eligibleEnrollmentIds.length} trainee(s)` });
   } catch (error) {
     console.error('Score release error:', error);
@@ -4696,6 +4766,30 @@ router.post('/:id/marks/auto-complete', async (req, res) => {
         userId: req.session.userId,
         scoreProfile: scoreProfiles[i]
       }));
+    }
+
+    const io = req.app.get('io');
+    for (const result of results) {
+      const certTest = (result.tests || []).find((test) => test.testType === 'certificate_enrolment' && test.status === 'completed');
+      if (!certTest) continue;
+
+      const [enrollmentRows] = await req.db.query(
+        'SELECT trainee_id FROM enrollments WHERE id = ?',
+        [result.enrollmentId]
+      );
+      if (enrollmentRows.length === 0) continue;
+
+      try {
+        await handleCertificateTestCompleted(req.db, io, {
+          enrollmentId: result.enrollmentId,
+          trainingId,
+          traineeId: enrollmentRows[0].trainee_id,
+          testAttemptId: certTest.attemptId,
+          certificateScore: certTest.score
+        });
+      } catch (notificationError) {
+        console.error('Mark release notification error:', notificationError);
+      }
     }
 
     res.json({ success: true, results });

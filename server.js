@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const http = require('http');
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
 const mysql = require('mysql2');
@@ -9,6 +10,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { pool, dbConfig, initializeDatabase, ensureDefaultUsers } = require('./config/database');
+const { initSocket } = require('./utils/socket');
 
 const app = express();
 app.disable('x-powered-by');
@@ -85,6 +87,22 @@ const profileStorage = multer.diskStorage({
 
 const profileUpload = multer({ storage: profileStorage });
 
+const sessionMiddleware = session({
+  name: SESSION_COOKIE_NAME,
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  rolling: true,
+  store: sessionStore,
+  proxy: TRUST_PROXY,
+  cookie: {
+    secure: SESSION_COOKIE_SECURE,
+    maxAge: SESSION_MAX_AGE,
+    httpOnly: true,
+    sameSite: 'lax'
+  }
+});
+
 // Middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: '10mb' }));
@@ -101,21 +119,7 @@ app.use('/vendor/xlsx', express.static(path.join(__dirname, 'node_modules', 'xls
 app.use('/vendor/jspdf', express.static(path.join(__dirname, 'node_modules', 'jspdf')));
 app.use('/vendor/pdfjs-dist', express.static(path.join(__dirname, 'node_modules', 'pdfjs-dist')));
 app.use(express.static('public'));
-app.use(session({
-  name: SESSION_COOKIE_NAME,
-  secret: SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  rolling: true,
-  store: sessionStore,
-  proxy: TRUST_PROXY,
-  cookie: {
-    secure: SESSION_COOKIE_SECURE,
-    maxAge: SESSION_MAX_AGE,
-    httpOnly: true,
-    sameSite: 'lax'
-  }
-}));
+app.use(sessionMiddleware);
 
 // View engine setup
 app.set('view engine', 'ejs');
@@ -237,8 +241,12 @@ function getLocalNetworkUrls(port) {
 }
 
 // Start server (database schema initialization is opt-in)
+const httpServer = http.createServer(app);
+const io = initSocket(httpServer, sessionMiddleware);
+app.set('io', io);
+
 function startServer() {
-  app.listen(PORT, () => {
+  httpServer.listen(PORT, () => {
     const localUrl = `http://localhost:${PORT}`;
     const loopbackUrl = `http://127.0.0.1:${PORT}`;
     const networkUrls = getLocalNetworkUrls(PORT);

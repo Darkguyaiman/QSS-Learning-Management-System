@@ -20,14 +20,7 @@
         : []
     );
     const orderedTrainees = Array.isArray(allTrainees)
-      ? [...allTrainees].sort((a, b) => {
-          const aSelected = selectedTraineeIds.has(String(a.id)) ? 0 : 1;
-          const bSelected = selectedTraineeIds.has(String(b.id)) ? 0 : 1;
-          if (aSelected !== bSelected) return aSelected - bSelected;
-          const aName = `${a.first_name || ''} ${a.last_name || ''}`.trim();
-          const bName = `${b.first_name || ''} ${b.last_name || ''}`.trim();
-          return aName.localeCompare(bName);
-        })
+      ? [...allTrainees].sort((a, b) => Number(b.id) - Number(a.id))
       : [];
     const selectedDeviceIds = new Set(
       Array.isArray(trainingDevices)
@@ -209,7 +202,7 @@
               </div>
             </div>
             <small style="color: #6B7280; font-size: 0.875rem; margin-top: 0.5rem; display: block;">
-              Selected healthcare centres appear first. Only trainees from the selected healthcare centres will be shown.
+              Selected healthcare centres appear first. Changing your selection updates the trainee list automatically.
             </small>
           </div>
         </div>
@@ -356,7 +349,7 @@
               </div>
             </div>
             <small style="color: #6B7280; font-size: 0.875rem; margin-top: 0.5rem; display: block;">
-              Selected trainees appear first in the list.
+              Trainees are listed with the highest ID (most recently added) at the top.
             </small>
           </div>
         </div>

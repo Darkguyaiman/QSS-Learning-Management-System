@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { handleCertificateTestCompleted } = require('../utils/trainerNotifications');
 const { getPassingScore } = require('../utils/testScores');
 
 const MAX_FAILED_ATTEMPTS = 4;
@@ -204,6 +205,21 @@ router.post('/submit/:attemptId', async (req, res) => {
     // Calculate and store objective understanding scores
     await calculateObjectiveScores(req.db, attempt.enrollment_id, attempt.test_type, objectiveStats);
     
+    if (attempt.test_type === 'certificate_enrolment') {
+      try {
+        const io = req.app.get('io');
+        await handleCertificateTestCompleted(req.db, io, {
+          enrollmentId: attempt.enrollment_id,
+          trainingId: attempt.training_id,
+          traineeId: attempt.trainee_id,
+          testAttemptId: parseInt(attemptId, 10),
+          certificateScore: score
+        });
+      } catch (notificationError) {
+        console.error('Mark release notification error:', notificationError);
+      }
+    }
+
     // Auto-calculate final grades (will update when all tests are done)
     try {
       const resultsRoute = require('./results');

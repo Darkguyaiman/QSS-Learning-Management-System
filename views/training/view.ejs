@@ -1295,12 +1295,16 @@
     // Enhanced trainee search
     function setupTraineeSearch() {
       const traineeSearch = document.getElementById('settings-trainee-search');
-      if (traineeSearch) {
+      if (traineeSearch && !traineeSearch.dataset.filterBound) {
+        traineeSearch.dataset.filterBound = '1';
         traineeSearch.addEventListener('input', applySettingsTraineeFilter);
       }
 
       document.querySelectorAll('#settings-form input[name="healthcare_ids[]"]').forEach(checkbox => {
-        checkbox.addEventListener('change', applySettingsTraineeFilter);
+        if (!checkbox.dataset.filterBound) {
+          checkbox.dataset.filterBound = '1';
+          checkbox.addEventListener('change', applySettingsTraineeFilter);
+        }
       });
 
       applySettingsTraineeFilter();

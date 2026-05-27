@@ -32,25 +32,214 @@
     }
     
     .classroom-header {
-      height: 120px;
+      flex-shrink: 0;
+      height: 180px;
       background-size: cover;
       background-position: center;
       background-color: #573FD7;
       position: relative;
     }
+
+    .training-notification-btn {
+      position: absolute;
+      top: 0.65rem;
+      right: 0.65rem;
+      z-index: 2;
+      width: 2.25rem;
+      height: 2.25rem;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.95);
+      color: #573FD7;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .training-notification-btn:hover,
+    .training-notification-btn:focus {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+      outline: none;
+    }
+
+    .training-notification-btn.has-pending {
+      color: #C26A00;
+    }
+
+    .notification-badge {
+      position: absolute;
+      top: -0.25rem;
+      right: -0.25rem;
+      min-width: 1.125rem;
+      height: 1.125rem;
+      padding: 0 0.25rem;
+      border-radius: 999px;
+      background: #D93025;
+      color: #fff;
+      font-size: 0.625rem;
+      font-weight: 700;
+      line-height: 1.125rem;
+      text-align: center;
+    }
+
+    .notification-badge[hidden] {
+      display: none !important;
+    }
+
+    .classroom-card-link {
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .mark-release-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(32, 33, 36, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1200;
+      padding: 1rem;
+    }
+
+    .mark-release-modal-overlay.active {
+      display: flex;
+    }
+
+    .mark-release-modal {
+      width: min(560px, 100%);
+      max-height: min(80vh, 640px);
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .mark-release-modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1.25rem 1.25rem 0.75rem;
+      border-bottom: 1px solid #E8EAED;
+    }
+
+    .mark-release-modal-title {
+      margin: 0;
+      font-size: 1.125rem;
+      color: #202124;
+    }
+
+    .mark-release-modal-subtitle {
+      margin: 0.35rem 0 0;
+      color: #5F6368;
+      font-size: 0.875rem;
+    }
+
+    .mark-release-modal-close {
+      border: none;
+      background: transparent;
+      color: #5F6368;
+      font-size: 1.25rem;
+      cursor: pointer;
+      padding: 0.25rem;
+      line-height: 1;
+    }
+
+    .mark-release-modal-body {
+      padding: 1rem 1.25rem;
+      overflow-y: auto;
+    }
+
+    .mark-release-empty {
+      text-align: center;
+      color: #5F6368;
+      padding: 2rem 1rem;
+    }
+
+    .mark-release-item {
+      border: 1px solid #E8EAED;
+      border-radius: 8px;
+      padding: 0.875rem 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .mark-release-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .mark-release-item-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .mark-release-item-name {
+      font-weight: 600;
+      color: #202124;
+    }
+
+    .mark-release-item-score {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+    }
+
+    .mark-release-item-score.pass {
+      background: #E8F5E9;
+      color: #388E3C;
+    }
+
+    .mark-release-item-score.fail {
+      background: #FFEBEE;
+      color: #D32F2F;
+    }
+
+    .mark-release-item-text {
+      margin: 0;
+      color: #5F6368;
+      font-size: 0.875rem;
+      line-height: 1.45;
+    }
+
+    .mark-release-item-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.75rem;
+    }
+
+    .mark-release-item-actions .btn {
+      font-size: 0.8125rem;
+      padding: 0.35rem 0.75rem;
+    }
     
     .classroom-body {
       padding: 1rem;
-      flex: 1;
       display: flex;
       flex-direction: column;
+      gap: 0.625rem;
+      min-height: 150px;
     }
     
     .classroom-title {
-      font-size: 1.125rem;
+      font-size: 1.0625rem;
       font-weight: 600;
       color: #202124;
-      margin: 0 0 0.5rem 0;
+      margin: 0;
       line-height: 1.4;
       display: -webkit-box;
       -webkit-line-clamp: 2;
@@ -62,7 +251,6 @@
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      margin-bottom: 0.75rem;
       flex-wrap: wrap;
     }
     
@@ -127,35 +315,80 @@
       border-color: #1a5c39;
       color: #FFFFFF;
     }
+
+    .training-list-header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      justify-content: flex-end;
+    }
     
     .classroom-info {
       color: #5F6368;
       font-size: 0.875rem;
-      margin-top: auto;
-      padding-top: 0.75rem;
+      padding-top: 0.625rem;
       border-top: 1px solid #E8EAED;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
     }
     
     .classroom-info-item {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      margin-bottom: 0.25rem;
+      min-width: 0;
     }
-    
-    .classroom-info-item:last-child {
-      margin-bottom: 0;
-    }
-    
+
     .classroom-info-item i {
-      width: 16px;
+      width: 15px;
+      flex-shrink: 0;
       color: #5F6368;
+      font-size: 0.8125rem;
+    }
+
+    .classroom-info-item span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .classroom-info-item:first-child span {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      white-space: normal;
+    }
+
+    .classroom-info-item:not(:first-child) span {
+      white-space: nowrap;
     }
     
     @media (max-width: 768px) {
       .training-grid {
         grid-template-columns: 1fr;
         gap: 1rem;
+      }
+
+      .dashboard-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+      }
+
+      .dashboard-header h1 {
+        font-size: 1.5rem;
+      }
+
+      .training-list-header-actions {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .training-list-header-actions .btn {
+        width: 100%;
+        justify-content: center;
       }
     }
   </style>
@@ -166,7 +399,7 @@
     <div class="container">
       <div class="dashboard-header">
         <h1><i class="fas fa-graduation-cap" style="color:#573FD7;"></i> All Trainings</h1>
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+        <div class="training-list-header-actions">
           <% if (typeof trainingImportEnabled !== 'undefined' && trainingImportEnabled) { %>
             <a href="/training/import/template" class="btn btn-success">
               <i class="fas fa-file-excel"></i> Download import template
@@ -195,9 +428,24 @@
               const isMainTraining = training.type === 'main';
               const trainingTypeLabel = isMainTraining ? 'Main Training' : 'Refresher Training';
               const trainingTypeBadgeClass = isMainTraining ? 'badge-main' : 'badge-refresher';
+              const pendingNotificationCount = (typeof notificationCounts !== 'undefined' && notificationCounts[training.id]) || 0;
             %>
-            <a href="/training/<%= training.id %>" class="classroom-card" style="text-decoration: none; color: inherit;">
-              <div class="classroom-header" style="background-image: url('<%= training.header_image || '/images/Training Headers/Header 2.jpg' %>');"></div>
+            <div class="classroom-card" data-training-id="<%= training.id %>">
+              <div class="classroom-header" style="background-image: url('<%= training.header_image || '/images/Training Headers/Header 2.jpg' %>');">
+                <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+                  <button
+                    type="button"
+                    class="training-notification-btn<%= pendingNotificationCount > 0 ? ' has-pending' : '' %>"
+                    data-training-id="<%= training.id %>"
+                    data-training-title="<%= training.title.replace(/"/g, '&quot;') %>"
+                    aria-label="Mark release notifications for <%= training.title.replace(/"/g, '&quot;') %>"
+                  >
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge"<%= pendingNotificationCount > 0 ? '' : ' hidden' %>><%= pendingNotificationCount %></span>
+                  </button>
+                <% } %>
+              </div>
+              <a href="/training/<%= training.id %>" class="classroom-card-link">
               <div class="classroom-body">
                 <h3 class="classroom-title"><%= training.title %></h3>
                 <div class="classroom-meta">
@@ -240,12 +488,30 @@
                   <% } %>
                 </div>
               </div>
-            </a>
+              </a>
+            </div>
           <% }); %>
         </div>
       <% } %>
     </div>
   </main>
+
+  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+  <div class="mark-release-modal-overlay" id="markReleaseModalOverlay" aria-hidden="true">
+    <div class="mark-release-modal" role="dialog" aria-labelledby="markReleaseModalTitle" aria-modal="true">
+      <div class="mark-release-modal-header">
+        <div>
+          <h2 class="mark-release-modal-title" id="markReleaseModalTitle">Release marks reminder</h2>
+          <p class="mark-release-modal-subtitle" id="markReleaseModalSubtitle"></p>
+        </div>
+        <button type="button" class="mark-release-modal-close" id="markReleaseModalClose" aria-label="Close">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="mark-release-modal-body" id="markReleaseModalBody"></div>
+    </div>
+  </div>
+  <% } %>
   
   <% if (typeof trainingImportEnabled !== 'undefined' && trainingImportEnabled) { %>
   <input type="file" id="trainingImportFile" accept=".xlsx,.xls" style="display:none" />
@@ -254,6 +520,200 @@
   <script src="/vendor/xlsx/dist/xlsx.full.min.js"></script>
   <% } %>
   <script src="/js/main.js"></script>
+  <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    (function () {
+      if (typeof io === 'undefined') return;
+
+      const overlay = document.getElementById('markReleaseModalOverlay');
+      const modalBody = document.getElementById('markReleaseModalBody');
+      const modalSubtitle = document.getElementById('markReleaseModalSubtitle');
+      const closeBtn = document.getElementById('markReleaseModalClose');
+      const notificationButtons = Array.from(document.querySelectorAll('.training-notification-btn'));
+      const trainingIds = notificationButtons.map((btn) => parseInt(btn.dataset.trainingId, 10)).filter((id) => Number.isFinite(id));
+      const notificationsByTraining = new Map();
+      let activeTrainingId = null;
+
+      function formatDate(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
+      }
+
+      function scoreClass(score) {
+        return score >= 70 ? 'pass' : 'fail';
+      }
+
+      function scoreStatus(score) {
+        return score >= 70 ? 'Passed' : 'Not Passed';
+      }
+
+      function updateBadge(trainingId) {
+        const button = document.querySelector(`.training-notification-btn[data-training-id="${trainingId}"]`);
+        if (!button) return;
+
+        const count = (notificationsByTraining.get(trainingId) || []).length;
+        const badge = button.querySelector('.notification-badge');
+        if (badge) {
+          badge.textContent = String(count);
+          badge.hidden = count === 0;
+        }
+        button.classList.toggle('has-pending', count > 0);
+      }
+
+      function setTrainingNotifications(trainingId, notifications) {
+        notificationsByTraining.set(trainingId, notifications);
+        updateBadge(trainingId);
+      }
+
+      function upsertNotification(notification) {
+        const trainingId = notification.trainingId;
+        const current = notificationsByTraining.get(trainingId) || [];
+        const next = current.filter((item) => item.id !== notification.id && item.enrollmentId !== notification.enrollmentId);
+        next.unshift(notification);
+        setTrainingNotifications(trainingId, next);
+      }
+
+      function removeNotification(trainingId, { notificationId, enrollmentId }) {
+        const current = notificationsByTraining.get(trainingId) || [];
+        const next = current.filter((item) => {
+          if (notificationId && item.id === notificationId) return false;
+          if (enrollmentId && item.enrollmentId === enrollmentId) return false;
+          return true;
+        });
+        setTrainingNotifications(trainingId, next);
+      }
+
+      function renderNotificationItem(notification) {
+        const item = document.createElement('div');
+        item.className = 'mark-release-item';
+        item.dataset.notificationId = String(notification.id);
+
+        const score = Number(notification.certificateScore) || 0;
+        const trainingTypeHint = notification.trainingType === 'main'
+          ? 'Release marks from the Marks tab once all assessments are complete.'
+          : 'You can release marks from the Marks tab now.';
+
+        item.innerHTML = `
+          <div class="mark-release-item-header">
+            <span class="mark-release-item-name">${notification.traineeName}</span>
+            <span class="mark-release-item-score ${scoreClass(score)}">${score.toFixed(1)}% (${scoreStatus(score)})</span>
+          </div>
+          <p class="mark-release-item-text">
+            Completed the Certificate Enrolment Test on ${formatDate(notification.createdAt)}.
+            ${trainingTypeHint}
+          </p>
+          <div class="mark-release-item-actions">
+            <a class="btn btn-primary" href="/training/${notification.trainingId}">Open Marks</a>
+            <button type="button" class="btn btn-secondary dismiss-notification-btn">Dismiss</button>
+          </div>
+        `;
+
+        item.querySelector('.dismiss-notification-btn').addEventListener('click', async function () {
+          const button = this;
+          button.disabled = true;
+          try {
+            const response = await fetch(`/training/notifications/${notification.id}/dismiss`, { method: 'POST' });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+              window.alert(data.error || 'Could not dismiss notification.');
+              button.disabled = false;
+              return;
+            }
+            removeNotification(notification.trainingId, { notificationId: notification.id });
+            renderModalContent(notification.trainingId);
+          } catch (error) {
+            window.alert(error.message || 'Could not dismiss notification.');
+            button.disabled = false;
+          }
+        });
+
+        return item;
+      }
+
+      function renderModalContent(trainingId) {
+        const button = document.querySelector(`.training-notification-btn[data-training-id="${trainingId}"]`);
+        const trainingTitle = button ? button.dataset.trainingTitle : 'Training';
+        modalSubtitle.textContent = trainingTitle;
+
+        const notifications = notificationsByTraining.get(trainingId) || [];
+        modalBody.innerHTML = '';
+
+        if (notifications.length === 0) {
+          modalBody.innerHTML = '<div class="mark-release-empty"><i class="fas fa-check-circle" style="font-size:2rem;color:#34A853;margin-bottom:0.75rem;"></i><p>No pending mark release reminders for this training.</p></div>';
+          return;
+        }
+
+        notifications.forEach((notification) => {
+          modalBody.appendChild(renderNotificationItem(notification));
+        });
+      }
+
+      function openModal(trainingId) {
+        activeTrainingId = trainingId;
+        renderModalContent(trainingId);
+        overlay.classList.add('active');
+        overlay.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeModal() {
+        activeTrainingId = null;
+        overlay.classList.remove('active');
+        overlay.setAttribute('aria-hidden', 'true');
+      }
+
+      notificationButtons.forEach((button) => {
+        button.addEventListener('click', function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          openModal(parseInt(button.dataset.trainingId, 10));
+        });
+      });
+
+      closeBtn.addEventListener('click', closeModal);
+      overlay.addEventListener('click', function (event) {
+        if (event.target === overlay) closeModal();
+      });
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && overlay.classList.contains('active')) closeModal();
+      });
+
+      async function preloadNotifications() {
+        await Promise.all(trainingIds.map(async (trainingId) => {
+          try {
+            const response = await fetch(`/training/notifications?trainingId=${trainingId}`);
+            const data = await response.json();
+            if (response.ok && data.success) {
+              setTrainingNotifications(trainingId, data.notifications || []);
+            }
+          } catch (error) {
+            console.error('Failed to preload notifications', error);
+          }
+        }));
+      }
+
+      const socket = io({ withCredentials: true });
+      socket.emit('join-trainings', trainingIds);
+
+      socket.on('mark-release-notification', function (notification) {
+        upsertNotification(notification);
+        if (overlay.classList.contains('active') && activeTrainingId === notification.trainingId) {
+          renderModalContent(notification.trainingId);
+        }
+      });
+
+      socket.on('mark-release-notification-dismissed', function (payload) {
+        removeNotification(payload.trainingId, payload);
+        if (overlay.classList.contains('active')) {
+          renderModalContent(payload.trainingId);
+        }
+      });
+
+      preloadNotifications();
+    })();
+  </script>
+  <% } %>
   <% if (typeof trainingImportEnabled !== 'undefined' && trainingImportEnabled) { %>
   <script>
     (function () {

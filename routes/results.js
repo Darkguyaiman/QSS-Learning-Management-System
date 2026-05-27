@@ -5,6 +5,7 @@ const {
   canRequestCertificateReleaseOverride,
   getBestCertAttempt
 } = require('../utils/certificateEligibility');
+const { dismissAndEmitMarkReleaseNotifications } = require('../utils/trainerNotifications');
 
 function parseFinalGradesRow(row) {
   if (!row) return null;
@@ -152,6 +153,8 @@ router.post('/allow-download/:enrollmentId', async (req, res) => {
       'UPDATE enrollments SET can_download_results = TRUE WHERE id = ?',
       [req.params.enrollmentId]
     );
+
+    await dismissAndEmitMarkReleaseNotifications(req.db, req.app.get('io'), [parseInt(req.params.enrollmentId, 10)]);
     
     res.json({ success: true });
   } catch (error) {
@@ -297,6 +300,8 @@ router.post('/release-grades/:enrollmentId', async (req, res) => {
       'UPDATE enrollments SET can_download_results = TRUE WHERE id = ?',
       [req.params.enrollmentId]
     );
+
+    await dismissAndEmitMarkReleaseNotifications(req.db, req.app.get('io'), [parseInt(req.params.enrollmentId, 10)]);
     
     res.json({ success: true });
   } catch (error) {
