@@ -21,15 +21,18 @@ const sharp = require('sharp');
 const packageGenerator = require('./package-generator');
 const packageJobQueue = require('./package-job-queue');
 
-const TRAINING_IMPORT_ALLOWED_ROLES = new Set(['admin', 'trainer']);
+const TRAINING_IMPORT_ADMIN_EMAIL = 'admin@lms.com';
 const TRAINING_IMPORT_TEST_TYPES = new Set([
   'pre_test',
   'post_test',
   'certificate_enrolment'
 ]);
 
-function canUseTrainingImport(session) {
-  return Boolean(session?.userRole && TRAINING_IMPORT_ALLOWED_ROLES.has(session.userRole));
+async function isTrainingExcelImportAdmin(db, session) {
+  if (!session.userId || session.userRole !== 'admin') return false;
+  const [rows] = await db.query('SELECT email FROM users WHERE id = ?', [session.userId]);
+  const u = rows[0];
+  return u && String(u.email).toLowerCase().trim() === TRAINING_IMPORT_ADMIN_EMAIL;
 }
 
 function splitImportList(value) {
@@ -1236,7 +1239,7 @@ router.get('/', async (req, res) => {
       searchQuery: searchQuery,
       trainers,
       healthcare,
-      trainingImportEnabled: canUseTrainingImport(req.session),
+      trainingImportEnabled: await isTrainingExcelImportAdmin(req.db, req.session),
       devices: [...devices, ...customDevices.map(d => ({ id: d.serial_number, serial_number: d.serial_number, model_name: 'Custom' }))],
     });
   } catch (error) {
@@ -1246,7 +1249,7 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/import/template', async (req, res) => {
-  if (!canUseTrainingImport(req.session)) {
+  if (!(await isTrainingExcelImportAdmin(req.db, req.session))) {
     return res.status(403).send('Access denied');
   }
 
@@ -1400,7 +1403,7 @@ router.get('/import/template', async (req, res) => {
 });
 
 router.post('/import/bulk', async (req, res) => {
-  if (!canUseTrainingImport(req.session)) {
+  if (!(await isTrainingExcelImportAdmin(req.db, req.session))) {
     return res.status(403).json({ success: false, error: 'Access denied' });
   }
 

@@ -780,12 +780,14 @@
     }
 
     .hands-on-table-container {
-      overflow-x: auto;
+      overflow: auto;
+      max-height: min(520px, calc(100vh - 320px));
       border-radius: 8px;
       border: 1px solid #E8EAED;
     }
 
     .hands-on-table-container::-webkit-scrollbar {
+      width: 6px;
       height: 6px;
     }
 
@@ -804,11 +806,15 @@
 
     .hands-on-grading-table {
       width: 100%;
-      border-collapse: collapse;
+      border-collapse: separate;
+      border-spacing: 0;
       background: white;
     }
 
     .hands-on-grading-table th {
+      position: sticky;
+      top: 0;
+      z-index: 5;
       background: #F8F9FA;
       padding: 1rem;
       text-align: left;
@@ -817,6 +823,11 @@
       color: #5F6368;
       border-bottom: 1px solid #E8EAED;
       white-space: nowrap;
+      box-shadow: 0 1px 0 #E8EAED;
+    }
+
+    .hands-on-grading-table th.sticky-col {
+      z-index: 15;
     }
 
     .hands-on-grading-table td {
@@ -840,6 +851,11 @@
       background: white;
       z-index: 10;
       box-shadow: 2px 0 4px rgba(0,0,0,0.04);
+    }
+
+    .hands-on-grading-table thead .sticky-col {
+      background: #F8F9FA;
+      z-index: 20;
     }
 
     .hands-on-grading-table tbody tr:hover .sticky-col {
