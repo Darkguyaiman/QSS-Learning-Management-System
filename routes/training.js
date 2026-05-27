@@ -5,6 +5,11 @@ const ExcelJS = require('exceljs');
 const router = express.Router();
 const { calculateFinalGrades } = require('./results');
 const { getPassingScore } = require('../utils/testScores');
+const {
+  getBestCertAttempt,
+  canDownloadCertificate,
+  canRequestCertificateReleaseOverride
+} = require('../utils/certificateEligibility');
 
 function normalizeIdArray(value) {
   if (!value) return [];
@@ -2557,6 +2562,7 @@ router.get('/:id', async (req, res) => {
       const enrollmentIds = allEnrollments.map(enrollment => enrollment.id);
       const testsByEnrollmentId = new Map();
       const handsOnByEnrollmentId = new Map();
+      const certificateOverrideByEnrollmentId = new Map();
 
       if (enrollmentIds.length > 0) {
         const [tests] = await req.db.query(
@@ -2568,6 +2574,26 @@ router.get('/:id', async (req, res) => {
           test.score = parseFloat(test.score) || 0;
           if (!testsByEnrollmentId.has(test.enrollment_id)) testsByEnrollmentId.set(test.enrollment_id, []);
           testsByEnrollmentId.get(test.enrollment_id).push(test);
+        });
+
+        let overrideRows = [];
+        try {
+          [overrideRows] = await req.db.query(
+            `SELECT cro.*, u.first_name AS released_by_first_name, u.last_name AS released_by_last_name
+             FROM certificate_release_overrides cro
+             LEFT JOIN users u ON u.id = cro.released_by
+             WHERE cro.enrollment_id IN (?)`,
+            [enrollmentIds]
+          );
+        } catch (error) {
+          if (error && error.code === 'ER_NO_SUCH_TABLE') {
+            console.warn('certificate_release_overrides table missing; run migration 042');
+          } else {
+            throw error;
+          }
+        }
+        overrideRows.forEach((row) => {
+          certificateOverrideByEnrollmentId.set(row.enrollment_id, row);
         });
 
         if (training.type === 'main') {
@@ -2592,7 +2618,8 @@ router.get('/:id', async (req, res) => {
         enrollment_id: enrollment.id,
         tests: testsByEnrollmentId.get(enrollment.id) || [],
         handsOnScores: handsOnByEnrollmentId.get(enrollment.id) || [],
-        can_download_results: enrollment.can_download_results || false
+        can_download_results: enrollment.can_download_results || false,
+        certificateReleaseOverride: certificateOverrideByEnrollmentId.get(enrollment.id) || null
       }));
     }
     
@@ -2655,11 +2682,17 @@ router.get('/:id', async (req, res) => {
           'SELECT * FROM final_grades WHERE enrollment_id = ?',
           [enrollment.id]
         );
+
+        const [overrideRows] = await req.db.query(
+          'SELECT * FROM certificate_release_overrides WHERE enrollment_id = ?',
+          [enrollment.id]
+        );
         
         traineeMarksData = {
           tests,
           handsOnScores,
-          finalGrade: finalGrades.length > 0 ? finalGrades[0] : null
+          finalGrade: finalGrades.length > 0 ? finalGrades[0] : null,
+          certificateReleaseOverride: overrideRows[0] || null
         };
       }
     }
@@ -4096,6 +4129,96 @@ router.post('/:id/release-scores', async (req, res) => {
   }
 });
 
+// Release certificate below pass mark with recorded justification (admin/trainer)
+router.post('/:id/enrollment/:enrollmentId/certificate/release-override', async (req, res) => {
+  if (!['admin', 'trainer'].includes(req.session.userRole)) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+
+  try {
+    const trainingId = parseInt(req.params.id, 10);
+    const enrollmentId = parseInt(req.params.enrollmentId, 10);
+    const justification = String(req.body?.justification || '').trim();
+
+    if (!Number.isFinite(trainingId) || trainingId <= 0 || !Number.isFinite(enrollmentId) || enrollmentId <= 0) {
+      return res.status(400).json({ success: false, error: 'Invalid request' });
+    }
+
+    if (justification.length < 10) {
+      return res.status(400).json({ success: false, error: 'Justification is required (minimum 10 characters).' });
+    }
+
+    const [trainings] = await req.db.query('SELECT id, type FROM trainings WHERE id = ?', [trainingId]);
+    if (trainings.length === 0) {
+      return res.status(404).json({ success: false, error: 'Training not found' });
+    }
+    const training = trainings[0];
+
+    if (training.type === 'main' && req.session.userRole !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Only admins can release certificates for main training.' });
+    }
+
+    const [enrollments] = await req.db.query(
+      'SELECT id, trainee_id FROM enrollments WHERE id = ? AND training_id = ?',
+      [enrollmentId, trainingId]
+    );
+    if (enrollments.length === 0) {
+      return res.status(404).json({ success: false, error: 'Enrollment not found' });
+    }
+    const enrollment = enrollments[0];
+
+    const [existingOverride] = await req.db.query(
+      'SELECT id FROM certificate_release_overrides WHERE enrollment_id = ?',
+      [enrollmentId]
+    );
+    if (existingOverride.length > 0) {
+      return res.status(400).json({ success: false, error: 'Certificate has already been released with justification for this trainee.' });
+    }
+
+    const [testAttempts] = await req.db.query(
+      'SELECT * FROM test_attempts WHERE enrollment_id = ? AND status = "completed"',
+      [enrollmentId]
+    );
+
+    let handsOnScores = [];
+    if (training.type === 'main') {
+      [handsOnScores] = await req.db.query(`
+        SELECT hs.*, ha.max_score
+        FROM practical_learning_outcome_scores hs
+        JOIN practical_learning_outcomes ha ON hs.aspect_id = ha.id
+        WHERE hs.enrollment_id = ?
+      `, [enrollmentId]);
+    }
+
+    if (!canRequestCertificateReleaseOverride({
+      testAttempts,
+      handsOnScores,
+      trainingType: training.type,
+      releaseOverride: null
+    })) {
+      return res.status(400).json({
+        success: false,
+        error: 'Certificate release is only available when the enrolment test score is below 70% and no test part is locked.'
+      });
+    }
+
+    const certAttempt = getBestCertAttempt(testAttempts);
+    const certScore = parseFloat(certAttempt.score) || 0;
+
+    await req.db.query(
+      `INSERT INTO certificate_release_overrides
+       (enrollment_id, training_id, trainee_id, certificate_enrolment_score, justification, released_by)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [enrollmentId, trainingId, enrollment.trainee_id, certScore, justification, req.session.userId]
+    );
+
+    res.json({ success: true, message: 'Certificate released with recorded justification.' });
+  } catch (error) {
+    console.error('Certificate release override error:', error);
+    res.status(500).json({ success: false, error: 'Error releasing certificate' });
+  }
+});
+
 // Get certificate for trainee
 router.get('/:id/certificate/:enrollmentId', async (req, res) => {
   try {
@@ -4139,6 +4262,12 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
       [enrollmentId]
     );
 
+    const [releaseOverrideRows] = await req.db.query(
+      'SELECT * FROM certificate_release_overrides WHERE enrollment_id = ?',
+      [enrollmentId]
+    );
+    const releaseOverride = releaseOverrideRows[0] || null;
+
     const attemptStatsByType = (testAttempts || []).reduce((acc, attempt) => {
       const testType = attempt.test_type;
       const score = parseFloat(attempt.score) || 0;
@@ -4157,7 +4286,7 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
     // Check if scores are released (for trainees) or certificate enrolment completed
     if (req.session.userRole === 'trainee' && !enrollment.can_download_results) {
       const hasCertificateAttempt = (testAttempts || []).some(attempt => attempt.test_type === 'certificate_enrolment');
-      if (!hasCertificateAttempt) {
+      if (!hasCertificateAttempt && !releaseOverride) {
         return res.status(403).send('Scores have not been released yet. Please contact your administrator.');
       }
     }
@@ -4173,30 +4302,14 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
       `, [enrollmentId]);
     }
 
-    const certAttempts = (testAttempts || []).filter(attempt => attempt.test_type === 'certificate_enrolment');
-    const certAttempt = certAttempts.reduce((best, attempt) => {
-      if (!best) return attempt;
-      const bestScore = parseFloat(best.score) || 0;
-      const currScore = parseFloat(attempt.score) || 0;
-      return currScore > bestScore ? attempt : best;
-    }, null);
-    const certOutstanding = certAttempt && parseFloat(certAttempt.score) >= getPassingScore('certificate_enrolment');
+    const certAttempt = getBestCertAttempt(testAttempts);
 
-    let practicalOutstanding = true;
-    if (enrollment.training_type === 'main') {
-      if (!handsOnScores || handsOnScores.length === 0) {
-        practicalOutstanding = false;
-      } else {
-        const avg = handsOnScores.reduce((sum, s) => {
-          const maxScore = parseFloat(s.max_score) || 0;
-          const score = parseFloat(s.score) || 0;
-          return sum + (maxScore > 0 ? (score / maxScore) * 100 : 0);
-        }, 0) / handsOnScores.length;
-        practicalOutstanding = avg >= 80;
-      }
-    }
-
-    if (!certOutstanding || !practicalOutstanding) {
+    if (!canDownloadCertificate({
+      testAttempts,
+      handsOnScores,
+      trainingType: enrollment.training_type,
+      releaseOverride
+    })) {
       return res.status(403).send('Certificate requires Outstanding results in Certificate Enrolment Test and Practical Learning Outcome.');
     }
     

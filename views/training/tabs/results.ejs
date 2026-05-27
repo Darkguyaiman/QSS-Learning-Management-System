@@ -203,6 +203,7 @@
       <!-- Certificate Download Section -->
       <% 
         const certTest = getBestTest(marksData && marksData.tests, 'certificate_enrolment');
+        const certReleaseOverride = marksData && marksData.certificateReleaseOverride;
         const certOutstanding = certTest && certTest.score >= 70;
         const getPassingScore = (testType) => testType === 'certificate_enrolment' ? 70 : 80;
         const attemptStatsByType = ((marksData && marksData.tests) || []).reduce((acc, attempt) => {
@@ -222,7 +223,7 @@
           const avg = total / marksData.handsOnScores.length;
           practicalOutstanding = avg >= 80;
         }
-        const canDownloadCertificate = certOutstanding && practicalOutstanding && !hasLockedTestPart;
+        const canDownloadCertificate = (certOutstanding || certReleaseOverride) && (practicalOutstanding || certReleaseOverride) && !hasLockedTestPart;
       %>
       <div class="certificate-download-section">
         <div class="certificate-icon">
@@ -231,6 +232,9 @@
         <h3>Download Your Certificate</h3>
         <% if (canDownloadCertificate) { %>
           <p>Your official certificate of completion is ready for download.</p>
+          <% if (certReleaseOverride) { %>
+            <p style="font-size: 0.875rem; color: #5F6368;">Certificate released by your training administrator with documented justification.</p>
+          <% } %>
           <a href="/training/<%= training.id %>/certificate/<%= enrollment.id %>" target="_blank" class="btn-certificate">
             <i class="fas fa-download"></i>
             Download Certificate

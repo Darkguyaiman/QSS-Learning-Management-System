@@ -1,5 +1,6 @@
 const express = require('express');
 const { getPassingScore } = require('../utils/testScores');
+const { getBestCertAttempt, canDownloadCertificate } = require('../utils/certificateEligibility');
 const router = express.Router();
 
 // Trainee-only: Results for an enrollment
@@ -199,6 +200,12 @@ router.get('/training/:id/certificate/:enrollmentId', async (req, res, next) => 
       [enrollmentId]
     );
 
+    const [releaseOverrideRows] = await req.db.query(
+      'SELECT * FROM certificate_release_overrides WHERE enrollment_id = ?',
+      [enrollmentId]
+    );
+    const releaseOverride = releaseOverrideRows[0] || null;
+
     const attemptStatsByType = (testAttempts || []).reduce((acc, attempt) => {
       const testType = attempt.test_type;
       const score = parseFloat(attempt.score) || 0;
@@ -214,20 +221,12 @@ router.get('/training/:id/certificate/:enrollmentId', async (req, res, next) => 
       return res.status(403).send('Certificate is not available because one or more test parts reached 3 failed attempts. You have failed this training.');
     }
 
-    const certAttempts = (testAttempts || []).filter(attempt => attempt.test_type === 'certificate_enrolment');
-    const certAttempt = certAttempts.reduce((best, attempt) => {
-      if (!best) return attempt;
-      const bestScore = parseFloat(best.score) || 0;
-      const currScore = parseFloat(attempt.score) || 0;
-      return currScore > bestScore ? attempt : best;
-    }, null);
-    const certOutstanding = certAttempt && parseFloat(certAttempt.score) >= getPassingScore('certificate_enrolment');
-    if (!enrollment.can_download_results && !certAttempt) {
+    const certAttempt = getBestCertAttempt(testAttempts);
+    if (!enrollment.can_download_results && !certAttempt && !releaseOverride) {
       return res.status(403).send('Scores have not been released yet. Please contact your administrator.');
     }
 
     let handsOnScores = [];
-    let practicalOutstanding = true;
     if (enrollment.training_type === 'main') {
       [handsOnScores] = await req.db.query(`
         SELECT hs.*, ha.aspect_name, ha.max_score
@@ -236,21 +235,13 @@ router.get('/training/:id/certificate/:enrollmentId', async (req, res, next) => 
         WHERE hs.enrollment_id = ?
       `, [enrollmentId]);
     }
-    
-    if (enrollment.training_type === 'main') {
-      if (!handsOnScores || handsOnScores.length === 0) {
-        practicalOutstanding = false;
-      } else {
-        const avg = handsOnScores.reduce((sum, s) => {
-          const maxScore = parseFloat(s.max_score) || 0;
-          const score = parseFloat(s.score) || 0;
-          return sum + (maxScore > 0 ? (score / maxScore) * 100 : 0);
-        }, 0) / handsOnScores.length;
-        practicalOutstanding = avg >= 80;
-      }
-    }
 
-    if (!certOutstanding || !practicalOutstanding) {
+    if (!canDownloadCertificate({
+      testAttempts,
+      handsOnScores,
+      trainingType: enrollment.training_type,
+      releaseOverride
+    })) {
       return res.status(403).send('Certificate requires Outstanding results in Certificate Enrolment Test and Practical Learning Outcome.');
     }
     

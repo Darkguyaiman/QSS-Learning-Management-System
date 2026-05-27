@@ -1,5 +1,23 @@
 const express = require('express');
 const router = express.Router();
+const {
+  canDownloadCertificate,
+  canRequestCertificateReleaseOverride,
+  getBestCertAttempt
+} = require('../utils/certificateEligibility');
+
+function parseFinalGradesRow(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    training_grade: row.training_grade != null ? parseFloat(row.training_grade) : null,
+    endorsement_grade: row.endorsement_grade != null ? parseFloat(row.endorsement_grade) : null,
+    objective_understanding_percentage: row.objective_understanding_percentage != null
+      ? parseFloat(row.objective_understanding_percentage)
+      : null,
+    hands_on_grade: row.hands_on_grade != null ? parseFloat(row.hands_on_grade) : null
+  };
+}
 
 // View results for an enrollment
 router.get('/enrollment/:enrollmentId', async (req, res) => {
@@ -75,15 +93,47 @@ router.get('/enrollment/:enrollmentId', async (req, res) => {
       ORDER BY o.name
     `, [req.params.enrollmentId]);
     
+    objectiveScores.forEach((score) => {
+      score.understanding_percentage = parseFloat(score.understanding_percentage) || 0;
+    });
+
+    const [overrideRows] = await req.db.query(
+      `SELECT cro.*, u.first_name AS released_by_first_name, u.last_name AS released_by_last_name
+       FROM certificate_release_overrides cro
+       LEFT JOIN users u ON u.id = cro.released_by
+       WHERE cro.enrollment_id = ?`,
+      [req.params.enrollmentId]
+    );
+    const certificateReleaseOverride = overrideRows[0] || null;
+
+    const parsedFinalGrades = parseFinalGradesRow(finalGrades[0] || null);
+    const certificateActions = {
+      canShowCertificate: canDownloadCertificate({
+        testAttempts: tests,
+        handsOnScores,
+        trainingType: enrollmentData.type,
+        releaseOverride: certificateReleaseOverride
+      }),
+      canReleaseCertificateOverride: canRequestCertificateReleaseOverride({
+        testAttempts: tests,
+        handsOnScores,
+        trainingType: enrollmentData.type,
+        releaseOverride: certificateReleaseOverride
+      }),
+      certAttempt: getBestCertAttempt(tests)
+    };
+    
     res.render('results/view', { 
       user: req.session, 
       enrollment: enrollmentData, 
       tests, 
       handsOnScores,
       attendance: attendance[0],
-      finalGrades: finalGrades[0] || null,
+      finalGrades: parsedFinalGrades,
       objectiveScores,
-      gradesReleased: enrollmentData.can_download_results || false
+      gradesReleased: enrollmentData.can_download_results || false,
+      certificateReleaseOverride,
+      certificateActions
     });
   } catch (error) {
     console.error('Results view error:', error);

@@ -46,6 +46,38 @@
         }
         return aspectIds.size;
       };
+      const getCertificateActionState = (data, trainingType) => {
+        const certTest = getBestTest(data.tests, 'certificate_enrolment');
+        const certScore = certTest ? parseFloat(certTest.score) : null;
+        const certCompleted = !!certTest;
+        const override = data.certificateReleaseOverride || null;
+
+        let practicalOutstanding = true;
+        if (trainingType === 'main') {
+          const poRow = practicalOutcomeTotalsFromScores(data.handsOnScores);
+          practicalOutstanding = poRow.max > 0 && ((poRow.total / poRow.max) * 100) >= 80;
+        }
+
+        const hasLockedTestPart = (data.tests || []).reduce((acc, attempt) => {
+          const testType = attempt.test_type;
+          const score = parseFloat(attempt.score) || 0;
+          if (!acc[testType]) acc[testType] = { failed: 0, hasPass: false };
+          const passingScore = testType === 'certificate_enrolment' ? 70 : 80;
+          if (score >= passingScore) acc[testType].hasPass = true;
+          else acc[testType].failed += 1;
+          return acc;
+        }, {});
+        const locked = Object.values(hasLockedTestPart).some(stat => stat.failed >= 3 && !stat.hasPass);
+
+        const certOutstanding = certScore !== null && certScore >= 70;
+        return {
+          certScore,
+          certCompleted,
+          override,
+          canShowCertificate: (!!override || (certOutstanding && practicalOutstanding)) && !locked,
+          canReleaseCertificateOverride: !override && certCompleted && certScore !== null && certScore < 70 && !locked
+        };
+      };
     %>
     <% if (marksData.length === 0) { %>
       <div class="empty-state">
@@ -56,7 +88,7 @@
       <div class="section-card" style="margin-bottom: 2rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
           <h3 class="section-title" style="margin: 0;">Test Scores</h3>
-          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <div class="marks-tab-toolbar" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
             <% if (devAdminCheatEnabled) { %>
               <button type="button" class="btn btn-sm btn-outline" onclick="autoCompleteMarks(null, this)" title="Dev cheat: randomised test and hands-on scores for every trainee">
                 <i class="fas fa-magic"></i>
@@ -72,6 +104,10 @@
             <% } %>
           </div>
         </div>
+        <p style="margin: 0 0 1rem; font-size: 0.8125rem; color: #5F6368;">
+          <strong>Release Scores</strong> lets trainees view their results.
+          <strong>Release Certificate</strong> (amber) is for enrolment test scores below 70% and requires a recorded justification.
+        </p>
         
         <!-- Desktop Table View -->
         <div class="table-responsive">
@@ -164,6 +200,11 @@
                       <i class="fas fa-lock"></i> Not Released
                     </span>
                   <% } %>
+                  <% if (data.certificateReleaseOverride) { %>
+                    <div style="color: #B06000; font-size: 0.75rem; margin-top: 0.35rem;">
+                      <i class="fas fa-file-signature"></i> Cert. released with justification
+                    </div>
+                  <% } %>
                 </td>
                 <td>
                   <div class="marks-actions">
@@ -176,30 +217,43 @@
                       </a>
                     <% } %>
                     <% 
+                      const certActions = getCertificateActionState(data, training.type);
                       const completedHandsOnCount = practicalOutcomeCompletedCount(data.handsOnScores);
                       const totalHandsOnCount = Array.isArray(aspects) ? aspects.length : 0;
-                      const certCompleted = !!certificateEnrolmentTest;
+                      const certCompleted = certActions.certCompleted;
                       const preCompleted = !!preTest;
                       const postCompleted = !!postTest;
                       const practicalCompleted = totalHandsOnCount > 0 && completedHandsOnCount >= totalHandsOnCount;
                       const canReleaseMain = !data.can_download_results && preCompleted && postCompleted && certCompleted && practicalCompleted;
                       const canReleaseRefresher = !data.can_download_results && certCompleted;
+                      const canReleaseCertOverride = certActions.canReleaseCertificateOverride;
+                      const canShowCertificate = certActions.canShowCertificate;
                     %>
                     <% if (training.type === 'main') { %>
                       <% if (user.userRole === 'admin' && canReleaseMain) { %>
                         <button class="btn btn-sm btn-primary" onclick="releaseScores([<%= data.enrollment_id %>], this)">
-                          <i class="fas fa-unlock"></i> Release
+                          <i class="fas fa-unlock"></i> Release Scores
+                        </button>
+                      <% } %>
+                      <% if (user.userRole === 'admin' && canReleaseCertOverride) { %>
+                        <button type="button" class="btn btn-sm btn-warning" onclick="openCertificateReleaseModal(<%= data.enrollment_id %>, '<%= data.trainee_name.replace(/'/g, "\\'") %>', <%= certActions.certScore %>, this)">
+                          <i class="fas fa-file-signature"></i> Release Certificate
                         </button>
                       <% } %>
                     <% } else { %>
                       <% if (['admin', 'trainer'].includes(user.userRole) && canReleaseRefresher) { %>
                         <button class="btn btn-sm btn-primary" onclick="releaseScores([<%= data.enrollment_id %>], this)">
-                          <i class="fas fa-unlock"></i> Release
+                          <i class="fas fa-unlock"></i> Release Scores
+                        </button>
+                      <% } %>
+                      <% if (['admin', 'trainer'].includes(user.userRole) && canReleaseCertOverride) { %>
+                        <button type="button" class="btn btn-sm btn-warning" onclick="openCertificateReleaseModal(<%= data.enrollment_id %>, '<%= data.trainee_name.replace(/'/g, "\\'") %>', <%= certActions.certScore %>, this)">
+                          <i class="fas fa-file-signature"></i> Release Certificate
                         </button>
                       <% } %>
                     <% } %>
-                    <% if (data.can_download_results) { %>
-                      <a href="/training/<%= training.id %>/certificate/<%= data.enrollment_id %>" target="_blank" class="btn btn-sm btn-success">
+                    <% if (canShowCertificate) { %>
+                      <a href="/training/<%= training.id %>/certificate/<%= data.enrollment_id %>" target="_blank" class="btn btn-sm btn-success btn-certificate-view">
                         <i class="fas fa-certificate"></i> Certificate
                       </a>
                     <% } %>
@@ -233,6 +287,11 @@
                   <span style="color: #5F6368; font-size: 0.75rem;">
                     <i class="fas fa-lock"></i> Not Released
                   </span>
+                <% } %>
+                <% if (data.certificateReleaseOverride) { %>
+                  <div style="color: #B06000; font-size: 0.7rem; margin-top: 0.25rem;">
+                    <i class="fas fa-file-signature"></i> Cert. released with justification
+                  </div>
                 <% } %>
               </div>
               <div class="marks-card-body">
@@ -314,30 +373,43 @@
                     </a>
                   <% } %>
                   <% 
+                    const certActions = getCertificateActionState(data, training.type);
                     const completedHandsOnCount = practicalOutcomeCompletedCount(data.handsOnScores);
                     const totalHandsOnCount = Array.isArray(aspects) ? aspects.length : 0;
-                    const certCompleted = !!certificateEnrolmentTest;
+                    const certCompleted = certActions.certCompleted;
                     const preCompleted = !!preTest;
                     const postCompleted = !!postTest;
                     const practicalCompleted = totalHandsOnCount > 0 && completedHandsOnCount >= totalHandsOnCount;
                     const canReleaseMain = !data.can_download_results && preCompleted && postCompleted && certCompleted && practicalCompleted;
                     const canReleaseRefresher = !data.can_download_results && certCompleted;
+                    const canReleaseCertOverride = certActions.canReleaseCertificateOverride;
+                    const canShowCertificate = certActions.canShowCertificate;
                   %>
                   <% if (training.type === 'main') { %>
                     <% if (user.userRole === 'admin' && canReleaseMain) { %>
                       <button class="btn btn-sm btn-primary" onclick="releaseScores([<%= data.enrollment_id %>], this)">
-                        <i class="fas fa-unlock"></i> Release
+                        <i class="fas fa-unlock"></i> Release Scores
+                      </button>
+                    <% } %>
+                    <% if (user.userRole === 'admin' && canReleaseCertOverride) { %>
+                      <button type="button" class="btn btn-sm btn-warning" onclick="openCertificateReleaseModal(<%= data.enrollment_id %>, '<%= data.trainee_name.replace(/'/g, "\\'") %>', <%= certActions.certScore %>, this)">
+                        <i class="fas fa-file-signature"></i> Release Certificate
                       </button>
                     <% } %>
                   <% } else { %>
                     <% if (['admin', 'trainer'].includes(user.userRole) && canReleaseRefresher) { %>
                       <button class="btn btn-sm btn-primary" onclick="releaseScores([<%= data.enrollment_id %>], this)">
-                        <i class="fas fa-unlock"></i> Release
+                        <i class="fas fa-unlock"></i> Release Scores
+                      </button>
+                    <% } %>
+                    <% if (['admin', 'trainer'].includes(user.userRole) && canReleaseCertOverride) { %>
+                      <button type="button" class="btn btn-sm btn-warning" onclick="openCertificateReleaseModal(<%= data.enrollment_id %>, '<%= data.trainee_name.replace(/'/g, "\\'") %>', <%= certActions.certScore %>, this)">
+                        <i class="fas fa-file-signature"></i> Release Certificate
                       </button>
                     <% } %>
                   <% } %>
-                  <% if (data.can_download_results) { %>
-                    <a href="/training/<%= training.id %>/certificate/<%= data.enrollment_id %>" target="_blank" class="btn btn-sm btn-success">
+                  <% if (canShowCertificate) { %>
+                    <a href="/training/<%= training.id %>/certificate/<%= data.enrollment_id %>" target="_blank" class="btn btn-sm btn-success btn-certificate-view">
                       <i class="fas fa-certificate"></i> Certificate
                     </a>
                   <% } %>
@@ -350,6 +422,23 @@
               </div>
             </div>
           <% }); %>
+        </div>
+      </div>
+
+      <div class="cert-release-modal-overlay" id="cert-release-modal" aria-hidden="true">
+        <div class="cert-release-modal" role="dialog" aria-modal="true" aria-labelledby="cert-release-modal-title">
+          <div class="cert-release-modal-header" id="cert-release-modal-title">Release Certificate</div>
+          <div class="cert-release-modal-body">
+            <p id="cert-release-modal-summary"></p>
+            <label for="cert-release-justification" style="display:block; font-size:0.8125rem; font-weight:600; margin-bottom:0.35rem;">Justification (required)</label>
+            <textarea id="cert-release-justification" maxlength="2000" placeholder="Explain why the certificate is being released despite the enrolment test score being below 70%."></textarea>
+          </div>
+          <div class="cert-release-modal-actions">
+            <button type="button" class="btn btn-sm btn-outline" onclick="closeCertificateReleaseModal()">Cancel</button>
+            <button type="button" class="btn btn-sm btn-warning" id="cert-release-submit-btn" onclick="submitCertificateRelease()">
+              <i class="fas fa-file-signature"></i> Confirm Release
+            </button>
+          </div>
         </div>
       </div>
 
@@ -558,16 +647,19 @@
       font-size: 0.875rem;
     }
 
-    #marks-tab .btn.btn-sm {
-      min-height: 28px;
-      padding: 0.28rem 0.55rem;
-      font-size: 0.72rem;
+    .marks-tab-toolbar .btn {
+      min-height: 36px;
+      padding: 0.5rem 0.9rem;
+      font-size: 0.8125rem;
       line-height: 1.2;
-      gap: 0.25rem;
+      gap: 0.35rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    #marks-tab .btn.btn-sm i {
-      font-size: 0.68rem;
+    .marks-tab-toolbar .btn i {
+      font-size: 0.75rem;
     }
 
     .marks-card-actions {
@@ -606,6 +698,91 @@
 
     .marks-actions .btn i {
       font-size: 0.68rem;
+    }
+
+    #marks-tab .btn-warning {
+      background: #FEF7E0;
+      color: #B06000;
+      border: 1px solid #F9AB00;
+    }
+
+    #marks-tab .btn-warning:hover {
+      background: #FEEFC3;
+      color: #8A4B00;
+    }
+
+    #marks-tab .btn-certificate-view {
+      background: #E6F4EA;
+      color: #137333;
+      border: 2px dotted #1E8E3E;
+      box-shadow: none;
+    }
+
+    #marks-tab .btn-certificate-view:hover {
+      background: #CEEAD6;
+      color: #0D652D;
+      border-color: #137333;
+      transform: none;
+    }
+
+    .cert-release-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(32, 33, 36, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10050;
+      padding: 1rem;
+    }
+
+    .cert-release-modal-overlay.is-open {
+      display: flex;
+    }
+
+    .cert-release-modal {
+      background: #fff;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 520px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+      overflow: hidden;
+    }
+
+    .cert-release-modal-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid #E8EAED;
+      font-weight: 600;
+      color: #202124;
+    }
+
+    .cert-release-modal-body {
+      padding: 1rem 1.25rem;
+    }
+
+    .cert-release-modal-body p {
+      margin: 0 0 0.75rem;
+      color: #5F6368;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+
+    .cert-release-modal-body textarea {
+      width: 100%;
+      min-height: 120px;
+      border: 1px solid #DADCE0;
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-size: 0.875rem;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+
+    .cert-release-modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      padding: 0 1.25rem 1.25rem;
     }
 
     .practical-grading-criteria {
@@ -683,10 +860,9 @@
         font-size: 1rem;
       }
 
-      #toggle-hands-on-btn {
-        padding: 0.28rem 0.55rem;
-        font-size: 0.72rem;
+      .marks-tab-toolbar .btn {
         width: 100%;
+        justify-content: center;
       }
 
       #toggle-hands-on-btn span {
@@ -738,11 +914,6 @@
       .marks-card-actions {
         margin-top: 0.375rem;
         padding-top: 0.75rem;
-      }
-
-      .btn-sm {
-        padding: 0.28rem 0.55rem;
-        font-size: 0.72rem;
       }
 
       .marks-actions {
@@ -799,14 +970,14 @@
     .btn-save-all {
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
-      padding: 0.45rem 0.9rem;
+      gap: 0.4rem;
+      padding: 0.55rem 1.1rem;
       background: #573FD7;
       color: white;
       border: none;
       border-radius: 6px;
       font-weight: 500;
-      font-size: 0.75rem;
+      font-size: 0.8125rem;
       cursor: pointer;
       transition: all 0.2s ease;
     }
@@ -1120,8 +1291,8 @@
       }
 
       .btn-save-all {
-        padding: 0.45rem 0.75rem;
-        font-size: 0.72rem;
+        padding: 0.55rem 1rem;
+        font-size: 0.8125rem;
       }
 
       .hands-on-card {
@@ -1477,6 +1648,90 @@
     <% } %>
 
     // Score release functionality
+    let certReleaseContext = null;
+
+    function openCertificateReleaseModal(enrollmentId, traineeName, certScore, buttonEl) {
+      certReleaseContext = { enrollmentId, buttonEl, originalText: buttonEl ? buttonEl.innerHTML : '' };
+      const overlay = document.getElementById('cert-release-modal');
+      const summary = document.getElementById('cert-release-modal-summary');
+      const textarea = document.getElementById('cert-release-justification');
+      if (!overlay || !summary || !textarea) return;
+
+      summary.textContent = `Release certificate for ${traineeName}? Enrolment test score: ${Number(certScore).toFixed(1)}% (below 70%). This action is recorded with your justification.`;
+      textarea.value = '';
+      overlay.classList.add('is-open');
+      overlay.setAttribute('aria-hidden', 'false');
+      textarea.focus();
+    }
+
+    function closeCertificateReleaseModal() {
+      const overlay = document.getElementById('cert-release-modal');
+      if (overlay) {
+        overlay.classList.remove('is-open');
+        overlay.setAttribute('aria-hidden', 'true');
+      }
+      certReleaseContext = null;
+    }
+
+    async function submitCertificateRelease() {
+      if (!certReleaseContext) return;
+
+      const justification = (document.getElementById('cert-release-justification')?.value || '').trim();
+      if (justification.length < 10) {
+        qssShowError('Please enter a justification of at least 10 characters.');
+        return;
+      }
+
+      const btn = document.getElementById('cert-release-submit-btn');
+      const triggerBtn = certReleaseContext.buttonEl;
+      const originalSubmit = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Releasing...';
+      }
+      if (triggerBtn) triggerBtn.disabled = true;
+
+      try {
+        const response = await fetch(`/training/<%= training.id %>/enrollment/${certReleaseContext.enrollmentId}/certificate/release-override`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ justification })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          closeCertificateReleaseModal();
+          qssShowMessage({
+            type: 'success',
+            title: 'Certificate Released',
+            message: data.message || 'Certificate released with recorded justification.',
+            onClose: () => location.reload()
+          });
+        } else {
+          qssShowError('Error releasing certificate: ' + (data.error || 'Unknown error'));
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalSubmit;
+          }
+          if (triggerBtn) triggerBtn.disabled = false;
+        }
+      } catch (error) {
+        console.error('Certificate release error:', error);
+        qssShowError('Error releasing certificate');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalSubmit;
+        }
+        if (triggerBtn) triggerBtn.disabled = false;
+      }
+    }
+
+    document.getElementById('cert-release-modal')?.addEventListener('click', (event) => {
+      if (event.target && event.target.id === 'cert-release-modal') {
+        closeCertificateReleaseModal();
+      }
+    });
+
     async function releaseScores(enrollmentIds, buttonEl) {
       const btn = buttonEl || null;
       const originalText = btn ? btn.innerHTML : '';
