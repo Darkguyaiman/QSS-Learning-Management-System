@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const { getPassingScore } = require('../utils/testScores');
 
-const PASSING_SCORE = 80;
 const MAX_FAILED_ATTEMPTS = 4;
 
 // Start test
@@ -21,10 +21,12 @@ router.get('/start/:enrollmentId/:testType', async (req, res) => {
     
     const enrollment = enrollments[0];
     
-    // Check if test already passed (score >= 80%) - if passed, show results
+    const passingScore = getPassingScore(testType);
+
+    // Check if test already passed - if passed, show results
     const [passed] = await req.db.query(
       'SELECT id, score FROM test_attempts WHERE enrollment_id = ? AND test_type = ? AND status = "completed" AND score >= ?',
-      [enrollmentId, testType, PASSING_SCORE]
+      [enrollmentId, testType, passingScore]
     );
     
     if (passed.length > 0) {
@@ -44,7 +46,7 @@ router.get('/start/:enrollmentId/:testType', async (req, res) => {
     // Enforce max failed attempts per test type
     const [failedAttemptsRows] = await req.db.query(
       'SELECT COUNT(*) as failed_count FROM test_attempts WHERE enrollment_id = ? AND test_type = ? AND status = "completed" AND score < ?',
-      [enrollmentId, testType, PASSING_SCORE]
+      [enrollmentId, testType, passingScore]
     );
     const failedAttempts = Number(failedAttemptsRows?.[0]?.failed_count || 0);
     if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
@@ -296,12 +298,12 @@ router.get('/results/:attemptId', async (req, res) => {
       WHERE os.enrollment_id = ? AND os.test_type = ?
     `, [attempt.enrollment_id, attempt.test_type]);
     
-    // Check if test passed (score >= 80%)
-    const passed = attempt.score >= PASSING_SCORE;
+    const passingScore = getPassingScore(attempt.test_type);
+    const passed = attempt.score >= passingScore;
 
     const [failedAttemptsRows] = await req.db.query(
       'SELECT COUNT(*) as failed_count FROM test_attempts WHERE enrollment_id = ? AND test_type = ? AND status = "completed" AND score < ?',
-      [attempt.enrollment_id, attempt.test_type, PASSING_SCORE]
+      [attempt.enrollment_id, attempt.test_type, passingScore]
     );
     const failedAttempts = Number(failedAttemptsRows?.[0]?.failed_count || 0);
     const maxAttemptsReached = !passed && failedAttempts >= MAX_FAILED_ATTEMPTS;

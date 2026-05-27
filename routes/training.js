@@ -4,6 +4,7 @@ const path = require('path');
 const ExcelJS = require('exceljs');
 const router = express.Router();
 const { calculateFinalGrades } = require('./results');
+const { getPassingScore } = require('../utils/testScores');
 
 function normalizeIdArray(value) {
   if (!value) return [];
@@ -33,6 +34,216 @@ async function isTrainingExcelImportAdmin(db, session) {
   const [rows] = await db.query('SELECT email FROM users WHERE id = ?', [session.userId]);
   const u = rows[0];
   return u && String(u.email).toLowerCase().trim() === TRAINING_IMPORT_ADMIN_EMAIL;
+}
+
+async function storeObjectiveScoresFromStats(db, enrollmentId, testType, objectiveStats) {
+  if (!['post_test', 'certificate_enrolment'].includes(testType)) return;
+
+  for (const [objectiveId, stats] of Object.entries(objectiveStats)) {
+    const understandingPercentage = stats.total > 0
+      ? (stats.correct / stats.total) * 100
+      : 0;
+
+    await db.query(
+      `INSERT INTO objective_scores
+       (enrollment_id, objective_id, test_type, questions_answered, questions_correct, understanding_percentage)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+       questions_answered = VALUES(questions_answered),
+       questions_correct = VALUES(questions_correct),
+       understanding_percentage = VALUES(understanding_percentage),
+       calculated_at = NOW()`,
+      [enrollmentId, objectiveId, testType, stats.total, stats.correct, understandingPercentage]
+    );
+  }
+}
+
+function shuffleDevArray(items) {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function randomDevInt(min, max) {
+  const lo = Math.ceil(min);
+  const hi = Math.floor(max);
+  if (hi < lo) return lo;
+  return Math.floor(Math.random() * (hi - lo + 1)) + lo;
+}
+
+function buildDevScoreProfiles(count) {
+  if (count <= 0) return [];
+  if (count === 1) {
+    return [shuffleDevArray(['fail', 'borderline', 'high'])[0]];
+  }
+  if (count === 2) {
+    return shuffleDevArray(['fail', 'high']);
+  }
+  if (count === 3) {
+    return shuffleDevArray(['fail', 'borderline', 'high']);
+  }
+
+  const profiles = ['fail', 'borderline', 'high'];
+  while (profiles.length < count) {
+    const options = ['fail', 'borderline', 'high'];
+    profiles.push(options[Math.floor(Math.random() * options.length)]);
+  }
+  return shuffleDevArray(profiles.slice(0, count));
+}
+
+function targetPercentForDevProfile(profile, passingScore) {
+  if (profile === 'borderline') return passingScore;
+  if (profile === 'fail') {
+    const failMax = Math.max(0, passingScore - 1);
+    const failMin = Math.max(25, passingScore - 20);
+    return randomDevInt(failMin, failMax);
+  }
+  const highMin = Math.min(100, passingScore + 5);
+  return randomDevInt(highMin, 100);
+}
+
+function correctCountForTargetPercent(totalQuestions, targetPercent) {
+  return Math.min(totalQuestions, Math.max(0, Math.round((totalQuestions * targetPercent) / 100)));
+}
+
+function pickWrongAnswerOption(correctAnswer) {
+  const options = ['A', 'B', 'C', 'D'];
+  const wrongOptions = options.filter(opt => opt !== correctAnswer);
+  return wrongOptions[Math.floor(Math.random() * wrongOptions.length)];
+}
+
+async function autoCompleteTestAttempt(db, enrollmentId, trainingId, testType, scoreProfile) {
+  const passingScore = getPassingScore(testType);
+  const targetPercent = targetPercentForDevProfile(scoreProfile, passingScore);
+
+  const [trainingTests] = await db.query(
+    'SELECT id FROM training_tests WHERE training_id = ? AND test_type = ? LIMIT 1',
+    [trainingId, testType]
+  );
+  if (trainingTests.length === 0) {
+    return { testType, status: 'skipped', reason: 'no_test', scoreProfile, targetPercent };
+  }
+
+  const [questions] = await db.query(
+    `SELECT q.id, q.correct_answer, q.objective_id
+     FROM training_test_questions ttq
+     JOIN questions q ON ttq.question_id = q.id
+     WHERE ttq.training_test_id = ?
+     ORDER BY ttq.question_order`,
+    [trainingTests[0].id]
+  );
+  if (questions.length === 0) {
+    return { testType, status: 'skipped', reason: 'no_questions', scoreProfile, targetPercent };
+  }
+
+  await db.query(
+    'DELETE FROM test_attempts WHERE enrollment_id = ? AND test_type = ?',
+    [enrollmentId, testType]
+  );
+
+  const correctCount = correctCountForTargetPercent(questions.length, targetPercent);
+  const questionOutcomes = shuffleDevArray(
+    questions.map((question, index) => ({ question, isCorrect: index < correctCount }))
+  );
+  const actualScore = questions.length > 0
+    ? Number(((correctCount / questions.length) * 100).toFixed(2))
+    : 0;
+
+  const [attemptResult] = await db.query(
+    `INSERT INTO test_attempts (enrollment_id, test_type, total_questions, score, completed_at, status)
+     VALUES (?, ?, ?, ?, NOW(), "completed")`,
+    [enrollmentId, testType, questions.length, actualScore]
+  );
+  const attemptId = attemptResult.insertId;
+  const objectiveStats = {};
+
+  for (const { question, isCorrect } of questionOutcomes) {
+    const selectedAnswer = isCorrect ? question.correct_answer : pickWrongAnswerOption(question.correct_answer);
+    await db.query(
+      'INSERT INTO test_answers (attempt_id, question_id, selected_answer, is_correct) VALUES (?, ?, ?, ?)',
+      [attemptId, question.id, selectedAnswer, isCorrect ? 1 : 0]
+    );
+
+    if (question.objective_id) {
+      if (!objectiveStats[question.objective_id]) {
+        objectiveStats[question.objective_id] = { correct: 0, total: 0 };
+      }
+      objectiveStats[question.objective_id].total += 1;
+      if (isCorrect) objectiveStats[question.objective_id].correct += 1;
+    }
+  }
+
+  await storeObjectiveScoresFromStats(db, enrollmentId, testType, objectiveStats);
+
+  return {
+    testType,
+    status: 'completed',
+    attemptId,
+    score: actualScore,
+    scoreProfile,
+    targetPercent,
+    passingScore
+  };
+}
+
+async function autoMarkHandsOnScores(db, enrollmentId, trainingId, evaluatedBy, scoreProfile) {
+  const handsOnPassingScore = 80;
+  const targetPercent = targetPercentForDevProfile(scoreProfile, handsOnPassingScore);
+
+  const [aspects] = await db.query(
+    'SELECT id, max_score FROM practical_learning_outcomes WHERE training_id = ? ORDER BY id',
+    [trainingId]
+  );
+  if (aspects.length === 0) {
+    return { status: 'skipped', reason: 'no_aspects', scoreProfile, targetPercent };
+  }
+
+  for (const aspect of aspects) {
+    const cap = aspect.max_score != null ? Math.max(0, Number(aspect.max_score)) : 100;
+    const maxScore = Number.isFinite(cap) ? cap : 100;
+    const score = Number(((maxScore * targetPercent) / 100).toFixed(2));
+
+    await db.query(
+      `INSERT INTO practical_learning_outcome_scores (enrollment_id, aspect_id, score, evaluated_by, comments)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE score = ?, evaluated_by = ?, comments = ?, evaluated_at = NOW()`,
+      [
+        enrollmentId,
+        aspect.id,
+        score,
+        evaluatedBy,
+        `Auto-marked (dev: ${scoreProfile}, ${targetPercent}%)`,
+        score,
+        evaluatedBy,
+        `Auto-marked (dev: ${scoreProfile}, ${targetPercent}%)`
+      ]
+    );
+  }
+
+  return { status: 'completed', aspectsMarked: aspects.length, scoreProfile, targetPercent };
+}
+
+async function autoCompleteEnrollmentMarks(db, { trainingId, enrollmentId, trainingType, userId, scoreProfile }) {
+  const testTypes = trainingType === 'main'
+    ? ['pre_test', 'post_test', 'certificate_enrolment']
+    : ['certificate_enrolment'];
+
+  const tests = [];
+  for (const testType of testTypes) {
+    tests.push(await autoCompleteTestAttempt(db, enrollmentId, trainingId, testType, scoreProfile));
+  }
+
+  let handsOn = null;
+  if (trainingType === 'main') {
+    handsOn = await autoMarkHandsOnScores(db, enrollmentId, trainingId, userId, scoreProfile);
+  }
+
+  await calculateFinalGrades(db, enrollmentId);
+
+  return { enrollmentId, scoreProfile, tests, handsOn };
 }
 
 function splitImportList(value) {
@@ -2411,7 +2622,7 @@ router.get('/:id', async (req, res) => {
             SUM(CASE WHEN test_type = 'post_test' AND status = 'completed' AND score < 80 THEN 1 ELSE 0 END) as post_test_failed_attempts,
             SUM(CASE WHEN test_type = 'certificate_enrolment' AND status = 'completed' THEN 1 ELSE 0 END) as certificate_enrolment_test_completed,
             MAX(CASE WHEN test_type = 'certificate_enrolment' AND status = 'completed' THEN score END) as certificate_enrolment_score,
-            SUM(CASE WHEN test_type = 'certificate_enrolment' AND status = 'completed' AND score < 80 THEN 1 ELSE 0 END) as certificate_enrolment_failed_attempts
+            SUM(CASE WHEN test_type = 'certificate_enrolment' AND status = 'completed' AND score < 70 THEN 1 ELSE 0 END) as certificate_enrolment_failed_attempts
           FROM test_attempts
           GROUP BY enrollment_id
         ) ta ON ta.enrollment_id = e.id
@@ -2569,6 +2780,7 @@ router.get('/:id', async (req, res) => {
       training, 
       trainingMedia,
       enrollment,
+      devAdminCheatEnabled: await isTrainingExcelImportAdmin(req.db, req.session),
       marksData: req.session.userRole === 'trainee' ? (traineeMarksData || null) : marksData,
       sections: sections.map(s => {
         let materials = [];
@@ -3933,7 +4145,7 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
       if (!acc[testType]) {
         acc[testType] = { failed: 0, hasPass: false };
       }
-      if (score >= 80) acc[testType].hasPass = true;
+      if (score >= getPassingScore(testType)) acc[testType].hasPass = true;
       else acc[testType].failed += 1;
       return acc;
     }, {});
@@ -3968,7 +4180,7 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
       const currScore = parseFloat(attempt.score) || 0;
       return currScore > bestScore ? attempt : best;
     }, null);
-    const certOutstanding = certAttempt && parseFloat(certAttempt.score) >= 80;
+    const certOutstanding = certAttempt && parseFloat(certAttempt.score) >= getPassingScore('certificate_enrolment');
 
     let practicalOutstanding = true;
     if (enrollment.training_type === 'main') {
@@ -4323,6 +4535,60 @@ router.get('/:id/enrollment/:enrollmentId/hands-on', async (req, res) => {
   } catch (error) {
     console.error('Hands-on data error:', error);
     res.status(500).json({ success: false, error: 'Error loading hands-on data' });
+  }
+});
+
+// Dev-only: auto-complete tests and hands-on scores (admin@lms.com)
+router.post('/:id/marks/auto-complete', async (req, res) => {
+  if (!(await isTrainingExcelImportAdmin(req.db, req.session))) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+
+  try {
+    const trainingId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(trainingId) || trainingId <= 0) {
+      return res.status(400).json({ success: false, error: 'Invalid training id' });
+    }
+
+    const [trainings] = await req.db.query('SELECT id, type FROM trainings WHERE id = ?', [trainingId]);
+    if (trainings.length === 0) {
+      return res.status(404).json({ success: false, error: 'Training not found' });
+    }
+    const training = trainings[0];
+
+    let enrollmentIds = normalizeIdArray(req.body?.enrollmentIds).map(id => parseInt(id, 10)).filter(id => Number.isFinite(id));
+    if (enrollmentIds.length === 0) {
+      const [rows] = await req.db.query('SELECT id FROM enrollments WHERE training_id = ?', [trainingId]);
+      enrollmentIds = rows.map(row => row.id);
+    } else {
+      const placeholders = enrollmentIds.map(() => '?').join(',');
+      const [rows] = await req.db.query(
+        `SELECT id FROM enrollments WHERE training_id = ? AND id IN (${placeholders})`,
+        [trainingId, ...enrollmentIds]
+      );
+      enrollmentIds = rows.map(row => row.id);
+    }
+
+    if (enrollmentIds.length === 0) {
+      return res.status(400).json({ success: false, error: 'No enrollments found' });
+    }
+
+    const scoreProfiles = buildDevScoreProfiles(enrollmentIds.length);
+    const results = [];
+    for (let i = 0; i < enrollmentIds.length; i += 1) {
+      results.push(await autoCompleteEnrollmentMarks(req.db, {
+        trainingId,
+        enrollmentId: enrollmentIds[i],
+        trainingType: training.type,
+        userId: req.session.userId,
+        scoreProfile: scoreProfiles[i]
+      }));
+    }
+
+    res.json({ success: true, results });
+  } catch (error) {
+    console.error('Auto-complete marks error:', error);
+    res.status(500).json({ success: false, error: 'Error auto-completing marks' });
   }
 });
 

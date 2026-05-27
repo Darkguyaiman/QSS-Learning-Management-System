@@ -45,7 +45,7 @@
             const preTest = getBestTest(marksData && marksData.tests, 'pre_test');
             const postTest = getBestTest(marksData && marksData.tests, 'post_test');
             const certificateEnrolmentTest = getBestTest(marksData && marksData.tests, 'certificate_enrolment');
-            const showCertificationCelebration = !!(certificateEnrolmentTest && (parseFloat(certificateEnrolmentTest.score) || 0) >= 80);
+            const showCertificationCelebration = !!(certificateEnrolmentTest && (parseFloat(certificateEnrolmentTest.score) || 0) >= 70);
           %>
 
           <% if (showCertificationCelebration) { %>
@@ -93,9 +93,9 @@
                 <div class="test-content">
                   <h3>Certificate Enrolment Test</h3>
                   <p class="test-description">Certification Assessment</p>
-                  <div class="test-score <%= certificateEnrolmentTest.score >= 80 ? 'passed' : 'failed' %>">
+                  <div class="test-score <%= certificateEnrolmentTest.score >= 70 ? 'passed' : 'failed' %>">
                     <span class="score-value"><%= certificateEnrolmentTest.score.toFixed(1) %>%</span>
-                    <span class="score-status"><%= certificateEnrolmentTest.score >= 80 ? 'Outstanding' : 'Not Passed' %></span>
+                    <span class="score-status"><%= certificateEnrolmentTest.score >= 70 ? 'Outstanding' : 'Not Passed' %></span>
                   </div>
                 </div>
               </div>
@@ -109,9 +109,9 @@
                 <div class="test-content">
                   <h3>Certificate Enrolment Test</h3>
                   <p class="test-description">Certification Assessment</p>
-                  <div class="test-score <%= certificateEnrolmentTest.score >= 80 ? 'passed' : 'failed' %>">
+                  <div class="test-score <%= certificateEnrolmentTest.score >= 70 ? 'passed' : 'failed' %>">
                     <span class="score-value"><%= certificateEnrolmentTest.score.toFixed(1) %>%</span>
-                    <span class="score-status"><%= certificateEnrolmentTest.score >= 80 ? 'Outstanding' : 'Not Passed' %></span>
+                    <span class="score-status"><%= certificateEnrolmentTest.score >= 70 ? 'Outstanding' : 'Not Passed' %></span>
                   </div>
                 </div>
               </div>
@@ -203,14 +203,15 @@
       <!-- Certificate Download Section -->
       <% 
         const certTest = getBestTest(marksData && marksData.tests, 'certificate_enrolment');
-        const certOutstanding = certTest && certTest.score >= 80;
+        const certOutstanding = certTest && certTest.score >= 70;
+        const getPassingScore = (testType) => testType === 'certificate_enrolment' ? 70 : 80;
         const attemptStatsByType = ((marksData && marksData.tests) || []).reduce((acc, attempt) => {
           const testType = attempt.test_type;
           const score = parseFloat(attempt.score) || 0;
           if (!acc[testType]) {
             acc[testType] = { failed: 0, hasPass: false };
           }
-          if (score >= 80) acc[testType].hasPass = true;
+          if (score >= getPassingScore(testType)) acc[testType].hasPass = true;
           else acc[testType].failed += 1;
           return acc;
         }, {});
@@ -238,9 +239,9 @@
           <% if (hasLockedTestPart) { %>
             <p>Certificate is not available because one or more test parts reached 3 failed attempts.</p>
           <% } else if (training.type === 'main') { %>
-            <p>Certificate becomes available after both Certificate Enrolment Test and Practical Learning Outcome are Outstanding (80%+).</p>
+            <p>Certificate becomes available after the Certificate Enrolment Test is Outstanding (70%+) and Practical Learning Outcome is Outstanding (80%+).</p>
           <% } else { %>
-            <p>Certificate becomes available after the Certificate Enrolment Test is Outstanding (80%+).</p>
+            <p>Certificate becomes available after the Certificate Enrolment Test is Outstanding (70%+).</p>
           <% } %>
           <button class="btn-certificate" style="opacity: 0.6; cursor: not-allowed;" disabled>
             <i class="fas fa-lock"></i>
@@ -252,7 +253,7 @@
   </div>
   <%
     const celebrationTest = ((marksData && marksData.tests) || []).find(t =>
-      t.test_type === 'certificate_enrolment' && (parseFloat(t.score) || 0) >= 80
+      t.test_type === 'certificate_enrolment' && (parseFloat(t.score) || 0) >= 70
     );
   %>
   <% if (celebrationTest) { %>

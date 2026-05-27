@@ -99,7 +99,7 @@ router.get('/', async (req, res) => {
         let count = 0;
         if (parseFloat(row.pre_max) >= 80) count += 1;
         if (parseFloat(row.post_max) >= 80) count += 1;
-        if (parseFloat(row.cert_max) >= 80) count += 1;
+        if (parseFloat(row.cert_max) >= 70) count += 1;
         if (row.training_type === 'main' && row.hands_on_total > 0 && row.hands_on_completed >= row.hands_on_total) {
           count += 1;
         }

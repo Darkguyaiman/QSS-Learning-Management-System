@@ -32,7 +32,8 @@
                 else if (testType === 'post_test') failedAttempts = Number(enrollment.post_test_failed_attempts || 0);
                 else if (testType === 'certificate_enrolment') failedAttempts = Number(enrollment.certificate_enrolment_failed_attempts || 0);
 
-                const passed = score !== null && Number(score) >= 80;
+                const passingScore = testType === 'certificate_enrolment' ? 70 : 80;
+                const passed = score !== null && Number(score) >= passingScore;
                 const maxAttemptsReached = failedAttempts >= 4;
               %>
               <% if (passed) { %>

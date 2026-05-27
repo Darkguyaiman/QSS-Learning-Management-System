@@ -1,4 +1,5 @@
 const express = require('express');
+const { getPassingScore } = require('../utils/testScores');
 const router = express.Router();
 
 // Trainee-only: Results for an enrollment
@@ -204,7 +205,7 @@ router.get('/training/:id/certificate/:enrollmentId', async (req, res, next) => 
       if (!acc[testType]) {
         acc[testType] = { failed: 0, hasPass: false };
       }
-      if (score >= 80) acc[testType].hasPass = true;
+      if (score >= getPassingScore(testType)) acc[testType].hasPass = true;
       else acc[testType].failed += 1;
       return acc;
     }, {});
@@ -220,7 +221,7 @@ router.get('/training/:id/certificate/:enrollmentId', async (req, res, next) => 
       const currScore = parseFloat(attempt.score) || 0;
       return currScore > bestScore ? attempt : best;
     }, null);
-    const certOutstanding = certAttempt && parseFloat(certAttempt.score) >= 80;
+    const certOutstanding = certAttempt && parseFloat(certAttempt.score) >= getPassingScore('certificate_enrolment');
     if (!enrollment.can_download_results && !certAttempt) {
       return res.status(403).send('Scores have not been released yet. Please contact your administrator.');
     }

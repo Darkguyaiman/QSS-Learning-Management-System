@@ -88,7 +88,7 @@
       </div>
       <%
         const bestCertificate = getBestTest(tests, 'certificate_enrolment');
-        const showCertificationCelebration = user.userRole === 'trainee' && !!(bestCertificate && (parseFloat(bestCertificate.score) || 0) >= 80);
+        const showCertificationCelebration = user.userRole === 'trainee' && !!(bestCertificate && (parseFloat(bestCertificate.score) || 0) >= 70);
       %>
       <% if (showCertificationCelebration) { %>
         <div class="celebration-banner">
@@ -131,7 +131,7 @@
                       </span>
                     </td>
                     <td>
-                      <span class="results-score-text results-score-text--<%= test.score >= 80 ? 'pass' : 'fail' %>">
+                      <span class="results-score-text results-score-text--<%= test.score >= (test.test_type === 'certificate_enrolment' ? 70 : 80) ? 'pass' : 'fail' %>">
                         <%= test.score.toFixed(1) %>%
                       </span>
                     </td>
@@ -373,7 +373,7 @@
       }
     }
   </script>
-  <% if (user.userRole === 'trainee' && tests && tests.some(t => t.test_type === 'certificate_enrolment' && (parseFloat(t.score) || 0) >= 80)) { %>
+  <% if (user.userRole === 'trainee' && tests && tests.some(t => t.test_type === 'certificate_enrolment' && (parseFloat(t.score) || 0) >= 70)) { %>
     <script>
       (function () {
         const canvas = document.getElementById('celebration-confetti-canvas');
