@@ -24,6 +24,7 @@
       display: flex;
       flex-direction: column;
       height: 100%;
+      position: relative;
     }
     
     .classroom-card:hover {
@@ -91,12 +92,15 @@
     }
 
     .classroom-card-link {
-      text-decoration: none;
-      color: inherit;
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-height: 0;
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      border-radius: 8px;
+    }
+
+    .classroom-card-link:focus-visible {
+      outline: 3px solid rgba(87, 63, 215, 0.35);
+      outline-offset: -3px;
     }
 
     .mark-release-modal-overlay {
@@ -233,6 +237,8 @@
       flex-direction: column;
       gap: 0.625rem;
       min-height: 150px;
+      position: relative;
+      z-index: 0;
     }
     
     .classroom-title {
@@ -445,7 +451,7 @@
                   </button>
                 <% } %>
               </div>
-              <a href="/training/<%= training.id %>" class="classroom-card-link">
+              <a href="/training/<%= training.id %>" class="classroom-card-link" aria-label="Open <%= training.title %>"></a>
               <div class="classroom-body">
                 <h3 class="classroom-title"><%= training.title %></h3>
                 <div class="classroom-meta">
@@ -488,7 +494,6 @@
                   <% } %>
                 </div>
               </div>
-              </a>
             </div>
           <% }); %>
         </div>
