@@ -67,6 +67,25 @@ router.get('/results/enrollment/:enrollmentId', async (req, res, next) => {
       ORDER BY o.name
     `, [req.params.enrollmentId]);
 
+    const [overrideRows] = await req.db.query(
+      `SELECT *
+       FROM certificate_release_overrides
+       WHERE enrollment_id = ?`,
+      [req.params.enrollmentId]
+    );
+    const certificateReleaseOverride = overrideRows[0] || null;
+
+    const certificateActions = {
+      canShowCertificate: canDownloadCertificate({
+        testAttempts: tests,
+        handsOnScores,
+        trainingType: enrollmentData.type,
+        releaseOverride: certificateReleaseOverride
+      }),
+      canReleaseCertificateOverride: false,
+      certAttempt: getBestCertAttempt(tests)
+    };
+
     res.render('results/view', { 
       user: req.session, 
       enrollment: enrollmentData, 
@@ -75,7 +94,9 @@ router.get('/results/enrollment/:enrollmentId', async (req, res, next) => {
       attendance: attendance[0],
       finalGrades: finalGrades[0] || null,
       objectiveScores,
-      gradesReleased: enrollmentData.can_download_results || false
+      gradesReleased: enrollmentData.can_download_results || false,
+      certificateReleaseOverride,
+      certificateActions
     });
   } catch (error) {
     console.error('Trainee results view error:', error);
