@@ -1267,7 +1267,7 @@
         .map(input => String(input.value));
     }
 
-    function applySettingsTraineeFilter() {
+    function applySettingsTraineeFilter({ clearInvalidSelections = false } = {}) {
       const traineeSearch = document.getElementById('settings-trainee-search');
       const traineeOptions = document.getElementById('settings-trainee-options');
       if (!traineeOptions) return;
@@ -1279,11 +1279,16 @@
       options.forEach(option => {
         const optionHealthcareId = String(option.getAttribute('data-healthcare-id') || '');
         const searchText = String(option.getAttribute('data-search-text') || '').toLowerCase();
+        const checkbox = option.querySelector('input[name="trainee_ids[]"]');
         const matchesHealthcare = selectedHealthcareIds.length > 0 && selectedHealthcareIds.includes(optionHealthcareId);
         const matchesSearch = !searchTerm || searchText.includes(searchTerm);
         const visible = matchesHealthcare && matchesSearch;
 
         option.classList.toggle('hidden', !visible);
+
+        if (clearInvalidSelections && checkbox && !matchesHealthcare) {
+          checkbox.checked = false;
+        }
       });
     }
 
@@ -1298,7 +1303,7 @@
       document.querySelectorAll('#settings-form input[name="healthcare_ids[]"]').forEach(checkbox => {
         if (!checkbox.dataset.filterBound) {
           checkbox.dataset.filterBound = '1';
-          checkbox.addEventListener('change', applySettingsTraineeFilter);
+          checkbox.addEventListener('change', () => applySettingsTraineeFilter({ clearInvalidSelections: true }));
         }
       });
 
