@@ -1065,10 +1065,9 @@
       options.forEach(option => {
         const optionHealthcareId = String(option.getAttribute('data-healthcare-id') || '');
         const searchText = String(option.getAttribute('data-search-text') || '').toLowerCase();
-        const checkbox = option.querySelector('.trainee-checkbox');
         const matchesHealthcare = selectedHealthcareIds.length > 0 && selectedHealthcareIds.includes(optionHealthcareId);
         const matchesSearch = !searchTerm || searchText.includes(searchTerm);
-        const visible = !!checkbox?.checked || (matchesHealthcare && matchesSearch);
+        const visible = matchesHealthcare && matchesSearch;
 
         option.classList.toggle('hidden', !visible);
       });
