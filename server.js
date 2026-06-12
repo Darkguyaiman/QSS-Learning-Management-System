@@ -115,6 +115,7 @@ app.use('/uploads/training_media', (req, res) => {
 app.use('/vendor/@fortawesome/fontawesome-free', express.static(path.join(__dirname, 'node_modules', '@fortawesome', 'fontawesome-free')));
 app.use('/vendor/@fontsource', express.static(path.join(__dirname, 'node_modules', '@fontsource')));
 app.use('/vendor/flatpickr', express.static(path.join(__dirname, 'node_modules', 'flatpickr')));
+app.use('/vendor/chart.js', express.static(path.join(__dirname, 'node_modules', 'chart.js')));
 app.use('/vendor/xlsx', express.static(path.join(__dirname, 'node_modules', 'xlsx')));
 app.use('/vendor/jspdf', express.static(path.join(__dirname, 'node_modules', 'jspdf')));
 app.use('/vendor/pdfjs-dist', express.static(path.join(__dirname, 'node_modules', 'pdfjs-dist')));

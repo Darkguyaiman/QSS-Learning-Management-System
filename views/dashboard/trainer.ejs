@@ -11,27 +11,31 @@
     .dashboard-header {
       background: linear-gradient(135deg, #573FD7 0%, #11358B 100%);
       color: white;
-      padding: 2rem;
+      padding: clamp(1.25rem, 3vw, 2rem);
       border-radius: 16px;
       margin-bottom: 2rem;
       box-shadow: 0 4px 20px rgba(87, 63, 215, 0.3);
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 2rem;
+      gap: clamp(1rem, 3vw, 2rem);
+      min-width: 0;
     }
     
     .dashboard-header-content {
       display: flex;
       flex-direction: column;
       flex: 1;
+      min-width: 0;
     }
     
     .dashboard-header h1 {
       color: white;
       margin: 0 0 0.5rem 0;
-      font-size: 2rem;
+      font-size: clamp(1.5rem, 2.4vw, 2rem);
       font-weight: 700;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
     }
     
     .dashboard-header .welcome-message {
@@ -39,6 +43,8 @@
       font-size: 1rem;
       font-weight: 400;
       margin: 0;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
     }
     
     .dashboard-header .welcome-message .user-name {
@@ -51,14 +57,350 @@
       color: #573FD7;
       border: none;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      align-self: flex-start;
       white-space: nowrap;
+      min-height: 50px;
+      min-width: 150px;
+      width: auto;
+      flex: 0 0 auto;
+      justify-content: center;
     }
     
     .dashboard-header .btn-primary:hover {
       background: #f0f0f0;
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .dashboard-header-actions {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      flex: 0 1 auto;
+      min-width: 0;
+    }
+
+    .date-range-trigger {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.42);
+      background: rgba(255, 255, 255, 0.14);
+      color: white;
+      min-height: 50px;
+      padding: 0.625rem 0.9rem;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      cursor: pointer;
+      font-weight: 600;
+      min-width: 250px;
+      width: max-content;
+      max-width: 100%;
+      flex: 0 1 auto;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      white-space: nowrap;
+      transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .date-range-trigger span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .date-range-trigger:hover {
+      background: rgba(255, 255, 255, 0.22);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+    }
+
+    .date-range-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.45);
+      backdrop-filter: blur(4px);
+      z-index: 9998;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease, visibility 0.2s ease;
+    }
+
+    .date-range-overlay.is-open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .date-range-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      z-index: 9999;
+      width: min(760px, 100vw);
+      height: 100vh;
+      background: #fff;
+      box-shadow: -24px 0 60px rgba(17, 24, 39, 0.22);
+      transform: translateX(100%);
+      transition: transform 0.24s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .date-range-panel.is-open {
+      transform: translateX(0);
+    }
+
+    .date-range-panel-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid #E8EAED;
+      background: linear-gradient(135deg, rgba(87, 63, 215, 0.08) 0%, rgba(17, 53, 139, 0.06) 100%);
+    }
+
+    .date-range-close {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: #11358B;
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .date-range-close:hover {
+      background: rgba(87, 63, 215, 0.10);
+    }
+
+    .date-range-panel-title {
+      margin: 0;
+      color: #202124;
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+
+    .date-range-panel-body {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      display: grid;
+      grid-template-columns: 190px 1fr;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+    }
+
+    .date-range-presets {
+      border-right: 1px solid #E8EAED;
+      padding-right: 1rem;
+      display: grid;
+      gap: 0.2rem;
+      align-content: start;
+    }
+
+    .date-range-option {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      color: #374151;
+      font-size: 0.92rem;
+      font-weight: 400;
+      cursor: pointer;
+      padding: 0.32rem 0;
+    }
+
+    .date-range-option input {
+      width: 16px;
+      height: 16px;
+      accent-color: #573FD7;
+    }
+
+    .date-range-workspace {
+      min-width: 0;
+    }
+
+    .date-range-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .date-range-icon-btn,
+    .date-range-soft-btn {
+      appearance: none;
+      border: 1px solid #D6DEEA;
+      background: white;
+      color: #2F3A4C;
+      border-radius: 8px;
+      min-height: 36px;
+      padding: 0 0.75rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .date-range-icon-btn {
+      width: 36px;
+      padding: 0;
+      font-size: 0.9rem;
+    }
+
+    .date-range-soft-btn:hover,
+    .date-range-icon-btn:hover {
+      border-color: #573FD7;
+      color: #573FD7;
+      box-shadow: 0 4px 12px rgba(87, 63, 215, 0.12);
+    }
+
+    .date-range-calendars {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(210px, 1fr));
+      gap: 0.9rem;
+    }
+
+    .date-calendar {
+      border: 1px solid #DDE5F0;
+      border-radius: 10px;
+      padding: 0.75rem;
+      background: #fff;
+      box-shadow: 0 8px 24px rgba(17, 53, 139, 0.06);
+    }
+
+    .date-calendar h3 {
+      margin: 0 0 0.75rem;
+      text-align: center;
+      color: #2F3A4C;
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+
+    .date-calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 0.18rem;
+    }
+
+    .date-calendar-weekday,
+    .date-calendar-day {
+      aspect-ratio: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 7px;
+      font-size: 0.8rem;
+    }
+
+    .date-calendar-weekday {
+      color: #64748B;
+      font-weight: 500;
+      aspect-ratio: auto;
+      padding-bottom: 0.25rem;
+    }
+
+    .date-calendar-day {
+      border: none;
+      background: transparent;
+      color: #334155;
+      cursor: pointer;
+    }
+
+    .date-calendar-day:hover {
+      background: rgba(87, 63, 215, 0.10);
+      color: #573FD7;
+    }
+
+    .date-calendar-day.is-muted {
+      color: #B6C0CE;
+      cursor: default;
+    }
+
+    .date-calendar-day.is-in-range {
+      background: rgba(87, 63, 215, 0.10);
+      color: #11358B;
+    }
+
+    .date-calendar-day.is-selected {
+      background: #11358B;
+      color: white;
+      font-weight: 500;
+      box-shadow: 0 8px 18px rgba(17, 53, 139, 0.24);
+    }
+
+    .date-input-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(190px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.9rem;
+    }
+
+    .date-display-trigger {
+      appearance: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+      border: 1px solid #D6DEEA;
+      border-radius: 10px;
+      background: #F8FAFC;
+      color: #111827;
+      cursor: pointer;
+      min-height: 44px;
+      padding: 0.55rem 0.75rem;
+      text-align: left;
+      transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .date-display-trigger:hover,
+    .date-display-trigger.is-active {
+      border-color: #11358B;
+      box-shadow: 0 0 0 3px rgba(17, 53, 139, 0.14);
+      background: white;
+    }
+
+    .date-display-value {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.92rem;
+      font-weight: 500;
+    }
+
+    .date-display-trigger i {
+      flex: 0 0 auto;
+      color: #57708F;
+    }
+
+    .date-range-helper {
+      color: #64748B;
+      margin: 0.65rem 0 0;
+      font-size: 0.86rem;
+    }
+
+    .date-range-panel-footer {
+      padding: 0.85rem 1.25rem;
+      border-top: 1px solid #E8EAED;
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      background: #fff;
+    }
+
+    .date-range-panel-footer .btn {
+      min-width: 96px;
+      justify-content: center;
+      font-weight: 500;
     }
     
     .dashboard-section {
@@ -92,7 +434,7 @@
     
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
       gap: 1.5rem;
       margin-bottom: 2rem;
     }
@@ -232,6 +574,49 @@
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
       gap: 1.5rem;
       margin-top: 1.5rem;
+    }
+
+    .client-chart-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+      gap: 1.5rem;
+      align-items: stretch;
+    }
+
+    .client-chart-canvas-wrap {
+      position: relative;
+      min-height: 360px;
+      height: 520px;
+    }
+
+    .client-chart-summary {
+      border-left: 1px solid #E8EAED;
+      padding-left: 1.25rem;
+      display: grid;
+      align-content: start;
+      gap: 0.75rem;
+    }
+
+    .client-chart-summary-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      color: #374151;
+      font-size: 0.9rem;
+    }
+
+    .client-chart-summary-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .client-chart-summary-count {
+      color: #11358B;
+      font-weight: 600;
+      white-space: nowrap;
     }
     
     /* Status badges with colors */
@@ -389,6 +774,24 @@
         grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
       }
     }
+
+    @media (max-width: 1240px) {
+      .dashboard-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .dashboard-header-actions {
+        width: 100%;
+        flex: none;
+        justify-content: flex-start;
+      }
+
+      .dashboard-header .btn-primary,
+      .date-range-trigger {
+        flex: 1 1 220px;
+      }
+    }
     
     @media (max-width: 768px) {
       .stats-grid {
@@ -398,6 +801,21 @@
       .trainers-grid {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: 1rem;
+      }
+
+      .client-chart-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .client-chart-summary {
+        border-left: none;
+        border-top: 1px solid #E8EAED;
+        padding-left: 0;
+        padding-top: 1rem;
+      }
+
+      .client-chart-canvas-wrap {
+        height: 440px;
       }
       
       .table-responsive {
@@ -479,6 +897,10 @@
         grid-template-columns: 1fr;
         gap: 1rem;
       }
+
+      .client-chart-canvas-wrap {
+        height: 380px;
+      }
       
       .trainer-card {
         padding: 1.25rem;
@@ -502,7 +924,7 @@
         flex-direction: column;
         align-items: stretch !important;
         gap: 1rem;
-        padding: 1.5rem !important;
+        padding: 1.5rem;
       }
       
       .dashboard-header-content {
@@ -523,6 +945,32 @@
         text-align: center;
         padding: 0.75rem 1rem;
         align-self: stretch;
+      }
+
+      .dashboard-header-actions {
+        width: 100%;
+        align-items: stretch;
+      }
+
+      .date-range-trigger {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .date-range-panel-body {
+        grid-template-columns: 1fr;
+      }
+
+      .date-range-presets {
+        border-right: none;
+        border-bottom: 1px solid #E8EAED;
+        padding-right: 0;
+        padding-bottom: 1rem;
+      }
+
+      .date-range-calendars,
+      .date-input-row {
+        grid-template-columns: 1fr;
       }
       
       .action-cards {
@@ -585,9 +1033,16 @@
       }
       
       .dashboard-header {
-        padding: 1.25rem !important;
+        padding: 1.25rem;
         border-radius: 12px;
         gap: 0.75rem;
+      }
+
+      .date-range-panel-header,
+      .date-range-panel-body,
+      .date-range-panel-footer {
+        padding-left: 1rem;
+        padding-right: 1rem;
       }
       
       .dashboard-header h1 {
@@ -867,6 +1322,17 @@
 </head>
 <body class="has-sidebar">
   <%- include('../partials/sidebar', { user }) %>
+  <%
+    const activeDashboardDateRange = dashboardDateRange || {};
+    const dateRangeLabel = activeDashboardDateRange.preset === 'all_time'
+      ? 'All time'
+      : activeDashboardDateRange.startDate && activeDashboardDateRange.endDate
+      ? `${new Date(activeDashboardDateRange.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${new Date(activeDashboardDateRange.endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+      : 'This month';
+    const dashboardPdfUrl = activeDashboardDateRange.preset === 'all_time'
+      ? '/dashboard/pdf?preset=all_time'
+      : `/dashboard/pdf?preset=${encodeURIComponent(activeDashboardDateRange.preset || 'this_month')}${activeDashboardDateRange.startDate && activeDashboardDateRange.endDate ? `&startDate=${encodeURIComponent(activeDashboardDateRange.startDate)}&endDate=${encodeURIComponent(activeDashboardDateRange.endDate)}` : ''}`;
+  %>
   
   <main class="main-content">
     <div class="container">
@@ -879,8 +1345,76 @@
             Welcome back, <span class="user-name"><%= user.userName %></span>!
           </p>
         </div>
-        <a href="/training/create" class="btn btn-primary">Create Training</a>
+        <div class="dashboard-header-actions">
+          <button type="button" class="date-range-trigger" id="date-range-open" aria-haspopup="dialog" aria-controls="date-range-panel">
+            <i class="fas fa-calendar-alt"></i>
+            <span id="date-range-trigger-label"><%= dateRangeLabel %></span>
+          </button>
+          <a href="<%= dashboardPdfUrl %>" class="btn btn-primary">
+            <i class="fas fa-file-pdf"></i> Download PDF
+          </a>
+          <a href="/training/create" class="btn btn-primary">Create Training</a>
+        </div>
       </div>
+
+      <div class="date-range-overlay" id="date-range-overlay" hidden></div>
+      <aside class="date-range-panel" id="date-range-panel" role="dialog" aria-modal="true" aria-labelledby="date-range-title" hidden>
+        <div class="date-range-panel-header">
+          <button type="button" class="date-range-close" id="date-range-close" aria-label="Close date range panel">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <h2 class="date-range-panel-title" id="date-range-title">Date range</h2>
+        </div>
+
+        <div class="date-range-panel-body">
+          <div class="date-range-presets" id="date-range-presets">
+            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="all_time"> All time</label>
+            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="today"> Today</label>
+            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="yesterday"> Yesterday</label>
+            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="last_7_days"> Last 7 days</label>
+            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="last_14_days"> Last 14 days</label>
+            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="last_28_days"> Last 28 days</label>
+            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="last_30_days"> Last 30 days</label>
+            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="this_week"> This week</label>
+            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="last_week"> Last week</label>
+            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="this_month"> This month</label>
+            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="last_month"> Last month</label>
+            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="custom"> Custom</label>
+          </div>
+
+          <div class="date-range-workspace">
+            <div class="date-range-toolbar">
+              <button type="button" class="date-range-soft-btn" id="date-range-clear">Clear</button>
+              <button type="button" class="date-range-soft-btn" id="date-range-today">Today</button>
+              <button type="button" class="date-range-icon-btn" id="date-range-prev-month" aria-label="Previous month">
+                <i class="fas fa-chevron-left"></i>
+              </button>
+              <button type="button" class="date-range-icon-btn" id="date-range-next-month" aria-label="Next month">
+                <i class="fas fa-chevron-right"></i>
+              </button>
+            </div>
+
+            <div class="date-range-calendars" id="date-range-calendars"></div>
+
+            <div class="date-input-row">
+              <button type="button" class="date-display-trigger is-active" id="panel-start-date-btn" data-boundary="start">
+                <span class="date-display-value" id="panel-start-date-value"></span>
+                <i class="far fa-calendar"></i>
+              </button>
+              <button type="button" class="date-display-trigger" id="panel-end-date-btn" data-boundary="end">
+                <span class="date-display-value" id="panel-end-date-value"></span>
+                <i class="far fa-calendar"></i>
+              </button>
+            </div>
+            <p class="date-range-helper" id="date-range-helper">Pick a start date, then an end date from the calendar.</p>
+          </div>
+        </div>
+
+        <div class="date-range-panel-footer">
+          <button type="button" class="btn btn-outline" id="date-range-cancel">Cancel</button>
+          <button type="button" class="btn btn-primary" id="date-range-apply">Filter</button>
+        </div>
+      </aside>
       
       <!-- Quick Actions -->
       <div class="quick-actions dashboard-section" style="margin-bottom: 2rem;">
@@ -942,6 +1476,14 @@
           <div class="stat-card">
             <h3><%= trainingStats.rescheduled ?? 0 %></h3>
             <p>Rescheduled</p>
+          </div>
+          <div class="stat-card">
+            <h3><%= trainingStats.course_completion_rate ?? 0 %>%</h3>
+            <p>Course Completion Rate</p>
+          </div>
+          <div class="stat-card">
+            <h3><%= trainingStats.assessment_pass_rate ?? 0 %>%</h3>
+            <p>Assessment Pass Rate</p>
           </div>
         </div>
         
@@ -1146,6 +1688,32 @@
         </div>
       </section>
 
+      <!-- Top Clients Chart -->
+      <section class="dashboard-section">
+        <h2><i class="fas fa-chart-bar" style="color: #573FD7;"></i> Top Clients by Trainings</h2>
+        <p style="color:#5F6368; margin: -0.5rem 0 1.25rem 0;">Top 20 healthcare clients by number of trainings in the selected date range.</p>
+
+        <% if (!topClientTrainings || topClientTrainings.length === 0) { %>
+          <div class="empty-state">
+            <p>No client training data found for this date range.</p>
+          </div>
+        <% } else { %>
+          <div class="client-chart-layout">
+            <div class="client-chart-canvas-wrap">
+              <canvas id="top-clients-chart" aria-label="Top clients by trainings chart" role="img"></canvas>
+            </div>
+            <div class="client-chart-summary" aria-label="Top clients by training count">
+              <% topClientTrainings.slice(0, 5).forEach(client => { %>
+                <div class="client-chart-summary-item">
+                  <span class="client-chart-summary-name" title="<%= client.name %>"><%= client.name %></span>
+                  <span class="client-chart-summary-count"><%= client.training_count %></span>
+                </div>
+              <% }); %>
+            </div>
+          </div>
+        <% } %>
+      </section>
+
       <!-- Healthcare Training Reminders -->
       <section class="dashboard-section">
         <h2><i class="fas fa-hospital-user" style="color: #573FD7;"></i> Healthcare Training Reminders</h2>
@@ -1310,6 +1878,12 @@
             <p style="color: #5F6368;">No trainers found</p>
           <% } else { %>
             <% trainers.forEach(trainer => { %>
+              <%
+                const taughtHours = Number(trainer.taught_hours || 0);
+                const taughtHoursLabel = Number.isInteger(taughtHours)
+                  ? taughtHours.toString()
+                  : taughtHours.toFixed(1);
+              %>
               <div class="trainer-card">
                 <div class="trainer-avatar">
                   <% if (trainer.profile_picture) { %>
@@ -1328,6 +1902,10 @@
                   <div class="trainer-stat">
                     <div class="trainer-stat-value"><%= trainer.in_progress_trainings || 0 %></div>
                     <div class="trainer-stat-label">In Progress</div>
+                  </div>
+                  <div class="trainer-stat">
+                    <div class="trainer-stat-value"><%= taughtHoursLabel %></div>
+                    <div class="trainer-stat-label">Hours Taught</div>
                   </div>
                 </div>
               </div>
@@ -1434,6 +2012,355 @@
     </div>
   </main>
   
+  <script src="/vendor/chart.js/dist/chart.umd.js"></script>
+  <script>
+    (() => {
+      const topClientTrainings = <%- JSON.stringify((topClientTrainings || []).map(client => ({
+        name: client.name || 'Unknown Client',
+        training_count: Number(client.training_count || 0)
+      }))) %>;
+      const chartCanvas = document.getElementById('top-clients-chart');
+
+      if (!chartCanvas || !window.Chart || topClientTrainings.length === 0) return;
+
+      const labels = topClientTrainings.map(client => client.name);
+      const counts = topClientTrainings.map(client => client.training_count);
+
+      new Chart(chartCanvas, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Trainings',
+            data: counts,
+            backgroundColor: 'rgba(87, 63, 215, 0.78)',
+            borderColor: '#573FD7',
+            borderWidth: 1,
+            borderRadius: 6,
+            barThickness: 16,
+            maxBarThickness: 18
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: context => `${context.parsed.x} training${context.parsed.x === 1 ? '' : 's'}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0
+              },
+              grid: {
+                color: 'rgba(148, 163, 184, 0.22)'
+              }
+            },
+            y: {
+              ticks: {
+                color: '#374151',
+                font: {
+                  size: 11,
+                  weight: '400'
+                },
+                callback(value) {
+                  const label = this.getLabelForValue(value);
+                  return label.length > 28 ? `${label.slice(0, 28)}...` : label;
+                }
+              },
+              grid: {
+                display: false
+              }
+            }
+          }
+        }
+      });
+    })();
+  </script>
+  <script>
+    (() => {
+      const initialRange = <%- JSON.stringify(dashboardDateRange || {}) %>;
+      const openButton = document.getElementById('date-range-open');
+      const overlay = document.getElementById('date-range-overlay');
+      const panel = document.getElementById('date-range-panel');
+      const closeButton = document.getElementById('date-range-close');
+      const cancelButton = document.getElementById('date-range-cancel');
+      const applyButton = document.getElementById('date-range-apply');
+      const clearButton = document.getElementById('date-range-clear');
+      const todayButton = document.getElementById('date-range-today');
+      const prevButton = document.getElementById('date-range-prev-month');
+      const nextButton = document.getElementById('date-range-next-month');
+      const calendars = document.getElementById('date-range-calendars');
+      const startButton = document.getElementById('panel-start-date-btn');
+      const endButton = document.getElementById('panel-end-date-btn');
+      const startValue = document.getElementById('panel-start-date-value');
+      const endValue = document.getElementById('panel-end-date-value');
+      const presetInputs = Array.from(document.querySelectorAll('input[name="dashboardPreset"]'));
+
+      const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' });
+      const displayDateFormatter = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      const presets = {
+        today: () => {
+          const today = startOfDay(new Date());
+          return [today, today];
+        },
+        yesterday: () => {
+          const day = addDays(startOfDay(new Date()), -1);
+          return [day, day];
+        },
+        last_7_days: () => rangeEndingToday(6),
+        last_14_days: () => rangeEndingToday(13),
+        last_28_days: () => rangeEndingToday(27),
+        last_30_days: () => rangeEndingToday(29),
+        this_week: () => {
+          const today = startOfDay(new Date());
+          const mondayOffset = (today.getDay() || 7) - 1;
+          const start = addDays(today, -mondayOffset);
+          return [start, addDays(start, 6)];
+        },
+        last_week: () => {
+          const today = startOfDay(new Date());
+          const mondayOffset = (today.getDay() || 7) - 1;
+          const end = addDays(today, -mondayOffset - 1);
+          return [addDays(end, -6), end];
+        },
+        this_month: () => {
+          const today = new Date();
+          return [new Date(today.getFullYear(), today.getMonth(), 1), new Date(today.getFullYear(), today.getMonth() + 1, 0)];
+        },
+        last_month: () => {
+          const today = new Date();
+          return [new Date(today.getFullYear(), today.getMonth() - 1, 1), new Date(today.getFullYear(), today.getMonth(), 0)];
+        }
+      };
+
+      let selectedStart = parseDate(initialRange.startDate) || presets.this_month()[0];
+      let selectedEnd = parseDate(initialRange.endDate) || presets.this_month()[1];
+      let activePreset = initialRange.preset || 'this_month';
+      let visibleMonth = new Date(selectedStart.getFullYear(), selectedStart.getMonth(), 1);
+      let activeBoundary = 'start';
+
+      function startOfDay(date) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      }
+
+      function addDays(date, days) {
+        const next = new Date(date);
+        next.setDate(next.getDate() + days);
+        return next;
+      }
+
+      function rangeEndingToday(offsetDays) {
+        const end = startOfDay(new Date());
+        return [addDays(end, -offsetDays), end];
+      }
+
+      function parseDate(value) {
+        if (!value) return null;
+        const parts = String(value).split('-').map(Number);
+        if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+        return new Date(parts[0], parts[1] - 1, parts[2]);
+      }
+
+      function formatDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+
+      function formatDisplayDate(date) {
+        return date ? displayDateFormatter.format(date) : '';
+      }
+
+      function applyPreset(preset) {
+        activePreset = preset;
+        if (preset === 'all_time') {
+          activeBoundary = 'start';
+        } else if (presets[preset]) {
+          [selectedStart, selectedEnd] = presets[preset]();
+          visibleMonth = new Date(selectedStart.getFullYear(), selectedStart.getMonth(), 1);
+          activeBoundary = 'start';
+        }
+        syncControls();
+      }
+
+      function syncControls() {
+        if (selectedStart && selectedEnd && selectedStart > selectedEnd) {
+          [selectedStart, selectedEnd] = [selectedEnd, selectedStart];
+        }
+
+        startValue.textContent = activePreset === 'all_time' ? 'All time' : formatDisplayDate(selectedStart);
+        endValue.textContent = activePreset === 'all_time' ? 'All time' : formatDisplayDate(selectedEnd);
+        startButton.classList.toggle('is-active', activeBoundary === 'start');
+        endButton.classList.toggle('is-active', activeBoundary === 'end');
+
+        presetInputs.forEach(input => {
+          input.checked = input.value === activePreset;
+        });
+
+        renderCalendars();
+      }
+
+      function renderCalendars() {
+        calendars.innerHTML = '';
+        calendars.appendChild(renderMonth(visibleMonth));
+        calendars.appendChild(renderMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1)));
+      }
+
+      function renderMonth(monthDate) {
+        const calendar = document.createElement('div');
+        calendar.className = 'date-calendar';
+
+        const title = document.createElement('h3');
+        title.textContent = monthFormatter.format(monthDate);
+        calendar.appendChild(title);
+
+        const grid = document.createElement('div');
+        grid.className = 'date-calendar-grid';
+        ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(day => {
+          const weekday = document.createElement('div');
+          weekday.className = 'date-calendar-weekday';
+          weekday.textContent = day;
+          grid.appendChild(weekday);
+        });
+
+        const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+        const blanks = (firstDay.getDay() || 7) - 1;
+        const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
+
+        for (let index = 0; index < blanks; index += 1) {
+          const blank = document.createElement('span');
+          blank.className = 'date-calendar-day is-muted';
+          grid.appendChild(blank);
+        }
+
+        for (let day = 1; day <= daysInMonth; day += 1) {
+          const date = new Date(monthDate.getFullYear(), monthDate.getMonth(), day);
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = getDayClass(date);
+          button.textContent = String(day);
+          button.addEventListener('click', () => selectCalendarDate(date));
+          grid.appendChild(button);
+        }
+
+        calendar.appendChild(grid);
+        return calendar;
+      }
+
+      function getDayClass(date) {
+        const dayValue = formatDate(date);
+        const startValue = activePreset === 'all_time' ? null : selectedStart ? formatDate(selectedStart) : null;
+        const endValue = activePreset === 'all_time' ? null : selectedEnd ? formatDate(selectedEnd) : null;
+        const classes = ['date-calendar-day'];
+
+        if (dayValue === startValue || dayValue === endValue) {
+          classes.push('is-selected');
+        } else if (startValue && endValue && dayValue > startValue && dayValue < endValue) {
+          classes.push('is-in-range');
+        }
+
+        return classes.join(' ');
+      }
+
+      function selectCalendarDate(date) {
+        activePreset = 'custom';
+        if (activeBoundary === 'start') {
+          selectedStart = startOfDay(date);
+          if (!selectedEnd || selectedStart > selectedEnd) {
+            selectedEnd = selectedStart;
+          }
+          activeBoundary = 'end';
+        } else {
+          selectedEnd = startOfDay(date);
+          if (!selectedStart || selectedEnd < selectedStart) {
+            selectedStart = selectedEnd;
+          }
+          activeBoundary = 'start';
+        }
+        syncControls();
+      }
+
+      function openPanel() {
+        overlay.hidden = false;
+        panel.hidden = false;
+        requestAnimationFrame(() => {
+          overlay.classList.add('is-open');
+          panel.classList.add('is-open');
+        });
+      }
+
+      function closePanel() {
+        overlay.classList.remove('is-open');
+        panel.classList.remove('is-open');
+        window.setTimeout(() => {
+          overlay.hidden = true;
+          panel.hidden = true;
+        }, 240);
+      }
+
+      function applyFilter() {
+        const url = new URL(window.location.href);
+        url.searchParams.set('preset', activePreset || 'custom');
+        if (activePreset === 'all_time') {
+          url.searchParams.delete('startDate');
+          url.searchParams.delete('endDate');
+        } else {
+          if (!selectedStart || !selectedEnd) return;
+          url.searchParams.set('startDate', formatDate(selectedStart));
+          url.searchParams.set('endDate', formatDate(selectedEnd));
+        }
+        window.location.href = url.toString();
+      }
+
+      presetInputs.forEach(input => {
+        input.addEventListener('change', () => applyPreset(input.value));
+      });
+
+      startButton.addEventListener('click', () => {
+        activeBoundary = 'start';
+        syncControls();
+      });
+
+      endButton.addEventListener('click', () => {
+        activeBoundary = 'end';
+        syncControls();
+      });
+
+      openButton.addEventListener('click', openPanel);
+      closeButton.addEventListener('click', closePanel);
+      cancelButton.addEventListener('click', closePanel);
+      overlay.addEventListener('click', closePanel);
+      applyButton.addEventListener('click', applyFilter);
+      clearButton.addEventListener('click', () => applyPreset('this_month'));
+      todayButton.addEventListener('click', () => applyPreset('today'));
+      prevButton.addEventListener('click', () => {
+        visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1);
+        renderCalendars();
+      });
+      nextButton.addEventListener('click', () => {
+        visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1);
+        renderCalendars();
+      });
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && panel.classList.contains('is-open')) {
+          closePanel();
+        }
+      });
+
+      syncControls();
+    })();
+  </script>
   <script src="/js/main.js"></script>
 </body>
 </html>
