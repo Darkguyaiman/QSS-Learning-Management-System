@@ -38,8 +38,12 @@
           </div>
           
           <% 
-            const totalPresent = attendanceData.reduce((sum, e) => sum + (e.present_count || 0), 0);
-            const totalAbsent = attendanceData.reduce((sum, e) => sum + (e.absent_count || 0), 0);
+            const toAttendanceCount = (value) => {
+              const count = Number(value);
+              return Number.isFinite(count) ? count : 0;
+            };
+            const totalPresent = attendanceData.reduce((sum, e) => sum + toAttendanceCount(e.present_count), 0);
+            const totalAbsent = attendanceData.reduce((sum, e) => sum + toAttendanceCount(e.absent_count), 0);
             const totalSessions = totalPresent + totalAbsent;
             const attendanceRate = totalSessions > 0 ? ((totalPresent / totalSessions) * 100).toFixed(1) : 0;
           %>
@@ -95,8 +99,8 @@
               </thead>
               <tbody>
                 <% attendanceData.forEach(enrollment => { 
-                  const present = enrollment.present_count || 0;
-                  const absent = enrollment.absent_count || 0;
+                  const present = toAttendanceCount(enrollment.present_count);
+                  const absent = toAttendanceCount(enrollment.absent_count);
                   const total = present + absent;
                   const rate = total > 0 ? ((present / total) * 100).toFixed(1) : 0;
                 %>
@@ -1420,6 +1424,34 @@
       return value;
     }
 
+    function normalizeAttendanceDateValue(value) {
+      if (!value) return '';
+      const raw = String(value).trim();
+      if (!raw) return '';
+
+      const isoDateMatch = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+      if (isoDateMatch) return isoDateMatch[1];
+
+      const parsed = new Date(raw);
+      if (Number.isNaN(parsed.getTime())) return raw;
+
+      const year = parsed.getFullYear();
+      const month = String(parsed.getMonth() + 1).padStart(2, '0');
+      const day = String(parsed.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function formatAttendanceDateLabel(value, options) {
+      const dateStr = normalizeAttendanceDateValue(value);
+      const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!match) return dateStr || 'N/A';
+
+      const dateObj = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+      if (Number.isNaN(dateObj.getTime())) return dateStr;
+
+      return dateObj.toLocaleDateString('en-US', options);
+    }
+
     // Handle add attendance form submission
     document.addEventListener('DOMContentLoaded', function() {
       function isMobileSelectMode() {
@@ -1683,41 +1715,13 @@
           sessions.forEach(session => {
             const option = document.createElement('option');
             
-            // Parse date - handle both date string and ISO datetime formats
-            let dateStr = session.date;
-            if (dateStr.includes('T')) {
-              // If it's an ISO datetime, extract just the date part
-              dateStr = dateStr.split('T')[0];
-            }
-            
-            // Format date nicely
-            const dateObj = new Date(dateStr + 'T00:00:00');
-            let formattedDate = 'Invalid Date';
-            if (!isNaN(dateObj.getTime())) {
-              formattedDate = dateObj.toLocaleDateString('en-US', { 
-                weekday: 'short', 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric' 
-              });
-            } else {
-              // Fallback: try parsing the date string directly
-              const parts = dateStr.split('-');
-              if (parts.length === 3) {
-                const year = parts[0];
-                const month = parseInt(parts[1]) - 1;
-                const day = parts[2];
-                const fallbackDate = new Date(year, month, day);
-                if (!isNaN(fallbackDate.getTime())) {
-                  formattedDate = fallbackDate.toLocaleDateString('en-US', { 
-                    weekday: 'short', 
-                    year: 'numeric', 
-                    month: 'short', 
-                    day: 'numeric' 
-                  });
-                }
-              }
-            }
+            const dateStr = normalizeAttendanceDateValue(session.date);
+            const formattedDate = formatAttendanceDateLabel(dateStr, {
+              weekday: 'short',
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            });
             
             // Format time nicely - handle both HH:mm and HH:mm:ss formats
             let formattedTime = 'N/A';
@@ -1749,7 +1753,7 @@
             }
             
             option.value = session.id;
-            option.textContent = `${formattedDate} • ${formattedTime} - ${formattedEndTime}`;
+            option.textContent = `${formattedDate} - ${formattedTime} - ${formattedEndTime}`;
             option.dataset.date = dateStr; // Store clean date string
             option.dataset.time = session.time || '';
             option.dataset.endTime = session.end_time || '';
@@ -1807,24 +1811,16 @@
       document.getElementById('update-attendance-id').value = sessionId;
       document.getElementById('update-attendance-original-time').value = time || '';
       
-      // Clean date - extract just the date part if it's an ISO datetime
-      let cleanDate = date;
-      if (date && date.includes('T')) {
-        cleanDate = date.split('T')[0];
-      }
+      const cleanDate = normalizeAttendanceDateValue(date);
       document.getElementById('update-attendance-date').value = cleanDate;
       
       // Format date nicely for display
-      const dateObj = new Date(cleanDate + 'T00:00:00');
-      let formattedDate = cleanDate;
-      if (!isNaN(dateObj.getTime())) {
-        formattedDate = dateObj.toLocaleDateString('en-US', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        });
-      }
+      const formattedDate = formatAttendanceDateLabel(cleanDate, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
       document.getElementById('update-display-date').value = formattedDate;
       
       // Clean time - remove seconds if present (HH:mm:ss -> HH:mm)

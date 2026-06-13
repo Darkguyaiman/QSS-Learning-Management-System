@@ -100,7 +100,7 @@
     }
 
     const formData = utils.collectFormData();
-    if (!formData.hospitalName || !formData.deviceModel || !formData.address || !formData.recipientName || !formData.recipientPhone) {
+    if (!formData.healthcareId || !formData.hospitalName || !formData.deviceModel || !formData.address || !formData.recipientName || !formData.recipientPhone) {
       return qssShowError('Please fill all package form fields.');
     }
 

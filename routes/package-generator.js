@@ -489,21 +489,15 @@ async function htmlToPdfFile(html, outputPath, orientation = 'portrait') {
   const page = await browser.newPage();
   try {
     await page.setContent(html, { waitUntil: 'domcontentloaded' });
-    const pdfStream = await page.createPDFStream({
+
+    await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
+
+    await page.pdf({
+      path: outputPath,
       format: 'A4',
       landscape: orientation === 'landscape',
       printBackground: true,
       margin: { top: '0.22in', right: '0.25in', bottom: '0.22in', left: '0.25in' }
-    });
-
-    await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
-
-    await new Promise((resolve, reject) => {
-      const outStream = fs.createWriteStream(outputPath);
-      pdfStream.on('error', reject);
-      outStream.on('error', reject);
-      outStream.on('finish', resolve);
-      pdfStream.pipe(outStream);
     });
   } finally {
     await page.close();
@@ -531,7 +525,25 @@ async function mapWithConcurrency(items, concurrency, worker) {
   return results;
 }
 
-async function fetchPackageData(db, trainingId, trainingType) {
+function normalizeHealthcareId(formData) {
+  const healthcareId = String(formData?.healthcareId || '').trim();
+  return healthcareId || null;
+}
+
+async function fetchPackageData(db, trainingId, trainingType, formData = {}) {
+  const healthcareId = normalizeHealthcareId(formData);
+  const attendanceWhere = ['e.training_id = ?'];
+  const attendanceParams = [trainingId];
+  const sessionsWhere = ['e.training_id = ?'];
+  const sessionsParams = [trainingId];
+
+  if (healthcareId) {
+    attendanceWhere.push('tr.healthcare_id = ?');
+    attendanceParams.push(healthcareId);
+    sessionsWhere.push('tr.healthcare_id = ?');
+    sessionsParams.push(healthcareId);
+  }
+
   const [objectiveResult, handsOnAspectResult, attendanceResult, sessionsResult] = await Promise.all([
     db.query('SELECT id, name FROM objectives ORDER BY id'),
     trainingType === 'main'
@@ -547,17 +559,18 @@ async function fetchPackageData(db, trainingId, trainingType) {
       FROM enrollments e
       JOIN trainees tr ON e.trainee_id = tr.id
       LEFT JOIN attendance a ON a.enrollment_id = e.id
-      WHERE e.training_id = ?
+      WHERE ${attendanceWhere.join(' AND ')}
       GROUP BY e.id, tr.id, tr.first_name, tr.last_name, tr.trainee_id, tr.ic_passport
       ORDER BY tr.last_name, tr.first_name
-    `, [trainingId]),
+    `, attendanceParams),
     db.query(`
       SELECT DISTINCT a.date, a.time, a.duration
       FROM attendance a
       JOIN enrollments e ON a.enrollment_id = e.id
-      WHERE e.training_id = ?
+      JOIN trainees tr ON e.trainee_id = tr.id
+      WHERE ${sessionsWhere.join(' AND ')}
       ORDER BY a.date DESC, a.time DESC
-    `, [trainingId])
+    `, sessionsParams)
   ]);
 
   const [objectiveRows] = objectiveResult;
@@ -677,6 +690,22 @@ async function fetchPackageData(db, trainingId, trainingType) {
     objectives: objectiveRows || [],
     handsOnAspects: handsOnAspectRows || []
   };
+}
+
+async function fetchIssuedCertificates(db, trainingId, enrollmentIds) {
+  if (!Array.isArray(enrollmentIds) || enrollmentIds.length === 0) {
+    return [];
+  }
+
+  const [issuedCertificates] = await db.query(`
+    SELECT enrollment_id, certificate_number, participant_name, course_name, location, date_display
+    FROM certificate_issues
+    WHERE training_id = ?
+      AND enrollment_id IN (?)
+    ORDER BY participant_name ASC
+  `, [trainingId, enrollmentIds]);
+
+  return issuedCertificates || [];
 }
 
 function buildLetterHtml({ training, company, formData, attendanceSessionCount, totalParticipants, traineeRows }) {
@@ -1150,7 +1179,7 @@ function buildCertificateHtml({ certificate, company }) {
 async function generatePackageZipBuffer({ db, training, formData, generatedByName, generatedByPosition }) {
   await warmBrandAssetCaches();
   const company = normalizeCompany(training.affiliated_company);
-  const { attendanceRows, marksByEnrollmentId, objectives, handsOnAspects } = await fetchPackageData(db, training.id, training.type);
+  const { attendanceRows, marksByEnrollmentId, objectives, handsOnAspects } = await fetchPackageData(db, training.id, training.type, formData);
   const missingIcRows = (attendanceRows || []).filter(row => !String(row.ic_passport || '').trim());
   if (missingIcRows.length > 0) {
     const sample = missingIcRows.slice(0, 10).map(row => `${row.first_name || ''} ${row.last_name || ''}`.trim() || `Enrollment ${row.enrollment_id}`);
@@ -1159,12 +1188,7 @@ async function generatePackageZipBuffer({ db, training, formData, generatedByNam
     err.statusCode = 400;
     throw err;
   }
-  const [issuedCertificates] = await db.query(`
-    SELECT enrollment_id, certificate_number, participant_name, course_name, location, date_display
-    FROM certificate_issues
-    WHERE training_id = ?
-    ORDER BY participant_name ASC
-  `, [training.id]);
+  const issuedCertificates = await fetchIssuedCertificates(db, training.id, attendanceRows.map(row => row.enrollment_id));
   const certByEnrollmentId = new Map((issuedCertificates || []).map(c => [String(c.enrollment_id), c]));
   const attendanceSessionCount = attendanceRows.reduce((max, r) => {
     const c = (parseInt(r.present_count || 0, 10) || 0) + (parseInt(r.absent_count || 0, 10) || 0);
@@ -1237,7 +1261,7 @@ async function generatePackageZipBuffer({ db, training, formData, generatedByNam
 async function generatePackageZipFile({ db, training, formData, generatedByName, generatedByPosition, outputPath, workDir }) {
   await warmBrandAssetCaches();
   const company = normalizeCompany(training.affiliated_company);
-  const { attendanceRows, marksByEnrollmentId, objectives, handsOnAspects } = await fetchPackageData(db, training.id, training.type);
+  const { attendanceRows, marksByEnrollmentId, objectives, handsOnAspects } = await fetchPackageData(db, training.id, training.type, formData);
   const missingIcRows = (attendanceRows || []).filter(row => !String(row.ic_passport || '').trim());
   if (missingIcRows.length > 0) {
     const sample = missingIcRows.slice(0, 10).map(row => `${row.first_name || ''} ${row.last_name || ''}`.trim() || `Enrollment ${row.enrollment_id}`);
@@ -1247,12 +1271,7 @@ async function generatePackageZipFile({ db, training, formData, generatedByName,
     throw err;
   }
 
-  const [issuedCertificates] = await db.query(`
-    SELECT enrollment_id, certificate_number, participant_name, course_name, location, date_display
-    FROM certificate_issues
-    WHERE training_id = ?
-    ORDER BY participant_name ASC
-  `, [training.id]);
+  const issuedCertificates = await fetchIssuedCertificates(db, training.id, attendanceRows.map(row => row.enrollment_id));
 
   const certByEnrollmentId = new Map((issuedCertificates || []).map(c => [String(c.enrollment_id), c]));
   const traineeRows = attendanceRows.map(row => ({
@@ -1343,7 +1362,7 @@ async function generatePackageZipFile({ db, training, formData, generatedByName,
 async function generateLetterPdfBuffer({ db, training, formData, preloadedAttendanceRows, preloadedTraineeRows }) {
   await warmBrandAssetCaches();
   const company = normalizeCompany(training.affiliated_company);
-  const attendanceRows = Array.isArray(preloadedAttendanceRows) ? preloadedAttendanceRows : (await fetchPackageData(db, training.id, training.type)).attendanceRows;
+  const attendanceRows = Array.isArray(preloadedAttendanceRows) ? preloadedAttendanceRows : (await fetchPackageData(db, training.id, training.type, formData)).attendanceRows;
   const missingIcRows = (attendanceRows || []).filter(row => !String(row.ic_passport || '').trim());
   if (missingIcRows.length > 0) {
     const sample = missingIcRows.slice(0, 10).map(row => `${row.first_name || ''} ${row.last_name || ''}`.trim() || `Enrollment ${row.enrollment_id}`);
@@ -1355,11 +1374,7 @@ async function generateLetterPdfBuffer({ db, training, formData, preloadedAttend
 
   let traineeRows = preloadedTraineeRows;
   if (!Array.isArray(traineeRows)) {
-    const [issuedCertificates] = await db.query(`
-      SELECT enrollment_id, certificate_number
-      FROM certificate_issues
-      WHERE training_id = ?
-    `, [training.id]);
+    const issuedCertificates = await fetchIssuedCertificates(db, training.id, attendanceRows.map(row => row.enrollment_id));
     const certByEnrollmentId = new Map((issuedCertificates || []).map(c => [String(c.enrollment_id), c]));
     traineeRows = attendanceRows.map(row => ({
       name: `${row.first_name || ''} ${row.last_name || ''}`.trim(),

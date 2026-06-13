@@ -20,6 +20,7 @@ async function ensureJobStorageRoot() {
 
 function normalizeFormData(formDataRaw) {
   return {
+    healthcareId: String(formDataRaw?.healthcareId || '').trim(),
     hospitalName: String(formDataRaw?.hospitalName || '').trim(),
     deviceModel: String(formDataRaw?.deviceModel || '').trim(),
     address: String(formDataRaw?.address || '').trim(),
@@ -96,6 +97,19 @@ async function getTrainingForPackage(db, trainingId) {
   return trainings?.[0] || null;
 }
 
+async function assertHealthcareBelongsToTraining(db, trainingId, healthcareId) {
+  const [rows] = await db.query(
+    'SELECT 1 FROM training_healthcare WHERE training_id = ? AND healthcare_id = ? LIMIT 1',
+    [trainingId, healthcareId]
+  );
+
+  if (!rows?.length) {
+    const err = new Error('Selected healthcare is not assigned to this training.');
+    err.statusCode = 400;
+    throw err;
+  }
+}
+
 async function enqueuePackageJob({ db = pool, trainingId, formData, userId, generatedByName, generatedByPosition }) {
   await bootstrapQueue(db);
 
@@ -112,11 +126,13 @@ async function enqueuePackageJob({ db = pool, trainingId, formData, userId, gene
   }
 
   const normalizedFormData = normalizeFormData(formData);
-  if (!normalizedFormData.hospitalName || !normalizedFormData.deviceModel || !normalizedFormData.address || !normalizedFormData.recipientName || !normalizedFormData.recipientPhone) {
+  if (!normalizedFormData.healthcareId || !normalizedFormData.hospitalName || !normalizedFormData.deviceModel || !normalizedFormData.address || !normalizedFormData.recipientName || !normalizedFormData.recipientPhone) {
     const err = new Error('Missing required form fields');
     err.statusCode = 400;
     throw err;
   }
+
+  await assertHealthcareBelongsToTraining(db, trainingId, normalizedFormData.healthcareId);
 
   const serializedFormData = JSON.stringify(normalizedFormData);
   const [existingJobs] = await db.query(

@@ -142,6 +142,7 @@
 
   function collectFormData() {
     return {
+      healthcareId: (document.getElementById('package-healthcare-select')?.value || '').trim(),
       hospitalName: (document.getElementById('package-hospital-name-hidden')?.value || document.getElementById('package-hospital-name')?.value || '').trim(),
       deviceModel: (document.getElementById('package-device-model')?.value || '').trim(),
       address: (document.getElementById('package-address-hidden')?.value || document.getElementById('package-address')?.value || '').trim(),

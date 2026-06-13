@@ -282,20 +282,20 @@ router.get('/sessions/:trainingId', async (req, res) => {
 
     const [sessions] = await req.db.query(`
       SELECT DISTINCT 
-        a.date,
+        DATE_FORMAT(a.date, '%Y-%m-%d') as date,
         a.time,
         a.duration,
-        CONCAT(a.date, '_', COALESCE(a.time, '')) as id
+        CONCAT(DATE_FORMAT(a.date, '%Y-%m-%d'), '_', COALESCE(a.time, '')) as id
       FROM attendance a
       JOIN enrollments e ON a.enrollment_id = e.id
       WHERE e.training_id = ?
-      ORDER BY a.date DESC, a.time DESC
+      ORDER BY date DESC, time DESC
     `, [req.params.trainingId]);
     
     // Format the sessions to ensure consistent date format
     const formattedSessions = sessions.map(session => ({
       ...session,
-      date: session.date ? session.date.toString().split('T')[0] : null, // Ensure YYYY-MM-DD format
+      date: session.date || null,
       time: session.time ? session.time.toString() : null,
       end_time: formatEndTime(session.time, session.duration),
       duration: session.duration ? parseFloat(session.duration) : null
@@ -372,9 +372,6 @@ router.post('/update-bulk', async (req, res) => {
       if (!originalTimeValue) {
         throw new Error('Original session time is required');
       }
-      
-      // Log for debugging
-      console.log('Update attendance - Time received:', time, 'End time received:', endTime, 'Formatted:', timeValue);
       
       // Extract date only
       const dateOnly = normalizeDateOnlyInput(date);

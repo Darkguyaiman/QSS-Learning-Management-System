@@ -5039,14 +5039,22 @@ router.post('/:id/package/letter-pdf', async (req, res) => {
     const training = trainings[0];
     const formDataRaw = req.body?.formData || {};
     const formData = {
+      healthcareId: String(formDataRaw.healthcareId || '').trim(),
       hospitalName: String(formDataRaw.hospitalName || '').trim(),
       deviceModel: String(formDataRaw.deviceModel || '').trim(),
       address: String(formDataRaw.address || '').trim(),
       recipientName: String(formDataRaw.recipientName || '').trim(),
       recipientPhone: String(formDataRaw.recipientPhone || '').trim()
     };
-    if (!formData.hospitalName || !formData.deviceModel || !formData.address || !formData.recipientName || !formData.recipientPhone) {
+    if (!formData.healthcareId || !formData.hospitalName || !formData.deviceModel || !formData.address || !formData.recipientName || !formData.recipientPhone) {
       return res.status(400).json({ success: false, error: 'Missing required form fields' });
+    }
+    const [trainingHealthcareRows] = await req.db.query(
+      'SELECT 1 FROM training_healthcare WHERE training_id = ? AND healthcare_id = ? LIMIT 1',
+      [trainingId, formData.healthcareId]
+    );
+    if (!trainingHealthcareRows?.length) {
+      return res.status(400).json({ success: false, error: 'Selected healthcare is not assigned to this training.' });
     }
 
     const buffer = await packageGenerator.generateLetterPdfBuffer({
