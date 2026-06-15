@@ -388,6 +388,43 @@
       font-size: 0.86rem;
     }
 
+    .panel-filter-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(190px, 1fr));
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+
+    .panel-filter-group {
+      display: grid;
+      gap: 0.4rem;
+    }
+
+    .panel-filter-label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .panel-filter-select {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid #D6DEEA;
+      border-radius: 10px;
+      background: #F8FAFC;
+      color: #111827;
+      padding: 0.7rem 0.85rem;
+      font-size: 0.92rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .panel-filter-select:focus {
+      outline: none;
+      border-color: #11358B;
+      box-shadow: 0 0 0 3px rgba(17, 53, 139, 0.14);
+      background: white;
+    }
+
     .date-range-panel-footer {
       padding: 0.85rem 1.25rem;
       border-top: 1px solid #E8EAED;
@@ -996,7 +1033,8 @@
       }
 
       .date-range-calendars,
-      .date-input-row {
+      .date-input-row,
+      .panel-filter-grid {
         grid-template-columns: 1fr;
       }
       
@@ -1381,14 +1419,25 @@
   <%- include('../partials/sidebar', { user }) %>
   <%
     const activeDashboardDateRange = dashboardDateRange || {};
+    const selectedHealthcareId = activeFilters && activeFilters.healthcareId ? String(activeFilters.healthcareId) : '';
+    const selectedModuleId = activeFilters && activeFilters.moduleId ? String(activeFilters.moduleId) : '';
     const dateRangeLabel = activeDashboardDateRange.preset === 'all_time'
       ? 'All time'
       : activeDashboardDateRange.startDate && activeDashboardDateRange.endDate
       ? `${new Date(activeDashboardDateRange.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${new Date(activeDashboardDateRange.endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
       : 'This month';
-    const dashboardPdfUrl = activeDashboardDateRange.preset === 'all_time'
-      ? '/dashboard/pdf?preset=all_time'
-      : `/dashboard/pdf?preset=${encodeURIComponent(activeDashboardDateRange.preset || 'this_month')}${activeDashboardDateRange.startDate && activeDashboardDateRange.endDate ? `&startDate=${encodeURIComponent(activeDashboardDateRange.startDate)}&endDate=${encodeURIComponent(activeDashboardDateRange.endDate)}` : ''}`;
+    const dashboardPdfParams = [`preset=${encodeURIComponent(activeDashboardDateRange.preset || 'this_month')}`];
+    if (activeDashboardDateRange.preset !== 'all_time' && activeDashboardDateRange.startDate && activeDashboardDateRange.endDate) {
+      dashboardPdfParams.push(`startDate=${encodeURIComponent(activeDashboardDateRange.startDate)}`);
+      dashboardPdfParams.push(`endDate=${encodeURIComponent(activeDashboardDateRange.endDate)}`);
+    }
+    if (selectedHealthcareId) {
+      dashboardPdfParams.push(`healthcare=${encodeURIComponent(selectedHealthcareId)}`);
+    }
+    if (selectedModuleId) {
+      dashboardPdfParams.push(`module=${encodeURIComponent(selectedModuleId)}`);
+    }
+    const dashboardPdfUrl = `/dashboard/pdf?${dashboardPdfParams.join('&')}`;
   %>
   
   <main class="main-content">
@@ -1417,10 +1466,10 @@
       <div class="date-range-overlay" id="date-range-overlay" hidden></div>
       <aside class="date-range-panel" id="date-range-panel" role="dialog" aria-modal="true" aria-labelledby="date-range-title" hidden>
         <div class="date-range-panel-header">
-          <button type="button" class="date-range-close" id="date-range-close" aria-label="Close date range panel">
+          <button type="button" class="date-range-close" id="date-range-close" aria-label="Close filters panel">
             <i class="fas fa-chevron-left"></i>
           </button>
-          <h2 class="date-range-panel-title" id="date-range-title">Date range</h2>
+          <h2 class="date-range-panel-title" id="date-range-title">Dashboard filters</h2>
         </div>
 
         <div class="date-range-panel-body">
@@ -1464,6 +1513,27 @@
               </button>
             </div>
             <p class="date-range-helper" id="date-range-helper">Pick a start date, then an end date from the calendar.</p>
+
+            <div class="panel-filter-grid">
+              <div class="panel-filter-group">
+                <label class="panel-filter-label" for="panel-healthcare-filter">Healthcare</label>
+                <select class="panel-filter-select" id="panel-healthcare-filter">
+                  <option value="">All healthcare</option>
+                  <% (allHealthcare || []).forEach(item => { %>
+                    <option value="<%= item.id %>" <%= String(item.id) === selectedHealthcareId ? 'selected' : '' %>><%= item.name %></option>
+                  <% }); %>
+                </select>
+              </div>
+              <div class="panel-filter-group">
+                <label class="panel-filter-label" for="panel-module-filter">Module</label>
+                <select class="panel-filter-select" id="panel-module-filter">
+                  <option value="">All modules</option>
+                  <% (allModules || []).forEach(item => { %>
+                    <option value="<%= item.id %>" <%= String(item.id) === selectedModuleId ? 'selected' : '' %>><%= item.name %></option>
+                  <% }); %>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -2161,6 +2231,8 @@
       const endButton = document.getElementById('panel-end-date-btn');
       const startValue = document.getElementById('panel-start-date-value');
       const endValue = document.getElementById('panel-end-date-value');
+      const healthcareSelect = document.getElementById('panel-healthcare-filter');
+      const moduleSelect = document.getElementById('panel-module-filter');
       const presetInputs = Array.from(document.querySelectorAll('input[name="dashboardPreset"]'));
 
       const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' });
@@ -2377,6 +2449,16 @@
           url.searchParams.set('startDate', formatDate(selectedStart));
           url.searchParams.set('endDate', formatDate(selectedEnd));
         }
+        if (healthcareSelect && healthcareSelect.value) {
+          url.searchParams.set('healthcare', healthcareSelect.value);
+        } else {
+          url.searchParams.delete('healthcare');
+        }
+        if (moduleSelect && moduleSelect.value) {
+          url.searchParams.set('module', moduleSelect.value);
+        } else {
+          url.searchParams.delete('module');
+        }
         window.location.href = url.toString();
       }
 
@@ -2399,7 +2481,11 @@
       cancelButton.addEventListener('click', closePanel);
       overlay.addEventListener('click', closePanel);
       applyButton.addEventListener('click', applyFilter);
-      clearButton.addEventListener('click', () => applyPreset('this_month'));
+      clearButton.addEventListener('click', () => {
+        applyPreset('this_month');
+        if (healthcareSelect) healthcareSelect.value = '';
+        if (moduleSelect) moduleSelect.value = '';
+      });
       todayButton.addEventListener('click', () => applyPreset('today'));
       prevButton.addEventListener('click', () => {
         visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1);

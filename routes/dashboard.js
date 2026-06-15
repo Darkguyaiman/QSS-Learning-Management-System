@@ -157,24 +157,60 @@ function numberValue(value) {
   return Number(value || 0);
 }
 
+function parseDashboardEntityFilter(value) {
+  const parsed = Number.parseInt(String(value || '').trim(), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function getDashboardEntityFilters(query) {
+  return {
+    healthcareId: parseDashboardEntityFilter(query.healthcare),
+    moduleId: parseDashboardEntityFilter(query.module)
+  };
+}
+
+function buildTrainingFilterClause({ dashboardDateRange, filters, alias = '', leadingKeyword = 'WHERE' }) {
+  const prefix = alias ? `${alias}.` : '';
+  const trainingIdExpression = alias ? `${alias}.id` : 'id';
+  const clauses = [];
+  const params = [];
+
+  if (!dashboardDateRange.isAllTime) {
+    clauses.push(`${prefix}start_datetime >= ?`, `${prefix}start_datetime < ?`);
+    params.push(dashboardDateRange.startDate, dashboardDateRange.endDateExclusive);
+  }
+
+  if (filters.moduleId) {
+    clauses.push(`${prefix}module_id = ?`);
+    params.push(filters.moduleId);
+  }
+
+  if (filters.healthcareId) {
+    clauses.push(
+      `EXISTS (
+        SELECT 1
+        FROM training_healthcare th_filter
+        WHERE th_filter.training_id = ${trainingIdExpression}
+          AND th_filter.healthcare_id = ?
+      )`
+    );
+    params.push(filters.healthcareId);
+  }
+
+  return {
+    clause: clauses.length ? `${leadingKeyword} ${clauses.join(' AND ')}` : '',
+    params
+  };
+}
+
 async function getTrainerDashboardReportData(db, query) {
   const dashboardDateRange = getDashboardDateRange(query);
-  const trainingRangeParams = [dashboardDateRange.startDate, dashboardDateRange.endDateExclusive];
-  const trainingDateWhere = dashboardDateRange.isAllTime
-    ? ''
-    : 'WHERE start_datetime >= ? AND start_datetime < ?';
-  const trainingDateWhereWithAlias = dashboardDateRange.isAllTime
-    ? ''
-    : 'WHERE t.start_datetime >= ? AND t.start_datetime < ?';
-  const createdTrainingDateClause = dashboardDateRange.isAllTime
-    ? ''
-    : 'AND start_datetime >= ? AND start_datetime < ?';
-  const assignedTrainingDateWhere = dashboardDateRange.isAllTime
-    ? ''
-    : 'WHERE t.start_datetime >= ? AND t.start_datetime < ?';
-  const trainerTrainingParams = dashboardDateRange.isAllTime
-    ? []
-    : [...trainingRangeParams, ...trainingRangeParams];
+  const activeFilters = getDashboardEntityFilters(query);
+  const trainingDateWhere = buildTrainingFilterClause({ dashboardDateRange, filters: activeFilters });
+  const trainingDateWhereWithAlias = buildTrainingFilterClause({ dashboardDateRange, filters: activeFilters, alias: 't' });
+  const createdTrainingDateClause = buildTrainingFilterClause({ dashboardDateRange, filters: activeFilters, leadingKeyword: 'AND' });
+  const assignedTrainingDateWhere = buildTrainingFilterClause({ dashboardDateRange, filters: activeFilters, alias: 't' });
+  const trainerTrainingParams = [...createdTrainingDateClause.params, ...assignedTrainingDateWhere.params];
 
   const [trainingStats] = await db.query(`
     SELECT
@@ -184,8 +220,8 @@ async function getTrainerDashboardReportData(db, query) {
       SUM(CASE WHEN status = 'canceled' THEN 1 ELSE 0 END) as canceled,
       SUM(CASE WHEN status = 'rescheduled' THEN 1 ELSE 0 END) as rescheduled
     FROM trainings
-    ${trainingDateWhere}
-  `, dashboardDateRange.isAllTime ? [] : trainingRangeParams);
+    ${trainingDateWhere.clause}
+  `, trainingDateWhere.params);
 
   const trainingStatsRow = trainingStats[0] || { total: 0, in_progress: 0, completed: 0, canceled: 0, rescheduled: 0 };
   const totalTrainings = numberValue(trainingStatsRow.total);
@@ -211,10 +247,8 @@ async function getTrainerDashboardReportData(db, query) {
     JOIN enrollments e ON e.id = ta.enrollment_id
     JOIN trainings t ON t.id = e.training_id
     WHERE ta.status = 'completed'
-      ${dashboardDateRange.isAllTime ? '' : 'AND t.start_datetime >= ? AND t.start_datetime < ?'}
-  `, dashboardDateRange.isAllTime
-    ? [CERTIFICATE_ENROLMENT_PASSING_SCORE, PASSING_SCORE]
-    : [CERTIFICATE_ENROLMENT_PASSING_SCORE, PASSING_SCORE, ...trainingRangeParams]);
+      ${trainingDateWhereWithAlias.clause ? trainingDateWhereWithAlias.clause.replace(/^WHERE\s+/i, 'AND ') : ''}
+  `, [CERTIFICATE_ENROLMENT_PASSING_SCORE, PASSING_SCORE, ...trainingDateWhereWithAlias.params]);
 
   const assessmentStats = assessmentStatsRows[0] || { total_attempts: 0, passed_attempts: 0 };
   const totalAssessmentAttempts = numberValue(assessmentStats.total_attempts);
@@ -235,11 +269,11 @@ async function getTrainerDashboardReportData(db, query) {
     FROM trainings t
     LEFT JOIN training_healthcare th ON t.id = th.training_id
     LEFT JOIN healthcare h ON th.healthcare_id = h.id
-    ${trainingDateWhereWithAlias}
+    ${trainingDateWhereWithAlias.clause}
     GROUP BY t.id, t.title, t.type, t.start_datetime, t.end_datetime, t.status
     ORDER BY t.created_at DESC
     LIMIT 10
-  `, dashboardDateRange.isAllTime ? [] : trainingRangeParams);
+  `, trainingDateWhereWithAlias.params);
 
   const [topClientTrainings] = await db.query(`
     SELECT
@@ -248,12 +282,12 @@ async function getTrainerDashboardReportData(db, query) {
     FROM healthcare h
     JOIN training_healthcare th ON th.healthcare_id = h.id
     JOIN trainings t ON t.id = th.training_id
-    ${trainingDateWhereWithAlias}
+    ${trainingDateWhereWithAlias.clause}
     GROUP BY h.id, h.name
     HAVING training_count > 0
     ORDER BY training_count DESC, h.name ASC
     LIMIT 10
-  `, dashboardDateRange.isAllTime ? [] : trainingRangeParams);
+  `, trainingDateWhereWithAlias.params);
 
   const [traineeStatsRows] = await db.query(`
     SELECT
@@ -291,12 +325,12 @@ async function getTrainerDashboardReportData(db, query) {
         SELECT created_by as trainer_id, id, status, start_datetime, end_datetime
         FROM trainings
         WHERE created_by IS NOT NULL
-          ${createdTrainingDateClause}
+          ${createdTrainingDateClause.clause}
         UNION DISTINCT
         SELECT tt.trainer_id, t.id, t.status, t.start_datetime, t.end_datetime
         FROM training_trainers tt
         JOIN trainings t ON t.id = tt.training_id
-        ${assignedTrainingDateWhere}
+        ${assignedTrainingDateWhere.clause}
       ) trainer_trainings
       GROUP BY trainer_id
     ) tt ON tt.trainer_id = u.id
@@ -304,6 +338,13 @@ async function getTrainerDashboardReportData(db, query) {
     ORDER BY completed_trainings DESC, in_progress_trainings DESC, u.last_name, u.first_name
     LIMIT 10
   `, trainerTrainingParams);
+
+  const traineeFilterClauses = [`t.trainee_status = 'registered'`];
+  const traineeFilterParams = [];
+  if (activeFilters.healthcareId) {
+    traineeFilterClauses.push('t.healthcare_id = ?');
+    traineeFilterParams.push(activeFilters.healthcareId);
+  }
 
   const [recentRegistrations] = await db.query(`
     SELECT
@@ -314,13 +355,14 @@ async function getTrainerDashboardReportData(db, query) {
       t.email
     FROM trainees t
     LEFT JOIN healthcare h ON h.id = t.healthcare_id
-    WHERE t.trainee_status = 'registered'
+    WHERE ${traineeFilterClauses.join(' AND ')}
     ORDER BY t.created_at DESC
     LIMIT 10
-  `);
+  `, traineeFilterParams);
 
   return {
     dashboardDateRange,
+    activeFilters,
     dateRangeLabel: formatDashboardDateLabel(dashboardDateRange),
     trainingStats: {
       ...trainingStatsRow,
@@ -683,22 +725,16 @@ router.get('/', async (req, res) => {
     } else if (role === 'trainer' || role === 'admin') {
       await refreshHealthcareTrainingReminderCycles(req.db);
       const dashboardDateRange = getDashboardDateRange(req.query);
-      const trainingRangeParams = [dashboardDateRange.startDate, dashboardDateRange.endDateExclusive];
-      const trainingDateWhere = dashboardDateRange.isAllTime
-        ? ''
-        : 'WHERE start_datetime >= ? AND start_datetime < ?';
-      const trainingDateWhereWithAlias = dashboardDateRange.isAllTime
-        ? ''
-        : 'WHERE t.start_datetime >= ? AND t.start_datetime < ?';
-      const createdTrainingDateClause = dashboardDateRange.isAllTime
-        ? ''
-        : 'AND start_datetime >= ? AND start_datetime < ?';
-      const assignedTrainingDateWhere = dashboardDateRange.isAllTime
-        ? ''
-        : 'WHERE t.start_datetime >= ? AND t.start_datetime < ?';
-      const trainerTrainingParams = dashboardDateRange.isAllTime
-        ? []
-        : [...trainingRangeParams, ...trainingRangeParams];
+      const activeFilters = getDashboardEntityFilters(req.query);
+      const trainingDateWhere = buildTrainingFilterClause({ dashboardDateRange, filters: activeFilters });
+      const trainingDateWhereWithAlias = buildTrainingFilterClause({ dashboardDateRange, filters: activeFilters, alias: 't' });
+      const createdTrainingDateClause = buildTrainingFilterClause({ dashboardDateRange, filters: activeFilters, leadingKeyword: 'AND' });
+      const assignedTrainingDateWhere = buildTrainingFilterClause({ dashboardDateRange, filters: activeFilters, alias: 't' });
+      const trainerTrainingParams = [...createdTrainingDateClause.params, ...assignedTrainingDateWhere.params];
+      const [[allHealthcare], [allModules]] = await Promise.all([
+        req.db.query('SELECT id, name FROM healthcare ORDER BY name ASC'),
+        req.db.query('SELECT id, name FROM modules ORDER BY name ASC')
+      ]);
 
       // Get training statistics
       const [trainingStats] = await req.db.query(`
@@ -709,8 +745,8 @@ router.get('/', async (req, res) => {
           SUM(CASE WHEN status = 'canceled' THEN 1 ELSE 0 END) as canceled,
           SUM(CASE WHEN status = 'rescheduled' THEN 1 ELSE 0 END) as rescheduled
         FROM trainings
-        ${trainingDateWhere}
-      `, dashboardDateRange.isAllTime ? [] : trainingRangeParams);
+        ${trainingDateWhere.clause}
+      `, trainingDateWhere.params);
 
       const trainingStatsRow = trainingStats[0] || { total: 0, in_progress: 0, completed: 0, canceled: 0, rescheduled: 0 };
       const totalTrainings = Number(trainingStatsRow.total || 0);
@@ -736,10 +772,8 @@ router.get('/', async (req, res) => {
         JOIN enrollments e ON e.id = ta.enrollment_id
         JOIN trainings t ON t.id = e.training_id
         WHERE ta.status = 'completed'
-          ${dashboardDateRange.isAllTime ? '' : 'AND t.start_datetime >= ? AND t.start_datetime < ?'}
-      `, dashboardDateRange.isAllTime
-        ? [CERTIFICATE_ENROLMENT_PASSING_SCORE, PASSING_SCORE]
-        : [CERTIFICATE_ENROLMENT_PASSING_SCORE, PASSING_SCORE, ...trainingRangeParams]);
+          ${trainingDateWhereWithAlias.clause ? trainingDateWhereWithAlias.clause.replace(/^WHERE\s+/i, 'AND ') : ''}
+      `, [CERTIFICATE_ENROLMENT_PASSING_SCORE, PASSING_SCORE, ...trainingDateWhereWithAlias.params]);
 
       const assessmentStats = assessmentStatsRows[0] || { total_attempts: 0, passed_attempts: 0 };
       const totalAssessmentAttempts = Number(assessmentStats.total_attempts || 0);
@@ -768,11 +802,11 @@ router.get('/', async (req, res) => {
         LEFT JOIN healthcare h ON th.healthcare_id = h.id
         LEFT JOIN training_devices td ON t.id = td.training_id
         LEFT JOIN device_serial_numbers dsn ON td.device_serial_number_id = dsn.id
-        ${trainingDateWhereWithAlias}
+        ${trainingDateWhereWithAlias.clause}
         GROUP BY t.id, t.title, t.type, t.start_datetime, t.end_datetime, t.status
         ORDER BY t.created_at DESC
         LIMIT 10
-      `, dashboardDateRange.isAllTime ? [] : trainingRangeParams);
+      `, trainingDateWhereWithAlias.params);
 
       // Top clients by distinct trainings in the selected dashboard range
       const [topClientTrainingRows] = await req.db.query(`
@@ -783,12 +817,12 @@ router.get('/', async (req, res) => {
         FROM healthcare h
         JOIN training_healthcare th ON th.healthcare_id = h.id
         JOIN trainings t ON t.id = th.training_id
-        ${trainingDateWhereWithAlias}
+        ${trainingDateWhereWithAlias.clause}
         GROUP BY h.id, h.name
         HAVING training_count > 0
         ORDER BY training_count DESC, h.name ASC
         LIMIT 20
-      `, dashboardDateRange.isAllTime ? [] : trainingRangeParams);
+      `, trainingDateWhereWithAlias.params);
       
       // Get trainee statistics
       const [traineeStats] = await req.db.query(`
@@ -830,12 +864,12 @@ router.get('/', async (req, res) => {
             SELECT created_by as trainer_id, id, status, start_datetime, end_datetime
             FROM trainings
             WHERE created_by IS NOT NULL
-              ${createdTrainingDateClause}
+              ${createdTrainingDateClause.clause}
             UNION DISTINCT
             SELECT tt.trainer_id, t.id, t.status, t.start_datetime, t.end_datetime
             FROM training_trainers tt
             JOIN trainings t ON t.id = tt.training_id
-            ${assignedTrainingDateWhere}
+            ${assignedTrainingDateWhere.clause}
           ) trainer_trainings
           GROUP BY trainer_id
         ) tt ON tt.trainer_id = u.id
@@ -843,6 +877,13 @@ router.get('/', async (req, res) => {
         ORDER BY u.last_name, u.first_name
       `, trainerTrainingParams);
       
+      const traineeFilterClauses = [`t.trainee_status = 'registered'`];
+      const traineeFilterParams = [];
+      if (activeFilters.healthcareId) {
+        traineeFilterClauses.push('t.healthcare_id = ?');
+        traineeFilterParams.push(activeFilters.healthcareId);
+      }
+
       // Get recent registrations (trainees with status 'registered')
       const [recentRegistrations] = await req.db.query(`
         SELECT 
@@ -856,12 +897,25 @@ router.get('/', async (req, res) => {
           t.handphone_number
         FROM trainees t
         LEFT JOIN healthcare h ON h.id = t.healthcare_id
-        WHERE t.trainee_status = 'registered'
+        WHERE ${traineeFilterClauses.join(' AND ')}
         ORDER BY t.created_at DESC
         LIMIT 10
-      `);
+      `, traineeFilterParams);
 
       // Upcoming recertifications (next 60 days), grouped by hospital
+      const recertFilterClauses = [
+        'ci.validity_end BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 60 DAY)'
+      ];
+      const recertFilterParams = [];
+      if (activeFilters.healthcareId) {
+        recertFilterClauses.push('tr.healthcare_id = ?');
+        recertFilterParams.push(activeFilters.healthcareId);
+      }
+      if (activeFilters.moduleId) {
+        recertFilterClauses.push('t.module_id = ?');
+        recertFilterParams.push(activeFilters.moduleId);
+      }
+
       const [recertRows] = await req.db.query(`
         SELECT ci.training_id, ci.enrollment_id, ci.validity_end,
           DATEDIFF(ci.validity_end, CURDATE()) as days_remaining,
@@ -872,9 +926,9 @@ router.get('/', async (req, res) => {
         JOIN trainees tr ON ci.trainee_id = tr.id
         JOIN trainings t ON ci.training_id = t.id
         LEFT JOIN healthcare h ON h.id = tr.healthcare_id
-        WHERE ci.validity_end BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 60 DAY)
+        WHERE ${recertFilterClauses.join(' AND ')}
         ORDER BY h.name, days_remaining ASC
-      `);
+      `, recertFilterParams);
 
       const recertMap = new Map();
       (recertRows || []).forEach(row => {
@@ -888,6 +942,15 @@ router.get('/', async (req, res) => {
         trainees
       }));
 
+      const healthcareReminderClauses = [
+        'training_reminder_due_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 60 DAY)'
+      ];
+      const healthcareReminderParams = [];
+      if (activeFilters.healthcareId) {
+        healthcareReminderClauses.push('id = ?');
+        healthcareReminderParams.push(activeFilters.healthcareId);
+      }
+
       const [healthcareReminderRows] = await req.db.query(`
         SELECT
           id,
@@ -897,9 +960,9 @@ router.get('/', async (req, res) => {
           training_reminder_due_date,
           DATEDIFF(training_reminder_due_date, CURDATE()) as days_remaining
         FROM healthcare
-        WHERE training_reminder_due_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 60 DAY)
+        WHERE ${healthcareReminderClauses.join(' AND ')}
         ORDER BY days_remaining ASC, name ASC, id ASC
-      `);
+      `, healthcareReminderParams);
       
       res.render('dashboard/trainer', { 
         user: req.session,
@@ -916,7 +979,10 @@ router.get('/', async (req, res) => {
         recertificationsByHospital,
         healthcareTrainingReminders: healthcareReminderRows || [],
         topClientTrainings: topClientTrainingRows || [],
-        dashboardDateRange
+        dashboardDateRange,
+        activeFilters,
+        allHealthcare: allHealthcare || [],
+        allModules: allModules || []
       });
     }
   } catch (error) {

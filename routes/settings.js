@@ -10,6 +10,8 @@ const {
   refreshHealthcareTrainingReminderCycles
 } = require('../utils/healthcareTrainingReminders');
 
+const HEALTHCARE_IDENTITY_EDIT_ADMIN_EMAIL = 'admin@lms.com';
+
 const certificateStorage = multer.diskStorage({
   destination: './public/uploads/certificates/',
   filename: (req, file, cb) => {
@@ -53,6 +55,13 @@ function renderSettingsForm(req, res, config) {
     ...config,
     error
   });
+}
+
+async function canEditHealthcareIdentityFields(db, session) {
+  if (!session.userId || session.userRole !== 'admin') return false;
+  const [rows] = await db.query('SELECT email FROM users WHERE id = ?', [session.userId]);
+  const user = rows[0];
+  return user && String(user.email || '').trim().toLowerCase() === HEALTHCARE_IDENTITY_EDIT_ADMIN_EMAIL;
 }
 
 async function getAreasOfSpecialization(db) {
@@ -400,6 +409,7 @@ router.get('/healthcare/new', (req, res) => {
 router.get('/healthcare/:id/edit', async (req, res) => {
   try {
     await refreshHealthcareTrainingReminderCycles(req.db);
+    const canEditIdentityFields = await canEditHealthcareIdentityFields(req.db, req.session);
 
     const [rows] = await req.db.query('SELECT * FROM healthcare WHERE id = ?', [req.params.id]);
     if (!rows[0]) {
@@ -427,7 +437,8 @@ router.get('/healthcare/:id/edit', async (req, res) => {
       hasDescriptionField: false,
       hasTrainingReminderField: true,
       trainingReminderOptions: HEALTHCARE_TRAINING_REMINDER_OPTIONS,
-      item: rows[0]
+      item: rows[0],
+      lockHealthcareIdentityFields: !canEditIdentityFields
     });
   } catch (error) {
     console.error('Healthcare edit page error:', error);
@@ -467,18 +478,14 @@ router.post('/healthcare/create', async (req, res) => {
 
 router.post('/healthcare/:id/update', async (req, res) => {
   const { name, hospital_address, training_reminder_interval } = req.body;
-  const trimmedName = String(name || '').trim();
-  const trimmedHospitalAddress = String(hospital_address || '').trim();
+  const requestedName = String(name || '').trim();
+  const requestedHospitalAddress = String(hospital_address || '').trim();
   const trimmedReminderInterval = String(training_reminder_interval || '').trim();
 
-  if (!trimmedName || !trimmedHospitalAddress) {
-    req.session.error = 'Healthcare name and hospital address are required.';
-    return res.redirect(`/settings/healthcare/${req.params.id}/edit`);
-  }
-
   try {
+    const canEditIdentityFields = await canEditHealthcareIdentityFields(req.db, req.session);
     const [existingRows] = await req.db.query(
-      'SELECT training_reminder_interval, training_reminder_due_date FROM healthcare WHERE id = ?',
+      'SELECT name, hospital_address, training_reminder_interval, training_reminder_due_date FROM healthcare WHERE id = ?',
       [req.params.id]
     );
 
@@ -488,6 +495,18 @@ router.post('/healthcare/:id/update', async (req, res) => {
     }
 
     const existingHealthcare = existingRows[0];
+    const trimmedName = canEditIdentityFields
+      ? requestedName
+      : String(existingHealthcare.name || '').trim();
+    const trimmedHospitalAddress = canEditIdentityFields
+      ? requestedHospitalAddress
+      : String(existingHealthcare.hospital_address || '').trim();
+
+    if (!trimmedName || !trimmedHospitalAddress) {
+      req.session.error = 'Healthcare name and hospital address are required.';
+      return res.redirect(`/settings/healthcare/${req.params.id}/edit`);
+    }
+
     const hasReminderChanged = (existingHealthcare.training_reminder_interval || '') !== trimmedReminderInterval;
     const reminderDueDate = trimmedReminderInterval
       ? (hasReminderChanged || !existingHealthcare.training_reminder_due_date

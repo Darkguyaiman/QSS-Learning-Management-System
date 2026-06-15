@@ -513,11 +513,14 @@
               <textarea id="item-notes" name="notes" placeholder="Enter notes (optional)"><%= typeof item !== 'undefined' && item ? (item.notes || '') : '' %></textarea>
             </div>
           <% } else { %>
-            <div class="form-group">
-              <label for="item-name"><%= nameLabel %> *</label>
-              <input type="text" id="item-name" name="<%= nameField %>" value="<%= typeof item !== 'undefined' && item ? item[nameField] : '' %>" required placeholder="<%= namePlaceholder %>">
-            </div>
-            <% if (typeof hasAddressField !== 'undefined' && hasAddressField) { %>
+            <% const healthcareIdentityFieldsLocked = typeof lockHealthcareIdentityFields !== 'undefined' && lockHealthcareIdentityFields; %>
+            <% if (!healthcareIdentityFieldsLocked) { %>
+              <div class="form-group">
+                <label for="item-name"><%= nameLabel %> *</label>
+                <input type="text" id="item-name" name="<%= nameField %>" value="<%= typeof item !== 'undefined' && item ? item[nameField] : '' %>" required placeholder="<%= namePlaceholder %>">
+              </div>
+            <% } %>
+            <% if (typeof hasAddressField !== 'undefined' && hasAddressField && !healthcareIdentityFieldsLocked) { %>
               <div class="form-group">
                 <label for="item-address"><%= typeof addressLabel !== 'undefined' && addressLabel ? addressLabel : 'Address' %> *</label>
                 <textarea id="item-address" name="hospital_address" required placeholder="<%= typeof addressPlaceholder !== 'undefined' && addressPlaceholder ? addressPlaceholder : 'Enter address' %>"><%= typeof item !== 'undefined' && item ? (item.hospital_address || '') : '' %></textarea>
