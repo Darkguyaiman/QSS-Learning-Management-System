@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const {
   canDownloadCertificate,
-  canRequestCertificateReleaseOverride,
-  getBestCertAttempt
+  getBestCertAttempt,
+  getCertificateReleaseOverrideReason,
+  getPracticalPercentage
 } = require('../utils/certificateEligibility');
 const { dismissAndEmitMarkReleaseNotifications } = require('../utils/trainerNotifications');
 
@@ -108,6 +109,12 @@ router.get('/enrollment/:enrollmentId', async (req, res) => {
     const certificateReleaseOverride = overrideRows[0] || null;
 
     const parsedFinalGrades = parseFinalGradesRow(finalGrades[0] || null);
+    const certificateReleaseOverrideReason = getCertificateReleaseOverrideReason({
+      testAttempts: tests,
+      handsOnScores,
+      trainingType: enrollmentData.type,
+      releaseOverride: certificateReleaseOverride
+    });
     const certificateActions = {
       canShowCertificate: canDownloadCertificate({
         testAttempts: tests,
@@ -115,13 +122,10 @@ router.get('/enrollment/:enrollmentId', async (req, res) => {
         trainingType: enrollmentData.type,
         releaseOverride: certificateReleaseOverride
       }),
-      canReleaseCertificateOverride: canRequestCertificateReleaseOverride({
-        testAttempts: tests,
-        handsOnScores,
-        trainingType: enrollmentData.type,
-        releaseOverride: certificateReleaseOverride
-      }),
-      certAttempt: getBestCertAttempt(tests)
+      canReleaseCertificateOverride: certificateReleaseOverrideReason !== null,
+      certAttempt: getBestCertAttempt(tests),
+      releaseOverrideReason: certificateReleaseOverrideReason,
+      practicalPercentage: getPracticalPercentage(handsOnScores)
     };
     
     res.render('results/view', { 

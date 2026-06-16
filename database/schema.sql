@@ -259,8 +259,10 @@ CREATE TABLE enrollments (
   enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   status ENUM('active', 'completed', 'dropped') DEFAULT 'active',
   can_download_results BOOLEAN DEFAULT FALSE,
+  healthcare_id_at_enrollment INT NULL,
   FOREIGN KEY (trainee_id) REFERENCES trainees(id) ON DELETE CASCADE,
   FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE CASCADE,
+  FOREIGN KEY (healthcare_id_at_enrollment) REFERENCES healthcare(id) ON DELETE SET NULL,
   UNIQUE KEY unique_enrollment (trainee_id, training_id)
 );
 

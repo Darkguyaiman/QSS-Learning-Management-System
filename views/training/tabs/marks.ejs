@@ -53,9 +53,11 @@
         const override = data.certificateReleaseOverride || null;
 
         let practicalOutstanding = true;
+        let practicalPercentage = null;
         if (trainingType === 'main') {
           const poRow = practicalOutcomeTotalsFromScores(data.handsOnScores);
-          practicalOutstanding = poRow.max > 0 && ((poRow.total / poRow.max) * 100) >= 70;
+          practicalPercentage = poRow.max > 0 ? ((poRow.total / poRow.max) * 100) : null;
+          practicalOutstanding = practicalPercentage !== null && practicalPercentage >= 70;
         }
 
         const hasLockedTestPart = (data.tests || []).reduce((acc, attempt) => {
@@ -70,12 +72,17 @@
         const locked = Object.values(hasLockedTestPart).some(stat => stat.failed >= 3 && !stat.hasPass);
 
         const certOutstanding = certScore !== null && certScore >= 70;
+        const canReleaseCertificateOverride = !override && certCompleted && !locked && (
+          (certScore !== null && certScore < 70) ||
+          (trainingType === 'main' && practicalPercentage !== null && practicalPercentage < 70)
+        );
         return {
           certScore,
           certCompleted,
           override,
+          practicalPercentage,
           canShowCertificate: (!!override || (certOutstanding && practicalOutstanding)) && !locked,
-          canReleaseCertificateOverride: !override && certCompleted && certScore !== null && certScore < 70 && !locked
+          canReleaseCertificateOverride
         };
       };
     %>
@@ -106,7 +113,7 @@
         </div>
         <p style="margin: 0 0 1rem; font-size: 0.8125rem; color: #5F6368;">
           <strong>Release Scores</strong> lets trainees view their results.
-          <strong>Release Certificate</strong> (amber) is for enrolment test scores below 70% and requires a recorded justification.
+          <strong>Release Certificate</strong> (amber) is for certificate enrolment or Practical Learning Outcome below 70% and requires a recorded justification.
         </p>
         
         <!-- Desktop Table View -->
@@ -236,7 +243,7 @@
                         </button>
                       <% } %>
                       <% if (user.userRole === 'admin' && canReleaseCertOverride) { %>
-                        <button type="button" class="btn btn-sm btn-warning" onclick="openCertificateReleaseModal(<%= data.enrollment_id %>, '<%= data.trainee_name.replace(/'/g, "\\'") %>', <%= certActions.certScore %>, this)">
+                        <button type="button" class="btn btn-sm btn-warning" onclick="openCertificateReleaseModal(<%= data.enrollment_id %>, '<%= data.trainee_name.replace(/'/g, "\\'") %>', <%= certActions.certScore %>, <%= certActions.practicalPercentage !== null ? certActions.practicalPercentage : 'null' %>, this)">
                           <i class="fas fa-file-signature"></i> Release Certificate
                         </button>
                       <% } %>
@@ -247,7 +254,7 @@
                         </button>
                       <% } %>
                       <% if (['admin', 'trainer'].includes(user.userRole) && canReleaseCertOverride) { %>
-                        <button type="button" class="btn btn-sm btn-warning" onclick="openCertificateReleaseModal(<%= data.enrollment_id %>, '<%= data.trainee_name.replace(/'/g, "\\'") %>', <%= certActions.certScore %>, this)">
+                        <button type="button" class="btn btn-sm btn-warning" onclick="openCertificateReleaseModal(<%= data.enrollment_id %>, '<%= data.trainee_name.replace(/'/g, "\\'") %>', <%= certActions.certScore %>, <%= certActions.practicalPercentage !== null ? certActions.practicalPercentage : 'null' %>, this)">
                           <i class="fas fa-file-signature"></i> Release Certificate
                         </button>
                       <% } %>
@@ -392,7 +399,7 @@
                       </button>
                     <% } %>
                     <% if (user.userRole === 'admin' && canReleaseCertOverride) { %>
-                      <button type="button" class="btn btn-sm btn-warning" onclick="openCertificateReleaseModal(<%= data.enrollment_id %>, '<%= data.trainee_name.replace(/'/g, "\\'") %>', <%= certActions.certScore %>, this)">
+                      <button type="button" class="btn btn-sm btn-warning" onclick="openCertificateReleaseModal(<%= data.enrollment_id %>, '<%= data.trainee_name.replace(/'/g, "\\'") %>', <%= certActions.certScore %>, <%= certActions.practicalPercentage !== null ? certActions.practicalPercentage : 'null' %>, this)">
                         <i class="fas fa-file-signature"></i> Release Certificate
                       </button>
                     <% } %>
@@ -403,7 +410,7 @@
                       </button>
                     <% } %>
                     <% if (['admin', 'trainer'].includes(user.userRole) && canReleaseCertOverride) { %>
-                      <button type="button" class="btn btn-sm btn-warning" onclick="openCertificateReleaseModal(<%= data.enrollment_id %>, '<%= data.trainee_name.replace(/'/g, "\\'") %>', <%= certActions.certScore %>, this)">
+                      <button type="button" class="btn btn-sm btn-warning" onclick="openCertificateReleaseModal(<%= data.enrollment_id %>, '<%= data.trainee_name.replace(/'/g, "\\'") %>', <%= certActions.certScore %>, <%= certActions.practicalPercentage !== null ? certActions.practicalPercentage : 'null' %>, this)">
                         <i class="fas fa-file-signature"></i> Release Certificate
                       </button>
                     <% } %>
@@ -431,7 +438,7 @@
           <div class="cert-release-modal-body">
             <p id="cert-release-modal-summary"></p>
             <label for="cert-release-justification" style="display:block; font-size:0.8125rem; font-weight:600; margin-bottom:0.35rem;">Justification (required)</label>
-            <textarea id="cert-release-justification" maxlength="2000" placeholder="Explain why the certificate is being released despite the enrolment test score being below 70%."></textarea>
+            <textarea id="cert-release-justification" maxlength="2000" placeholder="Explain why the certificate is being released despite one required certificate condition being below 70%."></textarea>
           </div>
           <div class="cert-release-modal-actions">
             <button type="button" class="btn btn-sm btn-outline" onclick="closeCertificateReleaseModal()">Cancel</button>
@@ -1650,14 +1657,24 @@
     // Score release functionality
     let certReleaseContext = null;
 
-    function openCertificateReleaseModal(enrollmentId, traineeName, certScore, buttonEl) {
+    function openCertificateReleaseModal(enrollmentId, traineeName, certScore, practicalScore, buttonEl) {
       certReleaseContext = { enrollmentId, buttonEl, originalText: buttonEl ? buttonEl.innerHTML : '' };
       const overlay = document.getElementById('cert-release-modal');
       const summary = document.getElementById('cert-release-modal-summary');
       const textarea = document.getElementById('cert-release-justification');
       if (!overlay || !summary || !textarea) return;
 
-      summary.textContent = `Release certificate for ${traineeName}? Enrolment test score: ${Number(certScore).toFixed(1)}% (below 70%). This action is recorded with your justification.`;
+      const certScoreNumber = Number(certScore);
+      const practicalScoreNumber = practicalScore === null ? null : Number(practicalScore);
+      const reasons = [];
+      if (Number.isFinite(certScoreNumber) && certScoreNumber < 70) {
+        reasons.push(`enrolment test score: ${certScoreNumber.toFixed(1)}%`);
+      }
+      if (Number.isFinite(practicalScoreNumber) && practicalScoreNumber < 70) {
+        reasons.push(`Practical Learning Outcome: ${practicalScoreNumber.toFixed(1)}%`);
+      }
+      const reasonText = reasons.length ? reasons.join('; ') + ' (below 70%)' : 'one required certificate condition is below 70%';
+      summary.textContent = `Release certificate for ${traineeName}? ${reasonText}. This action is recorded with your justification.`;
       textarea.value = '';
       overlay.classList.add('is-open');
       overlay.setAttribute('aria-hidden', 'false');

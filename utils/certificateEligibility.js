@@ -27,7 +27,12 @@ function hasLockedTestPart(testAttempts) {
 }
 
 function isPracticalOutstanding(handsOnScores) {
-  if (!handsOnScores || handsOnScores.length === 0) return false;
+  const practicalPercentage = getPracticalPercentage(handsOnScores);
+  return practicalPercentage !== null && practicalPercentage >= PRACTICAL_OUTSTANDING_SCORE;
+}
+
+function getPracticalPercentage(handsOnScores) {
+  if (!handsOnScores || handsOnScores.length === 0) return null;
 
   const avg = handsOnScores.reduce((sum, s) => {
     const maxScore = parseFloat(s.max_score) || 0;
@@ -35,7 +40,7 @@ function isPracticalOutstanding(handsOnScores) {
     return sum + (maxScore > 0 ? (score / maxScore) * 100 : 0);
   }, 0) / handsOnScores.length;
 
-  return avg >= PRACTICAL_OUTSTANDING_SCORE;
+  return avg;
 }
 
 function canDownloadCertificate({
@@ -58,29 +63,40 @@ function canDownloadCertificate({
   return certOutstanding && practicalOutstanding;
 }
 
-function canRequestCertificateReleaseOverride({
+function getCertificateReleaseOverrideReason({
   testAttempts,
   handsOnScores,
   trainingType,
   releaseOverride
 }) {
-  void handsOnScores;
-  void trainingType;
-
-  if (releaseOverride || hasLockedTestPart(testAttempts)) return false;
+  if (releaseOverride || hasLockedTestPart(testAttempts)) return null;
 
   const certAttempt = getBestCertAttempt(testAttempts);
-  if (!certAttempt) return false;
+  if (!certAttempt) return null;
 
   const certScore = parseFloat(certAttempt.score);
-  return Number.isFinite(certScore) && certScore < getPassingScore('certificate_enrolment');
+  if (Number.isFinite(certScore) && certScore < getPassingScore('certificate_enrolment')) {
+    return 'certificate_enrolment';
+  }
+
+  if (trainingType === 'main' && handsOnScores && handsOnScores.length > 0 && !isPracticalOutstanding(handsOnScores)) {
+    return 'practical_learning_outcome';
+  }
+
+  return null;
+}
+
+function canRequestCertificateReleaseOverride(options) {
+  return getCertificateReleaseOverrideReason(options) !== null;
 }
 
 module.exports = {
   getBestCertAttempt,
   hasLockedTestPart,
+  getPracticalPercentage,
   isPracticalOutstanding,
   PRACTICAL_OUTSTANDING_SCORE,
+  getCertificateReleaseOverrideReason,
   canDownloadCertificate,
   canRequestCertificateReleaseOverride
 };

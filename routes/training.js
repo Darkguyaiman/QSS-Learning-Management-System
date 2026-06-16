@@ -1251,6 +1251,35 @@ async function trackMaterialAccess(db, materialId, enrollmentId) {
   );
 }
 
+async function createEnrollmentWithHealthcareSnapshot(db, traineeId, trainingId, options = {}) {
+  const status = options.status || null;
+  const canDownloadResults = Object.prototype.hasOwnProperty.call(options, 'canDownloadResults')
+    ? options.canDownloadResults
+    : null;
+
+  const fields = ['trainee_id', 'training_id', 'healthcare_id_at_enrollment'];
+  const placeholders = ['?', '?', '(SELECT healthcare_id FROM trainees WHERE id = ?)'];
+  const values = [traineeId, trainingId, traineeId];
+
+  if (status !== null) {
+    fields.push('status');
+    placeholders.push('?');
+    values.push(status);
+  }
+
+  if (canDownloadResults !== null) {
+    fields.push('can_download_results');
+    placeholders.push('?');
+    values.push(canDownloadResults);
+  }
+
+  await db.query(
+    `INSERT INTO enrollments (${fields.join(', ')})
+     VALUES (${placeholders.join(', ')})`,
+    values
+  );
+}
+
 function resolveMaterialAbsolutePath(relativeFilePath) {
   const rel = String(relativeFilePath || '').replace(/^\//, '');
   const normalizedRel = path.normalize(rel);
@@ -2034,12 +2063,13 @@ router.post('/import/bulk', async (req, res) => {
           [trainingId, enrollment.traineeId]
         );
         await connection.query(
-          `INSERT INTO enrollments (trainee_id, training_id, status, can_download_results)
-           VALUES (?, ?, ?, ?)
+          `INSERT INTO enrollments (trainee_id, training_id, status, can_download_results, healthcare_id_at_enrollment)
+           VALUES (?, ?, ?, ?, (SELECT healthcare_id FROM trainees WHERE id = ?))
            ON DUPLICATE KEY UPDATE
              status = VALUES(status),
-             can_download_results = VALUES(can_download_results)`,
-          [enrollment.traineeId, trainingId, enrollment.status, enrollment.canDownloadResults]
+             can_download_results = VALUES(can_download_results),
+             healthcare_id_at_enrollment = COALESCE(healthcare_id_at_enrollment, VALUES(healthcare_id_at_enrollment))`,
+          [enrollment.traineeId, trainingId, enrollment.status, enrollment.canDownloadResults, enrollment.traineeId]
         );
         const [enrollmentRowsDb] = await connection.query(
           'SELECT id FROM enrollments WHERE trainee_id = ? AND training_id = ? LIMIT 1',
@@ -2395,10 +2425,7 @@ router.post('/create', async (req, res) => {
           
           // Also create enrollment
           try {
-            await connection.query(
-              'INSERT INTO enrollments (trainee_id, training_id) VALUES (?, ?)',
-              [traineeId, trainingId]
-            );
+            await createEnrollmentWithHealthcareSnapshot(connection, traineeId, trainingId);
           } catch (error) {
             // Enrollment might already exist, ignore
             if (error.code !== 'ER_DUP_ENTRY') {
@@ -3704,10 +3731,7 @@ router.post('/:id/enroll', async (req, res) => {
       return res.status(403).send('Only active trainees can be enrolled in trainings.');
     }
 
-    await req.db.query(
-      'INSERT INTO enrollments (trainee_id, training_id) VALUES (?, ?)',
-      [req.session.userId, req.params.id]
-    );
+    await createEnrollmentWithHealthcareSnapshot(req.db, req.session.userId, req.params.id);
     
     res.redirect(`/training/${req.params.id}`);
   } catch (error) {
@@ -3922,10 +3946,7 @@ router.post('/:id/update', async (req, res) => {
       // Add new trainees
       for (const traineeId of traineeArray) {
         if (!currentTraineeIdsStr.includes(String(traineeId))) {
-          await connection.query(
-            'INSERT INTO enrollments (trainee_id, training_id) VALUES (?, ?)',
-            [parseInt(traineeId), trainingId]
-          );
+          await createEnrollmentWithHealthcareSnapshot(connection, parseInt(traineeId), trainingId);
         }
       }
 
@@ -4268,7 +4289,7 @@ router.post('/:id/enrollment/:enrollmentId/certificate/release-override', async 
     })) {
       return res.status(400).json({
         success: false,
-        error: 'Certificate release is only available when the enrolment test score is below 70% and no test part is locked.'
+        error: 'Certificate release is only available when the enrolment test score or Practical Learning Outcome is below 70% and no test part is locked.'
       });
     }
 
@@ -4305,10 +4326,12 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
         tr.first_name,
         tr.last_name,
         tr.trainee_id as trainee_public_id,
+        snapshot_h.name as healthcare_at_enrollment,
         h.name as healthcare
       FROM enrollments e
       JOIN trainings t ON e.training_id = t.id
       JOIN trainees tr ON e.trainee_id = tr.id
+      LEFT JOIN healthcare snapshot_h ON snapshot_h.id = e.healthcare_id_at_enrollment
       LEFT JOIN healthcare h ON h.id = tr.healthcare_id
       WHERE e.id = ? AND e.training_id = ?
     `, [enrollmentId, trainingId]);
@@ -4406,7 +4429,7 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
 
     let participantName = `${enrollment.first_name} ${enrollment.last_name}`;
     let courseName = enrollment.training_title;
-    let location = enrollment.healthcare || 'N/A';
+    let location = enrollment.healthcare_at_enrollment || enrollment.healthcare || 'N/A';
     let date = formatDate(enrollment.end_datetime || enrollment.start_datetime || enrollment.enrolled_at);
 
     let certificateNumber = `1000-${trainingId}-${enrollmentId}`;

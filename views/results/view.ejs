@@ -364,7 +364,7 @@
           </div>
           <% if (certificateActions && certificateActions.canReleaseCertificateOverride) { %>
             <p class="text-muted" style="margin-top: 0.75rem; font-size: 0.875rem;">
-              Use <strong>Release Certificate</strong> when the enrolment test score is below 70%. A justification is required and stored permanently. This is separate from <strong>Release Scores</strong>.
+              Use <strong>Release Certificate</strong> when certificate enrolment or Practical Learning Outcome is below 70%. A justification is required and stored permanently. This is separate from <strong>Release Scores</strong>.
             </p>
           <% } %>
         </div>
@@ -405,7 +405,7 @@
           <div class="cert-release-modal-body">
             <p id="cert-release-modal-summary"></p>
             <label for="cert-release-justification" style="display:block; font-size:0.8125rem; font-weight:600; margin-bottom:0.35rem;">Justification (required)</label>
-            <textarea id="cert-release-justification" maxlength="2000" placeholder="Explain why the certificate is being released despite the enrolment test score being below 70%."></textarea>
+            <textarea id="cert-release-justification" maxlength="2000" placeholder="Explain why the certificate is being released despite one required certificate condition being below 70%."></textarea>
           </div>
           <div class="cert-release-modal-actions">
             <button type="button" class="btn btn-sm btn-outline" onclick="closeCertificateReleaseModal()">Cancel</button>
@@ -470,7 +470,16 @@
       if (!overlay || !summary || !textarea) return;
 
       const certScore = <%= certificateActions && certificateActions.certAttempt ? parseFloat(certificateActions.certAttempt.score) || 0 : 0 %>;
-      summary.textContent = `Release certificate for <%= enrollment.first_name %> <%= enrollment.last_name %>? Enrolment test score: ${certScore.toFixed(1)}% (below 70%). This action is recorded with your justification.`;
+      const practicalScore = <%= certificateActions && certificateActions.practicalPercentage !== null && certificateActions.practicalPercentage !== undefined ? certificateActions.practicalPercentage : 'null' %>;
+      const reasons = [];
+      if (Number.isFinite(certScore) && certScore < 70) {
+        reasons.push(`enrolment test score: ${certScore.toFixed(1)}%`);
+      }
+      if (Number.isFinite(practicalScore) && practicalScore < 70) {
+        reasons.push(`Practical Learning Outcome: ${practicalScore.toFixed(1)}%`);
+      }
+      const reasonText = reasons.length ? reasons.join('; ') + ' (below 70%)' : 'one required certificate condition is below 70%';
+      summary.textContent = `Release certificate for <%= enrollment.first_name %> <%= enrollment.last_name %>? ${reasonText}. This action is recorded with your justification.`;
       textarea.value = '';
       overlay.classList.add('is-open');
       overlay.setAttribute('aria-hidden', 'false');

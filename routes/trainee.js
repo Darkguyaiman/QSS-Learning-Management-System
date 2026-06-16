@@ -201,10 +201,12 @@ router.get('/training/:id/certificate/:enrollmentId', async (req, res, next) => 
         tr.first_name,
         tr.last_name,
         tr.trainee_id as trainee_public_id,
+        snapshot_h.name as healthcare_at_enrollment,
         h.name as healthcare
       FROM enrollments e
       JOIN trainings t ON e.training_id = t.id
       JOIN trainees tr ON e.trainee_id = tr.id
+      LEFT JOIN healthcare snapshot_h ON snapshot_h.id = e.healthcare_id_at_enrollment
       LEFT JOIN healthcare h ON h.id = tr.healthcare_id
       WHERE e.id = ? AND e.training_id = ? AND e.trainee_id = ?
         AND t.status IN ('completed', 'in_progress')
@@ -288,7 +290,7 @@ router.get('/training/:id/certificate/:enrollmentId', async (req, res, next) => 
 
     let participantName = `${enrollment.first_name} ${enrollment.last_name}`;
     let courseName = enrollment.training_title;
-    let location = enrollment.healthcare || 'N/A';
+    let location = enrollment.healthcare_at_enrollment || enrollment.healthcare || 'N/A';
     let date = formatDate(enrollment.end_datetime || enrollment.start_datetime || enrollment.enrolled_at);
 
     let certificateNumber = `1000-${trainingId}-${enrollmentId}`;
