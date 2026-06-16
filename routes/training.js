@@ -4446,17 +4446,24 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
       validityEnd = issued.validity_end || validityEnd;
       participantName = issued.participant_name || participantName;
       courseName = issued.course_name || courseName;
-      location = issued.location || location;
       date = issued.date_display || date;
+      await req.db.query(
+        `UPDATE certificate_issues
+         SET healthcare_id_at_issue = COALESCE(healthcare_id_at_issue, ?),
+             location = ?
+         WHERE id = ?`,
+        [enrollment.healthcare_id_at_enrollment || null, location, issued.id]
+      );
     } else {
       await req.db.query(
         `INSERT INTO certificate_issues 
-         (enrollment_id, training_id, trainee_id, certificate_number, validity_start, validity_end, participant_name, course_name, location, date_display)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (enrollment_id, training_id, trainee_id, healthcare_id_at_issue, certificate_number, validity_start, validity_end, participant_name, course_name, location, date_display)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           enrollmentId,
           trainingId,
           enrollment.trainee_id_int,
+          enrollment.healthcare_id_at_enrollment || null,
           certificateNumber,
           new Date(validityStart),
           new Date(validityEnd),

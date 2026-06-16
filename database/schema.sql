@@ -263,6 +263,7 @@ CREATE TABLE enrollments (
   FOREIGN KEY (trainee_id) REFERENCES trainees(id) ON DELETE CASCADE,
   FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE CASCADE,
   FOREIGN KEY (healthcare_id_at_enrollment) REFERENCES healthcare(id) ON DELETE SET NULL,
+  INDEX idx_enrollments_healthcare_at_enrollment (healthcare_id_at_enrollment),
   UNIQUE KEY unique_enrollment (trainee_id, training_id)
 );
 
@@ -394,6 +395,7 @@ CREATE TABLE certificate_issues (
   enrollment_id INT NOT NULL,
   training_id INT NOT NULL,
   trainee_id INT NOT NULL,
+  healthcare_id_at_issue INT NULL,
   certificate_number VARCHAR(64) NOT NULL,
   issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   validity_start DATE NULL,
@@ -406,6 +408,8 @@ CREATE TABLE certificate_issues (
   FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE,
   FOREIGN KEY (training_id) REFERENCES trainings(id) ON DELETE CASCADE,
   FOREIGN KEY (trainee_id) REFERENCES trainees(id) ON DELETE CASCADE,
+  FOREIGN KEY (healthcare_id_at_issue) REFERENCES healthcare(id) ON DELETE SET NULL,
+  INDEX idx_certificate_issues_healthcare_at_issue (healthcare_id_at_issue),
   INDEX idx_certificate_issues_validity_end (validity_end),
   INDEX idx_certificate_issues_trainee_validity_end (trainee_id, validity_end)
 );

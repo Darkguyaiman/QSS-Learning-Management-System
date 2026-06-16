@@ -526,6 +526,10 @@ router.post('/healthcare/:id/update', async (req, res) => {
       'UPDATE healthcare SET name = ?, hospital_address = ?, training_reminder_interval = ?, training_reminder_due_date = ? WHERE id = ?',
       [trimmedName, trimmedHospitalAddress, trimmedReminderInterval || null, reminderDueDate, req.params.id]
     );
+    await req.db.query(
+      'UPDATE certificate_issues SET location = ? WHERE healthcare_id_at_issue = ?',
+      [trimmedName, req.params.id]
+    );
     res.redirect('/settings/healthcare');
   } catch (error) {
     console.error('Healthcare update error:', error);

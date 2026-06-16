@@ -59,6 +59,10 @@ router.post('/', async (req, res) => {
            hospital_address = VALUES(hospital_address)`,
         [customerId, customerName, hospitalAddress || null]
       );
+      await req.db.query(
+        'UPDATE certificate_issues SET location = ? WHERE healthcare_id_at_issue = ?',
+        [customerName, customerId]
+      );
 
       return res.json({ success: true, action: 'upserted', customer_id: customerId });
     }
