@@ -55,18 +55,18 @@ function getBestTestScore(tests, type) {
   return rows.reduce((best, t) => (parseFloat(t.score) || 0) > (parseFloat(best.score) || 0) ? t : best, rows[0]);
 }
 
-function getPerformanceDescriptor(pct) {
+function getPerformanceDescriptor(pct, outstandingThreshold = 80) {
   const value = Number(pct) || 0;
-  if (value > 80) return 'Outstanding';
+  if (outstandingThreshold === 80 ? value > 80 : value >= outstandingThreshold) return 'Outstanding';
   if (value > 60) return 'Above Average';
   if (value > 40) return 'Average';
   if (value > 20) return 'Below Average';
   return 'Needs Improvement';
 }
 
-function getPerformanceClass(pct) {
+function getPerformanceClass(pct, outstandingThreshold = 80) {
   const value = Number(pct) || 0;
-  if (value > 80) return 'outstanding';
+  if (outstandingThreshold === 80 ? value > 80 : value >= outstandingThreshold) return 'outstanding';
   if (value > 60) return 'above';
   if (value > 40) return 'average';
   if (value > 20) return 'below';
@@ -891,15 +891,15 @@ function buildIndividualHtml({ company, formData, row, marksByEnrollmentId, obje
   const objectiveHeaders = Array.isArray(objectives) ? objectives : [];
   const trainingResultRows = [
     ...(isMainTraining ? [
-      ['Pre-Test', parseFloat(pre?.score || 0)],
-      ['Post-Test', parseFloat(post?.score || 0)]
+      ['Pre-Test', parseFloat(pre?.score || 0), 80],
+      ['Post-Test', parseFloat(post?.score || 0), 80]
     ] : []),
-    ['Certificate Enrolment Test', parseFloat(cert?.score || 0)],
-    ...(isMainTraining ? [['Hands On', handsPct]] : [])
-  ].map(([label, value]) => `<tr>
+    ['Certificate Enrolment Test', parseFloat(cert?.score || 0), 70],
+    ...(isMainTraining ? [['Hands On', handsPct, 70]] : [])
+  ].map(([label, value, outstandingThreshold]) => `<tr>
       <td>${escapeHtml(label)}</td>
       <td class="center">${formatPercent(value)}</td>
-      <td class="perf-${getPerformanceClass(value)}" style="font-weight:700;">${escapeHtml(getPerformanceDescriptor(value))}</td>
+      <td class="perf-${getPerformanceClass(value, outstandingThreshold)}" style="font-weight:700;">${escapeHtml(getPerformanceDescriptor(value, outstandingThreshold))}</td>
     </tr>`).join('');
 
   const objectiveRows = objectiveHeaders.map((objective) => {
@@ -917,7 +917,7 @@ function buildIndividualHtml({ company, formData, row, marksByEnrollmentId, obje
     return `<tr>
       <td>${escapeHtml(outcome.aspect_name || 'Practical Learning Outcome')}</td>
       <td class="center">${formatPercent(percentage)}</td>
-      <td class="perf-${getPerformanceClass(percentage)}" style="font-weight:700;">${escapeHtml(getPerformanceDescriptor(percentage))}</td>
+      <td class="perf-${getPerformanceClass(percentage, 70)}" style="font-weight:700;">${escapeHtml(getPerformanceDescriptor(percentage, 70))}</td>
     </tr>`;
   }).join('');
 

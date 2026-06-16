@@ -154,8 +154,8 @@
                     <td><strong><%= score.aspect_name %></strong></td>
                     <td><%= parseFloat(score.score).toFixed(1) %> / <%= score.max_score %></td>
                     <td>
-                      <span class="hands-on-status <%= handsOnPercent >= 80 ? 'status-outstanding' : 'status-not-passed' %>">
-                        <%= handsOnPercent >= 80 ? 'Outstanding' : 'Not Passed' %>
+                      <span class="hands-on-status <%= handsOnPercent >= 70 ? 'status-outstanding' : 'status-not-passed' %>">
+                        <%= handsOnPercent >= 70 ? 'Outstanding' : 'Not Passed' %>
                       </span>
                     </td>
                   </tr>
@@ -221,7 +221,7 @@
         if (training.type === 'main' && marksData && marksData.handsOnScores && marksData.handsOnScores.length > 0) {
           const total = marksData.handsOnScores.reduce((sum, s) => sum + (parseFloat(s.score) / parseFloat(s.max_score) * 100), 0);
           const avg = total / marksData.handsOnScores.length;
-          practicalOutstanding = avg >= 80;
+          practicalOutstanding = avg >= 70;
         }
         const canDownloadCertificate = (certOutstanding || certReleaseOverride) && (practicalOutstanding || certReleaseOverride) && !hasLockedTestPart;
       %>
@@ -243,7 +243,7 @@
           <% if (hasLockedTestPart) { %>
             <p>Certificate is not available because one or more test parts reached 3 failed attempts.</p>
           <% } else if (training.type === 'main') { %>
-            <p>Certificate becomes available after the Certificate Enrolment Test is Outstanding (70%+) and Practical Learning Outcome is Outstanding (80%+).</p>
+            <p>Certificate becomes available after the Certificate Enrolment Test is Outstanding (70%+) and Practical Learning Outcome is Outstanding (70%+).</p>
           <% } else { %>
             <p>Certificate becomes available after the Certificate Enrolment Test is Outstanding (70%+).</p>
           <% } %>

@@ -204,7 +204,7 @@ async function autoCompleteTestAttempt(db, enrollmentId, trainingId, testType, s
 }
 
 async function autoMarkHandsOnScores(db, enrollmentId, trainingId, evaluatedBy, scoreProfile) {
-  const handsOnPassingScore = 80;
+  const handsOnPassingScore = 70;
   const targetPercent = targetPercentForDevProfile(scoreProfile, handsOnPassingScore);
 
   const [aspects] = await db.query(

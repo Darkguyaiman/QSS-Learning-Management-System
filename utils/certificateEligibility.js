@@ -1,4 +1,5 @@
 const { getPassingScore } = require('./testScores');
+const PRACTICAL_OUTSTANDING_SCORE = 70;
 
 function getBestCertAttempt(testAttempts) {
   const certAttempts = (testAttempts || []).filter((attempt) => attempt.test_type === 'certificate_enrolment');
@@ -34,7 +35,7 @@ function isPracticalOutstanding(handsOnScores) {
     return sum + (maxScore > 0 ? (score / maxScore) * 100 : 0);
   }, 0) / handsOnScores.length;
 
-  return avg >= 80;
+  return avg >= PRACTICAL_OUTSTANDING_SCORE;
 }
 
 function canDownloadCertificate({
@@ -79,6 +80,7 @@ module.exports = {
   getBestCertAttempt,
   hasLockedTestPart,
   isPracticalOutstanding,
+  PRACTICAL_OUTSTANDING_SCORE,
   canDownloadCertificate,
   canRequestCertificateReleaseOverride
 };

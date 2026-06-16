@@ -55,7 +55,7 @@
         let practicalOutstanding = true;
         if (trainingType === 'main') {
           const poRow = practicalOutcomeTotalsFromScores(data.handsOnScores);
-          practicalOutstanding = poRow.max > 0 && ((poRow.total / poRow.max) * 100) >= 80;
+          practicalOutstanding = poRow.max > 0 && ((poRow.total / poRow.max) * 100) >= 70;
         }
 
         const hasLockedTestPart = (data.tests || []).reduce((acc, attempt) => {
@@ -163,8 +163,8 @@
                         const maxScore = poRow.max;
                         const percentage = maxScore > 0 ? (totalScore / maxScore * 100).toFixed(1) : 0;
                       %>
-                      <span class="test-score <%= percentage >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
-                        <%= percentage %>% (<%= formatPracticalScoreDisplay(totalScore) %>/<%= maxScore %>)
+                      <span class="test-score <%= percentage >= 70 ? 'score-Outstanding' : 'score-Not Passed' %>">
+                        <%= percentage %>% (<%= percentage >= 70 ? 'Outstanding, ' : 'Not Passed, ' %><%= formatPracticalScoreDisplay(totalScore) %>/<%= maxScore %>)
                       </span>
                     <% } else { %>
                       <span style="color: #5F6368;">Not evaluated</span>
@@ -332,8 +332,8 @@
                         const maxScore = poMob.max;
                         const percentage = maxScore > 0 ? (totalScore / maxScore * 100).toFixed(1) : 0;
                       %>
-                      <span class="test-score <%= percentage >= 80 ? 'score-Outstanding' : 'score-Not Passed' %>">
-                        <%= percentage %>% (<%= formatPracticalScoreDisplay(totalScore) %>/<%= maxScore %>)
+                      <span class="test-score <%= percentage >= 70 ? 'score-Outstanding' : 'score-Not Passed' %>">
+                        <%= percentage %>% (<%= percentage >= 70 ? 'Outstanding, ' : 'Not Passed, ' %><%= formatPracticalScoreDisplay(totalScore) %>/<%= maxScore %>)
                       </span>
                     <% } else { %>
                       <span style="color: #5F6368;">Not evaluated</span>
