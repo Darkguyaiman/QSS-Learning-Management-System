@@ -7,6 +7,7 @@ const {
   normalizeTraineeRecord,
   normalizeTraineeRecords
 } = require('../utils/area-of-specialization');
+const { normalizePersonName } = require('../utils/nameNormalizer');
 
 const TRAINEE_IMPORT_ADMIN_EMAIL = 'admin@lms.com';
 const TRAINEE_IMPORT_DEFAULT_PASSWORD =
@@ -55,10 +56,13 @@ function splitFullName(full) {
   const t = String(full || '').trim();
   if (!t) return { first_name: '', last_name: '' };
   const idx = t.indexOf(' ');
-  if (idx === -1) return { first_name: t, last_name: '-' };
+  if (idx === -1) return { first_name: normalizePersonName(t), last_name: '-' };
   const first = t.slice(0, idx).trim();
   const last = t.slice(idx + 1).trim();
-  return { first_name: first || '-', last_name: last || '-' };
+  return {
+    first_name: normalizePersonName(first) || '-',
+    last_name: normalizePersonName(last) || '-'
+  };
 }
 
 function parseTraineeImportDate(val) {
@@ -402,10 +406,12 @@ router.post('/create', async (req, res) => {
     areaOfSpecialization,
     traineeStatus
   } = req.body;
+  const normalizedFirstName = normalizePersonName(firstName);
+  const normalizedLastName = normalizePersonName(lastName);
   
   try {
     // Validate required fields
-    if (!firstName || !lastName || !email || !password || !icPassport) {
+    if (!normalizedFirstName || !normalizedLastName || !email || !password || !icPassport) {
       const areasOfSpecialization = await getAreasOfSpecialization(req.db);
       return res.render('trainees/create', { 
         user: req.session, 
@@ -475,8 +481,8 @@ router.post('/create', async (req, res) => {
           traineeId,
           email,
           hashedPassword,
-          firstName,
-          lastName,
+          normalizedFirstName,
+          normalizedLastName,
           icPassport,
           handphoneNumber || null,
           healthcareId,
@@ -778,10 +784,12 @@ router.post('/:id/edit', async (req, res) => {
     areaOfSpecialization,
     traineeStatus
   } = req.body;
+  const normalizedFirstName = normalizePersonName(firstName);
+  const normalizedLastName = normalizePersonName(lastName);
   
   try {
     // Validate required fields
-    if (!firstName || !lastName || !email || !icPassport) {
+    if (!normalizedFirstName || !normalizedLastName || !email || !icPassport) {
       const trainee = await getTraineeById(req.db, req.params.id);
       const areasOfSpecialization = await getAreasOfSpecialization(req.db);
       return res.render('trainees/edit', { 
@@ -856,8 +864,8 @@ router.post('/:id/edit', async (req, res) => {
           trainee_status = ?
       `;
       const updateValues = [
-        firstName,
-        lastName,
+        normalizedFirstName,
+        normalizedLastName,
         email,
         icPassport,
         handphoneNumber || null,

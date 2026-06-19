@@ -1648,6 +1648,7 @@
     </div>
   </div>
   
+  <script src="/js/name-normalizer.js"></script>
   <script>
     // Tab Navigation
     let currentTab = 0;
@@ -1658,6 +1659,7 @@
     const nextBtn = document.getElementById('nextTab');
     const submitBtn = document.getElementById('submitBtn');
     const form = document.getElementById('registerForm');
+    window.qssAttachNameNormalization?.(form);
     
     function showTab(index) {
       // Hide all tabs
@@ -1899,6 +1901,13 @@
       
       // Prevent browser native validation
       e.stopPropagation();
+
+      const firstNameInput = document.getElementById('firstName');
+      const lastNameInput = document.getElementById('lastName');
+      if (window.qssNormalizePersonName) {
+        firstNameInput.value = window.qssNormalizePersonName(firstNameInput.value);
+        lastNameInput.value = window.qssNormalizePersonName(lastNameInput.value);
+      }
       
       // Validate form
       const validation = validateForm();

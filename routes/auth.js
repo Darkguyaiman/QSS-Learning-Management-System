@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const router = express.Router();
 const { normalizeAreaValue } = require('../utils/area-of-specialization');
+const { normalizePersonName } = require('../utils/nameNormalizer');
 
 function establishAuthenticatedSession(req, sessionData) {
   return new Promise((resolve, reject) => {
@@ -185,6 +186,8 @@ router.post('/register', async (req, res) => {
     areaOfSpecialization,
     serialNumber
   } = req.body;
+  const normalizedFirstName = normalizePersonName(firstName);
+  const normalizedLastName = normalizePersonName(lastName);
   
   // Check if request is AJAX
   const isAjax = req.headers['x-requested-with'] === 'XMLHttpRequest' || 
@@ -242,12 +245,12 @@ router.post('/register', async (req, res) => {
   const validationErrors = [];
   const fieldErrors = {};
   
-  if (!firstName || !firstName.trim()) {
+  if (!normalizedFirstName) {
     validationErrors.push('First Name is required');
     fieldErrors.firstName = 'First Name is required';
   }
   
-  if (!lastName || !lastName.trim()) {
+  if (!normalizedLastName) {
     validationErrors.push('Last Name is required');
     fieldErrors.lastName = 'Last Name is required';
   }
@@ -369,7 +372,7 @@ router.post('/register', async (req, res) => {
             device_serial_number_id, trainee_status
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'registered')`,
           [
-            traineeId, email, hashedPassword, firstName, lastName,
+            traineeId, email, hashedPassword, normalizedFirstName, normalizedLastName,
             icPassport, handphoneNumber, healthcareId, designationId,
             deviceSerialNumberId
           ]
@@ -408,7 +411,7 @@ router.post('/register', async (req, res) => {
       // Insert user
       await req.db.query(
         'INSERT INTO users (email, password, first_name, last_name, role) VALUES (?, ?, ?, ?, ?)',
-        [email, hashedPassword, firstName, lastName, role]
+        [email, hashedPassword, normalizedFirstName, normalizedLastName, role]
       );
     }
     
