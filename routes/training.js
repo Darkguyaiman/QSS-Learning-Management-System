@@ -1395,7 +1395,8 @@ router.get('/', async (req, res) => {
     let query = `
       SELECT DISTINCT t.*,
         COALESCE(ec.enrolled_count, 0) as enrolled_count,
-        trainer_agg.trainer_names
+        trainer_agg.trainer_names,
+        healthcare_agg.healthcare_names
       FROM trainings t
       LEFT JOIN (
         SELECT training_id, COUNT(*) as enrolled_count
@@ -1409,6 +1410,13 @@ router.get('/', async (req, res) => {
         JOIN users u ON tt.trainer_id = u.id
         GROUP BY tt.training_id
       ) trainer_agg ON trainer_agg.training_id = t.id
+      LEFT JOIN (
+        SELECT th.training_id,
+          GROUP_CONCAT(h.name ORDER BY h.name ASC SEPARATOR ', ') as healthcare_names
+        FROM training_healthcare th
+        JOIN healthcare h ON th.healthcare_id = h.id
+        GROUP BY th.training_id
+      ) healthcare_agg ON healthcare_agg.training_id = t.id
       LEFT JOIN training_healthcare th ON t.id = th.training_id
       LEFT JOIN training_devices td ON t.id = td.training_id
       WHERE 1=1
@@ -1509,6 +1517,7 @@ router.get('/', async (req, res) => {
       }
       // Parse trainer names into array
       training.trainers = training.trainer_names ? training.trainer_names.split(', ') : [];
+      training.healthcareNames = training.healthcare_names ? training.healthcare_names.split(', ') : [];
     });
     
     // Fetch filter options

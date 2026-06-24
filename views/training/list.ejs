@@ -483,6 +483,16 @@
                     </span>
                   </div>
                   <div class="classroom-info-item">
+                    <i class="fas fa-hospital"></i>
+                    <span>
+                      <% if (training.healthcareNames && training.healthcareNames.length > 0) { %>
+                        <%= training.healthcareNames.join(', ') %>
+                      <% } else { %>
+                        No healthcare assigned
+                      <% } %>
+                    </span>
+                  </div>
+                  <div class="classroom-info-item">
                     <i class="fas fa-users"></i>
                     <span><%= training.enrolled_count || 0 %> enrolled</span>
                   </div>
