@@ -5,6 +5,9 @@ const {
   extractCustomerName,
   extractCustomerAddress
 } = require('../config/crmWebhook');
+const {
+  updateCertificateIssueLocationsForHealthcare
+} = require('../utils/certificateIssueLocations');
 
 router.get('/', (req, res) => {
   return res.status(200).json({
@@ -59,10 +62,7 @@ router.post('/', async (req, res) => {
            hospital_address = VALUES(hospital_address)`,
         [customerId, customerName, hospitalAddress || null]
       );
-      await req.db.query(
-        'UPDATE certificate_issues SET location = ? WHERE healthcare_id_at_issue = ?',
-        [customerName, customerId]
-      );
+      await updateCertificateIssueLocationsForHealthcare(req.db, customerId, customerName);
 
       return res.json({ success: true, action: 'upserted', customer_id: customerId });
     }

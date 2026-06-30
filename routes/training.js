@@ -1395,8 +1395,7 @@ router.get('/', async (req, res) => {
     let query = `
       SELECT DISTINCT t.*,
         COALESCE(ec.enrolled_count, 0) as enrolled_count,
-        trainer_agg.trainer_names,
-        healthcare_agg.healthcare_names
+        trainer_agg.trainer_names
       FROM trainings t
       LEFT JOIN (
         SELECT training_id, COUNT(*) as enrolled_count
@@ -1410,13 +1409,6 @@ router.get('/', async (req, res) => {
         JOIN users u ON tt.trainer_id = u.id
         GROUP BY tt.training_id
       ) trainer_agg ON trainer_agg.training_id = t.id
-      LEFT JOIN (
-        SELECT th.training_id,
-          GROUP_CONCAT(h.name ORDER BY h.name ASC SEPARATOR ', ') as healthcare_names
-        FROM training_healthcare th
-        JOIN healthcare h ON th.healthcare_id = h.id
-        GROUP BY th.training_id
-      ) healthcare_agg ON healthcare_agg.training_id = t.id
       LEFT JOIN training_healthcare th ON t.id = th.training_id
       LEFT JOIN training_devices td ON t.id = td.training_id
       WHERE 1=1
@@ -1509,6 +1501,27 @@ router.get('/', async (req, res) => {
     query += ' ORDER BY t.created_at DESC';
     
     const [trainings] = await req.db.query(query, queryParams);
+
+    const healthcareNamesByTrainingId = new Map();
+    if (trainings.length > 0) {
+      const trainingIds = trainings.map(training => training.id);
+      const placeholders = trainingIds.map(() => '?').join(',');
+      const [trainingHealthcareRows] = await req.db.query(
+        `SELECT th.training_id, h.name
+         FROM training_healthcare th
+         JOIN healthcare h ON th.healthcare_id = h.id
+         WHERE th.training_id IN (${placeholders})
+         ORDER BY h.name ASC`,
+        trainingIds
+      );
+
+      trainingHealthcareRows.forEach(row => {
+        if (!healthcareNamesByTrainingId.has(row.training_id)) {
+          healthcareNamesByTrainingId.set(row.training_id, []);
+        }
+        healthcareNamesByTrainingId.get(row.training_id).push(row.name);
+      });
+    }
     
     // Set default header for trainings without one and parse trainer names
     trainings.forEach(training => {
@@ -1517,7 +1530,7 @@ router.get('/', async (req, res) => {
       }
       // Parse trainer names into array
       training.trainers = training.trainer_names ? training.trainer_names.split(', ') : [];
-      training.healthcareNames = training.healthcare_names ? training.healthcare_names.split(', ') : [];
+      training.healthcareNames = healthcareNamesByTrainingId.get(training.id) || [];
     });
     
     // Fetch filter options

@@ -9,6 +9,9 @@ const {
   resolveNextHealthcareTrainingReminderDate,
   refreshHealthcareTrainingReminderCycles
 } = require('../utils/healthcareTrainingReminders');
+const {
+  updateCertificateIssueLocationsForHealthcare
+} = require('../utils/certificateIssueLocations');
 
 const HEALTHCARE_IDENTITY_EDIT_ADMIN_EMAIL = 'admin@lms.com';
 
@@ -526,10 +529,7 @@ router.post('/healthcare/:id/update', async (req, res) => {
       'UPDATE healthcare SET name = ?, hospital_address = ?, training_reminder_interval = ?, training_reminder_due_date = ? WHERE id = ?',
       [trimmedName, trimmedHospitalAddress, trimmedReminderInterval || null, reminderDueDate, req.params.id]
     );
-    await req.db.query(
-      'UPDATE certificate_issues SET location = ? WHERE healthcare_id_at_issue = ?',
-      [trimmedName, req.params.id]
-    );
+    await updateCertificateIssueLocationsForHealthcare(req.db, req.params.id, trimmedName);
     res.redirect('/settings/healthcare');
   } catch (error) {
     console.error('Healthcare update error:', error);

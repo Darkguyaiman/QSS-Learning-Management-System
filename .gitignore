@@ -34,3 +34,5 @@ Thumbs.db
 .env.example
 node_modules
 
+
+PRODUCT.md
