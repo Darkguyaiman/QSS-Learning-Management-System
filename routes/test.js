@@ -1,9 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { handleCertificateTestCompleted } = require('../utils/trainerNotifications');
-const { getPassingScore } = require('../utils/testScores');
-
-const MAX_FAILED_ATTEMPTS = 4;
+const { getPassingScore, MAX_FAILED_ATTEMPTS } = require('../utils/testScores');
 
 // Start test
 router.get('/start/:enrollmentId/:testType', async (req, res) => {

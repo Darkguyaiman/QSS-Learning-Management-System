@@ -1,4 +1,4 @@
-const { getPassingScore } = require('./testScores');
+const { getPassingScore, MAX_FAILED_ATTEMPTS } = require('./testScores');
 const PRACTICAL_OUTSTANDING_SCORE = 70;
 
 function getBestCertAttempt(testAttempts) {
@@ -23,7 +23,7 @@ function hasLockedTestPart(testAttempts) {
     return acc;
   }, {});
 
-  return Object.values(attemptStatsByType).some((stat) => stat.failed >= 3 && !stat.hasPass);
+  return Object.values(attemptStatsByType).some((stat) => stat.failed >= MAX_FAILED_ATTEMPTS && !stat.hasPass);
 }
 
 function isPracticalOutstanding(handsOnScores) {

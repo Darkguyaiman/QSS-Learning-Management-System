@@ -69,7 +69,7 @@
           else acc[testType].failed += 1;
           return acc;
         }, {});
-        const locked = Object.values(hasLockedTestPart).some(stat => stat.failed >= 3 && !stat.hasPass);
+        const locked = Object.values(hasLockedTestPart).some(stat => stat.failed >= 4 && !stat.hasPass);
 
         const certOutstanding = certScore !== null && certScore >= 70;
         const canReleaseCertificateOverride = !override && certCompleted && !locked && (

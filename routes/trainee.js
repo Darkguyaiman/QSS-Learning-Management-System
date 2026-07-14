@@ -1,5 +1,5 @@
 const express = require('express');
-const { getPassingScore } = require('../utils/testScores');
+const { getPassingScore, MAX_FAILED_ATTEMPTS } = require('../utils/testScores');
 const { getBestCertAttempt, canDownloadCertificate } = require('../utils/certificateEligibility');
 const router = express.Router();
 
@@ -239,9 +239,9 @@ router.get('/training/:id/certificate/:enrollmentId', async (req, res, next) => 
       else acc[testType].failed += 1;
       return acc;
     }, {});
-    const hasLockedTestPart = Object.values(attemptStatsByType).some(stat => stat.failed >= 3 && !stat.hasPass);
+    const hasLockedTestPart = Object.values(attemptStatsByType).some(stat => stat.failed >= MAX_FAILED_ATTEMPTS && !stat.hasPass);
     if (hasLockedTestPart) {
-      return res.status(403).send('Certificate is not available because one or more test parts reached 3 failed attempts. You have failed this training.');
+      return res.status(403).send(`Certificate is not available because one or more test parts reached ${MAX_FAILED_ATTEMPTS} failed attempts. You have failed this training.`);
     }
 
     const certAttempt = getBestCertAttempt(testAttempts);

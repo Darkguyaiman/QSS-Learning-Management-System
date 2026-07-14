@@ -4,7 +4,7 @@ const path = require('path');
 const ExcelJS = require('exceljs');
 const router = express.Router();
 const { calculateFinalGrades } = require('./results');
-const { getPassingScore } = require('../utils/testScores');
+const { getPassingScore, MAX_FAILED_ATTEMPTS } = require('../utils/testScores');
 const {
   getBestCertAttempt,
   canDownloadCertificate,
@@ -4393,9 +4393,9 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
       else acc[testType].failed += 1;
       return acc;
     }, {});
-    const hasLockedTestPart = Object.values(attemptStatsByType).some(stat => stat.failed >= 3 && !stat.hasPass);
+    const hasLockedTestPart = Object.values(attemptStatsByType).some(stat => stat.failed >= MAX_FAILED_ATTEMPTS && !stat.hasPass);
     if (hasLockedTestPart) {
-      return res.status(403).send('Certificate is not available because one or more test parts reached 3 failed attempts. This trainee has failed the training.');
+      return res.status(403).send(`Certificate is not available because one or more test parts reached ${MAX_FAILED_ATTEMPTS} failed attempts. This trainee has failed the training.`);
     }
 
     // Check if scores are released (for trainees) or certificate enrolment completed
