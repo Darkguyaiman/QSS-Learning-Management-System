@@ -1,6 +1,7 @@
 const express = require('express');
 const { getPassingScore, MAX_FAILED_ATTEMPTS } = require('../utils/testScores');
 const { getBestCertAttempt, canDownloadCertificate } = require('../utils/certificateEligibility');
+const { columnExists } = require('../utils/certificateIssueLocations');
 const router = express.Router();
 
 // Trainee-only: Results for an enrollment
@@ -287,6 +288,7 @@ router.get('/training/:id/certificate/:enrollmentId', async (req, res, next) => 
       'SELECT * FROM certificate_issues WHERE enrollment_id = ?',
       [enrollmentId]
     );
+    const hasCertificateHealthcareSnapshot = await columnExists(req.db, 'certificate_issues', 'healthcare_id_at_issue');
 
     let participantName = `${enrollment.first_name} ${enrollment.last_name}`;
     let courseName = enrollment.training_title;
@@ -308,31 +310,56 @@ router.get('/training/:id/certificate/:enrollmentId', async (req, res, next) => 
       participantName = issued.participant_name || participantName;
       courseName = issued.course_name || courseName;
       date = issued.date_display || date;
-      await req.db.query(
-        `UPDATE certificate_issues
-         SET healthcare_id_at_issue = COALESCE(healthcare_id_at_issue, ?),
-             location = ?
-         WHERE id = ?`,
-        [enrollment.healthcare_id_at_enrollment || null, location, issued.id]
-      );
+      if (hasCertificateHealthcareSnapshot) {
+        await req.db.query(
+          `UPDATE certificate_issues
+           SET healthcare_id_at_issue = COALESCE(healthcare_id_at_issue, ?),
+               location = ?
+           WHERE id = ?`,
+          [enrollment.healthcare_id_at_enrollment || null, location, issued.id]
+        );
+      } else {
+        await req.db.query(
+          'UPDATE certificate_issues SET location = ? WHERE id = ?',
+          [location, issued.id]
+        );
+      }
     } else {
+      const insertColumns = [
+        'enrollment_id',
+        'training_id',
+        'trainee_id',
+        'certificate_number',
+        'validity_start',
+        'validity_end',
+        'participant_name',
+        'course_name',
+        'location',
+        'date_display'
+      ];
+      const insertValues = [
+        enrollmentId,
+        trainingId,
+        enrollment.trainee_id_int,
+        certificateNumber,
+        new Date(validityStart),
+        new Date(validityEnd),
+        participantName,
+        courseName,
+        location,
+        date
+      ];
+
+      if (hasCertificateHealthcareSnapshot) {
+        insertColumns.splice(3, 0, 'healthcare_id_at_issue');
+        insertValues.splice(3, 0, enrollment.healthcare_id_at_enrollment || null);
+      }
+
       await req.db.query(
-        `INSERT INTO certificate_issues 
-         (enrollment_id, training_id, trainee_id, healthcare_id_at_issue, certificate_number, validity_start, validity_end, participant_name, course_name, location, date_display)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          enrollmentId,
-          trainingId,
-          enrollment.trainee_id_int,
-          enrollment.healthcare_id_at_enrollment || null,
-          certificateNumber,
-          new Date(validityStart),
-          new Date(validityEnd),
-          participantName,
-          courseName,
-          location,
-          date
-        ]
+        `INSERT INTO certificate_issues
+         (${insertColumns.join(', ')})
+         VALUES (${insertColumns.map(() => '?').join(', ')})`,
+        insertValues
       );
     }
 

@@ -46,5 +46,6 @@ async function updateCertificateIssueLocationsForHealthcare(db, healthcareId, he
 }
 
 module.exports = {
+  columnExists,
   updateCertificateIssueLocationsForHealthcare
 };

@@ -19,6 +19,8 @@ const {
   emitMarkReleaseDismissed,
   handleCertificateTestCompleted
 } = require('../utils/trainerNotifications');
+const { notifyCertificateReleased } = require('../utils/certificateEmailNotifications');
+const { columnExists } = require('../utils/certificateIssueLocations');
 
 function normalizeIdArray(value) {
   if (!value) return [];
@@ -4225,6 +4227,17 @@ router.post('/:id/release-scores', async (req, res) => {
       }
     }
 
+    const [releaseStateRows] = await req.db.query(
+      `SELECT id, can_download_results
+       FROM enrollments
+       WHERE id IN (${eligibleEnrollmentIds.map(() => '?').join(',')})
+         AND training_id = ?`,
+      [...eligibleEnrollmentIds, req.params.id]
+    );
+    const newlyReleasedEnrollmentIds = (releaseStateRows || [])
+      .filter(row => !row.can_download_results)
+      .map(row => row.id);
+
     // Update can_download_results for selected enrollments
     const updatePlaceholders = eligibleEnrollmentIds.map(() => '?').join(',');
     await req.db.query(
@@ -4234,6 +4247,10 @@ router.post('/:id/release-scores', async (req, res) => {
 
     const dismissed = await dismissAndEmitMarkReleaseNotifications(req.db, req.app.get('io'), eligibleEnrollmentIds);
     void dismissed;
+
+    notifyCertificateReleased(req.db, newlyReleasedEnrollmentIds).catch((error) => {
+      console.error('Certificate release email notification error:', error);
+    });
 
     res.json({ success: true, message: `Scores released for ${eligibleEnrollmentIds.length} trainee(s)` });
   } catch (error) {
@@ -4324,6 +4341,10 @@ router.post('/:id/enrollment/:enrollmentId/certificate/release-override', async 
        VALUES (?, ?, ?, ?, ?, ?)`,
       [enrollmentId, trainingId, enrollment.trainee_id, certScore, justification, req.session.userId]
     );
+
+    notifyCertificateReleased(req.db, [enrollmentId]).catch((error) => {
+      console.error('Certificate release override email notification error:', error);
+    });
 
     res.json({ success: true, message: 'Certificate released with recorded justification.' });
   } catch (error) {
@@ -4448,6 +4469,7 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
       'SELECT * FROM certificate_issues WHERE enrollment_id = ?',
       [enrollmentId]
     );
+    const hasCertificateHealthcareSnapshot = await columnExists(req.db, 'certificate_issues', 'healthcare_id_at_issue');
 
     let participantName = `${enrollment.first_name} ${enrollment.last_name}`;
     let courseName = enrollment.training_title;
@@ -4469,31 +4491,56 @@ router.get('/:id/certificate/:enrollmentId', async (req, res) => {
       participantName = issued.participant_name || participantName;
       courseName = issued.course_name || courseName;
       date = issued.date_display || date;
-      await req.db.query(
-        `UPDATE certificate_issues
-         SET healthcare_id_at_issue = COALESCE(healthcare_id_at_issue, ?),
-             location = ?
-         WHERE id = ?`,
-        [enrollment.healthcare_id_at_enrollment || null, location, issued.id]
-      );
+      if (hasCertificateHealthcareSnapshot) {
+        await req.db.query(
+          `UPDATE certificate_issues
+           SET healthcare_id_at_issue = COALESCE(healthcare_id_at_issue, ?),
+               location = ?
+           WHERE id = ?`,
+          [enrollment.healthcare_id_at_enrollment || null, location, issued.id]
+        );
+      } else {
+        await req.db.query(
+          'UPDATE certificate_issues SET location = ? WHERE id = ?',
+          [location, issued.id]
+        );
+      }
     } else {
+      const insertColumns = [
+        'enrollment_id',
+        'training_id',
+        'trainee_id',
+        'certificate_number',
+        'validity_start',
+        'validity_end',
+        'participant_name',
+        'course_name',
+        'location',
+        'date_display'
+      ];
+      const insertValues = [
+        enrollmentId,
+        trainingId,
+        enrollment.trainee_id_int,
+        certificateNumber,
+        new Date(validityStart),
+        new Date(validityEnd),
+        participantName,
+        courseName,
+        location,
+        date
+      ];
+
+      if (hasCertificateHealthcareSnapshot) {
+        insertColumns.splice(3, 0, 'healthcare_id_at_issue');
+        insertValues.splice(3, 0, enrollment.healthcare_id_at_enrollment || null);
+      }
+
       await req.db.query(
-        `INSERT INTO certificate_issues 
-         (enrollment_id, training_id, trainee_id, healthcare_id_at_issue, certificate_number, validity_start, validity_end, participant_name, course_name, location, date_display)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          enrollmentId,
-          trainingId,
-          enrollment.trainee_id_int,
-          enrollment.healthcare_id_at_enrollment || null,
-          certificateNumber,
-          new Date(validityStart),
-          new Date(validityEnd),
-          participantName,
-          courseName,
-          location,
-          date
-        ]
+        `INSERT INTO certificate_issues
+         (${insertColumns.join(', ')})
+         VALUES (${insertColumns.map(() => '?').join(', ')})`,
+        insertValues
       );
     }
 

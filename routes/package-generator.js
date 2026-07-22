@@ -1403,6 +1403,9 @@ async function generateLetterPdfBuffer({ db, training, formData, preloadedAttend
 module.exports = {
   sanitizeFileName,
   normalizeCompany,
+  warmBrandAssetCaches,
+  htmlToPdfBuffer,
+  buildCertificateHtml,
   generatePackageZipBuffer,
   generatePackageZipFile,
   generateLetterPdfBuffer

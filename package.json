@@ -44,6 +44,7 @@
     "method-override": "^3.0.0",
     "multer": "latest",
     "mysql2": "latest",
+    "nodemailer": "^9.0.3",
     "path": "latest",
     "pdfjs-dist": "^5.7.284",
     "pdfkit": "^0.18.0",
