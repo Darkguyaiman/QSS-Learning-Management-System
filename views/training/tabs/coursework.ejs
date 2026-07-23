@@ -2,7 +2,22 @@
 <div id="coursework-tab" class="tab-content">
   <style>
     /* Course: make material action buttons (Open/Download/Menu) responsive */
+    .coursework-header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
     @media (max-width: 768px) {
+      #coursework-tab .coursework-header-actions {
+        width: 100%;
+        justify-content: flex-start;
+      }
+      #coursework-tab .coursework-header-actions .btn {
+        justify-content: center;
+      }
+
       #coursework-tab .material-item {
         align-items: flex-start;
       }
@@ -13,6 +28,18 @@
     }
 
     @media (max-width: 480px) {
+      #coursework-tab .coursework-header-actions {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+        gap: 0.5rem;
+      }
+      #coursework-tab .coursework-header-actions .btn {
+        width: 100%;
+        white-space: normal;
+        justify-content: center;
+      }
+
       #coursework-tab .material-item {
         flex-direction: column;
         align-items: stretch;
@@ -115,7 +142,7 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem;">
       <h2 style="margin: 0; font-size: 1.25rem; font-weight: 400; color: #202124;">Training Materials</h2>
       <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-        <div style="display: flex; gap: 0.5rem;">
+        <div class="coursework-header-actions">
           <button class="btn btn-outline" onclick="openImportSectionsModal()" <%= training.is_locked ? 'disabled title="Training is locked"' : '' %>>
             <i class="fas fa-file-import"></i> Import Sections
           </button>
@@ -615,7 +642,7 @@
         Training Media
       </h3>
       <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-        <div style="display:flex; gap: 0.5rem; flex-wrap: wrap;">
+        <div class="coursework-header-actions">
           <input id="coursework-media-input" type="file" accept="image/*" multiple style="display:none;" <%= training.is_locked ? 'disabled' : '' %>>
           <button type="button" class="btn btn-outline" onclick="openCourseworkMediaPicker()" <%= training.is_locked ? 'disabled title="Training is locked"' : '' %>>
             <i class="fas fa-images"></i> Add Photos

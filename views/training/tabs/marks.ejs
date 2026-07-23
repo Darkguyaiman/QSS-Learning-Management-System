@@ -117,7 +117,7 @@
         </p>
         
         <!-- Desktop Table View -->
-        <div class="table-responsive">
+        <div class="table-responsive marks-table-responsive">
         <table class="marks-table marks-table-desktop">
           <thead>
             <tr>
@@ -848,12 +848,17 @@
     }
 
     @media (max-width: 768px) {
+      .marks-table-responsive,
       .marks-table-desktop {
         display: none;
       }
 
       .marks-cards-mobile {
         display: block;
+      }
+
+      #marks-tab.marks-grading-open .marks-cards-mobile {
+        display: none;
       }
     }
 
@@ -1390,10 +1395,12 @@
       
       if (section.style.display === 'none') {
         section.style.display = 'block';
+        document.getElementById('marks-tab')?.classList.add('marks-grading-open');
         chevron.style.transform = 'rotate(180deg)';
         textSpan.textContent = 'Hide Grading';
       } else {
         section.style.display = 'none';
+        document.getElementById('marks-tab')?.classList.remove('marks-grading-open');
         chevron.style.transform = 'rotate(0deg)';
         textSpan.textContent = 'Grade Practical Learning Outcome';
       }

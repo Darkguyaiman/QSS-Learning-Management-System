@@ -19,6 +19,19 @@
       justify-content: flex-end;
     }
 
+    .trainee-list-header-actions .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      width: auto;
+      min-height: 2.5rem;
+      padding: 0.55rem 1.25rem;
+      font-weight: 600;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
     a.btn-success {
       text-decoration: none;
     }
@@ -163,6 +176,19 @@
       border: 1px solid #E5E7EB;
       border-radius: 10px;
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+
+    .bulk-actions .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      width: auto;
+      min-height: 2.5rem;
+      padding: 0.55rem 1.25rem;
+      font-weight: 600;
+      line-height: 1.2;
+      white-space: nowrap;
     }
 
     .bulk-actions-left,
@@ -730,6 +756,42 @@
     
     /* Hide button text on very small screens, show only icons */
     @media (max-width: 480px) {
+      .bulk-actions {
+        flex-direction: column !important;
+        align-items: stretch !important;
+      }
+
+      .bulk-actions-left,
+      .bulk-actions-right {
+        width: 100% !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        justify-content: center !important;
+        gap: 0.5rem !important;
+      }
+
+      .bulk-actions .btn {
+        width: 100% !important;
+        justify-content: center !important;
+      }
+
+      .bulk-actions .tw-dropdown {
+        width: 100% !important;
+        min-width: unset !important;
+      }
+
+      .bulk-actions .tw-dropdown__btn {
+        width: 100% !important;
+      }
+      .trainee-list-header-actions {
+        flex-direction: column !important;
+        align-items: stretch !important;
+      }
+
+      .trainee-list-header-actions .btn {
+        width: 100% !important;
+        white-space: normal !important;
+      }
       .search-btn-text,
       .clear-btn-text {
         display: none;
@@ -762,29 +824,18 @@
 
       .trainee-list-header-actions {
         width: 100%;
-        flex-direction: column;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        gap: 0.5rem;
       }
 
       .trainee-list-header-actions .btn {
-        width: 100%;
+        width: auto;
         justify-content: center;
       }
 
-      .bulk-actions {
-        flex-direction: column;
-        align-items: stretch;
-      }
 
-      .bulk-actions-left,
-      .bulk-actions-right {
-        width: 100%;
-        justify-content: flex-start;
-      }
-
-      .bulk-actions .btn {
-        width: 100%;
-        justify-content: center;
-      }
 
       .trainee-modal-grid {
         grid-template-columns: 1fr;
@@ -806,6 +857,25 @@
         width: 100%;
         margin-left: 0;
         justify-content: center;
+      }
+    }
+  
+    /* Mobile responsive override for trainee card header top and actions */
+    @media (max-width: 767px) {
+      .trainee-card-header-top {
+        align-items: center !important;
+      }
+      .trainee-card .trainee-select .select-text {
+        display: none !important;
+      }
+      .trainee-card-actions {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: 0.5rem !important;
+      }
+      .trainee-card-actions .btn {
+        flex: 1 !important;
+        justify-content: center !important;
       }
     }
   </style>
@@ -1070,7 +1140,7 @@
                 <div class="trainee-card-header-top">
                   <label class="trainee-select">
                     <input type="checkbox" class="trainee-checkbox" name="traineeIds" value="<%= trainee.id %>">
-                    Select
+                    <span class="select-text">Select</span>
                   </label>
                   <div class="trainee-avatar">
                     <%= trainee.first_name.charAt(0).toUpperCase() %><%= trainee.last_name.charAt(0).toUpperCase() %>
