@@ -45,7 +45,7 @@
   align-items: center;
   justify-content: center;
   padding: 1.25rem;
-  z-index: 10000;
+  z-index: 11004;
 }
 
 .qss-message-overlay.is-open {
@@ -190,7 +190,7 @@
   align-items: center;
   justify-content: center;
   padding: 1.25rem;
-  z-index: 10002;
+  z-index: 11002;
 }
 
 .qss-confirm-overlay.is-open {
@@ -356,7 +356,7 @@
   align-items: center;
   justify-content: center;
   padding: 1.25rem;
-  z-index: 10001; /* above message modal */
+  z-index: 10001; /* below global message dialogs */
 }
 
 .qss-select-overlay.is-open {

@@ -2302,6 +2302,15 @@ router.post('/create', async (req, res) => {
       
       return `${year}-${month}-${day} ${String(hours24).padStart(2, '0')}:${minutes}:00`;
     }
+
+    if (!String(start_datetime || '').trim() || !String(end_datetime || '').trim()) {
+      const formData = await getTrainingCreateFormData(req.db, req.session.userId);
+      return res.render('training/create', { 
+        user: req.session, 
+        error: !String(start_datetime || '').trim() ? 'Start date and time is required.' : 'End date and time is required.',
+        ...formData
+      });
+    }
     
     if (start_datetime) {
       startDatetime = convertToMySQLDatetime(start_datetime);
@@ -3778,6 +3787,13 @@ router.post('/:id/update', async (req, res) => {
     const { title, description, status, start_datetime, end_datetime, healthcare_ids, trainer_ids, trainee_ids, module_id, device_model_id, affiliated_company } = req.body;
     const traineeArray = normalizeIdArray(trainee_ids);
     
+    if (!String(start_datetime || '').trim() || !String(end_datetime || '').trim()) {
+      return res.json({
+        success: false,
+        error: !String(start_datetime || '').trim() ? 'Start date and time is required.' : 'End date and time is required.'
+      });
+    }
+
     if (!module_id || !device_model_id) {
       return res.json({ success: false, error: !module_id ? 'Module is required.' : 'Device model is required.' });
     }
