@@ -53,6 +53,19 @@ function getTransporter() {
   return cachedTransporter;
 }
 
+async function verifySmtpConnection() {
+  const transporter = getTransporter();
+  if (!transporter) {
+    throw new Error('SMTP_HOST is not configured.');
+  }
+
+  if (!getFromAddress()) {
+    throw new Error('SMTP_FROM/SMTP_USER is missing or uses a placeholder domain.');
+  }
+
+  return transporter.verify();
+}
+
 function escapeHtml(value) {
   return String(value || '')
     .replace(/&/g, '&amp;')
@@ -364,12 +377,12 @@ async function notifyCertificateReleased(db, enrollmentIds) {
   const transporter = getTransporter();
   if (!transporter) {
     console.info('SMTP_HOST is not configured; skipping certificate release email notification.');
-    return { sent: 0, skipped: true };
+    return { sent: 0, failed: 0, eligible: 0, skipped: true };
   }
 
   if (!getFromAddress()) {
     console.warn('SMTP_FROM/SMTP_USER is missing or uses a placeholder domain; skipping certificate release email notification.');
-    return { sent: 0, skipped: true };
+    return { sent: 0, failed: 0, eligible: 0, skipped: true };
   }
 
   const rows = await getCertificateReleaseRows(db, enrollmentIds);
@@ -400,18 +413,26 @@ async function notifyCertificateReleased(db, enrollmentIds) {
   }
 
   let sent = 0;
+  let failed = 0;
   for (const message of messages) {
     try {
       await transporter.sendMail(message);
       sent += 1;
     } catch (error) {
+      failed += 1;
       console.error('Certificate release email failed:', error);
     }
   }
 
-  return { sent, skipped: false };
+  return {
+    sent,
+    failed,
+    eligible: messages.length,
+    skipped: false
+  };
 }
 
 module.exports = {
-  notifyCertificateReleased
+  notifyCertificateReleased,
+  verifySmtpConnection
 };
