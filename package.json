@@ -14,6 +14,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
+    "seed:fake": "node scripts/seed_fake_data.js",
     "import:hospitals": "node scripts/import_hospitals.js",
     "normalize:trainee-names": "node scripts/normalize_trainee_names.js",
     "normalize:trainee-names:all": "node scripts/normalize_trainee_names.js --show-all",
