@@ -158,6 +158,53 @@ function numberValue(value) {
   return Number(value || 0);
 }
 
+function getTrainingDurationValues(training) {
+  if (!training.start_datetime || !training.end_datetime) {
+    return { totalHours: '', durationLabel: '' };
+  }
+
+  const start = new Date(training.start_datetime);
+  const end = new Date(training.end_datetime);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return { totalHours: '', durationLabel: '' };
+  }
+
+  const durationMs = end.getTime() - start.getTime();
+  const totalHours = Math.round((durationMs / (60 * 60 * 1000)) * 100) / 100;
+  const isSameDay = start.getFullYear() === end.getFullYear()
+    && start.getMonth() === end.getMonth()
+    && start.getDate() === end.getDate();
+
+  if (isSameDay) {
+    return { totalHours, durationLabel: '1 day 0 hours 0 minutes' };
+  }
+
+  const totalDays = durationMs / (24 * 60 * 60 * 1000);
+  const days = Math.floor(totalDays);
+  const hours = Math.floor((totalDays % 1) * 24);
+  const minutes = Math.round((((totalDays * 24) % 1) * 60));
+  return {
+    totalHours,
+    durationLabel: `${days} day ${hours} hours ${minutes} minutes`
+  };
+}
+
+function getTrainingTotalHoursCell(training, worksheetRow) {
+  const values = getTrainingDurationValues(training);
+  return {
+    formula: `IF(OR(D${worksheetRow}="",E${worksheetRow}=""),"",ROUND((E${worksheetRow}-D${worksheetRow})*24,2))`,
+    result: values.totalHours
+  };
+}
+
+function getTrainingDurationCell(training, worksheetRow) {
+  const values = getTrainingDurationValues(training);
+  return {
+    formula: `IF(OR(D${worksheetRow}="",E${worksheetRow}=""),"",IF(INT(D${worksheetRow})=INT(E${worksheetRow}),"1 day 0 hours 0 minutes",INT(E${worksheetRow}-D${worksheetRow})&" day "&INT(MOD(E${worksheetRow}-D${worksheetRow},1)*24)&" hours "&ROUND(MOD((E${worksheetRow}-D${worksheetRow})*24,1)*60,0)&" minutes"))`,
+    result: values.durationLabel
+  };
+}
+
 function parseDashboardEntityFilter(value) {
   const parsed = Number.parseInt(String(value || '').trim(), 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
@@ -266,7 +313,12 @@ async function getTrainerDashboardReportData(db, query) {
       t.start_datetime,
       t.end_datetime,
       t.status,
-      GROUP_CONCAT(DISTINCT h.name ORDER BY h.name SEPARATOR ', ') as healthcare_centres
+      GROUP_CONCAT(DISTINCT h.name ORDER BY h.name SEPARATOR ', ') as healthcare_centres,
+      (
+        SELECT COUNT(DISTINCT e.trainee_id)
+        FROM enrollments e
+        WHERE e.training_id = t.id
+      ) as participant_count
     FROM trainings t
     LEFT JOIN training_healthcare th ON t.id = th.training_id
     LEFT JOIN healthcare h ON th.healthcare_id = h.id
@@ -559,10 +611,11 @@ function drawDashboardPdf(doc, report, user) {
 
   sectionTitle('Trainings During Period');
   drawRows([
-    { label: 'Training', width: 176, value: row => row.title, truncate: 34 },
-    { label: 'Client', width: 150, value: row => row.healthcare_centres || '-', truncate: 28 },
-    { label: 'Start', width: 116, value: row => formatDashboardDateTime(row.start_datetime), truncate: 22 },
-    { label: 'Status', width: usableWidth - 442, value: row => String(row.status || '-').replace(/_/g, ' ') }
+    { label: 'Training', width: 148, value: row => row.title, truncate: 28 },
+    { label: 'Client', width: 121, value: row => row.healthcare_centres || '-', truncate: 22 },
+    { label: 'Start', width: 102, value: row => formatDashboardDateTime(row.start_datetime), truncate: 19 },
+    { label: 'Participants', width: 76, value: row => numberValue(row.participant_count) },
+    { label: 'Status', width: usableWidth - 447, value: row => String(row.status || '-').replace(/_/g, ' ') }
   ], report.allTrainings || []);
 
   doc.addPage();
@@ -626,8 +679,11 @@ function addDashboardDataSheet(workbook, name, columns, rows) {
   });
 
   rows.forEach((sourceRow, rowIndex) => {
+    const worksheetRow = rowIndex + 2;
     const row = worksheet.addRow(columns.map(column => {
-      const value = typeof column.value === 'function' ? column.value(sourceRow) : sourceRow[column.value];
+      const value = typeof column.value === 'function'
+        ? column.value(sourceRow, worksheetRow)
+        : sourceRow[column.value];
       return value ?? '';
     }));
     row.height = 23;
@@ -674,6 +730,9 @@ function buildDashboardExcelWorkbook(report, user) {
   workbook.modified = new Date();
   workbook.subject = `Dashboard report for ${report.dateRangeLabel}`;
   workbook.title = 'Dashboard Report';
+  workbook.calcProperties.fullCalcOnLoad = true;
+  workbook.calcProperties.forceFullCalc = true;
+  workbook.calcProperties.calcMode = 'auto';
 
   const summary = workbook.addWorksheet('Summary', {
     properties: { defaultRowHeight: 21 },
@@ -767,6 +826,9 @@ function buildDashboardExcelWorkbook(report, user) {
     { header: 'Healthcare Centres', width: 38, value: row => row.healthcare_centres || '' },
     { header: 'Start', width: 22, value: row => row.start_datetime ? new Date(row.start_datetime) : '', numFmt: 'mmm d, yyyy h:mm AM/PM' },
     { header: 'End', width: 22, value: row => row.end_datetime ? new Date(row.end_datetime) : '', numFmt: 'mmm d, yyyy h:mm AM/PM' },
+    { header: 'Participants', width: 16, value: row => numberValue(row.participant_count), numFmt: '#,##0', align: 'right' },
+    { header: 'Total Hours', width: 16, value: (row, worksheetRow) => getTrainingTotalHoursCell(row, worksheetRow), numFmt: '#,##0.00', align: 'right' },
+    { header: 'Total Duration', width: 30, value: (row, worksheetRow) => getTrainingDurationCell(row, worksheetRow) },
     { header: 'Status', width: 18, value: row => String(row.status || '').replace(/_/g, ' ') }
   ], report.allTrainings || []);
 
