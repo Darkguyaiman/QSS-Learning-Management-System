@@ -1,5 +1,6 @@
 const express = require('express');
 const PDFDocument = require('pdfkit');
+const ExcelJS = require('exceljs');
 const router = express.Router();
 const { refreshHealthcareTrainingReminderCycles } = require('../utils/healthcareTrainingReminders');
 const { PASSING_SCORE, CERTIFICATE_ENROLMENT_PASSING_SCORE } = require('../utils/testScores');
@@ -588,6 +589,185 @@ function drawDashboardPdf(doc, report, user) {
   }
 }
 
+function styleDashboardWorksheet(worksheet, columnWidths) {
+  worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+  columnWidths.forEach((width, index) => {
+    worksheet.getColumn(index + 1).width = width || 18;
+  });
+
+  worksheet.eachRow({ includeEmpty: false }, row => {
+    row.alignment = { vertical: 'middle', wrapText: true };
+  });
+}
+
+function addDashboardTableSheet(workbook, name, columns, rows, options = {}) {
+  const worksheet = workbook.addWorksheet(name, {
+    properties: { defaultRowHeight: 20 }
+  });
+  styleDashboardWorksheet(worksheet, columns.map(column => column.width));
+
+  worksheet.addTable({
+    name: options.tableName,
+    ref: 'A1',
+    headerRow: true,
+    style: {
+      theme: 'TableStyleMedium4',
+      showRowStripes: true
+    },
+    columns: columns.map(column => ({ name: column.header })),
+    rows: rows.map(row => columns.map(column => {
+      const value = typeof column.value === 'function' ? column.value(row) : row[column.value];
+      return value ?? '';
+    }))
+  });
+
+  worksheet.getRow(1).height = 26;
+  worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  worksheet.getRow(1).alignment = { vertical: 'middle', wrapText: true };
+
+  columns.forEach((column, index) => {
+    if (column.numFmt) worksheet.getColumn(index + 1).numFmt = column.numFmt;
+  });
+
+  if (!rows.length) {
+    worksheet.addRow(columns.map((column, index) => index === 0 ? 'No records found.' : ''));
+    worksheet.mergeCells(2, 1, 2, columns.length);
+    worksheet.getCell('A2').font = { italic: true, color: { argb: 'FF5F6368' } };
+  }
+
+  worksheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: Math.max(1, rows.length + 1), column: columns.length }
+  };
+  return worksheet;
+}
+
+function buildDashboardExcelWorkbook(report, user) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Quick Stop Solution LMS';
+  workbook.lastModifiedBy = user.userName || 'Quick Stop Solution LMS';
+  workbook.created = new Date();
+  workbook.modified = new Date();
+  workbook.subject = `Dashboard report for ${report.dateRangeLabel}`;
+  workbook.title = 'Dashboard Report';
+
+  const summary = workbook.addWorksheet('Summary', {
+    properties: { defaultRowHeight: 21 },
+    pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+  });
+  summary.columns = [
+    { width: 28 },
+    { width: 18 },
+    { width: 4 },
+    { width: 28 },
+    { width: 18 }
+  ];
+  summary.mergeCells('A1:E2');
+  summary.getCell('A1').value = 'Dashboard Report';
+  summary.getCell('A1').font = { bold: true, size: 20, color: { argb: 'FFFFFFFF' } };
+  summary.getCell('A1').alignment = { vertical: 'middle', horizontal: 'left' };
+  summary.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF11358B' } };
+  summary.getRow(1).height = 28;
+  summary.getRow(2).height = 18;
+
+  const metadata = [
+    ['Date range', report.dateRangeLabel],
+    ['Prepared for', user.userName || 'User'],
+    ['Generated', new Date()]
+  ];
+  metadata.forEach((entry, index) => {
+    const row = 4 + index;
+    summary.getCell(row, 1).value = entry[0];
+    summary.getCell(row, 1).font = { bold: true, color: { argb: 'FF5F6368' } };
+    summary.getCell(row, 2).value = entry[1];
+  });
+  summary.getCell('B6').numFmt = 'mmm d, yyyy h:mm AM/PM';
+
+  const stats = report.trainingStats;
+  const traineeStats = report.traineeStats;
+  const metrics = [
+    ['Total Trainings', numberValue(stats.total)],
+    ['Completed', numberValue(stats.completed)],
+    ['Course Completion Rate', numberValue(stats.course_completion_rate) / 100],
+    ['Assessment Pass Rate', numberValue(stats.assessment_pass_rate) / 100],
+    ['In Progress', numberValue(stats.in_progress)],
+    ['Canceled', numberValue(stats.canceled)],
+    ['Rescheduled', numberValue(stats.rescheduled)],
+    ['Registered Trainees', numberValue(traineeStats.registered)],
+    ['Active Trainees', numberValue(traineeStats.active)],
+    ['Inactive Trainees', numberValue(traineeStats.inactive)]
+  ];
+
+  summary.mergeCells('A8:E8');
+  summary.getCell('A8').value = 'Executive Summary';
+  summary.getCell('A8').font = { bold: true, size: 13, color: { argb: 'FF202124' } };
+  metrics.forEach((metric, index) => {
+    const row = 9 + Math.floor(index / 2);
+    const column = index % 2 === 0 ? 1 : 4;
+    summary.getCell(row, column).value = metric[0];
+    summary.getCell(row, column).font = { bold: true, color: { argb: 'FF5F6368' } };
+    summary.getCell(row, column + 1).value = metric[1];
+    summary.getCell(row, column + 1).font = { bold: true, size: 12, color: { argb: 'FF573FD7' } };
+    if (metric[0].includes('Rate')) summary.getCell(row, column + 1).numFmt = '0%';
+  });
+
+  const statusStartRow = 16;
+  summary.getCell(statusStartRow, 1).value = 'Training Status Breakdown';
+  summary.getCell(statusStartRow, 1).font = { bold: true, size: 13 };
+  summary.addTable({
+    name: 'DashboardStatusBreakdown',
+    ref: `A${statusStartRow + 1}`,
+    headerRow: true,
+    style: { theme: 'TableStyleMedium4', showRowStripes: true },
+    columns: [{ name: 'Status' }, { name: 'Count' }, { name: 'Share' }],
+    rows: [
+      ['In Progress', numberValue(stats.in_progress), numberValue(stats.total) ? numberValue(stats.in_progress) / numberValue(stats.total) : 0],
+      ['Completed', numberValue(stats.completed), numberValue(stats.total) ? numberValue(stats.completed) / numberValue(stats.total) : 0],
+      ['Canceled', numberValue(stats.canceled), numberValue(stats.total) ? numberValue(stats.canceled) / numberValue(stats.total) : 0],
+      ['Rescheduled', numberValue(stats.rescheduled), numberValue(stats.total) ? numberValue(stats.rescheduled) / numberValue(stats.total) : 0]
+    ]
+  });
+  summary.getColumn(3).numFmt = '0%';
+  summary.views = [{ state: 'frozen', ySplit: 2 }];
+
+  addDashboardTableSheet(workbook, 'Recent Trainings', [
+    { header: 'Training', width: 32, value: 'title' },
+    { header: 'Type', width: 16, value: row => String(row.type || '').replace(/_/g, ' ') },
+    { header: 'Healthcare Centres', width: 38, value: row => row.healthcare_centres || '' },
+    { header: 'Start', width: 22, value: row => row.start_datetime ? new Date(row.start_datetime) : '', numFmt: 'mmm d, yyyy h:mm AM/PM' },
+    { header: 'End', width: 22, value: row => row.end_datetime ? new Date(row.end_datetime) : '', numFmt: 'mmm d, yyyy h:mm AM/PM' },
+    { header: 'Status', width: 18, value: row => String(row.status || '').replace(/_/g, ' ') }
+  ], report.recentTrainings || [], { tableName: 'DashboardRecentTrainings' });
+
+  addDashboardTableSheet(workbook, 'Top Clients', [
+    { header: 'Healthcare Centre', width: 42, value: 'name' },
+    { header: 'Training Count', width: 18, value: row => numberValue(row.training_count), numFmt: '0' }
+  ], report.topClientTrainings || [], { tableName: 'DashboardTopClients' });
+
+  addDashboardTableSheet(workbook, 'Trainer Activity', [
+    { header: 'Trainer', width: 30, value: row => `${row.first_name || ''} ${row.last_name || ''}`.trim() },
+    { header: 'Role', width: 16, value: 'role' },
+    { header: 'Completed', width: 16, value: row => numberValue(row.completed_trainings), numFmt: '0' },
+    { header: 'In Progress', width: 16, value: row => numberValue(row.in_progress_trainings), numFmt: '0' },
+    { header: 'Taught Hours', width: 16, value: row => numberValue(row.taught_hours), numFmt: '0.0' }
+  ], report.trainers || [], { tableName: 'DashboardTrainerActivity' });
+
+  addDashboardTableSheet(workbook, 'Registrations', [
+    { header: 'Trainee', width: 30, value: row => `${row.first_name || ''} ${row.last_name || ''}`.trim() },
+    { header: 'Trainee ID', width: 18, value: row => row.trainee_id || '' },
+    { header: 'Healthcare Centre', width: 34, value: row => row.healthcare || '' },
+    { header: 'Email', width: 34, value: row => row.email || '' }
+  ], report.recentRegistrations || [], { tableName: 'DashboardRegistrations' });
+
+  workbook.eachSheet(worksheet => {
+    worksheet.eachRow({ includeEmpty: false }, row => {
+      row.alignment = { ...row.alignment, vertical: 'middle', wrapText: true };
+    });
+  });
+
+  return workbook;
+}
+
 router.get('/', async (req, res) => {
   try {
     const role = req.session.userRole;
@@ -1022,6 +1202,33 @@ router.get('/pdf', async (req, res) => {
     console.error('Dashboard PDF error:', error);
     if (!res.headersSent) {
       res.status(500).send('Error generating dashboard PDF');
+    } else {
+      res.end();
+    }
+  }
+});
+
+router.get('/excel', async (req, res) => {
+  try {
+    const role = req.session.userRole;
+    if (!['admin', 'trainer'].includes(role)) {
+      return res.status(403).send('Access denied');
+    }
+
+    const report = await getTrainerDashboardReportData(req.db, req.query);
+    const workbook = buildDashboardExcelWorkbook(report, req.session);
+    const filenameDate = report.dashboardDateRange.isAllTime
+      ? 'all-time'
+      : `${report.dashboardDateRange.startDate}_to_${report.dashboardDateRange.endDate}`;
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="Dashboard Report ${filenameDate}.xlsx"`);
+    res.send(Buffer.from(buffer));
+  } catch (error) {
+    console.error('Dashboard Excel error:', error);
+    if (!res.headersSent) {
+      res.status(500).send('Error generating dashboard Excel report');
     } else {
       res.end();
     }
