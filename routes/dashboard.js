@@ -258,7 +258,7 @@ async function getTrainerDashboardReportData(db, query) {
     ? Math.round((passedAssessmentAttempts / totalAssessmentAttempts) * 100)
     : 0;
 
-  const [recentTrainings] = await db.query(`
+  const [allTrainings] = await db.query(`
     SELECT
       t.id,
       t.title,
@@ -272,8 +272,7 @@ async function getTrainerDashboardReportData(db, query) {
     LEFT JOIN healthcare h ON th.healthcare_id = h.id
     ${trainingDateWhereWithAlias.clause}
     GROUP BY t.id, t.title, t.type, t.start_datetime, t.end_datetime, t.status
-    ORDER BY t.created_at DESC
-    LIMIT 10
+    ORDER BY t.start_datetime DESC, t.id DESC
   `, trainingDateWhereWithAlias.params);
 
   const [topClientTrainings] = await db.query(`
@@ -372,7 +371,7 @@ async function getTrainerDashboardReportData(db, query) {
     },
     assessmentStats,
     traineeStats: traineeStatsRows[0] || { total: 0, active: 0, inactive: 0, suspended: 0, registered: 0 },
-    recentTrainings,
+    allTrainings,
     topClientTrainings,
     trainers,
     recentRegistrations
@@ -427,20 +426,24 @@ function drawDashboardPdf(doc, report, user) {
     ensureSpace(headerHeight + Math.min(rows.length, 4) * rowHeight + 12);
 
     const startX = margin;
-    let y = doc.y;
-    doc.roundedRect(startX, y, usableWidth, headerHeight, 6).fill(navy);
-    let x = startX;
-    columns.forEach(column => {
-      doc.font('Helvetica-Bold').fontSize(8).fillColor('#FFFFFF').text(column.label, x + 8, y + 8, {
-        width: column.width - 16,
-        ellipsis: true
+    const drawHeader = () => {
+      const headerY = doc.y;
+      doc.roundedRect(startX, headerY, usableWidth, headerHeight, 6).fill(navy);
+      let headerX = startX;
+      columns.forEach(column => {
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#FFFFFF').text(column.label, headerX + 8, headerY + 8, {
+          width: column.width - 16,
+          ellipsis: true
+        });
+        headerX += column.width;
       });
-      x += column.width;
-    });
-    y += headerHeight;
-    doc.y = y;
+      doc.y = headerY + headerHeight;
+    };
+
+    drawHeader();
 
     if (!rows.length) {
+      const y = doc.y;
       doc.rect(startX, y, usableWidth, rowHeight).fillAndStroke('#FFFFFF', border);
       doc.font('Helvetica').fontSize(8.5).fillColor(muted).text('No records found.', startX + 8, y + 9, {
         width: usableWidth - 16
@@ -450,10 +453,14 @@ function drawDashboardPdf(doc, report, user) {
     }
 
     rows.forEach((row, index) => {
-      ensureSpace(rowHeight + 6);
-      y = doc.y;
+      if (doc.y + rowHeight > doc.page.height - 48) {
+        doc.addPage();
+        doc.y = margin;
+        drawHeader();
+      }
+      const y = doc.y;
       doc.rect(startX, y, usableWidth, rowHeight).fillAndStroke(index % 2 === 0 ? '#FFFFFF' : '#F8FAFC', border);
-      x = startX;
+      let x = startX;
       columns.forEach(column => {
         const raw = typeof column.value === 'function' ? column.value(row) : row[column.value];
         doc.font('Helvetica').fontSize(8.2).fillColor(text).text(truncate(raw, column.truncate || 42), x + 8, y + 9, {
@@ -550,13 +557,13 @@ function drawDashboardPdf(doc, report, user) {
     });
   }
 
-  sectionTitle('Recent Trainings');
+  sectionTitle('Trainings During Period');
   drawRows([
     { label: 'Training', width: 176, value: row => row.title, truncate: 34 },
     { label: 'Client', width: 150, value: row => row.healthcare_centres || '-', truncate: 28 },
     { label: 'Start', width: 116, value: row => formatDashboardDateTime(row.start_datetime), truncate: 22 },
     { label: 'Status', width: usableWidth - 442, value: row => String(row.status || '-').replace(/_/g, ' ') }
-  ], report.recentTrainings || []);
+  ], report.allTrainings || []);
 
   doc.addPage();
   doc.y = margin;
@@ -590,55 +597,72 @@ function drawDashboardPdf(doc, report, user) {
 }
 
 function styleDashboardWorksheet(worksheet, columnWidths) {
-  worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+  worksheet.views = [{ state: 'frozen', ySplit: 1, showGridLines: false }];
+  worksheet.pageSetup = {
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+  };
   columnWidths.forEach((width, index) => {
     worksheet.getColumn(index + 1).width = width || 18;
   });
-
-  worksheet.eachRow({ includeEmpty: false }, row => {
-    row.alignment = { vertical: 'middle', wrapText: true };
-  });
 }
 
-function addDashboardTableSheet(workbook, name, columns, rows, options = {}) {
+function addDashboardDataSheet(workbook, name, columns, rows) {
   const worksheet = workbook.addWorksheet(name, {
     properties: { defaultRowHeight: 20 }
   });
   styleDashboardWorksheet(worksheet, columns.map(column => column.width));
 
-  worksheet.addTable({
-    name: options.tableName,
-    ref: 'A1',
-    headerRow: true,
-    style: {
-      theme: 'TableStyleMedium4',
-      showRowStripes: true
-    },
-    columns: columns.map(column => ({ name: column.header })),
-    rows: rows.map(row => columns.map(column => {
-      const value = typeof column.value === 'function' ? column.value(row) : row[column.value];
-      return value ?? '';
-    }))
+  const headerRow = worksheet.addRow(columns.map(column => column.header));
+  headerRow.height = 28;
+  headerRow.eachCell(cell => {
+    cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF11358B' } };
+    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+    cell.border = { bottom: { style: 'thin', color: { argb: 'FF8EA3D4' } } };
   });
 
-  worksheet.getRow(1).height = 26;
-  worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  worksheet.getRow(1).alignment = { vertical: 'middle', wrapText: true };
+  rows.forEach((sourceRow, rowIndex) => {
+    const row = worksheet.addRow(columns.map(column => {
+      const value = typeof column.value === 'function' ? column.value(sourceRow) : sourceRow[column.value];
+      return value ?? '';
+    }));
+    row.height = 23;
+    row.eachCell((cell, columnIndex) => {
+      cell.font = { name: 'Arial', size: 9, color: { argb: 'FF202124' } };
+      cell.alignment = {
+        vertical: 'middle',
+        horizontal: columns[columnIndex - 1].align || 'left',
+        wrapText: true
+      };
+      if (rowIndex % 2 === 1) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F8FB' } };
+      }
+      cell.border = { bottom: { style: 'hair', color: { argb: 'FFDCE2EC' } } };
+    });
+  });
 
   columns.forEach((column, index) => {
     if (column.numFmt) worksheet.getColumn(index + 1).numFmt = column.numFmt;
   });
 
   if (!rows.length) {
-    worksheet.addRow(columns.map((column, index) => index === 0 ? 'No records found.' : ''));
-    worksheet.mergeCells(2, 1, 2, columns.length);
-    worksheet.getCell('A2').font = { italic: true, color: { argb: 'FF5F6368' } };
+    const emptyRow = worksheet.addRow(['No records found for the selected period.']);
+    emptyRow.height = 28;
+    emptyRow.getCell(1).font = { name: 'Arial', size: 9, italic: true, color: { argb: 'FF5F6368' } };
+    emptyRow.getCell(1).alignment = { vertical: 'middle' };
+  } else {
+    worksheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: rows.length + 1, column: columns.length }
+    };
   }
 
-  worksheet.autoFilter = {
-    from: { row: 1, column: 1 },
-    to: { row: Math.max(1, rows.length + 1), column: columns.length }
-  };
+  worksheet.headerFooter.oddFooter = 'Quick Stop Solution LMS  |  Page &P of &N';
+  worksheet.pageSetup.printTitlesRow = '1:1';
   return worksheet;
 }
 
@@ -655,6 +679,7 @@ function buildDashboardExcelWorkbook(report, user) {
     properties: { defaultRowHeight: 21 },
     pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
   });
+  summary.views = [{ showGridLines: false }];
   summary.columns = [
     { width: 28 },
     { width: 18 },
@@ -664,7 +689,7 @@ function buildDashboardExcelWorkbook(report, user) {
   ];
   summary.mergeCells('A1:E2');
   summary.getCell('A1').value = 'Dashboard Report';
-  summary.getCell('A1').font = { bold: true, size: 20, color: { argb: 'FFFFFFFF' } };
+  summary.getCell('A1').font = { name: 'Arial', bold: true, size: 20, color: { argb: 'FFFFFFFF' } };
   summary.getCell('A1').alignment = { vertical: 'middle', horizontal: 'left' };
   summary.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF11358B' } };
   summary.getRow(1).height = 28;
@@ -678,8 +703,9 @@ function buildDashboardExcelWorkbook(report, user) {
   metadata.forEach((entry, index) => {
     const row = 4 + index;
     summary.getCell(row, 1).value = entry[0];
-    summary.getCell(row, 1).font = { bold: true, color: { argb: 'FF5F6368' } };
+    summary.getCell(row, 1).font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF5F6368' } };
     summary.getCell(row, 2).value = entry[1];
+    summary.getCell(row, 2).font = { name: 'Arial', size: 10, color: { argb: 'FF202124' } };
   });
   summary.getCell('B6').numFmt = 'mmm d, yyyy h:mm AM/PM';
 
@@ -700,70 +726,69 @@ function buildDashboardExcelWorkbook(report, user) {
 
   summary.mergeCells('A8:E8');
   summary.getCell('A8').value = 'Executive Summary';
-  summary.getCell('A8').font = { bold: true, size: 13, color: { argb: 'FF202124' } };
+  summary.getCell('A8').font = { name: 'Arial', bold: true, size: 13, color: { argb: 'FF202124' } };
   metrics.forEach((metric, index) => {
     const row = 9 + Math.floor(index / 2);
     const column = index % 2 === 0 ? 1 : 4;
     summary.getCell(row, column).value = metric[0];
-    summary.getCell(row, column).font = { bold: true, color: { argb: 'FF5F6368' } };
+    summary.getCell(row, column).font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF5F6368' } };
     summary.getCell(row, column + 1).value = metric[1];
-    summary.getCell(row, column + 1).font = { bold: true, size: 12, color: { argb: 'FF573FD7' } };
+    summary.getCell(row, column + 1).font = { name: 'Arial', bold: true, size: 12, color: { argb: 'FF573FD7' } };
     if (metric[0].includes('Rate')) summary.getCell(row, column + 1).numFmt = '0%';
   });
 
   const statusStartRow = 16;
   summary.getCell(statusStartRow, 1).value = 'Training Status Breakdown';
-  summary.getCell(statusStartRow, 1).font = { bold: true, size: 13 };
-  summary.addTable({
-    name: 'DashboardStatusBreakdown',
-    ref: `A${statusStartRow + 1}`,
-    headerRow: true,
-    style: { theme: 'TableStyleMedium4', showRowStripes: true },
-    columns: [{ name: 'Status' }, { name: 'Count' }, { name: 'Share' }],
-    rows: [
-      ['In Progress', numberValue(stats.in_progress), numberValue(stats.total) ? numberValue(stats.in_progress) / numberValue(stats.total) : 0],
-      ['Completed', numberValue(stats.completed), numberValue(stats.total) ? numberValue(stats.completed) / numberValue(stats.total) : 0],
-      ['Canceled', numberValue(stats.canceled), numberValue(stats.total) ? numberValue(stats.canceled) / numberValue(stats.total) : 0],
-      ['Rescheduled', numberValue(stats.rescheduled), numberValue(stats.total) ? numberValue(stats.rescheduled) / numberValue(stats.total) : 0]
-    ]
+  summary.getCell(statusStartRow, 1).font = { name: 'Arial', bold: true, size: 13 };
+  const statusRows = [
+    ['Status', 'Count', 'Share'],
+    ['In Progress', numberValue(stats.in_progress), numberValue(stats.total) ? numberValue(stats.in_progress) / numberValue(stats.total) : 0],
+    ['Completed', numberValue(stats.completed), numberValue(stats.total) ? numberValue(stats.completed) / numberValue(stats.total) : 0],
+    ['Canceled', numberValue(stats.canceled), numberValue(stats.total) ? numberValue(stats.canceled) / numberValue(stats.total) : 0],
+    ['Rescheduled', numberValue(stats.rescheduled), numberValue(stats.total) ? numberValue(stats.rescheduled) / numberValue(stats.total) : 0]
+  ];
+  statusRows.forEach((values, index) => {
+    const row = statusStartRow + 1 + index;
+    values.forEach((value, column) => {
+      const cell = summary.getCell(row, column + 1);
+      cell.value = value;
+      cell.font = { name: 'Arial', size: 10, bold: index === 0, color: { argb: index === 0 ? 'FFFFFFFF' : 'FF202124' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: index === 0 ? 'FF11358B' : index % 2 === 0 ? 'FFF7F8FB' : 'FFFFFFFF' } };
+      cell.alignment = { vertical: 'middle', horizontal: column === 0 ? 'left' : 'right' };
+    });
   });
-  summary.getColumn(3).numFmt = '0%';
-  summary.views = [{ state: 'frozen', ySplit: 2 }];
+  for (let row = statusStartRow + 2; row <= statusStartRow + 5; row += 1) {
+    summary.getCell(row, 3).numFmt = '0%';
+  }
 
-  addDashboardTableSheet(workbook, 'Recent Trainings', [
+  addDashboardDataSheet(workbook, 'Trainings', [
     { header: 'Training', width: 32, value: 'title' },
     { header: 'Type', width: 16, value: row => String(row.type || '').replace(/_/g, ' ') },
     { header: 'Healthcare Centres', width: 38, value: row => row.healthcare_centres || '' },
     { header: 'Start', width: 22, value: row => row.start_datetime ? new Date(row.start_datetime) : '', numFmt: 'mmm d, yyyy h:mm AM/PM' },
     { header: 'End', width: 22, value: row => row.end_datetime ? new Date(row.end_datetime) : '', numFmt: 'mmm d, yyyy h:mm AM/PM' },
     { header: 'Status', width: 18, value: row => String(row.status || '').replace(/_/g, ' ') }
-  ], report.recentTrainings || [], { tableName: 'DashboardRecentTrainings' });
+  ], report.allTrainings || []);
 
-  addDashboardTableSheet(workbook, 'Top Clients', [
+  addDashboardDataSheet(workbook, 'Top Clients', [
     { header: 'Healthcare Centre', width: 42, value: 'name' },
-    { header: 'Training Count', width: 18, value: row => numberValue(row.training_count), numFmt: '0' }
-  ], report.topClientTrainings || [], { tableName: 'DashboardTopClients' });
+    { header: 'Training Count', width: 18, value: row => numberValue(row.training_count), numFmt: '#,##0', align: 'right' }
+  ], report.topClientTrainings || []);
 
-  addDashboardTableSheet(workbook, 'Trainer Activity', [
+  addDashboardDataSheet(workbook, 'Trainer Activity', [
     { header: 'Trainer', width: 30, value: row => `${row.first_name || ''} ${row.last_name || ''}`.trim() },
     { header: 'Role', width: 16, value: 'role' },
-    { header: 'Completed', width: 16, value: row => numberValue(row.completed_trainings), numFmt: '0' },
-    { header: 'In Progress', width: 16, value: row => numberValue(row.in_progress_trainings), numFmt: '0' },
-    { header: 'Taught Hours', width: 16, value: row => numberValue(row.taught_hours), numFmt: '0.0' }
-  ], report.trainers || [], { tableName: 'DashboardTrainerActivity' });
+    { header: 'Completed', width: 16, value: row => numberValue(row.completed_trainings), numFmt: '#,##0', align: 'right' },
+    { header: 'In Progress', width: 16, value: row => numberValue(row.in_progress_trainings), numFmt: '#,##0', align: 'right' },
+    { header: 'Taught Hours', width: 16, value: row => numberValue(row.taught_hours), numFmt: '#,##0.0', align: 'right' }
+  ], report.trainers || []);
 
-  addDashboardTableSheet(workbook, 'Registrations', [
+  addDashboardDataSheet(workbook, 'Registrations', [
     { header: 'Trainee', width: 30, value: row => `${row.first_name || ''} ${row.last_name || ''}`.trim() },
     { header: 'Trainee ID', width: 18, value: row => row.trainee_id || '' },
     { header: 'Healthcare Centre', width: 34, value: row => row.healthcare || '' },
     { header: 'Email', width: 34, value: row => row.email || '' }
-  ], report.recentRegistrations || [], { tableName: 'DashboardRegistrations' });
-
-  workbook.eachSheet(worksheet => {
-    worksheet.eachRow({ includeEmpty: false }, row => {
-      row.alignment = { ...row.alignment, vertical: 'middle', wrapText: true };
-    });
-  });
+  ], report.recentRegistrations || []);
 
   return workbook;
 }
