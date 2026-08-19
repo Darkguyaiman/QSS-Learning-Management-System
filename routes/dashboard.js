@@ -158,6 +158,14 @@ function numberValue(value) {
   return Number(value || 0);
 }
 
+function formatDashboardLabel(value) {
+  return String(value || '-')
+    .replace(/_/g, ' ')
+    .trim()
+    .toLowerCase()
+    .replace(/\b\w/g, character => character.toUpperCase());
+}
+
 function getTrainingDurationValues(training) {
   if (!training.start_datetime || !training.end_datetime) {
     return { totalHours: '', durationLabel: '' };
@@ -593,7 +601,7 @@ function drawDashboardPdf(doc, report, user) {
     { label: 'Client', width: 121, value: row => row.healthcare_centres || '-', truncate: 22 },
     { label: 'Start', width: 102, value: row => formatDashboardDateTime(row.start_datetime), truncate: 19 },
     { label: 'Participants', width: 76, value: row => numberValue(row.participant_count) },
-    { label: 'Status', width: usableWidth - 447, value: row => String(row.status || '-').replace(/_/g, ' ') }
+    { label: 'Status', width: usableWidth - 447, value: row => formatDashboardLabel(row.status) }
   ], report.allTrainings || []);
 
   doc.addPage();
@@ -796,14 +804,14 @@ function buildDashboardExcelWorkbook(report, user) {
 
   addDashboardDataSheet(workbook, 'Trainings', [
     { header: 'Training', width: 32, value: 'title' },
-    { header: 'Type', width: 16, value: row => String(row.type || '').replace(/_/g, ' ') },
+    { header: 'Type', width: 16, value: row => formatDashboardLabel(row.type) },
     { header: 'Healthcare Centres', width: 38, value: row => row.healthcare_centres || '' },
     { header: 'Start', width: 22, value: row => row.start_datetime ? new Date(row.start_datetime) : '', numFmt: 'mmm d, yyyy h:mm AM/PM' },
     { header: 'End', width: 22, value: row => row.end_datetime ? new Date(row.end_datetime) : '', numFmt: 'mmm d, yyyy h:mm AM/PM' },
     { header: 'Participants', width: 16, value: row => numberValue(row.participant_count), numFmt: '#,##0', align: 'right' },
     { header: 'Total Hours', width: 16, value: (row, worksheetRow) => getTrainingTotalHoursCell(row, worksheetRow), numFmt: '#,##0.00', align: 'right' },
     { header: 'Total Duration', width: 30, value: (row, worksheetRow) => getTrainingDurationCell(row, worksheetRow) },
-    { header: 'Status', width: 18, value: row => String(row.status || '').replace(/_/g, ' ') }
+    { header: 'Status', width: 18, value: row => formatDashboardLabel(row.status) }
   ], report.allTrainings || []);
 
   addDashboardDataSheet(workbook, 'Top Clients', [
