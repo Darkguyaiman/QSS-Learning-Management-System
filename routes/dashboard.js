@@ -166,6 +166,18 @@ function formatDashboardLabel(value) {
     .replace(/\b\w/g, character => character.toUpperCase());
 }
 
+function formatTrainerList(value) {
+  const names = String(value || '')
+    .split('||')
+    .map(name => name.trim())
+    .filter(Boolean);
+
+  if (!names.length) return '-';
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} & ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}`;
+}
+
 function getTrainingDurationValues(training) {
   if (!training.start_datetime || !training.end_datetime) {
     return { totalHours: '', durationLabel: '' };
@@ -322,6 +334,16 @@ async function getTrainerDashboardReportData(db, query) {
       t.end_datetime,
       t.status,
       GROUP_CONCAT(DISTINCT h.name ORDER BY h.name SEPARATOR ', ') as healthcare_centres,
+      (
+        SELECT GROUP_CONCAT(
+          DISTINCT TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')))
+          ORDER BY u.last_name, u.first_name
+          SEPARATOR '||'
+        )
+        FROM training_trainers tt
+        JOIN users u ON u.id = tt.trainer_id
+        WHERE tt.training_id = t.id
+      ) as trainer_names,
       (
         SELECT COUNT(DISTINCT e.trainee_id)
         FROM enrollments e
@@ -503,6 +525,7 @@ function drawDashboardPdf(doc, report, user) {
         const raw = typeof column.value === 'function' ? column.value(row) : row[column.value];
         doc.font('Helvetica').fontSize(8.2).fillColor(text).text(truncate(raw, column.truncate || 42), x + 8, y + 9, {
           width: column.width - 16,
+          height: rowHeight - 10,
           ellipsis: true
         });
         x += column.width;
@@ -597,12 +620,13 @@ function drawDashboardPdf(doc, report, user) {
 
   sectionTitle('Trainings During Period');
   drawRows([
-    { label: 'Training', width: 148, value: row => row.title, truncate: 28 },
-    { label: 'Client', width: 121, value: row => row.healthcare_centres || '-', truncate: 22 },
-    { label: 'Start', width: 102, value: row => formatDashboardDateTime(row.start_datetime), truncate: 19 },
-    { label: 'Participants', width: 76, value: row => numberValue(row.participant_count) },
-    { label: 'Status', width: usableWidth - 447, value: row => formatDashboardLabel(row.status) }
-  ], report.allTrainings || []);
+    { label: 'Training', width: 105, value: row => row.title, truncate: 32 },
+    { label: 'Client', width: 80, value: row => row.healthcare_centres || '-', truncate: 24 },
+    { label: 'Trainers', width: 100, value: row => formatTrainerList(row.trainer_names), truncate: 55 },
+    { label: 'Start', width: 86, value: row => formatDashboardDateTime(row.start_datetime), truncate: 16 },
+    { label: 'Participants', width: 72, value: row => numberValue(row.participant_count) },
+    { label: 'Status', width: usableWidth - 443, value: row => formatDashboardLabel(row.status) }
+  ], report.allTrainings || [], { rowHeight: 38 });
 
   doc.addPage();
   doc.y = margin;
@@ -808,6 +832,7 @@ function buildDashboardExcelWorkbook(report, user) {
     { header: 'Healthcare Centres', width: 38, value: row => row.healthcare_centres || '' },
     { header: 'Start', width: 22, value: row => row.start_datetime ? new Date(row.start_datetime) : '', numFmt: 'mmm d, yyyy h:mm AM/PM' },
     { header: 'End', width: 22, value: row => row.end_datetime ? new Date(row.end_datetime) : '', numFmt: 'mmm d, yyyy h:mm AM/PM' },
+    { header: 'Trainers', width: 30, value: row => formatTrainerList(row.trainer_names) },
     { header: 'Participants', width: 16, value: row => numberValue(row.participant_count), numFmt: '#,##0', align: 'right' },
     { header: 'Total Hours', width: 16, value: (row, worksheetRow) => getTrainingTotalHoursCell(row, worksheetRow), numFmt: '#,##0.00', align: 'right' },
     { header: 'Total Duration', width: 30, value: (row, worksheetRow) => getTrainingDurationCell(row, worksheetRow) },
