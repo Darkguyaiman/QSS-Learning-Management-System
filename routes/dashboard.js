@@ -391,27 +391,6 @@ async function getTrainerDashboardReportData(db, query) {
     LIMIT 10
   `, trainerTrainingParams);
 
-  const traineeFilterClauses = [`t.trainee_status = 'registered'`];
-  const traineeFilterParams = [];
-  if (activeFilters.healthcareId) {
-    traineeFilterClauses.push('t.healthcare_id = ?');
-    traineeFilterParams.push(activeFilters.healthcareId);
-  }
-
-  const [recentRegistrations] = await db.query(`
-    SELECT
-      t.first_name,
-      t.last_name,
-      t.trainee_id,
-      h.name AS healthcare,
-      t.email
-    FROM trainees t
-    LEFT JOIN healthcare h ON h.id = t.healthcare_id
-    WHERE ${traineeFilterClauses.join(' AND ')}
-    ORDER BY t.created_at DESC
-    LIMIT 10
-  `, traineeFilterParams);
-
   return {
     dashboardDateRange,
     activeFilters,
@@ -425,8 +404,7 @@ async function getTrainerDashboardReportData(db, query) {
     traineeStats: traineeStatsRows[0] || { total: 0, active: 0, inactive: 0, suspended: 0, registered: 0 },
     allTrainings,
     topClientTrainings,
-    trainers,
-    recentRegistrations
+    trainers
   };
 }
 
@@ -629,14 +607,6 @@ function drawDashboardPdf(doc, report, user) {
     { label: 'Hours', width: usableWidth - 452, value: row => numberValue(row.taught_hours).toFixed(1) }
   ], report.trainers || []);
 
-  sectionTitle('Recent Registrations');
-  drawRows([
-    { label: 'Trainee', width: 158, value: row => `${row.first_name} ${row.last_name}`, truncate: 28 },
-    { label: 'ID', width: 92, value: row => row.trainee_id || '-' },
-    { label: 'Healthcare', width: 170, value: row => row.healthcare || '-', truncate: 30 },
-    { label: 'Email', width: usableWidth - 420, value: row => row.email || '-', truncate: 34 }
-  ], report.recentRegistrations || []);
-
   const pageRange = doc.bufferedPageRange();
   for (let i = pageRange.start; i < pageRange.start + pageRange.count; i += 1) {
     doc.switchToPage(i);
@@ -740,11 +710,11 @@ function buildDashboardExcelWorkbook(report, user) {
   });
   summary.views = [{ showGridLines: false }];
   summary.columns = [
-    { width: 28 },
-    { width: 18 },
-    { width: 4 },
-    { width: 28 },
-    { width: 18 }
+    { width: 30 },
+    { width: 22 },
+    { width: 5 },
+    { width: 30 },
+    { width: 22 }
   ];
   summary.mergeCells('A1:E2');
   summary.getCell('A1').value = 'Dashboard Report';
@@ -759,12 +729,16 @@ function buildDashboardExcelWorkbook(report, user) {
     ['Prepared for', user.userName || 'User'],
     ['Generated', new Date()]
   ];
+  summary.mergeCells('B4:E4');
+  summary.mergeCells('B5:E5');
+  summary.mergeCells('B6:E6');
   metadata.forEach((entry, index) => {
     const row = 4 + index;
     summary.getCell(row, 1).value = entry[0];
     summary.getCell(row, 1).font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF5F6368' } };
     summary.getCell(row, 2).value = entry[1];
     summary.getCell(row, 2).font = { name: 'Arial', size: 10, color: { argb: 'FF202124' } };
+    summary.getCell(row, 2).alignment = { vertical: 'middle', horizontal: 'left' };
   });
   summary.getCell('B6').numFmt = 'mmm d, yyyy h:mm AM/PM';
 
@@ -844,13 +818,6 @@ function buildDashboardExcelWorkbook(report, user) {
     { header: 'In Progress', width: 16, value: row => numberValue(row.in_progress_trainings), numFmt: '#,##0', align: 'right' },
     { header: 'Taught Hours', width: 16, value: row => numberValue(row.taught_hours), numFmt: '#,##0.0', align: 'right' }
   ], report.trainers || []);
-
-  addDashboardDataSheet(workbook, 'Registrations', [
-    { header: 'Trainee', width: 30, value: row => `${row.first_name || ''} ${row.last_name || ''}`.trim() },
-    { header: 'Trainee ID', width: 18, value: row => row.trainee_id || '' },
-    { header: 'Healthcare Centre', width: 34, value: row => row.healthcare || '' },
-    { header: 'Email', width: 34, value: row => row.email || '' }
-  ], report.recentRegistrations || []);
 
   return workbook;
 }
