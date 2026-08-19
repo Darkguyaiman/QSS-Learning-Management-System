@@ -141,17 +141,78 @@ function formatDashboardDateLabel(range) {
   return `${formatter.format(new Date(`${range.startDate}T00:00:00`))} - ${formatter.format(new Date(`${range.endDate}T00:00:00`))}`;
 }
 
-function formatDashboardDateTime(value) {
-  if (!value) return '-';
+function getDashboardTimeZone(query = {}) {
+  const requestedTimeZone = String(query.timeZone || '').trim().slice(0, 100);
+  if (requestedTimeZone) {
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: requestedTimeZone }).format(new Date());
+      return requestedTimeZone;
+    } catch (error) {
+      // Fall through to the server zone when the browser sends an invalid value.
+    }
+  }
+
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+}
+
+function parseDashboardDateTime(value) {
+  if (!value) return null;
   const date = value instanceof Date ? value : new Date(String(value).replace(' ', 'T'));
-  if (Number.isNaN(date.getTime())) return '-';
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDashboardDateTime(value, timeZone) {
+  const date = parseDashboardDateTime(value);
+  if (!date) return '-';
   return new Intl.DateTimeFormat('en-US', {
+    timeZone,
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit'
   }).format(date);
+}
+
+function formatDashboardCompactDateTime(value, timeZone) {
+  const date = parseDashboardDateTime(value);
+  if (!date) return '-';
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: '2-digit',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(date);
+}
+
+function getExcelDateInTimeZone(value, timeZone) {
+  const date = parseDashboardDateTime(value);
+  if (!date) return '';
+
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(date).reduce((values, part) => {
+    if (part.type !== 'literal') values[part.type] = Number(part.value);
+    return values;
+  }, {});
+
+  return new Date(Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second
+  ));
 }
 
 function numberValue(value) {
@@ -178,22 +239,22 @@ function formatTrainerList(value) {
   return `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}`;
 }
 
-function getTrainingDurationValues(training) {
+function getTrainingDurationValues(training, timeZone) {
   if (!training.start_datetime || !training.end_datetime) {
     return { totalHours: '', durationLabel: '' };
   }
 
-  const start = new Date(training.start_datetime);
-  const end = new Date(training.end_datetime);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+  const start = getExcelDateInTimeZone(training.start_datetime, timeZone);
+  const end = getExcelDateInTimeZone(training.end_datetime, timeZone);
+  if (!(start instanceof Date) || !(end instanceof Date)) {
     return { totalHours: '', durationLabel: '' };
   }
 
   const durationMs = end.getTime() - start.getTime();
   const totalHours = Math.round((durationMs / (60 * 60 * 1000)) * 100) / 100;
-  const isSameDay = start.getFullYear() === end.getFullYear()
-    && start.getMonth() === end.getMonth()
-    && start.getDate() === end.getDate();
+  const isSameDay = start.getUTCFullYear() === end.getUTCFullYear()
+    && start.getUTCMonth() === end.getUTCMonth()
+    && start.getUTCDate() === end.getUTCDate();
 
   if (isSameDay) {
     return { totalHours, durationLabel: '1 day 0 hours 0 minutes' };
@@ -209,16 +270,16 @@ function getTrainingDurationValues(training) {
   };
 }
 
-function getTrainingTotalHoursCell(training, worksheetRow) {
-  const values = getTrainingDurationValues(training);
+function getTrainingTotalHoursCell(training, worksheetRow, timeZone) {
+  const values = getTrainingDurationValues(training, timeZone);
   return {
     formula: `IF(OR(D${worksheetRow}="",E${worksheetRow}=""),"",ROUND((E${worksheetRow}-D${worksheetRow})*24,2))`,
     result: values.totalHours
   };
 }
 
-function getTrainingDurationCell(training, worksheetRow) {
-  const values = getTrainingDurationValues(training);
+function getTrainingDurationCell(training, worksheetRow, timeZone) {
+  const values = getTrainingDurationValues(training, timeZone);
   return {
     formula: `IF(OR(D${worksheetRow}="",E${worksheetRow}=""),"",IF(INT(D${worksheetRow})=INT(E${worksheetRow}),"1 day 0 hours 0 minutes",INT(E${worksheetRow}-D${worksheetRow})&" day "&INT(MOD(E${worksheetRow}-D${worksheetRow},1)*24)&" hours "&ROUND(MOD((E${worksheetRow}-D${worksheetRow})*24,1)*60,0)&" minutes"))`,
     result: values.durationLabel
@@ -273,6 +334,7 @@ function buildTrainingFilterClause({ dashboardDateRange, filters, alias = '', le
 
 async function getTrainerDashboardReportData(db, query) {
   const dashboardDateRange = getDashboardDateRange(query);
+  const timeZone = getDashboardTimeZone(query);
   const activeFilters = getDashboardEntityFilters(query);
   const trainingDateWhere = buildTrainingFilterClause({ dashboardDateRange, filters: activeFilters });
   const trainingDateWhereWithAlias = buildTrainingFilterClause({ dashboardDateRange, filters: activeFilters, alias: 't' });
@@ -423,6 +485,7 @@ async function getTrainerDashboardReportData(db, query) {
 
   return {
     dashboardDateRange,
+    timeZone,
     activeFilters,
     dateRangeLabel: formatDashboardDateLabel(dashboardDateRange),
     trainingStats: {
@@ -539,9 +602,17 @@ function drawDashboardPdf(doc, report, user) {
   doc.font('Helvetica-Bold').fontSize(22).fillColor('#FFFFFF').text('Dashboard Report', margin, 34);
   doc.font('Helvetica').fontSize(10).fillColor('#E8EAFF').text(`Date range: ${report.dateRangeLabel}`, margin, 64);
   doc.text(`Prepared for: ${user.userName || 'User'}`, margin, 82);
-  doc.fontSize(9).text(`Generated: ${formatDashboardDateTime(new Date())}`, pageWidth - margin - 190, 82, {
-    width: 190,
-    align: 'right'
+  doc.fontSize(9).text(`Generated: ${formatDashboardDateTime(new Date(), report.timeZone)}`, pageWidth - margin - 230, 76, {
+    width: 230,
+    height: 12,
+    align: 'right',
+    ellipsis: true
+  });
+  doc.fontSize(8).text(report.timeZone, pageWidth - margin - 230, 92, {
+    width: 230,
+    height: 11,
+    align: 'right',
+    ellipsis: true
   });
   doc.y = 142;
 
@@ -623,7 +694,7 @@ function drawDashboardPdf(doc, report, user) {
     { label: 'Training', width: 105, value: row => row.title, truncate: 32 },
     { label: 'Client', width: 80, value: row => row.healthcare_centres || '-', truncate: 24 },
     { label: 'Trainers', width: 100, value: row => formatTrainerList(row.trainer_names), truncate: 55 },
-    { label: 'Start', width: 86, value: row => formatDashboardDateTime(row.start_datetime), truncate: 16 },
+    { label: 'Start', width: 86, value: row => formatDashboardCompactDateTime(row.start_datetime, report.timeZone), truncate: 22 },
     { label: 'Participants', width: 72, value: row => numberValue(row.participant_count) },
     { label: 'Status', width: usableWidth - 443, value: row => formatDashboardLabel(row.status) }
   ], report.allTrainings || [], { rowHeight: 38 });
@@ -730,7 +801,7 @@ function buildDashboardExcelWorkbook(report, user) {
   workbook.lastModifiedBy = user.userName || 'Quick Stop Solution LMS';
   workbook.created = new Date();
   workbook.modified = new Date();
-  workbook.subject = `Dashboard report for ${report.dateRangeLabel}`;
+  workbook.subject = `Dashboard report for ${report.dateRangeLabel} (${report.timeZone})`;
   workbook.title = 'Dashboard Report';
   workbook.calcProperties.fullCalcOnLoad = true;
   workbook.calcProperties.forceFullCalc = true;
@@ -759,11 +830,13 @@ function buildDashboardExcelWorkbook(report, user) {
   const metadata = [
     ['Date range', report.dateRangeLabel],
     ['Prepared for', user.userName || 'User'],
-    ['Generated', new Date()]
+    ['Generated', getExcelDateInTimeZone(new Date(), report.timeZone)],
+    ['Time zone', report.timeZone]
   ];
   summary.mergeCells('B4:E4');
   summary.mergeCells('B5:E5');
   summary.mergeCells('B6:E6');
+  summary.mergeCells('B7:E7');
   metadata.forEach((entry, index) => {
     const row = 4 + index;
     summary.getCell(row, 1).value = entry[0];
@@ -789,11 +862,11 @@ function buildDashboardExcelWorkbook(report, user) {
     ['Inactive Trainees', numberValue(traineeStats.inactive)]
   ];
 
-  summary.mergeCells('A8:E8');
-  summary.getCell('A8').value = 'Executive Summary';
-  summary.getCell('A8').font = { name: 'Arial', bold: true, size: 13, color: { argb: 'FF202124' } };
+  summary.mergeCells('A9:E9');
+  summary.getCell('A9').value = 'Executive Summary';
+  summary.getCell('A9').font = { name: 'Arial', bold: true, size: 13, color: { argb: 'FF202124' } };
   metrics.forEach((metric, index) => {
-    const row = 9 + Math.floor(index / 2);
+    const row = 10 + Math.floor(index / 2);
     const column = index % 2 === 0 ? 1 : 4;
     summary.getCell(row, column).value = metric[0];
     summary.getCell(row, column).font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF5F6368' } };
@@ -802,7 +875,7 @@ function buildDashboardExcelWorkbook(report, user) {
     if (metric[0].includes('Rate')) summary.getCell(row, column + 1).numFmt = '0%';
   });
 
-  const statusStartRow = 16;
+  const statusStartRow = 17;
   summary.getCell(statusStartRow, 1).value = 'Training Status Breakdown';
   summary.getCell(statusStartRow, 1).font = { name: 'Arial', bold: true, size: 13 };
   const statusRows = [
@@ -830,12 +903,12 @@ function buildDashboardExcelWorkbook(report, user) {
     { header: 'Training', width: 32, value: 'title' },
     { header: 'Type', width: 16, value: row => formatDashboardLabel(row.type) },
     { header: 'Healthcare Centres', width: 38, value: row => row.healthcare_centres || '' },
-    { header: 'Start', width: 22, value: row => row.start_datetime ? new Date(row.start_datetime) : '', numFmt: 'mmm d, yyyy h:mm AM/PM' },
-    { header: 'End', width: 22, value: row => row.end_datetime ? new Date(row.end_datetime) : '', numFmt: 'mmm d, yyyy h:mm AM/PM' },
+    { header: 'Start', width: 22, value: row => getExcelDateInTimeZone(row.start_datetime, report.timeZone), numFmt: 'mmm d, yyyy h:mm AM/PM' },
+    { header: 'End', width: 22, value: row => getExcelDateInTimeZone(row.end_datetime, report.timeZone), numFmt: 'mmm d, yyyy h:mm AM/PM' },
     { header: 'Trainers', width: 30, value: row => formatTrainerList(row.trainer_names) },
     { header: 'Participants', width: 16, value: row => numberValue(row.participant_count), numFmt: '#,##0', align: 'right' },
-    { header: 'Total Hours', width: 16, value: (row, worksheetRow) => getTrainingTotalHoursCell(row, worksheetRow), numFmt: '#,##0.00', align: 'right' },
-    { header: 'Total Duration', width: 30, value: (row, worksheetRow) => getTrainingDurationCell(row, worksheetRow) },
+    { header: 'Total Hours', width: 16, value: (row, worksheetRow) => getTrainingTotalHoursCell(row, worksheetRow, report.timeZone), numFmt: '#,##0.00', align: 'right' },
+    { header: 'Total Duration', width: 30, value: (row, worksheetRow) => getTrainingDurationCell(row, worksheetRow, report.timeZone) },
     { header: 'Status', width: 18, value: row => formatDashboardLabel(row.status) }
   ], report.allTrainings || []);
 
