@@ -5,6 +5,26 @@ const router = express.Router();
 const { refreshHealthcareTrainingReminderCycles } = require('../utils/healthcareTrainingReminders');
 const { PASSING_SCORE, CERTIFICATE_ENROLMENT_PASSING_SCORE } = require('../utils/testScores');
 
+// Attendance is stored once per trainee. Collapse those rows into sessions before
+// summing durations so a two-hour session remains two hours regardless of class size.
+const ATTENDANCE_DURATION_TOTALS_SQL = `
+  SELECT
+    attendance_sessions.training_id,
+    COUNT(*) AS attendance_session_count,
+    COALESCE(SUM(attendance_sessions.duration), 0) AS attendance_duration_hours
+  FROM (
+    SELECT
+      e.training_id,
+      a.date,
+      a.time,
+      MAX(COALESCE(a.duration, 0)) AS duration
+    FROM attendance a
+    JOIN enrollments e ON e.id = a.enrollment_id
+    GROUP BY e.training_id, a.date, a.time
+  ) attendance_sessions
+  GROUP BY attendance_sessions.training_id
+`;
+
 function formatDateInput(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -240,6 +260,21 @@ function formatTrainerList(value) {
 }
 
 function getTrainingDurationValues(training, timeZone) {
+  const attendanceSessionCount = Number(training.attendance_session_count || 0);
+  if (attendanceSessionCount > 0) {
+    const attendanceHours = Number(training.attendance_duration_hours || 0);
+    const totalHours = Math.round(attendanceHours * 100) / 100;
+    const totalMinutes = Math.round(totalHours * 60);
+    const days = Math.floor(totalMinutes / (24 * 60));
+    const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+    const minutes = totalMinutes % 60;
+
+    return {
+      totalHours,
+      durationLabel: `${days} day ${hours} hours ${minutes} minutes`
+    };
+  }
+
   if (!training.start_datetime || !training.end_datetime) {
     return { totalHours: '', durationLabel: '' };
   }
@@ -252,18 +287,10 @@ function getTrainingDurationValues(training, timeZone) {
 
   const durationMs = end.getTime() - start.getTime();
   const totalHours = Math.round((durationMs / (60 * 60 * 1000)) * 100) / 100;
-  const isSameDay = start.getUTCFullYear() === end.getUTCFullYear()
-    && start.getUTCMonth() === end.getUTCMonth()
-    && start.getUTCDate() === end.getUTCDate();
-
-  if (isSameDay) {
-    return { totalHours, durationLabel: '1 day 0 hours 0 minutes' };
-  }
-
-  const totalDays = durationMs / (24 * 60 * 60 * 1000);
-  const days = Math.floor(totalDays);
-  const hours = Math.floor((totalDays % 1) * 24);
-  const minutes = Math.round((((totalDays * 24) % 1) * 60));
+  const totalMinutes = Math.round(durationMs / (60 * 1000));
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
   return {
     totalHours,
     durationLabel: `${days} day ${hours} hours ${minutes} minutes`
@@ -272,18 +299,12 @@ function getTrainingDurationValues(training, timeZone) {
 
 function getTrainingTotalHoursCell(training, worksheetRow, timeZone) {
   const values = getTrainingDurationValues(training, timeZone);
-  return {
-    formula: `IF(OR(D${worksheetRow}="",E${worksheetRow}=""),"",ROUND((E${worksheetRow}-D${worksheetRow})*24,2))`,
-    result: values.totalHours
-  };
+  return values.totalHours;
 }
 
 function getTrainingDurationCell(training, worksheetRow, timeZone) {
   const values = getTrainingDurationValues(training, timeZone);
-  return {
-    formula: `IF(OR(D${worksheetRow}="",E${worksheetRow}=""),"",IF(INT(D${worksheetRow})=INT(E${worksheetRow}),"1 day 0 hours 0 minutes",INT(E${worksheetRow}-D${worksheetRow})&" day "&INT(MOD(E${worksheetRow}-D${worksheetRow},1)*24)&" hours "&ROUND(MOD((E${worksheetRow}-D${worksheetRow})*24,1)*60,0)&" minutes"))`,
-    result: values.durationLabel
-  };
+  return values.durationLabel;
 }
 
 function parseDashboardEntityFilter(value) {
@@ -395,6 +416,8 @@ async function getTrainerDashboardReportData(db, query) {
       t.start_datetime,
       t.end_datetime,
       t.status,
+      COALESCE(attendance_totals.attendance_session_count, 0) AS attendance_session_count,
+      COALESCE(attendance_totals.attendance_duration_hours, 0) AS attendance_duration_hours,
       GROUP_CONCAT(DISTINCT h.name ORDER BY h.name SEPARATOR ', ') as healthcare_centres,
       (
         SELECT GROUP_CONCAT(
@@ -414,8 +437,10 @@ async function getTrainerDashboardReportData(db, query) {
     FROM trainings t
     LEFT JOIN training_healthcare th ON t.id = th.training_id
     LEFT JOIN healthcare h ON th.healthcare_id = h.id
+    LEFT JOIN (${ATTENDANCE_DURATION_TOTALS_SQL}) attendance_totals ON attendance_totals.training_id = t.id
     ${trainingDateWhereWithAlias.clause}
-    GROUP BY t.id, t.title, t.type, t.start_datetime, t.end_datetime, t.status
+    GROUP BY t.id, t.title, t.type, t.start_datetime, t.end_datetime, t.status,
+      attendance_totals.attendance_session_count, attendance_totals.attendance_duration_hours
     ORDER BY t.start_datetime DESC, t.id DESC
   `, trainingDateWhereWithAlias.params);
 
@@ -458,6 +483,8 @@ async function getTrainerDashboardReportData(db, query) {
         SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress_trainings,
         SUM(
           CASE
+            WHEN COALESCE(attendance_totals.attendance_session_count, 0) > 0
+            THEN COALESCE(attendance_totals.attendance_duration_hours, 0)
             WHEN start_datetime IS NOT NULL
               AND end_datetime IS NOT NULL
               AND end_datetime > start_datetime
@@ -476,6 +503,8 @@ async function getTrainerDashboardReportData(db, query) {
         JOIN trainings t ON t.id = tt.training_id
         ${assignedTrainingDateWhere.clause}
       ) trainer_trainings
+      LEFT JOIN (${ATTENDANCE_DURATION_TOTALS_SQL}) attendance_totals
+        ON attendance_totals.training_id = trainer_trainings.id
       GROUP BY trainer_id
     ) tt ON tt.trainer_id = u.id
     WHERE u.role IN ('admin', 'trainer')
@@ -1193,6 +1222,8 @@ router.get('/', async (req, res) => {
             SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress_trainings,
             SUM(
               CASE
+                WHEN COALESCE(attendance_totals.attendance_session_count, 0) > 0
+                THEN COALESCE(attendance_totals.attendance_duration_hours, 0)
                 WHEN start_datetime IS NOT NULL
                   AND end_datetime IS NOT NULL
                   AND end_datetime > start_datetime
@@ -1211,6 +1242,8 @@ router.get('/', async (req, res) => {
             JOIN trainings t ON t.id = tt.training_id
             ${assignedTrainingDateWhere.clause}
           ) trainer_trainings
+          LEFT JOIN (${ATTENDANCE_DURATION_TOTALS_SQL}) attendance_totals
+            ON attendance_totals.training_id = trainer_trainings.id
           GROUP BY trainer_id
         ) tt ON tt.trainer_id = u.id
         WHERE u.role IN ('admin', 'trainer')

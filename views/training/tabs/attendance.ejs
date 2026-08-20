@@ -1,6 +1,28 @@
 <!-- Attendance Tab (Admin/Trainer Only) -->
 <% if (['admin', 'trainer'].includes(user.userRole)) { %>
-  <div id="attendance-tab" class="tab-content" data-training-id="<%= typeof training !== 'undefined' ? training.id : '' %>">
+  <%
+    function toAttendanceDateOnly(dateValue) {
+      if (!dateValue) return '';
+      const date = new Date(dateValue);
+      if (Number.isNaN(date.getTime())) return '';
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    const attendanceTrainingStartDate = typeof training !== 'undefined'
+      ? toAttendanceDateOnly(training.start_datetime)
+      : '';
+    const attendanceTrainingEndDate = typeof training !== 'undefined'
+      ? toAttendanceDateOnly(training.end_datetime)
+      : '';
+  %>
+  <div id="attendance-tab"
+       class="tab-content"
+       data-training-id="<%= typeof training !== 'undefined' ? training.id : '' %>"
+       data-training-start-date="<%= attendanceTrainingStartDate %>"
+       data-training-end-date="<%= attendanceTrainingEndDate %>">
     <!-- Sub-tabs for Attendance -->
     <div class="attendance-sub-tabs">
       <button class="attendance-sub-tab active" onclick="switchAttendanceSubTab('summary', this)">
@@ -170,8 +192,29 @@
           <form id="add-attendance-form" class="attendance-form" autocomplete="off">
             <div class="form-row">
               <div class="form-group form-group-inline">
-                <label for="attendance-date">Date <span class="required">*</span></label>
-                <input type="text" id="attendance-date" name="date" class="form-input date-picker" required autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+                <label for="attendance-date-trigger">Date <span class="required">*</span></label>
+                <div id="attendance-date-dropdown" class="attendance-date-dropdown">
+                  <input type="hidden" id="attendance-date" name="date" required>
+                  <button type="button"
+                          id="attendance-date-trigger"
+                          class="attendance-date-trigger"
+                          aria-haspopup="listbox"
+                          aria-required="true"
+                          aria-expanded="false"
+                          aria-controls="attendance-date-menu"
+                          aria-describedby="attendance-date-range">
+                    <span id="attendance-date-trigger-label">Select an attendance date</span>
+                    <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                  </button>
+                  <div id="attendance-date-menu" class="attendance-date-menu" role="listbox" aria-label="Available attendance dates" hidden>
+                    <div id="attendance-date-options" class="attendance-date-options"></div>
+                  </div>
+                </div>
+                <% if (attendanceTrainingStartDate && attendanceTrainingEndDate) { %>
+                  <small id="attendance-date-range" class="form-field-hint">
+                    Available from <%= attendanceTrainingStartDate %> to <%= attendanceTrainingEndDate %>.
+                  </small>
+                <% } %>
               </div>
               
               <div class="form-group form-group-inline">
@@ -430,6 +473,129 @@
     .form-input[readonly] {
       background: #F8F9FA;
       cursor: not-allowed;
+    }
+
+    .form-field-hint {
+      display: block;
+      margin-top: 0.4rem;
+      color: #5F6368;
+      font-size: 0.8125rem;
+      line-height: 1.4;
+    }
+
+    .attendance-date-dropdown {
+      position: relative;
+    }
+
+    .attendance-date-trigger {
+      width: 100%;
+      min-height: 49px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.875rem 1rem;
+      border: 2px solid #E8EAED;
+      border-radius: 8px;
+      background: #FFFFFF;
+      color: #5F6368;
+      font: inherit;
+      font-size: 0.9375rem;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .attendance-date-trigger:hover {
+      border-color: #C7C2EF;
+    }
+
+    .attendance-date-trigger:focus-visible,
+    .attendance-date-trigger[aria-expanded="true"] {
+      outline: none;
+      border-color: #573FD7;
+      box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.12);
+    }
+
+    .attendance-date-trigger.has-value {
+      color: #202124;
+    }
+
+    .attendance-date-trigger:disabled {
+      background: #F8F9FA;
+      color: #80868B;
+      cursor: not-allowed;
+    }
+
+    .attendance-date-trigger i {
+      color: #573FD7;
+      transition: transform 0.18s ease;
+    }
+
+    .attendance-date-trigger[aria-expanded="true"] i {
+      transform: rotate(180deg);
+    }
+
+    .attendance-date-menu {
+      position: absolute;
+      z-index: 40;
+      top: calc(100% + 0.5rem);
+      left: 0;
+      right: 0;
+      overflow: hidden;
+      border-radius: 12px;
+      background: #FFFFFF;
+      box-shadow: 0 14px 34px rgba(32, 33, 36, 0.18);
+    }
+
+    .attendance-date-options {
+      max-height: 18rem;
+      overflow-y: auto;
+      padding: 0.5rem;
+      overscroll-behavior: contain;
+    }
+
+    .attendance-date-option {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.75rem 0.875rem;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: #202124;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .attendance-date-option:hover,
+    .attendance-date-option:focus-visible {
+      outline: none;
+      background: #F3F1FF;
+    }
+
+    .attendance-date-option[aria-selected="true"] {
+      background: #EDE9FF;
+      color: #3F2CB3;
+      font-weight: 600;
+    }
+
+    .attendance-date-option-value {
+      flex: 0 0 auto;
+      color: #5F6368;
+      font-size: 0.8125rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .attendance-date-empty {
+      margin: 0;
+      padding: 0.875rem;
+      color: #5F6368;
+      font-size: 0.875rem;
+      line-height: 1.45;
     }
 
     .select-wrapper {
@@ -1307,6 +1473,197 @@
       return Number.isFinite(n) ? n : null;
     }
 
+    function getAttendanceTrainingDateRange() {
+      const attendanceTab = document.getElementById('attendance-tab');
+      return {
+        startDate: attendanceTab?.dataset?.trainingStartDate || '',
+        endDate: attendanceTab?.dataset?.trainingEndDate || ''
+      };
+    }
+
+    function isAttendanceDateWithinTraining(date) {
+      const dateOnly = normalizeAttendanceDateValue(date);
+      const { startDate, endDate } = getAttendanceTrainingDateRange();
+      if (!dateOnly || !startDate || !endDate) return false;
+
+      const match = dateOnly.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!match) return false;
+      const parsed = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+      if (parsed.getFullYear() !== Number(match[1])
+        || parsed.getMonth() !== Number(match[2]) - 1
+        || parsed.getDate() !== Number(match[3])) {
+        return false;
+      }
+
+      return dateOnly >= startDate && dateOnly <= endDate;
+    }
+
+    function getAvailableAttendanceDates() {
+      const { startDate, endDate } = getAttendanceTrainingDateRange();
+      const startMatch = startDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      const endMatch = endDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!startMatch || !endMatch || startDate > endDate) return [];
+
+      const cursor = new Date(Date.UTC(
+        Number(startMatch[1]),
+        Number(startMatch[2]) - 1,
+        Number(startMatch[3])
+      ));
+      const end = new Date(Date.UTC(
+        Number(endMatch[1]),
+        Number(endMatch[2]) - 1,
+        Number(endMatch[3])
+      ));
+      const dates = [];
+
+      while (cursor <= end) {
+        dates.push(cursor.toISOString().slice(0, 10));
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+      }
+
+      return dates;
+    }
+
+    function formatAttendanceDropdownDate(dateOnly) {
+      const [year, month, day] = dateOnly.split('-').map(Number);
+      const date = new Date(Date.UTC(year, month - 1, day));
+      return new Intl.DateTimeFormat('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+        timeZone: 'UTC'
+      }).format(date);
+    }
+
+    function initializeAttendanceDateDropdown() {
+      const dropdown = document.getElementById('attendance-date-dropdown');
+      if (!dropdown || dropdown.dataset.initialized === 'true') return;
+
+      const input = document.getElementById('attendance-date');
+      const trigger = document.getElementById('attendance-date-trigger');
+      const triggerLabel = document.getElementById('attendance-date-trigger-label');
+      const menu = document.getElementById('attendance-date-menu');
+      const optionsContainer = document.getElementById('attendance-date-options');
+      if (!input || !trigger || !triggerLabel || !menu || !optionsContainer) return;
+
+      dropdown.dataset.initialized = 'true';
+      const availableDates = getAvailableAttendanceDates();
+      const dateFormatter = formatAttendanceDropdownDate;
+
+      const closeMenu = (restoreFocus = false) => {
+        menu.hidden = true;
+        trigger.setAttribute('aria-expanded', 'false');
+        if (restoreFocus) trigger.focus();
+      };
+
+      const openMenu = () => {
+        if (trigger.disabled) return;
+        menu.hidden = false;
+        trigger.setAttribute('aria-expanded', 'true');
+      };
+
+      const selectDate = (dateOnly) => {
+        input.value = dateOnly;
+        triggerLabel.textContent = dateFormatter(dateOnly);
+        trigger.classList.add('has-value');
+        optionsContainer.querySelectorAll('.attendance-date-option').forEach(option => {
+          option.setAttribute('aria-selected', String(option.dataset.date === dateOnly));
+        });
+        closeMenu(true);
+      };
+
+      if (!availableDates.length) {
+        const emptyMessage = document.createElement('p');
+        emptyMessage.className = 'attendance-date-empty';
+        emptyMessage.textContent = 'No dates are available. Set a valid training start and end date first.';
+        optionsContainer.appendChild(emptyMessage);
+        trigger.disabled = true;
+      } else {
+        const fragment = document.createDocumentFragment();
+        availableDates.forEach(dateOnly => {
+          const option = document.createElement('button');
+          option.type = 'button';
+          option.className = 'attendance-date-option';
+          option.dataset.date = dateOnly;
+          option.setAttribute('role', 'option');
+          option.setAttribute('aria-selected', 'false');
+          option.tabIndex = -1;
+
+          const label = document.createElement('span');
+          label.textContent = dateFormatter(dateOnly);
+          const value = document.createElement('span');
+          value.className = 'attendance-date-option-value';
+          value.textContent = dateOnly;
+          option.append(label, value);
+          fragment.appendChild(option);
+        });
+        optionsContainer.appendChild(fragment);
+      }
+
+      trigger.addEventListener('click', () => {
+        const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+        if (isOpen) {
+          closeMenu();
+          return;
+        }
+        openMenu();
+      });
+
+      trigger.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && trigger.getAttribute('aria-expanded') === 'true') {
+          event.preventDefault();
+          closeMenu();
+          return;
+        }
+        if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+        event.preventDefault();
+        openMenu();
+        const options = Array.from(optionsContainer.querySelectorAll('.attendance-date-option'));
+        const selectedIndex = options.findIndex(option => option.getAttribute('aria-selected') === 'true');
+        const focusIndex = selectedIndex >= 0
+          ? selectedIndex
+          : (event.key === 'ArrowUp' ? options.length - 1 : 0);
+        options[focusIndex]?.focus();
+      });
+
+      optionsContainer.addEventListener('click', event => {
+        const option = event.target.closest('.attendance-date-option');
+        if (option) selectDate(option.dataset.date);
+      });
+
+      optionsContainer.addEventListener('keydown', event => {
+        const options = Array.from(optionsContainer.querySelectorAll('.attendance-date-option'));
+        const currentIndex = options.indexOf(document.activeElement);
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          closeMenu(true);
+        } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault();
+          const direction = event.key === 'ArrowDown' ? 1 : -1;
+          const nextIndex = (currentIndex + direction + options.length) % options.length;
+          options[nextIndex]?.focus();
+        } else if (event.key === 'Home' || event.key === 'End') {
+          event.preventDefault();
+          options[event.key === 'Home' ? 0 : options.length - 1]?.focus();
+        }
+      });
+
+      document.addEventListener('click', event => {
+        if (!dropdown.contains(event.target)) closeMenu();
+      });
+
+      document.getElementById('add-attendance-form')?.addEventListener('reset', () => {
+        input.value = '';
+        triggerLabel.textContent = 'Select an attendance date';
+        trigger.classList.remove('has-value');
+        optionsContainer.querySelectorAll('.attendance-date-option').forEach(option => {
+          option.setAttribute('aria-selected', 'false');
+        });
+        closeMenu();
+      });
+    }
+
     function switchAttendanceSubTab(tabName, clickedButton) {
       // Hide all sub-tabs
       document.querySelectorAll('.attendance-sub-content').forEach(tab => {
@@ -1339,14 +1696,7 @@
     }
 
     function initializeAddAttendancePickers() {
-      // Initialize date picker
-      const dateInput = document.getElementById('attendance-date');
-      if (dateInput && !dateInput._flatpickr) {
-        flatpickr(dateInput, {
-          dateFormat: 'Y-m-d',
-          allowInput: true
-        });
-      }
+      initializeAttendanceDateDropdown();
 
       // Initialize time picker
       const timeInput = document.getElementById('attendance-time');
@@ -1544,6 +1894,15 @@
           const date = formData.get('date');
           const time = getTimeFromInput('attendance-time', formData.get('time'));
           const endTime = getTimeFromInput('attendance-end-time', formData.get('end_time'));
+
+          if (!isAttendanceDateWithinTraining(date)) {
+            const { startDate, endDate } = getAttendanceTrainingDateRange();
+            const message = startDate && endDate
+              ? `Please select an attendance date from ${startDate} to ${endDate}.`
+              : 'Set the training start and end dates before recording attendance.';
+            qssShowWarning(message);
+            return;
+          }
 
           if (!time || !time.match(/^\d{1,2}:\d{2}$/)) {
             qssShowWarning('Please enter a valid start time');

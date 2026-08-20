@@ -46,6 +46,58 @@ function normalizeDateOnlyInput(date) {
   return value;
 }
 
+function createAttendanceValidationError(message) {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+}
+
+function isValidDateOnly(date) {
+  const match = String(date || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return false;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCFullYear() === year
+    && parsed.getUTCMonth() === month - 1
+    && parsed.getUTCDate() === day;
+}
+
+async function assertAttendanceDateWithinTraining(dbOrConnection, trainingId, date) {
+  const dateOnly = normalizeDateOnlyInput(date);
+  if (!isValidDateOnly(dateOnly)) {
+    throw createAttendanceValidationError('Valid attendance date is required');
+  }
+
+  const [rows] = await dbOrConnection.query(
+    `SELECT
+       DATE_FORMAT(start_datetime, '%Y-%m-%d') AS start_date,
+       DATE_FORMAT(end_datetime, '%Y-%m-%d') AS end_date
+     FROM trainings
+     WHERE id = ?`,
+    [trainingId]
+  );
+
+  if (!rows.length) {
+    throw createAttendanceValidationError('Training not found');
+  }
+
+  const { start_date: startDate, end_date: endDate } = rows[0];
+  if (!startDate || !endDate) {
+    throw createAttendanceValidationError('The training start and end dates must be set before attendance can be recorded');
+  }
+
+  if (dateOnly < startDate || dateOnly > endDate) {
+    throw createAttendanceValidationError(
+      `Attendance date must be between ${startDate} and ${endDate}`
+    );
+  }
+
+  return dateOnly;
+}
+
 function normalizeTimeForSql(time) {
   const normalized = normalizeTimeInput(time);
   if (!normalized) return null;
@@ -185,6 +237,15 @@ router.post('/mark', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Valid attendance date is required' });
     }
 
+    const [enrollmentRows] = await req.db.query(
+      'SELECT training_id FROM enrollments WHERE id = ?',
+      [enrollmentId]
+    );
+    if (!enrollmentRows.length) {
+      return res.status(400).json({ success: false, error: 'Enrollment not found' });
+    }
+    await assertAttendanceDateWithinTraining(req.db, enrollmentRows[0].training_id, dateOnly);
+
     const [updateResult] = await req.db.query(
       `UPDATE attendance
        SET status = ?, marked_by = ?, notes = ?
@@ -202,7 +263,11 @@ router.post('/mark', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Attendance marking error:', error);
-    res.status(500).json({ success: false, error: 'Error marking attendance' });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
+      success: false,
+      error: statusCode === 400 ? error.message : 'Error marking attendance'
+    });
   }
 });
 
@@ -235,8 +300,9 @@ router.post('/mark-bulk', async (req, res) => {
       // Extract date only (YYYY-MM-DD format)
       const dateOnly = normalizeDateOnlyInput(date);
       if (!dateOnly) {
-        throw new Error('Valid attendance date is required');
+        throw createAttendanceValidationError('Valid attendance date is required');
       }
+      await assertAttendanceDateWithinTraining(connection, training_id, dateOnly);
       
       // Convert time format if needed (HH:mm to TIME format)
       const timeValue = normalizeTimeForSql(time);
@@ -271,7 +337,10 @@ router.post('/mark-bulk', async (req, res) => {
     }
   } catch (error) {
     console.error('Bulk attendance marking error:', error);
-    res.status(500).json({ success: false, error: 'Error marking attendance: ' + error.message });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || 'Error marking attendance'
+    });
   }
 });
 
@@ -376,8 +445,9 @@ router.post('/update-bulk', async (req, res) => {
       // Extract date only
       const dateOnly = normalizeDateOnlyInput(date);
       if (!dateOnly) {
-        throw new Error('Valid attendance date is required');
+        throw createAttendanceValidationError('Valid attendance date is required');
       }
+      await assertAttendanceDateWithinTraining(connection, training_id, dateOnly);
 
       const validEnrollmentIds = await getTrainingEnrollmentIdsMap(connection, training_id);
       const enrollmentIds = Array.from(validEnrollmentIds);
@@ -422,7 +492,10 @@ router.post('/update-bulk', async (req, res) => {
     }
   } catch (error) {
     console.error('Bulk attendance update error:', error);
-    res.status(500).json({ success: false, error: 'Error updating attendance: ' + error.message });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || 'Error updating attendance'
+    });
   }
 });
 
