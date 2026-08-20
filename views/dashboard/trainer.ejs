@@ -25,7 +25,7 @@
     .dashboard-header-content {
       display: flex;
       flex-direction: column;
-      flex: 1;
+      flex: 1 1 auto;
       min-width: 0;
     }
     
@@ -52,20 +52,21 @@
       color: white;
     }
     
-    .dashboard-header .btn-primary {
+    .dashboard-header-actions > .btn-primary {
       background: white;
       color: #573FD7;
       border: none;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
       white-space: nowrap;
       min-height: 50px;
-      min-width: 150px;
+      min-width: 0;
       width: auto;
-      flex: 0 0 auto;
+      flex: 1 1 10rem;
+      max-width: 100%;
       justify-content: center;
     }
     
-    .dashboard-header .btn-primary:hover {
+    .dashboard-header-actions > .btn-primary:hover {
       background: #f0f0f0;
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
@@ -73,21 +74,27 @@
 
     .dashboard-header-actions {
       display: flex;
-      align-items: flex-start;
+      align-items: stretch;
       gap: 0.75rem;
       flex-wrap: wrap;
       justify-content: flex-end;
-      flex: 0 1 auto;
+      flex: 1 1 22rem;
       min-width: 0;
+      max-width: 100%;
     }
 
     .report-download-control {
       position: relative;
-      flex: 0 0 auto;
+      flex: 1 1 16rem;
+      min-width: 0;
+      max-width: 100%;
     }
 
     .report-download-group {
-      display: inline-flex;
+      display: flex;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
       min-height: 50px;
       border-radius: 10px;
       overflow: hidden;
@@ -97,7 +104,8 @@
 
     .report-format-trigger {
       appearance: none;
-      min-width: 116px;
+      flex: 0 1 auto;
+      min-width: 5.75rem;
       border: none;
       border-right: 1px solid #D6DEEA;
       border-radius: 0;
@@ -111,6 +119,8 @@
       align-items: center;
       justify-content: center;
       gap: 0.55rem;
+      white-space: nowrap;
+      overflow: hidden;
       transition: background-color 0.16s ease, color 0.16s ease;
     }
 
@@ -134,7 +144,10 @@
       z-index: 30;
       top: calc(100% + 0.55rem);
       left: 0;
-      min-width: 216px;
+      right: 0;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
       padding: 0.4rem;
       border: 1px solid #E1E6EF;
       border-radius: 12px;
@@ -229,10 +242,15 @@
     }
 
     .report-download-group .report-download-btn {
-      min-width: 138px;
+      flex: 1 1 auto;
+      min-width: 0;
       min-height: 50px;
+      width: auto;
+      max-width: none;
       border-radius: 0;
       box-shadow: none;
+      white-space: nowrap;
+      padding-inline: 0.9rem;
     }
 
     .report-format-trigger:focus-visible {
@@ -278,10 +296,10 @@
       gap: 0.55rem;
       cursor: pointer;
       font-weight: 600;
-      min-width: 250px;
-      width: max-content;
+      min-width: 0;
+      width: auto;
       max-width: 100%;
-      flex: 0 1 auto;
+      flex: 1 1 14rem;
       justify-content: center;
       box-shadow: 0 2px 8px rgba(0,0,0,0.12);
       white-space: nowrap;
@@ -892,6 +910,8 @@
       margin-bottom: 2rem;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
       border: 1px solid #E8EAED;
+      min-width: 0;
+      overflow-x: hidden;
     }
     
     .dashboard-section h2 {
@@ -1060,15 +1080,26 @@
 
     .client-chart-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+      grid-template-columns: minmax(0, 1fr) minmax(180px, 260px);
       gap: 1.5rem;
       align-items: stretch;
+      min-width: 0;
+      width: 100%;
     }
 
     .client-chart-canvas-wrap {
       position: relative;
-      min-height: 360px;
-      height: 520px;
+      min-width: 0;
+      width: 100%;
+      min-height: 280px;
+      height: var(--chart-height, 420px);
+      max-height: min(70vh, 720px);
+      overflow: hidden;
+    }
+
+    .client-chart-canvas-wrap canvas {
+      display: block;
+      max-width: 100%;
     }
 
     .client-chart-summary {
@@ -1078,30 +1109,6 @@
       align-content: start;
       gap: 0.75rem;
       min-width: 0;
-    }
-
-    .client-chart-summary-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      color: #374151;
-      font-size: 0.9rem;
-      min-width: 0;
-    }
-
-    .client-chart-summary-name {
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .client-chart-summary-count {
-      color: #11358B;
-      font-weight: 600;
-      white-space: nowrap;
-      flex: 0 0 auto;
     }
 
     .client-chart-summary-item {
@@ -1284,21 +1291,28 @@
       }
     }
 
-    @media (max-width: 1240px) {
+    @media (max-width: 1440px) {
       .dashboard-header {
         flex-direction: column;
         align-items: stretch;
+        gap: 0.85rem;
+      }
+
+      .dashboard-header-content {
+        flex: 0 0 auto;
+        width: 100%;
       }
 
       .dashboard-header-actions {
         width: 100%;
         flex: none;
-        justify-content: flex-start;
+        justify-content: stretch;
       }
 
-      .dashboard-header .btn-primary,
-      .date-range-trigger {
-        flex: 1 1 220px;
+      .dashboard-header-actions > .btn-primary,
+      .date-range-trigger,
+      .report-download-control {
+        flex: 1 1 14rem;
       }
     }
     
@@ -1313,18 +1327,20 @@
       }
 
       .client-chart-layout {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
       }
 
       .client-chart-summary {
+        order: -1;
         border-left: none;
-        border-top: 1px solid #E8EAED;
+        border-bottom: 1px solid #E8EAED;
         padding-left: 0;
-        padding-top: 1rem;
+        padding-bottom: 1rem;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       }
 
       .client-chart-canvas-wrap {
-        height: 440px;
+        height: var(--chart-height, 400px);
       }
 
       .dashboard-header-actions {
@@ -1452,7 +1468,7 @@
       }
 
       .client-chart-canvas-wrap {
-        height: 380px;
+        height: var(--chart-height, 340px);
       }
       
       .trainer-card {
@@ -1493,7 +1509,7 @@
         margin-bottom: 0;
       }
       
-      .dashboard-header .btn-primary {
+      .dashboard-header-actions > .btn-primary {
         width: 100%;
         text-align: center;
         padding: 0.75rem 1rem;
@@ -1570,6 +1586,8 @@
         font-size: 1.125rem;
         margin-bottom: 1rem;
         padding-bottom: 0.5rem;
+        flex-wrap: wrap;
+        overflow-wrap: anywhere;
       }
       
       .dashboard-section h2 i {
@@ -1890,18 +1908,20 @@
       }
 
       .client-chart-layout {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
       }
 
       .client-chart-summary {
+        order: -1;
         border-left: none;
-        border-top: 1px solid #E8EAED;
+        border-bottom: 1px solid #E8EAED;
         padding-left: 0;
-        padding-top: 1rem;
+        padding-bottom: 1rem;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       }
 
       .client-chart-canvas-wrap {
-        height: 400px;
+        height: var(--chart-height, 380px);
       }
 
       .client-chart-summary-item {
@@ -1911,12 +1931,22 @@
 
     @media (max-width: 480px) {
       .client-chart-canvas-wrap {
-        height: 360px;
+        height: var(--chart-height, 340px);
+      }
+
+      .client-chart-summary {
+        grid-template-columns: minmax(0, 1fr);
       }
 
       .client-chart-summary-item {
         font-size: 0.8rem;
         gap: 0.5rem;
+      }
+
+      .client-chart-summary-name {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
       }
     }
     
@@ -2793,8 +2823,31 @@
 
       const labels = topClientTrainings.map(client => client.name);
       const counts = topClientTrainings.map(client => client.training_count);
+      const wrap = chartCanvas.parentElement;
 
-      new Chart(chartCanvas, {
+      const layoutConfig = () => {
+        const width = wrap ? wrap.clientWidth : window.innerWidth;
+        const narrow = window.matchMedia('(max-width: 768px)').matches || width < 560;
+        const rowHeight = narrow ? 36 : 28;
+        const height = Math.max(
+          narrow ? 300 : 360,
+          Math.min(narrow ? 720 : 560, labels.length * rowHeight + 48)
+        );
+        if (wrap) {
+          wrap.style.setProperty('--chart-height', `${height}px`);
+        }
+        return {
+          narrow,
+          maxLabel: narrow ? 16 : 28,
+          axisWidth: narrow ? Math.min(128, Math.max(84, Math.round(width * 0.36))) : null,
+          maxBarThickness: narrow ? 16 : 20,
+          tickSize: narrow ? 10 : 11
+        };
+      };
+
+      let config = layoutConfig();
+
+      const chart = new Chart(chartCanvas, {
         type: 'bar',
         data: {
           labels,
@@ -2805,20 +2858,21 @@
             borderColor: '#573FD7',
             borderWidth: 1,
             borderRadius: 6,
-            barThickness: 16,
-            maxBarThickness: 18
+            maxBarThickness: config.maxBarThickness
           }]
         },
         options: {
           indexAxis: 'y',
           responsive: true,
           maintainAspectRatio: false,
+          resizeDelay: 0,
           plugins: {
             legend: {
               display: false
             },
             tooltip: {
               callbacks: {
+                title: context => (context[0] && context[0].label) || '',
                 label: context => `${context.parsed.x} training${context.parsed.x === 1 ? '' : 's'}`
               }
             }
@@ -2827,22 +2881,29 @@
             x: {
               beginAtZero: true,
               ticks: {
-                precision: 0
+                precision: 0,
+                maxRotation: 0
               },
               grid: {
                 color: 'rgba(148, 163, 184, 0.22)'
               }
             },
             y: {
+              afterFit(scale) {
+                if (config.axisWidth) {
+                  scale.width = config.axisWidth;
+                }
+              },
               ticks: {
+                autoSkip: false,
                 color: '#374151',
                 font: {
-                  size: 11,
+                  size: config.tickSize,
                   weight: '400'
                 },
                 callback(value) {
                   const label = this.getLabelForValue(value);
-                  return label.length > 28 ? `${label.slice(0, 28)}...` : label;
+                  return label.length > config.maxLabel ? `${label.slice(0, config.maxLabel)}…` : label;
                 }
               },
               grid: {
@@ -2852,6 +2913,15 @@
           }
         }
       });
+
+      const syncChartLayout = () => {
+        config = layoutConfig();
+        chart.data.datasets[0].maxBarThickness = config.maxBarThickness;
+        chart.options.scales.y.ticks.font.size = config.tickSize;
+        chart.resize();
+      };
+
+      window.addEventListener('resize', syncChartLayout);
     })();
   </script>
   <script>
