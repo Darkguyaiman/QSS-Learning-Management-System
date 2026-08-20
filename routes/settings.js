@@ -1480,7 +1480,7 @@ router.get('/users', async (req, res) => {
 
     renderSettingsTemplate(req, res, {
       pageType: 'users',
-      pageTitle: 'Users',
+      pageTitle: 'Trainers',
       description: 'Manage Admin/Trainer users. Position is required (used in reports).',
       icon: 'fas fa-users-cog',
       singularName: 'User',
@@ -1506,7 +1506,7 @@ router.get('/users/new', async (req, res) => {
   const areasOfSpecialization = await getAreasOfSpecialization(req.db);
   renderSettingsForm(req, res, {
     pageType: 'users',
-    pageTitle: 'Users',
+    pageTitle: 'Trainers',
     description: 'Create a new admin or trainer user',
     icon: 'fas fa-users-cog',
     singularName: 'User',
@@ -1536,7 +1536,7 @@ router.get('/users/:id/edit', async (req, res) => {
 
     renderSettingsForm(req, res, {
       pageType: 'users',
-      pageTitle: 'Users',
+      pageTitle: 'Trainers',
       description: 'Edit admin or trainer user details',
       icon: 'fas fa-users-cog',
       singularName: 'User',

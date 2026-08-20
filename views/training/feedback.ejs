@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Training Review - <%= training.title %></title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/vendor/@fortawesome/fontawesome-free/css/all.min.css">
+  <style>
+    .feedback-page-header {
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .feedback-page-header h1 {
+      margin: 0;
+      color: #202124;
+      font-size: clamp(1.35rem, 3vw, 1.8rem);
+    }
+
+    .feedback-page-header a {
+      flex: 0 0 auto;
+    }
+
+    @media (max-width: 640px) {
+      .feedback-page-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
+  <main class="main-content">
+    <div class="container">
+      <div class="feedback-page-header">
+        <h1>Training feedback</h1>
+        <a href="/training" class="btn btn-outline"><i class="fas fa-arrow-left" aria-hidden="true"></i> Trainings</a>
+      </div>
+      <%- include('./tabs/feedback', { training, trainingFeedback, standalone: true, submitted, alreadySubmitted, validationError, feedbackDraft }) %>
+    </div>
+  </main>
+  <script src="/js/main.js"></script>
+</body>
+</html>

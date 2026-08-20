@@ -49,16 +49,42 @@
       <i class="fas fa-book sidebar-icon"></i>
       <span>Trainings</span>
     </a>
+
+    <% if (['admin', 'trainer'].includes(user.userRole)) { %>
+      <a href="/attendance" class="sidebar-link">
+        <i class="fas fa-calendar-check sidebar-icon"></i>
+        <span>Attendance</span>
+      </a>
+    <% } %>
+
+    <% if (user.userRole === 'admin') { %>
+      <a href="/feedback" class="sidebar-link">
+        <i class="fas fa-comments sidebar-icon"></i>
+        <span>Feedback</span>
+      </a>
+    <% } %>
     
     <% if (['admin', 'trainer'].includes(user.userRole)) { %>
       <a href="/trainees" class="sidebar-link">
         <i class="fas fa-users sidebar-icon"></i>
         <span>Trainees</span>
       </a>
+
+      <% if (user.userRole === 'admin') { %>
+        <a href="/settings/users" class="sidebar-link">
+          <i class="fas fa-id-badge sidebar-icon"></i>
+          <span>Trainers</span>
+        </a>
+      <% } %>
       
       <a href="/questions" class="sidebar-link">
         <i class="fas fa-file-alt sidebar-icon"></i>
         <span>Question Bank</span>
+      </a>
+
+      <a href="/settings/healthcare" class="sidebar-link">
+        <i class="fas fa-hospital sidebar-icon"></i>
+        <span>Healthcare</span>
       </a>
       
       <div class="sidebar-menu-item">
@@ -80,10 +106,6 @@
             <i class="fas fa-bullseye sidebar-icon"></i>
             <span>Objectives</span>
           </a>
-          <a href="/settings/healthcare" class="sidebar-sublink">
-            <i class="fas fa-hospital sidebar-icon"></i>
-            <span>Healthcare</span>
-          </a>
           <a href="/settings/areas" class="sidebar-sublink">
             <i class="fas fa-user-md sidebar-icon"></i>
             <span>Areas of Specialization</span>
@@ -100,12 +122,6 @@
             <i class="fas fa-hand-paper sidebar-icon"></i>
             <span>Practical Learning Outcomes</span>
           </a>
-          <% if (user.userRole === 'admin') { %>
-            <a href="/settings/users" class="sidebar-sublink">
-              <i class="fas fa-id-badge sidebar-icon"></i>
-              <span>Users</span>
-            </a>
-          <% } %>
         </div>
       </div>
     <% } %>
@@ -208,10 +224,15 @@
     const menuItem = document.querySelector('.sidebar-menu-item');
     const submenu = document.getElementById('settings-submenu');
     const currentPath = window.location.pathname;
+    const activeTrainingTab = new URLSearchParams(window.location.search).get('tab');
+    const isAttendanceWorkspace = currentPath.startsWith('/attendance')
+      || (currentPath.startsWith('/training/') && activeTrainingTab === 'attendance');
     
     if (menuItem && submenu) {
-      // Check if we're on a settings page
-      const isSettingsPage = currentPath.startsWith('/settings');
+      // Check if we're on a settings page (exclude items that now have their own tabs)
+      const isSettingsPage = currentPath.startsWith('/settings')
+        && !currentPath.startsWith('/settings/healthcare')
+        && !currentPath.startsWith('/settings/users');
       
       // Get saved state from localStorage (global state)
       const savedState = localStorage.getItem('settingsMenuExpanded');
@@ -276,7 +297,7 @@
       }
 
       // Trainings: any /training path
-      if (href === '/training' && currentPath.startsWith('/training')) {
+      if (href === '/training' && currentPath.startsWith('/training') && !isAttendanceWorkspace) {
         link.classList.add('active');
         return;
       }
@@ -287,8 +308,32 @@
         return;
       }
 
+      // Feedback: admin-only response area
+      if (href === '/feedback' && currentPath.startsWith('/feedback')) {
+        link.classList.add('active');
+        return;
+      }
+
+      // Attendance: staff training chooser
+      if (href === '/attendance' && isAttendanceWorkspace) {
+        link.classList.add('active');
+        return;
+      }
+
       // Questions: any /questions path
       if (href === '/questions' && currentPath.startsWith('/questions')) {
+        link.classList.add('active');
+        return;
+      }
+
+      // Trainers: any /settings/users path
+      if (href === '/settings/users' && currentPath.startsWith('/settings/users')) {
+        link.classList.add('active');
+        return;
+      }
+
+      // Healthcare: any /settings/healthcare path
+      if (href === '/settings/healthcare' && currentPath.startsWith('/settings/healthcare')) {
         link.classList.add('active');
         return;
       }

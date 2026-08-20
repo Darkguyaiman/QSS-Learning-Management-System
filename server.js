@@ -191,12 +191,14 @@ const profileRoutes = require('./routes/profile');
 const settingsRoutes = require('./routes/settings');
 const traineeRoutes = require('./routes/trainee');
 const webhookRoutes = require('./routes/webhook');
+const feedbackRoutes = require('./routes/feedback');
 
 app.use('/', authRoutes);
 app.use('/webhook', webhookRoutes);
 app.use('/', requireAuth, traineeRoutes);
 app.use('/dashboard', requireAuth, dashboardRoutes);
 app.use('/training', requireAuth, trainingRoutes);
+app.use('/feedback', requireAuth, feedbackRoutes);
 app.use('/trainees', requireAuth, requireRole(['admin', 'trainer']), traineesRoutes);
 app.use('/questions', requireAuth, requireRole(['admin', 'trainer']), questionBankRoutes);
 app.use('/tests', requireAuth, testRoutes);

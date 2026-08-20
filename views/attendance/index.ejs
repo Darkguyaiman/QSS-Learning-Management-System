@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance - LMS</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/vendor/@fortawesome/fontawesome-free/css/all.min.css">
+  <style>
+    .attendance-launcher-header {
+      margin-bottom: 1.4rem;
+    }
+
+    .attendance-page-container {
+      width: 100%;
+      max-width: none;
+    }
+
+    .attendance-launcher-header h1 {
+      margin: 0;
+      color: #202124;
+      font-size: clamp(1.5rem, 3vw, 2rem);
+    }
+
+    .attendance-launcher-header p {
+      max-width: 68ch;
+      margin: 0.45rem 0 0;
+      color: #64748B;
+      line-height: 1.5;
+    }
+
+    .attendance-launcher-panel {
+      width: 100%;
+      padding: clamp(1rem, 3vw, 1.5rem);
+      border: 1px solid #E3E7EF;
+      border-radius: 16px;
+      background: #fff;
+    }
+
+    .attendance-launcher-title {
+      margin: 0;
+      color: #202124;
+      font-size: 1.05rem;
+    }
+
+    .attendance-launcher-helper {
+      margin: 0.3rem 0 1rem;
+      color: #64748B;
+      font-size: 0.84rem;
+      line-height: 1.45;
+    }
+
+    .attendance-training-picker {
+      position: relative;
+    }
+
+    .attendance-picker-trigger {
+      width: 100%;
+      min-height: 50px;
+      border: 1px solid #D6DEEA;
+      border-radius: 11px;
+      background: #F8FAFC;
+      color: #202124;
+      padding: 0.75rem 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font: inherit;
+      font-size: 0.92rem;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .attendance-picker-trigger:hover {
+      border-color: #AAB8CB;
+      background: #fff;
+    }
+
+    .attendance-picker-trigger:focus-visible,
+    .attendance-training-picker.is-open .attendance-picker-trigger {
+      outline: none;
+      border-color: #573FD7;
+      box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.14);
+      background: #fff;
+    }
+
+    .attendance-picker-trigger-label {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .attendance-picker-chevron {
+      flex: 0 0 auto;
+      color: #64748B;
+      font-size: 0.72rem;
+      transition: transform 0.18s ease;
+    }
+
+    .attendance-training-picker.is-open .attendance-picker-chevron {
+      transform: rotate(180deg);
+    }
+
+    .attendance-picker-menu {
+      position: absolute;
+      z-index: 40;
+      top: calc(100% + 0.45rem);
+      right: 0;
+      left: 0;
+      padding: 0.45rem;
+      border: 1px solid #D6DEEA;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 14px 32px rgba(30, 41, 59, 0.16);
+    }
+
+    .attendance-picker-menu[hidden] {
+      display: none;
+    }
+
+    .attendance-picker-search-wrap {
+      position: relative;
+      margin-bottom: 0.4rem;
+    }
+
+    .attendance-picker-search-wrap i {
+      position: absolute;
+      top: 50%;
+      left: 0.75rem;
+      transform: translateY(-50%);
+      color: #64748B;
+      pointer-events: none;
+    }
+
+    .attendance-picker-search {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid #D6DEEA;
+      border-radius: 9px;
+      background: #F8FAFC;
+      color: #202124;
+      padding: 0.6rem 0.75rem 0.6rem 2.3rem;
+      font: inherit;
+      font-size: 0.86rem;
+    }
+
+    .attendance-picker-search:focus {
+      outline: none;
+      border-color: #573FD7;
+      box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.12);
+      background: #fff;
+    }
+
+    .attendance-picker-options {
+      max-height: min(240px, 38vh);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+    }
+
+    .attendance-picker-option {
+      width: 100%;
+      min-height: 48px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: #334155;
+      padding: 0.6rem 0.7rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .attendance-picker-option:hover,
+    .attendance-picker-option:focus-visible {
+      outline: none;
+      background: #F1F5F9;
+      color: #3524A8;
+    }
+
+    .attendance-picker-option.is-selected {
+      background: #EEEAFE;
+      color: #3524A8;
+    }
+
+    .attendance-option-copy {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
+    .attendance-option-title {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.88rem;
+      font-weight: 650;
+    }
+
+    .attendance-option-date {
+      margin-top: 0.3rem;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      color: #475569;
+      font-size: 0.75rem;
+      line-height: 1.35;
+    }
+
+    .attendance-option-date i {
+      flex: 0 0 auto;
+      color: #7565D6;
+      font-size: 0.7rem;
+    }
+
+    .attendance-option-details {
+      margin-top: 0.35rem;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.3rem 0.45rem;
+      color: #64748B;
+      font-size: 0.73rem;
+    }
+
+    .attendance-healthcare-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+    }
+
+    .attendance-healthcare-tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      background: #EDE9FE;
+      color: #4C3BB4;
+      font-size: 0.72rem;
+      font-weight: 650;
+      line-height: 1.25;
+      white-space: normal;
+    }
+
+    .attendance-healthcare-empty {
+      color: #64748B;
+      font-size: 0.73rem;
+    }
+
+    .attendance-option-check {
+      flex: 0 0 auto;
+      color: #573FD7;
+      opacity: 0;
+    }
+
+    .attendance-picker-option.is-selected .attendance-option-check {
+      opacity: 1;
+    }
+
+    .attendance-picker-empty {
+      margin: 0;
+      padding: 1rem;
+      color: #64748B;
+      font-size: 0.84rem;
+      text-align: center;
+    }
+
+    .attendance-picker-empty[hidden] {
+      display: none;
+    }
+
+    .attendance-selected-training {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 12px;
+      background: #F8FAFC;
+    }
+
+    .attendance-selected-training[hidden] {
+      display: none;
+    }
+
+    .attendance-selected-training h3 {
+      margin: 0;
+      color: #202124;
+      font-size: 1rem;
+    }
+
+    .attendance-selected-meta {
+      margin-top: 0.65rem;
+      display: grid;
+      grid-template-columns: minmax(140px, 0.7fr) minmax(260px, 2fr) repeat(2, minmax(130px, 0.6fr));
+      gap: 0.6rem;
+    }
+
+    .attendance-selected-meta div {
+      min-width: 0;
+    }
+
+    .attendance-selected-meta span {
+      display: block;
+      color: #64748B;
+      font-size: 0.72rem;
+    }
+
+    .attendance-selected-meta strong {
+      display: block;
+      margin-top: 0.15rem;
+      color: #334155;
+      font-size: 0.85rem;
+      overflow-wrap: anywhere;
+    }
+
+    .attendance-launcher-actions {
+      margin-top: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .attendance-launcher-actions p {
+      max-width: 48ch;
+      margin: 0;
+      color: #64748B;
+      font-size: 0.8rem;
+      line-height: 1.4;
+    }
+
+    .attendance-open-button {
+      min-width: 190px;
+      min-height: 46px;
+      border: 0;
+      border-radius: 10px;
+      background: #573FD7;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.7rem 1rem;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .attendance-open-button:hover:not(:disabled),
+    .attendance-open-button:focus-visible:not(:disabled) {
+      background: #4530BE;
+      outline: none;
+    }
+
+    .attendance-open-button:disabled {
+      background: #CBD5E1;
+      color: #64748B;
+      cursor: not-allowed;
+    }
+
+    .attendance-no-trainings {
+      padding: 2.5rem 1rem;
+      border: 1px dashed #CBD5E1;
+      border-radius: 14px;
+      background: #fff;
+      color: #64748B;
+      text-align: center;
+    }
+
+    .attendance-no-trainings i {
+      display: block;
+      margin-bottom: 0.65rem;
+      color: #8B7DE3;
+      font-size: 1.6rem;
+    }
+
+    @media (max-width: 900px) {
+      .attendance-selected-meta {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      .attendance-selected-meta {
+        grid-template-columns: 1fr;
+      }
+
+      .attendance-launcher-actions {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .attendance-open-button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body class="has-sidebar">
+  <%- include('../partials/sidebar', { user }) %>
+  <main class="main-content">
+    <div class="container attendance-page-container">
+      <header class="attendance-launcher-header">
+        <h1>Attendance</h1>
+        <p>Choose a training to add a new attendance session, update an existing session, review attendance, or generate its report.</p>
+      </header>
+
+      <% if (!trainings.length) { %>
+        <div class="attendance-no-trainings">
+          <i class="far fa-calendar-check" aria-hidden="true"></i>
+          <strong>No trainings available</strong>
+          <p><%= user.userRole === 'trainer' ? 'Assigned trainings will appear here.' : 'Create a training before recording attendance.' %></p>
+        </div>
+      <% } else { %>
+        <section class="attendance-launcher-panel" aria-labelledby="attendance-choose-heading">
+          <h2 class="attendance-launcher-title" id="attendance-choose-heading">Select a training</h2>
+          <p class="attendance-launcher-helper"><%= user.userRole === 'trainer' ? 'Only trainings assigned to you are listed.' : 'All trainings are available to administrators.' %></p>
+
+          <div class="attendance-training-picker" id="attendance-training-picker">
+            <input type="hidden" id="attendance-training-id" value="">
+            <button type="button" class="attendance-picker-trigger" id="attendance-picker-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="attendance-picker-menu">
+              <span class="attendance-picker-trigger-label" id="attendance-picker-trigger-label">Choose a training...</span>
+              <i class="fas fa-chevron-down attendance-picker-chevron" aria-hidden="true"></i>
+            </button>
+            <div class="attendance-picker-menu" id="attendance-picker-menu" hidden>
+              <div class="attendance-picker-search-wrap">
+                <i class="fas fa-search" aria-hidden="true"></i>
+                <input type="search" class="attendance-picker-search" id="attendance-picker-search" placeholder="Search by training or healthcare..." aria-label="Search trainings">
+              </div>
+              <div class="attendance-picker-options" role="listbox" aria-label="Available trainings">
+                <% trainings.forEach(training => { %>
+                  <% const trainingHealthcare = String(training.healthcare_names || '').split('|||').map(name => name.trim()).filter(Boolean); %>
+                  <% const trainingDateRange = training.start_date_label && training.end_date_label
+                    ? (training.start_date_label === training.end_date_label
+                      ? training.start_date_label
+                      : `${training.start_date_label} – ${training.end_date_label}`)
+                    : 'Training dates not set'; %>
+                  <button
+                    type="button"
+                    class="attendance-picker-option"
+                    role="option"
+                    aria-selected="false"
+                    data-id="<%= training.id %>"
+                    data-title="<%= training.title %>"
+                    data-search="<%= `${training.title} ${trainingHealthcare.join(' ')}`.toLowerCase() %>"
+                    data-healthcares="<%= trainingHealthcare.join('|||') %>"
+                    data-status="<%= training.status %>"
+                    data-start="<%= training.start_datetime || '' %>"
+                    data-end="<%= training.end_datetime || '' %>"
+                    data-participants="<%= training.participant_count || 0 %>"
+                    data-sessions="<%= training.session_count || 0 %>"
+                  >
+                    <span class="attendance-option-copy">
+                      <span class="attendance-option-title"><%= training.title %></span>
+                      <span class="attendance-option-date">
+                        <i class="far fa-calendar" aria-hidden="true"></i>
+                        <span><%= trainingDateRange %></span>
+                      </span>
+                      <span class="attendance-option-details">
+                        <% if (trainingHealthcare.length) { %>
+                          <span class="attendance-healthcare-list" aria-label="Healthcare facilities">
+                            <% trainingHealthcare.forEach(healthcareName => { %>
+                              <span class="attendance-healthcare-tag"><%= healthcareName %></span>
+                            <% }); %>
+                          </span>
+                        <% } else { %>
+                          <span class="attendance-healthcare-empty">No healthcare assigned</span>
+                        <% } %>
+                        <span><%= training.participant_count || 0 %> participant<%= Number(training.participant_count) === 1 ? '' : 's' %></span>
+                      </span>
+                    </span>
+                    <i class="fas fa-check attendance-option-check" aria-hidden="true"></i>
+                  </button>
+                <% }); %>
+              </div>
+              <p class="attendance-picker-empty" id="attendance-picker-empty" hidden>No trainings match your search.</p>
+            </div>
+          </div>
+
+          <div class="attendance-selected-training" id="attendance-selected-training" hidden>
+            <h3 id="attendance-selected-title"></h3>
+            <div class="attendance-selected-meta">
+              <div><span>Status</span><strong id="attendance-selected-status"></strong></div>
+              <div><span>Healthcare facilities</span><div class="attendance-healthcare-list" id="attendance-selected-healthcares"></div></div>
+              <div><span>Participants</span><strong id="attendance-selected-participants"></strong></div>
+              <div><span>Attendance sessions</span><strong id="attendance-selected-sessions"></strong></div>
+            </div>
+          </div>
+
+          <div class="attendance-launcher-actions">
+            <p>The training will open directly on its Attendance tab, where you can add or update attendance.</p>
+            <button type="button" class="attendance-open-button" id="attendance-open-button" disabled>
+              <i class="fas fa-arrow-right" aria-hidden="true"></i>
+              Open attendance
+            </button>
+          </div>
+        </section>
+      <% } %>
+    </div>
+  </main>
+  <script src="/js/main.js"></script>
+  <% if (trainings.length) { %>
+    <script>
+      (() => {
+        const picker = document.getElementById('attendance-training-picker');
+        const hiddenInput = document.getElementById('attendance-training-id');
+        const trigger = document.getElementById('attendance-picker-trigger');
+        const triggerLabel = document.getElementById('attendance-picker-trigger-label');
+        const menu = document.getElementById('attendance-picker-menu');
+        const search = document.getElementById('attendance-picker-search');
+        const emptyMessage = document.getElementById('attendance-picker-empty');
+        const options = Array.from(document.querySelectorAll('.attendance-picker-option'));
+        const preview = document.getElementById('attendance-selected-training');
+        const previewTitle = document.getElementById('attendance-selected-title');
+        const previewStatus = document.getElementById('attendance-selected-status');
+        const previewHealthcares = document.getElementById('attendance-selected-healthcares');
+        const previewParticipants = document.getElementById('attendance-selected-participants');
+        const previewSessions = document.getElementById('attendance-selected-sessions');
+        const openButton = document.getElementById('attendance-open-button');
+
+        const formatStatus = value => String(value || '')
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, character => character.toUpperCase());
+        const visibleOptions = () => options.filter(option => !option.hidden);
+
+        function closePicker(returnFocus = false) {
+          if (menu.hidden) return;
+          picker.classList.remove('is-open');
+          menu.hidden = true;
+          trigger.setAttribute('aria-expanded', 'false');
+          if (returnFocus) trigger.focus();
+        }
+
+        function openPicker() {
+          if (!menu.hidden) return;
+          picker.classList.add('is-open');
+          menu.hidden = false;
+          trigger.setAttribute('aria-expanded', 'true');
+          search.value = '';
+          filterOptions('');
+          requestAnimationFrame(() => search.focus());
+        }
+
+        function filterOptions(query) {
+          const normalizedQuery = String(query || '').trim().toLocaleLowerCase();
+          let matches = 0;
+          options.forEach(option => {
+            const isMatch = !normalizedQuery || option.dataset.search.includes(normalizedQuery);
+            option.hidden = !isMatch;
+            if (isMatch) matches += 1;
+          });
+          emptyMessage.hidden = matches > 0;
+        }
+
+        function chooseTraining(option) {
+          hiddenInput.value = option.dataset.id;
+          triggerLabel.textContent = option.dataset.title;
+          options.forEach(item => {
+            const selected = item === option;
+            item.classList.toggle('is-selected', selected);
+            item.setAttribute('aria-selected', String(selected));
+          });
+          previewTitle.textContent = option.dataset.title;
+          previewStatus.textContent = formatStatus(option.dataset.status);
+          const healthcareNames = String(option.dataset.healthcares || '').split('|||').filter(Boolean);
+          previewHealthcares.replaceChildren();
+          if (healthcareNames.length) {
+            healthcareNames.forEach(name => {
+              const tag = document.createElement('span');
+              tag.className = 'attendance-healthcare-tag';
+              tag.textContent = name;
+              previewHealthcares.appendChild(tag);
+            });
+          } else {
+            const empty = document.createElement('span');
+            empty.className = 'attendance-healthcare-empty';
+            empty.textContent = 'No healthcare assigned';
+            previewHealthcares.appendChild(empty);
+          }
+          previewParticipants.textContent = option.dataset.participants;
+          previewSessions.textContent = option.dataset.sessions;
+          preview.hidden = false;
+          openButton.disabled = false;
+          closePicker(true);
+        }
+
+        trigger.addEventListener('click', () => menu.hidden ? openPicker() : closePicker(true));
+        trigger.addEventListener('keydown', event => {
+          if (['Enter', ' ', 'ArrowDown'].includes(event.key)) {
+            event.preventDefault();
+            openPicker();
+          }
+        });
+        search.addEventListener('input', () => filterOptions(search.value));
+        search.addEventListener('keydown', event => {
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            visibleOptions()[0]?.focus();
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            closePicker(true);
+          }
+        });
+        options.forEach(option => {
+          option.tabIndex = -1;
+          option.addEventListener('click', () => chooseTraining(option));
+          option.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              event.stopPropagation();
+              closePicker(true);
+              return;
+            }
+            if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            const available = visibleOptions();
+            const currentIndex = available.indexOf(option);
+            let nextIndex = currentIndex;
+            if (event.key === 'ArrowDown') nextIndex = Math.min(currentIndex + 1, available.length - 1);
+            if (event.key === 'ArrowUp') nextIndex = Math.max(currentIndex - 1, 0);
+            if (event.key === 'Home') nextIndex = 0;
+            if (event.key === 'End') nextIndex = available.length - 1;
+            available[nextIndex]?.focus();
+          });
+        });
+        document.addEventListener('pointerdown', event => {
+          if (!picker.contains(event.target)) closePicker(false);
+        });
+        openButton.addEventListener('click', () => {
+          if (!hiddenInput.value) return;
+          window.location.assign(`/training/${encodeURIComponent(hiddenInput.value)}?tab=attendance&attendanceTab=add`);
+        });
+      })();
+    </script>
+  <% } %>
+</body>
+</html>

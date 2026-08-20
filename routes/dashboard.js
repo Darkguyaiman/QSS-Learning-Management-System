@@ -312,16 +312,40 @@ function parseDashboardEntityFilter(value) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+function parseDashboardThresholdFilter(operatorValue, thresholdValue, { integer = false } = {}) {
+  const validOperators = new Set(['gt', 'lt', 'eq']);
+  const operator = validOperators.has(String(operatorValue || '')) ? String(operatorValue) : null;
+  const rawThreshold = String(thresholdValue ?? '').trim();
+  const threshold = Number(rawThreshold);
+  const isValidThreshold = rawThreshold !== ''
+    && Number.isFinite(threshold)
+    && threshold >= 0
+    && (!integer || Number.isInteger(threshold));
+
+  return {
+    operator: operator && isValidThreshold ? operator : null,
+    threshold: operator && isValidThreshold ? threshold : null
+  };
+}
+
 function getDashboardEntityFilters(query) {
+  const duration = parseDashboardThresholdFilter(query.durationOp, query.durationHours);
+  const participants = parseDashboardThresholdFilter(query.participantsOp, query.participants, { integer: true });
+
   return {
     healthcareId: parseDashboardEntityFilter(query.healthcare),
-    moduleId: parseDashboardEntityFilter(query.module)
+    moduleId: parseDashboardEntityFilter(query.module),
+    durationOperator: duration.operator,
+    durationHours: duration.threshold,
+    participantsOperator: participants.operator,
+    participantCount: participants.threshold
   };
 }
 
 function buildTrainingFilterClause({ dashboardDateRange, filters, alias = '', leadingKeyword = 'WHERE' }) {
   const prefix = alias ? `${alias}.` : '';
-  const trainingIdExpression = alias ? `${alias}.id` : 'id';
+  const trainingIdExpression = alias ? `${alias}.id` : 'trainings.id';
+  const comparisonOperators = { gt: '>', lt: '<', eq: '=' };
   const clauses = [];
   const params = [];
 
@@ -345,6 +369,25 @@ function buildTrainingFilterClause({ dashboardDateRange, filters, alias = '', le
       )`
     );
     params.push(filters.healthcareId);
+  }
+
+  if (filters.durationOperator && filters.durationHours !== null) {
+    clauses.push(
+      `(${prefix}start_datetime IS NOT NULL
+        AND ${prefix}end_datetime IS NOT NULL
+        AND ${prefix}end_datetime >= ${prefix}start_datetime
+        AND TIMESTAMPDIFF(MINUTE, ${prefix}start_datetime, ${prefix}end_datetime) / 60 ${comparisonOperators[filters.durationOperator]} ?)`
+    );
+    params.push(filters.durationHours);
+  }
+
+  if (filters.participantsOperator && filters.participantCount !== null) {
+    clauses.push(
+      `(SELECT COUNT(DISTINCT e_filter.trainee_id)
+        FROM enrollments e_filter
+        WHERE e_filter.training_id = ${trainingIdExpression}) ${comparisonOperators[filters.participantsOperator]} ?`
+    );
+    params.push(filters.participantCount);
   }
 
   return {

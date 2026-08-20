@@ -832,34 +832,8 @@ body {
   display: flex;
   flex-direction: column;
   z-index: 100;
-  overflow-y: auto;
+  overflow: hidden;
   transition: transform 0.3s ease;
-}
-
-/* Custom Scrollbar for Sidebar */
-.sidebar::-webkit-scrollbar {
-  width: 8px;
-}
-
-.sidebar::-webkit-scrollbar-track {
-  background: rgba(17, 53, 139, 0.08);
-  border-radius: 4px;
-}
-
-.sidebar::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #DC2626 0%, #11358B 100%);
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.sidebar::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #B91C1C 0%, #0F2E73 100%);
-}
-
-/* Firefox Scrollbar */
-.sidebar {
-  scrollbar-width: thin;
-  scrollbar-color: #DC2626 rgba(17, 53, 139, 0.08);
 }
 
 .sidebar-header {
@@ -871,6 +845,7 @@ body {
   justify-content: center;
   align-items: center;
   position: relative;
+  flex-shrink: 0;
 }
 
 .sidebar-brand {
@@ -935,10 +910,35 @@ body {
 
 .sidebar-nav {
   flex: 1;
+  min-height: 0;
   padding: 0.75rem 0;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #DC2626 rgba(17, 53, 139, 0.08);
+}
+
+/* Custom Scrollbar for Sidebar Nav */
+.sidebar-nav::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: rgba(17, 53, 139, 0.08);
+  border-radius: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #DC2626 0%, #11358B 100%);
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #B91C1C 0%, #0F2E73 100%);
 }
 
 .sidebar-link {
@@ -983,6 +983,7 @@ body {
   border-top: 1px solid rgba(17, 53, 139, 0.08);
   padding: var(--spacing-md);
   background: linear-gradient(180deg, rgba(255, 250, 242, 0.85) 0%, rgba(248, 245, 238, 0.98) 100%);
+  flex-shrink: 0;
 }
 
 .sidebar-user {

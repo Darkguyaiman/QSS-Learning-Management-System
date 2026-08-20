@@ -1438,8 +1438,8 @@ router.get('/', async (req, res) => {
 
     // Status visibility by role
     if (req.session.userRole === 'trainee') {
-      // Trainees can see completed trainings unless they are explicitly locked
-      query += ` AND t.status IN ('in_progress', 'completed', 'rescheduled') AND COALESCE(t.is_locked, 0) = 0`;
+      // Keep enrolled trainings visible so feedback remains reachable after completion or locking.
+      query += ` AND t.status IN ('in_progress', 'completed', 'rescheduled')`;
     } else if (req.session.userRole !== 'admin') {
       query += ` AND t.status IN ('in_progress', 'completed', 'rescheduled')`;
     }
@@ -1505,6 +1505,7 @@ router.get('/', async (req, res) => {
     const [trainings] = await req.db.query(query, queryParams);
 
     const healthcareNamesByTrainingId = new Map();
+    const feedbackTrainingIds = new Set();
     if (trainings.length > 0) {
       const trainingIds = trainings.map(training => training.id);
       const placeholders = trainingIds.map(() => '?').join(',');
@@ -1523,6 +1524,16 @@ router.get('/', async (req, res) => {
         }
         healthcareNamesByTrainingId.get(row.training_id).push(row.name);
       });
+
+      if (req.session.userRole === 'trainee') {
+        const [feedbackRows] = await req.db.query(`
+          SELECT e.training_id
+          FROM training_feedback tf
+          JOIN enrollments e ON e.id = tf.enrollment_id
+          WHERE e.trainee_id = ? AND e.training_id IN (${placeholders})
+        `, [req.session.userId, ...trainingIds]);
+        feedbackRows.forEach(row => feedbackTrainingIds.add(Number(row.training_id)));
+      }
     }
     
     // Set default header for trainings without one and parse trainer names
@@ -1533,6 +1544,7 @@ router.get('/', async (req, res) => {
       // Parse trainer names into array
       training.trainers = training.trainer_names ? training.trainer_names.split(', ') : [];
       training.healthcareNames = healthcareNamesByTrainingId.get(training.id) || [];
+      training.feedbackSubmitted = feedbackTrainingIds.has(Number(training.id));
     });
     
     // Fetch filter options
@@ -2764,6 +2776,7 @@ router.get('/:id', async (req, res) => {
     // Check if user is enrolled
     let enrollment = null;
     let traineeMarksData = null;
+    let trainingFeedback = null;
     if (req.session.userRole === 'trainee') {
       const [enrollments] = await req.db.query(`
         SELECT e.*,
@@ -2794,6 +2807,14 @@ router.get('/:id', async (req, res) => {
         WHERE e.trainee_id = ? AND e.training_id = ?
       `, [req.session.userId, req.params.id]);
       enrollment = enrollments[0] || null;
+
+      if (enrollment) {
+        const [feedbackRows] = await req.db.query(
+          'SELECT * FROM training_feedback WHERE enrollment_id = ? LIMIT 1',
+          [enrollment.id]
+        );
+        trainingFeedback = feedbackRows[0] || null;
+      }
       
       // Get marks data for trainee if scores are released
       if (enrollment && enrollment.can_download_results) {
@@ -2940,6 +2961,7 @@ router.get('/:id', async (req, res) => {
       training, 
       trainingMedia,
       enrollment,
+      trainingFeedback,
       devAdminCheatEnabled: await isTrainingExcelImportAdmin(req.db, req.session),
       marksData: req.session.userRole === 'trainee' ? (traineeMarksData || null) : marksData,
       sections: sections.map(s => {

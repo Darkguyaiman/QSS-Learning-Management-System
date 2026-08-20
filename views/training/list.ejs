@@ -401,6 +401,35 @@
       white-space: nowrap;
     }
 
+    .training-review-link {
+      margin-top: 0.35rem;
+      min-height: 40px;
+      border-radius: 8px;
+      background: #F1EFFF;
+      color: #4931C6;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.55rem 0.75rem;
+      font-size: 0.84rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.18s ease, color 0.18s ease;
+    }
+
+    .training-review-link:hover,
+    .training-review-link:focus-visible {
+      background: #E4DFFF;
+      color: #3524A8;
+      outline: none;
+    }
+
+    .training-review-link.is-complete {
+      background: #EAF7EF;
+      color: #176B3A;
+    }
+
     .training-healthcare-tooltip-host {
       --tt-bg: #FFFFFF;
       --color-neutral-content: #202124;
@@ -561,7 +590,7 @@
                   </button>
                 <% } %>
               </div>
-              <a href="/training/<%= training.id %>" class="classroom-card-link" aria-label="Open <%= training.title %>"></a>
+              <a href="<%= user.userRole === 'trainee' && Number(training.is_locked) ? `/feedback/training/${training.id}` : `/training/${training.id}` %>" class="classroom-card-link" aria-label="<%= user.userRole === 'trainee' && Number(training.is_locked) ? 'Review' : 'Open' %> <%= training.title %>"></a>
               <div class="classroom-body">
                 <h3 class="classroom-title"><%= training.title %></h3>
                 <div class="classroom-meta">
@@ -635,6 +664,12 @@
                     </div>
                   <% } %>
                 </div>
+                <% if (user.userRole === 'trainee') { %>
+                  <a href="/feedback/training/<%= training.id %>" class="training-review-link <%= training.feedbackSubmitted ? 'is-complete' : '' %>">
+                    <i class="fas <%= training.feedbackSubmitted ? 'fa-check-circle' : 'fa-comment-dots' %>" aria-hidden="true"></i>
+                    <span><%= training.feedbackSubmitted ? 'Feedback submitted' : 'Give feedback' %></span>
+                  </a>
+                <% } %>
               </div>
             </div>
           <% }); %>

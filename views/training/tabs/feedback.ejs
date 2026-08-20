@@ -1,0 +1,472 @@
+<%
+  const feedbackRecord = typeof trainingFeedback !== 'undefined' ? trainingFeedback : null;
+  const draft = typeof feedbackDraft !== 'undefined' && feedbackDraft ? feedbackDraft : {};
+  const isStandaloneFeedback = typeof standalone !== 'undefined' && standalone;
+  const ratingQuestions = [
+    { name: 'overall_rating', title: 'Overall experience', hint: 'How would you rate the training as a whole?' },
+    { name: 'content_relevance_rating', title: 'Content relevance', hint: 'Was the content useful for your work?' },
+    { name: 'trainer_effectiveness_rating', title: 'Trainer effectiveness', hint: 'Was the trainer clear, engaging, and helpful?' },
+    { name: 'practical_confidence_rating', title: 'Practical confidence', hint: 'Do you feel more confident applying what you learned?' }
+  ];
+  const ratingLabels = ['Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
+  const paceLabels = { too_slow: 'Too slow', about_right: 'About right', too_fast: 'Too fast' };
+  const displayRating = value => ratingLabels[Math.max(1, Number(value || 1)) - 1] || '-';
+%>
+
+<style>
+  .training-feedback-shell {
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  .training-feedback-intro {
+    padding: clamp(1.25rem, 3vw, 2rem);
+    border-radius: 16px 16px 0 0;
+    background: #30228F;
+    color: #fff;
+  }
+
+  .training-feedback-intro h2 {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(1.35rem, 3vw, 1.8rem);
+    line-height: 1.25;
+  }
+
+  .training-feedback-intro p {
+    max-width: 68ch;
+    margin: 0.55rem 0 0;
+    color: #E9E5FF;
+    line-height: 1.55;
+  }
+
+  .training-feedback-privacy {
+    margin-top: 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #fff;
+    font-size: 0.84rem;
+    font-weight: 600;
+  }
+
+  .training-feedback-form,
+  .training-feedback-complete {
+    padding: clamp(1rem, 3vw, 2rem);
+    border: 1px solid #E3E7EF;
+    border-top: 0;
+    border-radius: 0 0 16px 16px;
+    background: #fff;
+  }
+
+  .feedback-notice {
+    margin-bottom: 1.25rem;
+    padding: 0.8rem 0.95rem;
+    border-radius: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    line-height: 1.45;
+  }
+
+  .feedback-notice.is-error {
+    background: #FFF0F0;
+    color: #A32020;
+  }
+
+  .feedback-notice.is-success {
+    background: #EAF7EF;
+    color: #176B3A;
+  }
+
+  .feedback-rating-list {
+    display: grid;
+    gap: 1.35rem;
+  }
+
+  .feedback-rating-question {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .feedback-rating-question legend {
+    width: 100%;
+    margin-bottom: 0.15rem;
+    color: #202124;
+    font-size: 1rem;
+    font-weight: 650;
+  }
+
+  .feedback-question-hint {
+    margin: 0 0 0.65rem;
+    color: #64748B;
+    font-size: 0.84rem;
+    line-height: 1.4;
+  }
+
+  .feedback-rating-options {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .feedback-choice-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    clip: rect(0, 0, 0, 0);
+    overflow: hidden;
+  }
+
+  .feedback-rating-choice {
+    min-height: 62px;
+    border: 1px solid #D8DEE9;
+    border-radius: 10px;
+    background: #F8FAFC;
+    color: #475569;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 0.15rem;
+    padding: 0.45rem 0.25rem;
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
+  }
+
+  .feedback-rating-number {
+    font-size: 1.1rem;
+    font-weight: 750;
+  }
+
+  .feedback-rating-label {
+    font-size: 0.7rem;
+    line-height: 1.2;
+  }
+
+  .feedback-choice-input:focus-visible + .feedback-rating-choice,
+  .feedback-choice-input:focus-visible + .feedback-pace-choice {
+    outline: 3px solid rgba(87, 63, 215, 0.25);
+    outline-offset: 2px;
+  }
+
+  .feedback-choice-input:checked + .feedback-rating-choice {
+    border-color: #573FD7;
+    background: #EEEAFE;
+    color: #3524A8;
+  }
+
+  .feedback-divider {
+    height: 1px;
+    margin: 1.5rem 0;
+    background: #E8EAED;
+  }
+
+  .feedback-pace-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  .feedback-pace-choice {
+    min-height: 48px;
+    border: 1px solid #D8DEE9;
+    border-radius: 10px;
+    background: #F8FAFC;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.65rem;
+    cursor: pointer;
+    font-size: 0.86rem;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .feedback-choice-input:checked + .feedback-pace-choice {
+    border-color: #573FD7;
+    background: #EEEAFE;
+    color: #3524A8;
+  }
+
+  .feedback-text-fields {
+    display: grid;
+    gap: 1.1rem;
+  }
+
+  .feedback-text-field label {
+    display: block;
+    margin-bottom: 0.4rem;
+    color: #202124;
+    font-size: 0.92rem;
+    font-weight: 650;
+  }
+
+  .feedback-optional {
+    color: #64748B;
+    font-size: 0.76rem;
+    font-weight: 500;
+  }
+
+  .feedback-text-field textarea {
+    width: 100%;
+    min-height: 96px;
+    resize: vertical;
+    border: 1px solid #D8DEE9;
+    border-radius: 10px;
+    background: #F8FAFC;
+    color: #202124;
+    padding: 0.75rem 0.85rem;
+    font: inherit;
+    line-height: 1.5;
+  }
+
+  .feedback-text-field textarea:focus {
+    outline: none;
+    border-color: #573FD7;
+    box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.14);
+    background: #fff;
+  }
+
+  .feedback-form-footer {
+    margin-top: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .feedback-form-footer p {
+    max-width: 52ch;
+    margin: 0;
+    color: #64748B;
+    font-size: 0.8rem;
+    line-height: 1.4;
+  }
+
+  .feedback-submit-btn {
+    min-width: 170px;
+    min-height: 46px;
+    border: 0;
+    border-radius: 10px;
+    background: #573FD7;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1rem;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .feedback-submit-btn:hover,
+  .feedback-submit-btn:focus-visible {
+    background: #4530BE;
+    outline: none;
+  }
+
+  .feedback-complete-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .feedback-complete-heading i {
+    color: #1E8E4A;
+    font-size: 1.7rem;
+  }
+
+  .feedback-complete-heading h3 {
+    margin: 0;
+    color: #202124;
+    font-size: 1.2rem;
+  }
+
+  .feedback-complete-heading p {
+    margin: 0.3rem 0 0;
+    color: #64748B;
+    line-height: 1.45;
+  }
+
+  .feedback-response-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .feedback-response-row {
+    padding: 0.75rem 0.85rem;
+    border-radius: 10px;
+    background: #F8FAFC;
+  }
+
+  .feedback-response-row span {
+    display: block;
+    color: #64748B;
+    font-size: 0.76rem;
+  }
+
+  .feedback-response-row strong {
+    display: block;
+    margin-top: 0.18rem;
+    color: #202124;
+    font-size: 0.92rem;
+  }
+
+  .feedback-standalone-actions {
+    margin-top: 1.25rem;
+  }
+
+  @media (max-width: 640px) {
+    .feedback-rating-options {
+      grid-template-columns: repeat(5, minmax(52px, 1fr));
+      overflow-x: auto;
+      padding: 0.15rem 0.1rem 0.4rem;
+    }
+
+    .feedback-rating-label {
+      display: none;
+    }
+
+    .feedback-pace-options,
+    .feedback-response-summary {
+      grid-template-columns: 1fr;
+    }
+
+    .feedback-form-footer {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .feedback-submit-btn {
+      width: 100%;
+    }
+  }
+</style>
+
+<section class="training-feedback-shell <%= isStandaloneFeedback ? '' : 'tab-content' %>" id="feedback-tab" aria-labelledby="feedback-heading">
+  <div class="training-feedback-intro">
+    <h2 id="feedback-heading">Training review</h2>
+    <p>Tell us what worked and what could be better for <strong><%= training.title %></strong>. Your feedback helps administrators improve future sessions.</p>
+  </div>
+
+  <% if (feedbackRecord) { %>
+    <div class="training-feedback-complete">
+      <% if ((typeof submitted !== 'undefined' && submitted) || (typeof alreadySubmitted !== 'undefined' && alreadySubmitted)) { %>
+        <div class="feedback-notice is-success" role="status">
+          <i class="fas fa-check-circle" aria-hidden="true"></i>
+          <span><%= submitted ? 'Thank you. Your feedback has been submitted.' : 'You have already submitted feedback for this training.' %></span>
+        </div>
+      <% } %>
+      <div class="feedback-complete-heading">
+        <i class="fas fa-circle-check" aria-hidden="true"></i>
+        <div>
+          <h3>Review submitted</h3>
+          <p>Each trainee can submit one review per training. Your response is safely recorded and cannot be edited.</p>
+        </div>
+      </div>
+      <div class="feedback-response-summary">
+        <% ratingQuestions.forEach(question => { %>
+          <div class="feedback-response-row">
+            <span><%= question.title %></span>
+            <strong><%= feedbackRecord[question.name] %>/5 · <%= displayRating(feedbackRecord[question.name]) %></strong>
+          </div>
+        <% }); %>
+        <div class="feedback-response-row">
+          <span>Training pace</span>
+          <strong><%= paceLabels[feedbackRecord.pace] || feedbackRecord.pace %></strong>
+        </div>
+        <div class="feedback-response-row">
+          <span>Submitted</span>
+          <strong><%= feedbackRecord.submitted_at ? new Date(feedbackRecord.submitted_at).toLocaleString() : 'Recorded' %></strong>
+        </div>
+      </div>
+      <% if (isStandaloneFeedback) { %>
+        <div class="feedback-standalone-actions">
+          <a href="/training" class="btn btn-outline"><i class="fas fa-arrow-left" aria-hidden="true"></i> Back to trainings</a>
+        </div>
+      <% } %>
+    </div>
+  <% } else { %>
+    <form class="training-feedback-form" method="post" action="/feedback/training/<%= training.id %>">
+      <% if (typeof validationError !== 'undefined' && validationError) { %>
+        <div class="feedback-notice is-error" role="alert">
+          <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+          <span><%= validationError %></span>
+        </div>
+      <% } %>
+
+      <div class="feedback-rating-list">
+        <% ratingQuestions.forEach(question => { %>
+          <fieldset class="feedback-rating-question">
+            <legend><%= question.title %></legend>
+            <p class="feedback-question-hint"><%= question.hint %></p>
+            <div class="feedback-rating-options">
+              <% ratingLabels.forEach((label, index) => { const value = index + 1; %>
+                <div>
+                  <input class="feedback-choice-input" type="radio" id="<%= question.name %>-<%= value %>" name="<%= question.name %>" value="<%= value %>" <%= Number(draft[question.name]) === value ? 'checked' : '' %> required>
+                  <label class="feedback-rating-choice" for="<%= question.name %>-<%= value %>">
+                    <span class="feedback-rating-number"><%= value %></span>
+                    <span class="feedback-rating-label"><%= label %></span>
+                  </label>
+                </div>
+              <% }); %>
+            </div>
+          </fieldset>
+        <% }); %>
+      </div>
+
+      <div class="feedback-divider"></div>
+
+      <fieldset class="feedback-rating-question">
+        <legend>How was the training pace?</legend>
+        <p class="feedback-question-hint">Choose the option that best matches your experience.</p>
+        <div class="feedback-pace-options">
+          <% Object.entries(paceLabels).forEach(([value, label]) => { %>
+            <div>
+              <input class="feedback-choice-input" type="radio" id="feedback-pace-<%= value %>" name="pace" value="<%= value %>" <%= draft.pace === value ? 'checked' : '' %> required>
+              <label class="feedback-pace-choice" for="feedback-pace-<%= value %>">
+                <i class="fas <%= value === 'too_slow' ? 'fa-backward-step' : value === 'too_fast' ? 'fa-forward-step' : 'fa-check' %>" aria-hidden="true"></i>
+                <span><%= label %></span>
+              </label>
+            </div>
+          <% }); %>
+        </div>
+      </fieldset>
+
+      <div class="feedback-divider"></div>
+
+      <div class="feedback-text-fields">
+        <div class="feedback-text-field">
+          <label for="feedback-most-valuable">What was most valuable? <span class="feedback-optional">Optional</span></label>
+          <textarea id="feedback-most-valuable" name="most_valuable" maxlength="2000" placeholder="A topic, demonstration, or activity that helped you..."><%= draft.most_valuable || '' %></textarea>
+        </div>
+        <div class="feedback-text-field">
+          <label for="feedback-improvements">What could we improve? <span class="feedback-optional">Optional</span></label>
+          <textarea id="feedback-improvements" name="improvement_suggestions" maxlength="2000" placeholder="Tell us one practical way to make the training better..."><%= draft.improvement_suggestions || '' %></textarea>
+        </div>
+        <div class="feedback-text-field">
+          <label for="feedback-comments">Anything else to share? <span class="feedback-optional">Optional</span></label>
+          <textarea id="feedback-comments" name="additional_comments" maxlength="4000" placeholder="Add any other comments here..."><%= draft.additional_comments || '' %></textarea>
+        </div>
+      </div>
+
+      <div class="feedback-form-footer">
+        <p>Review your answers before submitting. To protect response integrity, submitted feedback cannot be changed.</p>
+        <button type="submit" class="feedback-submit-btn">
+          <i class="fas fa-paper-plane" aria-hidden="true"></i>
+          Submit review
+        </button>
+      </div>
+    </form>
+  <% } %>
+</section>

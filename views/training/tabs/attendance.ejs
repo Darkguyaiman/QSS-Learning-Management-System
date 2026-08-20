@@ -25,16 +25,16 @@
        data-training-end-date="<%= attendanceTrainingEndDate %>">
     <!-- Sub-tabs for Attendance -->
     <div class="attendance-sub-tabs">
-      <button class="attendance-sub-tab active" onclick="switchAttendanceSubTab('summary', this)">
+      <button class="attendance-sub-tab active" data-attendance-sub-tab="summary" onclick="switchAttendanceSubTab('summary', this)">
         <i class="fas fa-chart-bar"></i> Summary
       </button>
-      <button class="attendance-sub-tab" onclick="switchAttendanceSubTab('add', this)">
+      <button class="attendance-sub-tab" data-attendance-sub-tab="add" onclick="switchAttendanceSubTab('add', this)">
         <i class="fas fa-plus-circle"></i> Add New
       </button>
-      <button class="attendance-sub-tab" onclick="switchAttendanceSubTab('update', this)">
+      <button class="attendance-sub-tab" data-attendance-sub-tab="update" onclick="switchAttendanceSubTab('update', this)">
         <i class="fas fa-edit"></i> Update
       </button>
-      <button class="attendance-sub-tab" onclick="switchAttendanceSubTab('report', this)">
+      <button class="attendance-sub-tab" data-attendance-sub-tab="report" onclick="switchAttendanceSubTab('report', this)">
         <i class="fas fa-file-pdf"></i> Report
       </button>
     </div>
@@ -284,13 +284,31 @@
     <div id="attendance-update" class="attendance-sub-content">
       <div class="attendance-update-container">
         <div class="form-group">
-          <label for="update-session-select">Select Session <span class="required">*</span></label>
-          <div class="select-wrapper">
-            <select id="update-session-select" class="form-input session-select" required>
-              <option value="">-- Select a session --</option>
-              <!-- Sessions will be loaded dynamically -->
-            </select>
-            <i class="fas fa-chevron-down select-arrow"></i>
+          <label for="update-session-trigger">Select Session <span class="required">*</span></label>
+          <input type="hidden" id="update-session-select" value="">
+          <div class="update-session-picker" id="update-session-picker">
+            <button type="button"
+                    class="update-session-trigger"
+                    id="update-session-trigger"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                    aria-controls="update-session-menu"
+                    disabled>
+              <span id="update-session-trigger-label">Loading sessions...</span>
+              <i class="fas fa-chevron-down" aria-hidden="true"></i>
+            </button>
+            <div class="update-session-menu" id="update-session-menu" hidden>
+              <div class="update-session-search-wrap">
+                <i class="fas fa-search" aria-hidden="true"></i>
+                <input type="search"
+                       class="update-session-search"
+                       id="update-session-search"
+                       placeholder="Search by date or time..."
+                       aria-label="Search attendance sessions">
+              </div>
+              <div class="update-session-options" id="update-session-options" role="listbox" aria-label="Attendance sessions"></div>
+              <p class="update-session-empty" id="update-session-empty" hidden>No sessions match your search.</p>
+            </div>
           </div>
         </div>
 
@@ -596,6 +614,188 @@
       color: #5F6368;
       font-size: 0.875rem;
       line-height: 1.45;
+    }
+
+    .update-session-picker {
+      position: relative;
+    }
+
+    .update-session-trigger {
+      width: 100%;
+      min-height: 52px;
+      padding: 0.8rem 0.95rem;
+      border: 2px solid #E8EAED;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(87, 63, 215, 0.06), rgba(17, 53, 139, 0.05));
+      color: #202124;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font: inherit;
+      font-size: 0.95rem;
+      font-weight: 650;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .update-session-trigger > span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .update-session-trigger > i {
+      flex: 0 0 auto;
+      color: #573FD7;
+      font-size: 0.8rem;
+      transition: transform 0.18s ease;
+    }
+
+    .update-session-picker.is-open .update-session-trigger > i {
+      transform: rotate(180deg);
+    }
+
+    .update-session-trigger:hover:not(:disabled) {
+      border-color: #B8AEEE;
+      background: #fff;
+    }
+
+    .update-session-trigger:focus-visible,
+    .update-session-picker.is-open .update-session-trigger {
+      outline: none;
+      border-color: #573FD7;
+      box-shadow: 0 0 0 4px rgba(87, 63, 215, 0.12);
+      background: #fff;
+    }
+
+    .update-session-trigger:disabled {
+      color: #64748B;
+      background: #F1F5F9;
+      cursor: not-allowed;
+    }
+
+    .update-session-menu {
+      position: absolute;
+      z-index: 60;
+      top: calc(100% + 0.45rem);
+      right: 0;
+      left: 0;
+      padding: 0.45rem;
+      border: 1px solid #D6DEEA;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 14px 32px rgba(30, 41, 59, 0.16);
+    }
+
+    .update-session-menu[hidden],
+    .update-session-empty[hidden] {
+      display: none;
+    }
+
+    .update-session-search-wrap {
+      position: relative;
+      margin-bottom: 0.4rem;
+    }
+
+    .update-session-search-wrap > i {
+      position: absolute;
+      top: 50%;
+      left: 0.75rem;
+      transform: translateY(-50%);
+      color: #64748B;
+      pointer-events: none;
+    }
+
+    .update-session-search {
+      width: 100%;
+      min-height: 42px;
+      padding: 0.6rem 0.75rem 0.6rem 2.3rem;
+      border: 1px solid #D6DEEA;
+      border-radius: 9px;
+      background: #F8FAFC;
+      color: #202124;
+      font: inherit;
+      font-size: 0.875rem;
+    }
+
+    .update-session-search:focus {
+      outline: none;
+      border-color: #573FD7;
+      box-shadow: 0 0 0 3px rgba(87, 63, 215, 0.12);
+      background: #fff;
+    }
+
+    .update-session-options {
+      max-height: min(260px, 40vh);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+    }
+
+    .update-session-option {
+      width: 100%;
+      min-height: 52px;
+      padding: 0.65rem 0.7rem;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .update-session-option:hover,
+    .update-session-option:focus-visible {
+      outline: none;
+      background: #F3F1FF;
+      color: #3F2CB3;
+    }
+
+    .update-session-option[aria-selected="true"] {
+      background: #EDE9FF;
+      color: #3F2CB3;
+    }
+
+    .update-session-option-copy {
+      min-width: 0;
+    }
+
+    .update-session-option-date {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 700;
+    }
+
+    .update-session-option-time {
+      display: block;
+      margin-top: 0.15rem;
+      color: #64748B;
+      font-size: 0.78rem;
+    }
+
+    .update-session-option-check {
+      flex: 0 0 auto;
+      color: #573FD7;
+      opacity: 0;
+    }
+
+    .update-session-option[aria-selected="true"] .update-session-option-check {
+      opacity: 1;
+    }
+
+    .update-session-empty {
+      margin: 0;
+      padding: 0.9rem;
+      color: #64748B;
+      font-size: 0.84rem;
+      text-align: center;
     }
 
     .select-wrapper {
@@ -1881,8 +2081,7 @@
         el.style.width = `${safe}%`;
       });
 
-      // Mobile session pickers (Update + Report)
-      attachMobileSelectModal('update-session-select', 'Select Session (Update)');
+      // The report keeps its mobile modal; Update uses the custom picker on every viewport.
       attachMobileSelectModal('report-session-select', 'Select Session (Report)');
 
       const addForm = document.getElementById('add-attendance-form');
@@ -2059,68 +2258,209 @@
       }
     });
 
+    function getUpdateSessionPickerElements() {
+      return {
+        picker: document.getElementById('update-session-picker'),
+        input: document.getElementById('update-session-select'),
+        trigger: document.getElementById('update-session-trigger'),
+        triggerLabel: document.getElementById('update-session-trigger-label'),
+        menu: document.getElementById('update-session-menu'),
+        search: document.getElementById('update-session-search'),
+        optionsContainer: document.getElementById('update-session-options'),
+        empty: document.getElementById('update-session-empty')
+      };
+    }
+
+    function closeUpdateSessionPicker(returnFocus = false) {
+      const { picker, trigger, menu } = getUpdateSessionPickerElements();
+      if (!picker || !trigger || !menu || menu.hidden) return;
+      picker.classList.remove('is-open');
+      menu.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+      if (returnFocus) trigger.focus();
+    }
+
+    function filterUpdateSessionOptions(query) {
+      const { optionsContainer, empty } = getUpdateSessionPickerElements();
+      if (!optionsContainer || !empty) return;
+      const normalizedQuery = String(query || '').trim().toLocaleLowerCase();
+      const options = Array.from(optionsContainer.querySelectorAll('.update-session-option'));
+      let matches = 0;
+      options.forEach(option => {
+        const isMatch = !normalizedQuery || option.dataset.search.includes(normalizedQuery);
+        option.hidden = !isMatch;
+        if (isMatch) matches += 1;
+      });
+      empty.textContent = options.length ? 'No sessions match your search.' : 'No attendance sessions are available yet.';
+      empty.hidden = matches > 0;
+    }
+
+    function openUpdateSessionPicker() {
+      const { picker, trigger, menu, search } = getUpdateSessionPickerElements();
+      if (!picker || !trigger || !menu || !search || trigger.disabled || !menu.hidden) return;
+      picker.classList.add('is-open');
+      menu.hidden = false;
+      trigger.setAttribute('aria-expanded', 'true');
+      search.value = '';
+      filterUpdateSessionOptions('');
+      requestAnimationFrame(() => search.focus());
+    }
+
+    function chooseUpdateSession(option) {
+      const { input, triggerLabel, optionsContainer } = getUpdateSessionPickerElements();
+      if (!input || !triggerLabel || !optionsContainer) return;
+      input.value = option.dataset.id;
+      input.dataset.date = option.dataset.date;
+      input.dataset.time = option.dataset.time;
+      input.dataset.endTime = option.dataset.endTime;
+      triggerLabel.textContent = option.dataset.label;
+      optionsContainer.querySelectorAll('.update-session-option').forEach(item => {
+        item.setAttribute('aria-selected', String(item === option));
+      });
+      closeUpdateSessionPicker(true);
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function initializeUpdateSessionPicker() {
+      const { picker, trigger, menu, search, optionsContainer } = getUpdateSessionPickerElements();
+      if (!picker || !trigger || !menu || !search || !optionsContainer || picker.dataset.initialized === 'true') return;
+      picker.dataset.initialized = 'true';
+
+      trigger.addEventListener('click', () => menu.hidden ? openUpdateSessionPicker() : closeUpdateSessionPicker(true));
+      trigger.addEventListener('keydown', event => {
+        if (['Enter', ' ', 'ArrowDown'].includes(event.key)) {
+          event.preventDefault();
+          openUpdateSessionPicker();
+        }
+      });
+      search.addEventListener('input', () => filterUpdateSessionOptions(search.value));
+      search.addEventListener('keydown', event => {
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          optionsContainer.querySelector('.update-session-option:not([hidden])')?.focus();
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          closeUpdateSessionPicker(true);
+        }
+      });
+      optionsContainer.addEventListener('click', event => {
+        const option = event.target.closest('.update-session-option');
+        if (option) chooseUpdateSession(option);
+      });
+      optionsContainer.addEventListener('keydown', event => {
+        const option = event.target.closest('.update-session-option');
+        if (!option) return;
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          closeUpdateSessionPicker(true);
+          return;
+        }
+        if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const visible = Array.from(optionsContainer.querySelectorAll('.update-session-option:not([hidden])'));
+        const currentIndex = visible.indexOf(option);
+        let nextIndex = currentIndex;
+        if (event.key === 'ArrowDown') nextIndex = Math.min(currentIndex + 1, visible.length - 1);
+        if (event.key === 'ArrowUp') nextIndex = Math.max(currentIndex - 1, 0);
+        if (event.key === 'Home') nextIndex = 0;
+        if (event.key === 'End') nextIndex = visible.length - 1;
+        visible[nextIndex]?.focus();
+      });
+      document.addEventListener('pointerdown', event => {
+        if (!picker.contains(event.target)) closeUpdateSessionPicker(false);
+      });
+    }
+
+    function formatAttendanceSessionTime(value) {
+      if (!value) return 'N/A';
+      const time = String(value).substring(0, 5);
+      const [hours, minutes] = time.split(':');
+      const hour24 = Number.parseInt(hours, 10);
+      if (!Number.isInteger(hour24) || !minutes) return 'N/A';
+      return `${hour24 % 12 || 12}:${minutes} ${hour24 >= 12 ? 'PM' : 'AM'}`;
+    }
+
+    function resetUpdateSessionPicker(label = 'Select a session') {
+      const { input, triggerLabel, optionsContainer } = getUpdateSessionPickerElements();
+      if (input) {
+        input.value = '';
+        delete input.dataset.date;
+        delete input.dataset.time;
+        delete input.dataset.endTime;
+      }
+      if (triggerLabel) triggerLabel.textContent = label;
+      optionsContainer?.querySelectorAll('.update-session-option').forEach(option => {
+        option.setAttribute('aria-selected', 'false');
+      });
+      closeUpdateSessionPicker(false);
+    }
+
     async function loadSessions() {
       const trainingId = getAttendanceTrainingId();
       if (!trainingId) return;
-      
+
+      initializeUpdateSessionPicker();
+      const { trigger, triggerLabel, optionsContainer, empty } = getUpdateSessionPickerElements();
+      if (!trigger || !triggerLabel || !optionsContainer || !empty) return;
+      trigger.disabled = true;
+      triggerLabel.textContent = 'Loading sessions...';
+      optionsContainer.replaceChildren();
+      empty.hidden = true;
+
       try {
         const response = await fetch(`/attendance/sessions/${trainingId}`);
+        if (!response.ok) throw new Error('Unable to load attendance sessions');
         const sessions = await response.json();
-        
-        const select = document.getElementById('update-session-select');
-        if (select) {
-          select.innerHTML = '<option value="">-- Select a session --</option>';
-          
-          sessions.forEach(session => {
-            const option = document.createElement('option');
-            
-            const dateStr = normalizeAttendanceDateValue(session.date);
-            const formattedDate = formatAttendanceDateLabel(dateStr, {
-              weekday: 'short',
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric'
-            });
-            
-            // Format time nicely - handle both HH:mm and HH:mm:ss formats
-            let formattedTime = 'N/A';
-            if (session.time) {
-              let timeStr = session.time;
-              // Remove seconds if present (HH:mm:ss -> HH:mm)
-              if (timeStr.split(':').length === 3) {
-                timeStr = timeStr.substring(0, 5);
-              }
-              const [hours, minutes] = timeStr.split(':');
-              const hour24 = parseInt(hours);
-              const hour12 = hour24 % 12 || 12;
-              const ampm = hour24 >= 12 ? 'PM' : 'AM';
-              formattedTime = `${hour12}:${minutes} ${ampm}`;
-            }
-            
-            // Format end time nicely - handle both HH:mm and HH:mm:ss formats
-            let formattedEndTime = 'N/A';
-            if (session.end_time) {
-              let endTimeStr = session.end_time;
-              if (endTimeStr.split(':').length === 3) {
-                endTimeStr = endTimeStr.substring(0, 5);
-              }
-              const [endHours, endMinutes] = endTimeStr.split(':');
-              const endHour24 = parseInt(endHours);
-              const endHour12 = endHour24 % 12 || 12;
-              const endAmpm = endHour24 >= 12 ? 'PM' : 'AM';
-              formattedEndTime = `${endHour12}:${endMinutes} ${endAmpm}`;
-            }
-            
-            option.value = session.id;
-            option.textContent = `${formattedDate} - ${formattedTime} - ${formattedEndTime}`;
-            option.dataset.date = dateStr; // Store clean date string
-            option.dataset.time = session.time || '';
-            option.dataset.endTime = session.end_time || '';
-            select.appendChild(option);
+
+        sessions.forEach(session => {
+          const dateStr = normalizeAttendanceDateValue(session.date);
+          const formattedDate = formatAttendanceDateLabel(dateStr, {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
           });
-        }
+          const formattedTime = formatAttendanceSessionTime(session.time);
+          const formattedEndTime = formatAttendanceSessionTime(session.end_time);
+          const label = `${formattedDate} · ${formattedTime} – ${formattedEndTime}`;
+          const option = document.createElement('button');
+          option.type = 'button';
+          option.className = 'update-session-option';
+          option.tabIndex = -1;
+          option.setAttribute('role', 'option');
+          option.setAttribute('aria-selected', 'false');
+          option.dataset.id = session.id;
+          option.dataset.date = dateStr;
+          option.dataset.time = session.time || '';
+          option.dataset.endTime = session.end_time || '';
+          option.dataset.label = label;
+          option.dataset.search = `${formattedDate} ${dateStr} ${formattedTime} ${formattedEndTime}`.toLocaleLowerCase();
+
+          const copy = document.createElement('span');
+          copy.className = 'update-session-option-copy';
+          const dateLabel = document.createElement('span');
+          dateLabel.className = 'update-session-option-date';
+          dateLabel.textContent = formattedDate;
+          const timeLabel = document.createElement('span');
+          timeLabel.className = 'update-session-option-time';
+          timeLabel.textContent = `${formattedTime} – ${formattedEndTime}`;
+          const check = document.createElement('i');
+          check.className = 'fas fa-check update-session-option-check';
+          check.setAttribute('aria-hidden', 'true');
+          copy.append(dateLabel, timeLabel);
+          option.append(copy, check);
+          optionsContainer.appendChild(option);
+        });
+
+        resetUpdateSessionPicker(sessions.length ? 'Select a session' : 'No sessions available');
+        trigger.disabled = sessions.length === 0;
+        filterUpdateSessionOptions('');
       } catch (error) {
         console.error('Error loading sessions:', error);
+        resetUpdateSessionPicker('Unable to load sessions');
+        trigger.disabled = true;
+        empty.textContent = 'Sessions could not be loaded. Close and reopen the Update tab to retry.';
+        empty.hidden = false;
       }
     }
 
@@ -2153,14 +2493,13 @@
 
     async function loadSessionDetails(sessionId) {
       const trainingId = getAttendanceTrainingId();
-      const select = document.getElementById('update-session-select');
-      const selectedOption = select.options[select.selectedIndex];
-      
-      if (!selectedOption || !selectedOption.value) return;
-      
-      const date = selectedOption.dataset.date;
-      const time = selectedOption.dataset.time;
-      const endTime = selectedOption.dataset.endTime;
+      const sessionInput = document.getElementById('update-session-select');
+
+      if (!sessionInput || !sessionInput.value) return;
+
+      const date = sessionInput.dataset.date;
+      const time = sessionInput.dataset.time;
+      const endTime = sessionInput.dataset.endTime;
       
       try {
         const response = await fetch(`/attendance/session-details/${trainingId}?date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}`);
@@ -2263,7 +2602,7 @@
     }
 
     function cancelUpdate() {
-      document.getElementById('update-session-select').value = '';
+      resetUpdateSessionPicker();
       document.getElementById('update-attendance-form-container').style.display = 'none';
       document.getElementById('update-attendance-form').reset();
     }

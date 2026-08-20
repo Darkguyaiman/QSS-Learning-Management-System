@@ -9,6 +9,37 @@ const requireStaff = (req, res) => {
   return true;
 };
 
+function parseTrainingId(value) {
+  const parsed = Number.parseInt(String(value || '').trim(), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+async function requireAttendanceTrainingAccess(req, res, trainingIdValue, { json = false } = {}) {
+  if (!requireStaff(req, res)) return false;
+
+  const trainingId = parseTrainingId(trainingIdValue);
+  if (!trainingId) {
+    if (json) res.status(400).json({ success: false, error: 'Valid training is required' });
+    else res.status(404).send('Training not found');
+    return false;
+  }
+
+  if (req.session.userRole === 'admin') return true;
+
+  const [assignments] = await req.db.query(
+    'SELECT 1 FROM training_trainers WHERE training_id = ? AND trainer_id = ? LIMIT 1',
+    [trainingId, req.session.userId]
+  );
+
+  if (!assignments.length) {
+    if (json) res.status(403).json({ success: false, error: 'You are not assigned to this training' });
+    else res.status(403).send('You are not assigned to this training');
+    return false;
+  }
+
+  return true;
+}
+
 function normalizeTimeInput(time) {
   if (!time) return null;
   const value = String(time).trim();
@@ -126,10 +157,75 @@ async function getTrainingEnrollmentIdsMap(dbOrConnection, trainingId) {
   return new Set(rows.map(row => String(row.id)));
 }
 
+// Attendance launcher: admins see all trainings; trainers see only assigned trainings.
+router.get('/', async (req, res) => {
+  try {
+    if (!requireStaff(req, res)) return;
+
+    const clauses = [];
+    const params = [];
+    if (req.session.userRole === 'trainer') {
+      clauses.push(`EXISTS (
+        SELECT 1
+        FROM training_trainers tt
+        WHERE tt.training_id = t.id AND tt.trainer_id = ?
+      )`);
+      clauses.push(`t.status IN ('in_progress', 'completed', 'rescheduled')`);
+      params.push(req.session.userId);
+    }
+
+    const whereClause = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    const [trainings] = await req.db.query(`
+      SELECT
+        t.id,
+        t.title,
+        t.status,
+        t.is_locked,
+        t.start_datetime,
+        t.end_datetime,
+        DATE_FORMAT(t.start_datetime, '%d %b %Y') AS start_date_label,
+        DATE_FORMAT(t.end_datetime, '%d %b %Y') AS end_date_label,
+        COALESCE(attendance_totals.participant_count, 0) AS participant_count,
+        COALESCE(attendance_totals.session_count, 0) AS session_count,
+        attendance_totals.last_attendance_date,
+        (
+          SELECT GROUP_CONCAT(DISTINCT h.name ORDER BY h.name SEPARATOR '|||')
+          FROM training_healthcare th
+          JOIN healthcare h ON h.id = th.healthcare_id
+          WHERE th.training_id = t.id
+        ) AS healthcare_names
+      FROM trainings t
+      LEFT JOIN (
+        SELECT
+          e.training_id,
+          COUNT(DISTINCT e.id) AS participant_count,
+          COUNT(DISTINCT CONCAT(a.date, '|', COALESCE(a.time, ''))) AS session_count,
+          MAX(a.date) AS last_attendance_date
+        FROM enrollments e
+        LEFT JOIN attendance a ON a.enrollment_id = e.id
+        GROUP BY e.training_id
+      ) attendance_totals ON attendance_totals.training_id = t.id
+      ${whereClause}
+      ORDER BY
+        CASE t.status WHEN 'in_progress' THEN 0 WHEN 'rescheduled' THEN 1 WHEN 'completed' THEN 2 ELSE 3 END,
+        t.start_datetime DESC,
+        t.id DESC
+    `, params);
+
+    res.render('attendance/index', {
+      user: req.session,
+      trainings: trainings || []
+    });
+  } catch (error) {
+    console.error('Attendance launcher error:', error);
+    res.status(500).send('Error loading attendance trainings');
+  }
+});
+
 // View attendance for a training
 router.get('/training/:trainingId', async (req, res) => {
   try {
-    if (!requireStaff(req, res)) return;
+    if (!await requireAttendanceTrainingAccess(req, res, req.params.trainingId)) return;
 
     const [training] = await req.db.query('SELECT * FROM trainings WHERE id = ?', [req.params.trainingId]);
     
@@ -244,6 +340,7 @@ router.post('/mark', async (req, res) => {
     if (!enrollmentRows.length) {
       return res.status(400).json({ success: false, error: 'Enrollment not found' });
     }
+    if (!await requireAttendanceTrainingAccess(req, res, enrollmentRows[0].training_id, { json: true })) return;
     await assertAttendanceDateWithinTraining(req.db, enrollmentRows[0].training_id, dateOnly);
 
     const [updateResult] = await req.db.query(
@@ -280,7 +377,7 @@ router.post('/mark-bulk', async (req, res) => {
   }
   
   try {
-    if (!requireStaff(req, res)) return;
+    if (!await requireAttendanceTrainingAccess(req, res, training_id, { json: true })) return;
 
     // Use transaction to ensure all records are saved or none
     const connection = await req.db.getConnection();
@@ -347,7 +444,7 @@ router.post('/mark-bulk', async (req, res) => {
 // Get list of sessions for a training (for update tab)
 router.get('/sessions/:trainingId', async (req, res) => {
   try {
-    if (!requireStaff(req, res)) return;
+    if (!await requireAttendanceTrainingAccess(req, res, req.params.trainingId, { json: true })) return;
 
     const [sessions] = await req.db.query(`
       SELECT DISTINCT 
@@ -380,7 +477,7 @@ router.get('/sessions/:trainingId', async (req, res) => {
 // Get session details for a specific date + time
 router.get('/session-details/:trainingId', async (req, res) => {
   try {
-    if (!requireStaff(req, res)) return;
+    if (!await requireAttendanceTrainingAccess(req, res, req.params.trainingId, { json: true })) return;
 
     const { date, time } = req.query;
     
@@ -419,7 +516,7 @@ router.post('/update-bulk', async (req, res) => {
   }
   
   try {
-    if (!requireStaff(req, res)) return;
+    if (!await requireAttendanceTrainingAccess(req, res, training_id, { json: true })) return;
 
     // Use transaction to ensure all records are updated or none
     const connection = await req.db.getConnection();
@@ -520,6 +617,8 @@ router.get('/trainee/:enrollmentId', async (req, res) => {
       }
     } else if (!['admin', 'trainer'].includes(req.session.userRole)) {
       return res.status(403).send('Access denied');
+    } else if (req.session.userRole === 'trainer') {
+      if (!await requireAttendanceTrainingAccess(req, res, enrollment[0].training_id)) return;
     }
     
     // Pagination

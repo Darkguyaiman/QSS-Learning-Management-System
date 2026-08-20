@@ -1066,6 +1066,9 @@
           <button class="tab-button" onclick="switchTab('tests')">
             <i class="fas fa-question-circle"></i> Tests
           </button>
+          <button class="tab-button" onclick="switchTab('feedback')">
+            <i class="fas fa-comment-dots"></i> Feedback
+          </button>
         <% } %>
 
         <button class="tab-button" onclick="switchTab('coursework')">
@@ -1111,6 +1114,7 @@
       <% if (user.userRole === 'trainee') { %>
         <%- include('./tabs/materials', { training, sections }) %>
         <%- include('./tabs/tests', { training, user, trainingTests, enrollment }) %>
+        <%- include('./tabs/feedback', { training, trainingFeedback, standalone: false, submitted: false, alreadySubmitted: false, validationError: null, feedbackDraft: null }) %>
       <% } %>
       
       <!-- Course Tab -->
@@ -1207,6 +1211,7 @@
     document.addEventListener('DOMContentLoaded', function() {
       const urlParams = new URLSearchParams(window.location.search);
       const tabParam = urlParams.get('tab');
+      const attendanceTabParam = urlParams.get('attendanceTab');
       
       if (tabParam) {
         // Find and click the appropriate tab button
@@ -1217,6 +1222,15 @@
             btn.click();
           }
         });
+
+        if (tabParam === 'attendance' && ['summary', 'add', 'update', 'report'].includes(attendanceTabParam)) {
+          const attendanceSubTabButton = document.querySelector(
+            `[data-attendance-sub-tab="${attendanceTabParam}"]`
+          );
+          if (attendanceSubTabButton && typeof switchAttendanceSubTab === 'function') {
+            switchAttendanceSubTab(attendanceTabParam, attendanceSubTabButton);
+          }
+        }
       }
     });
     

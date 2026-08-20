@@ -374,9 +374,10 @@
     .date-range-panel-body {
       flex: 1;
       min-height: 0;
-      overflow: auto;
+      overflow: hidden;
       display: grid;
       grid-template-columns: 190px 1fr;
+      grid-template-rows: minmax(0, 1fr);
       gap: 1rem;
       padding: 1rem 1.25rem;
     }
@@ -387,6 +388,8 @@
       display: grid;
       gap: 0.2rem;
       align-content: start;
+      min-height: 0;
+      overflow: hidden;
     }
 
     .date-range-option {
@@ -408,6 +411,12 @@
 
     .date-range-workspace {
       min-width: 0;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      padding-right: 0.35rem;
     }
 
     .date-range-toolbar {
@@ -602,11 +611,263 @@
       transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     }
 
-    .panel-filter-select:focus {
+    .panel-filter-select:focus,
+    .panel-filter-input:focus {
       outline: none;
       border-color: #11358B;
       box-shadow: 0 0 0 3px rgba(17, 53, 139, 0.14);
       background: white;
+    }
+
+    .panel-custom-select {
+      position: relative;
+      min-width: 0;
+    }
+
+    .panel-custom-select.is-open {
+      z-index: 30;
+    }
+
+    .panel-custom-select-trigger {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid #D6DEEA;
+      border-radius: 10px;
+      background: #F8FAFC;
+      color: #111827;
+      padding: 0.7rem 0.8rem 0.7rem 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.65rem;
+      font: inherit;
+      font-size: 0.92rem;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .panel-custom-select-trigger:hover {
+      border-color: #AAB8CB;
+      background: #fff;
+    }
+
+    .panel-custom-select-trigger:focus-visible,
+    .panel-custom-select.is-open .panel-custom-select-trigger {
+      outline: none;
+      border-color: #11358B;
+      box-shadow: 0 0 0 3px rgba(17, 53, 139, 0.14);
+      background: #fff;
+    }
+
+    .panel-custom-select-value-label {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .panel-custom-select-chevron {
+      flex: 0 0 auto;
+      color: #64748B;
+      font-size: 0.72rem;
+      transition: transform 0.2s ease;
+    }
+
+    .panel-custom-select.is-open .panel-custom-select-chevron {
+      transform: rotate(180deg);
+    }
+
+    .panel-custom-select-menu {
+      position: absolute;
+      top: calc(100% + 0.4rem);
+      left: 0;
+      width: 100%;
+      min-width: min(280px, calc(100vw - 3rem));
+      padding: 0.4rem;
+      border: 1px solid #D6DEEA;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 14px 32px rgba(30, 41, 59, 0.16);
+    }
+
+    .panel-filter-group:nth-child(even) .panel-custom-select-menu {
+      right: 0;
+      left: auto;
+    }
+
+    .panel-threshold-control .panel-custom-select-menu {
+      top: auto;
+      bottom: calc(100% + 0.4rem);
+    }
+
+    .panel-custom-select-menu[hidden] {
+      display: none;
+    }
+
+    .panel-custom-select-search-wrap {
+      position: relative;
+      margin-bottom: 0.35rem;
+    }
+
+    .panel-custom-select-search-wrap i {
+      position: absolute;
+      top: 50%;
+      left: 0.75rem;
+      transform: translateY(-50%);
+      color: #64748B;
+      pointer-events: none;
+    }
+
+    .panel-custom-select-search {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid #D6DEEA;
+      border-radius: 9px;
+      background: #F8FAFC;
+      color: #111827;
+      padding: 0.6rem 0.75rem 0.6rem 2.25rem;
+      font: inherit;
+      font-size: 0.86rem;
+    }
+
+    .panel-custom-select-search:focus {
+      outline: none;
+      border-color: #11358B;
+      box-shadow: 0 0 0 3px rgba(17, 53, 139, 0.12);
+      background: #fff;
+    }
+
+    .panel-custom-select-options {
+      max-height: 220px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .panel-custom-select-option {
+      width: 100%;
+      min-height: 38px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: #334155;
+      padding: 0.55rem 0.65rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font: inherit;
+      font-size: 0.86rem;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .panel-custom-select-option:hover,
+    .panel-custom-select-option:focus-visible {
+      outline: none;
+      background: #F1F5F9;
+      color: #11358B;
+    }
+
+    .panel-custom-select-option.is-selected {
+      background: #EEF3FF;
+      color: #11358B;
+      font-weight: 600;
+    }
+
+    .panel-custom-select-option i {
+      flex: 0 0 auto;
+      opacity: 0;
+      font-size: 0.75rem;
+    }
+
+    .panel-custom-select-option.is-selected i {
+      opacity: 1;
+    }
+
+    .panel-custom-select-empty {
+      margin: 0;
+      padding: 0.85rem 0.65rem;
+      color: #64748B;
+      font-size: 0.84rem;
+      text-align: center;
+    }
+
+    .panel-custom-select-empty[hidden] {
+      display: none;
+    }
+
+    .panel-threshold-control {
+      display: grid;
+      grid-template-columns: minmax(118px, 0.9fr) minmax(120px, 1.1fr);
+      gap: 0.5rem;
+    }
+
+    .panel-input-wrap {
+      position: relative;
+    }
+
+    .panel-filter-input {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid #D6DEEA;
+      border-radius: 10px;
+      background: #F8FAFC;
+      color: #111827;
+      padding: 0.7rem 3.6rem 0.7rem 0.85rem;
+      font-size: 0.92rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      -moz-appearance: textfield;
+    }
+
+    .panel-filter-input::-webkit-inner-spin-button,
+    .panel-filter-input::-webkit-outer-spin-button {
+      margin: 0;
+      -webkit-appearance: none;
+    }
+
+    .panel-input-unit {
+      position: absolute;
+      top: 50%;
+      right: 0.8rem;
+      transform: translateY(-50%);
+      color: #64748B;
+      font-size: 0.78rem;
+      pointer-events: none;
+    }
+
+    .panel-filter-hint {
+      margin: 0;
+      color: #64748B;
+      font-size: 0.76rem;
+      line-height: 1.35;
+    }
+
+    .panel-quick-values {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .panel-quick-value {
+      min-height: 30px;
+      border: 1px solid #D6DEEA;
+      border-radius: 999px;
+      background: #fff;
+      color: #475569;
+      padding: 0.25rem 0.65rem;
+      font: inherit;
+      font-size: 0.76rem;
+      cursor: pointer;
+      transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+    }
+
+    .panel-quick-value:hover,
+    .panel-quick-value:focus-visible {
+      border-color: #11358B;
+      background: #EEF3FF;
+      color: #11358B;
+      outline: none;
     }
 
     .date-range-panel-footer {
@@ -1065,6 +1326,50 @@
       .client-chart-canvas-wrap {
         height: 440px;
       }
+
+      .dashboard-header-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        width: 100%;
+        align-items: stretch;
+      }
+
+      .date-range-trigger,
+      .report-download-control,
+      .report-download-group,
+      .dashboard-header-actions > .btn-primary {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .report-download-control {
+        max-width: 100%;
+      }
+
+      .report-download-group {
+        display: flex;
+      }
+
+      .report-format-trigger {
+        flex: 0 1 42%;
+        min-width: 0;
+        padding-inline: 0.6rem;
+      }
+
+      .report-download-group .report-download-btn {
+        flex: 1 1 58%;
+        width: auto;
+        min-width: 0;
+        padding-inline: 0.6rem;
+      }
+
+      .report-format-menu {
+        right: 0;
+        left: 0;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+      }
       
       .table-responsive {
         overflow-x: auto;
@@ -1225,6 +1530,9 @@
 
       .date-range-panel-body {
         grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        overflow-y: auto;
+        overflow-x: hidden;
       }
 
       .date-range-presets {
@@ -1232,6 +1540,13 @@
         border-bottom: 1px solid #E8EAED;
         padding-right: 0;
         padding-bottom: 1rem;
+        overflow: visible;
+      }
+
+      .date-range-workspace {
+        overflow: visible;
+        padding-right: 0;
+        scrollbar-gutter: auto;
       }
 
       .date-range-calendars,
@@ -1623,6 +1938,13 @@
     const activeDashboardDateRange = dashboardDateRange || {};
     const selectedHealthcareId = activeFilters && activeFilters.healthcareId ? String(activeFilters.healthcareId) : '';
     const selectedModuleId = activeFilters && activeFilters.moduleId ? String(activeFilters.moduleId) : '';
+    const selectedDurationOperator = activeFilters && activeFilters.durationOperator ? activeFilters.durationOperator : 'gt';
+    const selectedDurationHours = activeFilters && activeFilters.durationHours !== null ? String(activeFilters.durationHours) : '';
+    const selectedParticipantsOperator = activeFilters && activeFilters.participantsOperator ? activeFilters.participantsOperator : 'gt';
+    const selectedParticipantCount = activeFilters && activeFilters.participantCount !== null ? String(activeFilters.participantCount) : '';
+    const selectedHealthcareItem = (allHealthcare || []).find(item => String(item.id) === selectedHealthcareId);
+    const selectedModuleItem = (allModules || []).find(item => String(item.id) === selectedModuleId);
+    const comparisonLabels = { gt: 'More than', lt: 'Less than', eq: 'Exactly' };
     const dateRangeLabel = activeDashboardDateRange.preset === 'all_time'
       ? 'All time'
       : activeDashboardDateRange.startDate && activeDashboardDateRange.endDate
@@ -1638,6 +1960,14 @@
     }
     if (selectedModuleId) {
       dashboardPdfParams.push(`module=${encodeURIComponent(selectedModuleId)}`);
+    }
+    if (selectedDurationHours) {
+      dashboardPdfParams.push(`durationOp=${encodeURIComponent(selectedDurationOperator)}`);
+      dashboardPdfParams.push(`durationHours=${encodeURIComponent(selectedDurationHours)}`);
+    }
+    if (selectedParticipantCount) {
+      dashboardPdfParams.push(`participantsOp=${encodeURIComponent(selectedParticipantsOperator)}`);
+      dashboardPdfParams.push(`participants=${encodeURIComponent(selectedParticipantCount)}`);
     }
     const dashboardPdfUrl = `/dashboard/pdf?${dashboardPdfParams.join('&')}`;
   %>
@@ -1746,22 +2076,103 @@
 
             <div class="panel-filter-grid">
               <div class="panel-filter-group">
-                <label class="panel-filter-label" for="panel-healthcare-filter">Healthcare</label>
-                <select class="panel-filter-select" id="panel-healthcare-filter">
-                  <option value="">All healthcare</option>
-                  <% (allHealthcare || []).forEach(item => { %>
-                    <option value="<%= item.id %>" <%= String(item.id) === selectedHealthcareId ? 'selected' : '' %>><%= item.name %></option>
-                  <% }); %>
-                </select>
+                <label class="panel-filter-label" for="panel-healthcare-trigger">Healthcare</label>
+                <div class="panel-custom-select" data-custom-select data-searchable="true">
+                  <input type="hidden" class="panel-custom-select-value" id="panel-healthcare-filter" value="<%= selectedHealthcareId %>">
+                  <button type="button" class="panel-custom-select-trigger" id="panel-healthcare-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="panel-healthcare-menu">
+                    <span class="panel-custom-select-value-label"><%= selectedHealthcareItem ? selectedHealthcareItem.name : 'All healthcare' %></span>
+                    <i class="fas fa-chevron-down panel-custom-select-chevron" aria-hidden="true"></i>
+                  </button>
+                  <div class="panel-custom-select-menu" id="panel-healthcare-menu" hidden>
+                    <div class="panel-custom-select-search-wrap">
+                      <i class="fas fa-search" aria-hidden="true"></i>
+                      <input type="search" class="panel-custom-select-search" placeholder="Search healthcare..." aria-label="Search healthcare">
+                    </div>
+                    <div class="panel-custom-select-options" role="listbox" aria-label="Healthcare options">
+                      <button type="button" class="panel-custom-select-option <%= selectedHealthcareId ? '' : 'is-selected' %>" role="option" aria-selected="<%= selectedHealthcareId ? 'false' : 'true' %>" data-value="" data-label="All healthcare"><span>All healthcare</span><i class="fas fa-check" aria-hidden="true"></i></button>
+                      <% (allHealthcare || []).forEach(item => { const isSelected = String(item.id) === selectedHealthcareId; %>
+                        <button type="button" class="panel-custom-select-option <%= isSelected ? 'is-selected' : '' %>" role="option" aria-selected="<%= isSelected ? 'true' : 'false' %>" data-value="<%= item.id %>" data-label="<%= item.name %>"><span><%= item.name %></span><i class="fas fa-check" aria-hidden="true"></i></button>
+                      <% }); %>
+                    </div>
+                    <p class="panel-custom-select-empty" hidden>No healthcare matches your search.</p>
+                  </div>
+                </div>
               </div>
               <div class="panel-filter-group">
-                <label class="panel-filter-label" for="panel-module-filter">Module</label>
-                <select class="panel-filter-select" id="panel-module-filter">
-                  <option value="">All modules</option>
-                  <% (allModules || []).forEach(item => { %>
-                    <option value="<%= item.id %>" <%= String(item.id) === selectedModuleId ? 'selected' : '' %>><%= item.name %></option>
-                  <% }); %>
-                </select>
+                <label class="panel-filter-label" for="panel-module-trigger">Module</label>
+                <div class="panel-custom-select" data-custom-select>
+                  <input type="hidden" class="panel-custom-select-value" id="panel-module-filter" value="<%= selectedModuleId %>">
+                  <button type="button" class="panel-custom-select-trigger" id="panel-module-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="panel-module-menu">
+                    <span class="panel-custom-select-value-label"><%= selectedModuleItem ? selectedModuleItem.name : 'All modules' %></span>
+                    <i class="fas fa-chevron-down panel-custom-select-chevron" aria-hidden="true"></i>
+                  </button>
+                  <div class="panel-custom-select-menu" id="panel-module-menu" hidden>
+                    <div class="panel-custom-select-options" role="listbox" aria-label="Module options">
+                      <button type="button" class="panel-custom-select-option <%= selectedModuleId ? '' : 'is-selected' %>" role="option" aria-selected="<%= selectedModuleId ? 'false' : 'true' %>" data-value="" data-label="All modules"><span>All modules</span><i class="fas fa-check" aria-hidden="true"></i></button>
+                      <% (allModules || []).forEach(item => { const isSelected = String(item.id) === selectedModuleId; %>
+                        <button type="button" class="panel-custom-select-option <%= isSelected ? 'is-selected' : '' %>" role="option" aria-selected="<%= isSelected ? 'true' : 'false' %>" data-value="<%= item.id %>" data-label="<%= item.name %>"><span><%= item.name %></span><i class="fas fa-check" aria-hidden="true"></i></button>
+                      <% }); %>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="panel-filter-group">
+                <label class="panel-filter-label" for="panel-duration-operator-trigger">Training duration</label>
+                <div class="panel-threshold-control">
+                  <div class="panel-custom-select" data-custom-select>
+                    <input type="hidden" class="panel-custom-select-value" id="panel-duration-operator" value="<%= selectedDurationOperator %>">
+                    <button type="button" class="panel-custom-select-trigger" id="panel-duration-operator-trigger" aria-label="Duration comparison" aria-haspopup="listbox" aria-expanded="false" aria-controls="panel-duration-operator-menu">
+                      <span class="panel-custom-select-value-label"><%= comparisonLabels[selectedDurationOperator] %></span>
+                      <i class="fas fa-chevron-down panel-custom-select-chevron" aria-hidden="true"></i>
+                    </button>
+                    <div class="panel-custom-select-menu" id="panel-duration-operator-menu" hidden>
+                      <div class="panel-custom-select-options" role="listbox" aria-label="Duration comparison options">
+                        <% Object.entries(comparisonLabels).forEach(([value, label]) => { const isSelected = value === selectedDurationOperator; %>
+                          <button type="button" class="panel-custom-select-option <%= isSelected ? 'is-selected' : '' %>" role="option" aria-selected="<%= isSelected ? 'true' : 'false' %>" data-value="<%= value %>" data-label="<%= label %>"><span><%= label %></span><i class="fas fa-check" aria-hidden="true"></i></button>
+                        <% }); %>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="panel-input-wrap">
+                    <input class="panel-filter-input" id="panel-duration-value" type="number" min="0" step="0.25" inputmode="decimal" value="<%= selectedDurationHours %>" placeholder="Any" aria-describedby="duration-filter-hint">
+                    <span class="panel-input-unit">hours</span>
+                  </div>
+                </div>
+                <div class="panel-quick-values" aria-label="Quick duration values">
+                  <button type="button" class="panel-quick-value" data-filter-target="panel-duration-value" data-filter-value="2">2h</button>
+                  <button type="button" class="panel-quick-value" data-filter-target="panel-duration-value" data-filter-value="4">4h</button>
+                  <button type="button" class="panel-quick-value" data-filter-target="panel-duration-value" data-filter-value="8">8h</button>
+                </div>
+                <p class="panel-filter-hint" id="duration-filter-hint">Leave empty to include any duration.</p>
+              </div>
+              <div class="panel-filter-group">
+                <label class="panel-filter-label" for="panel-participants-operator-trigger">Participants</label>
+                <div class="panel-threshold-control">
+                  <div class="panel-custom-select" data-custom-select>
+                    <input type="hidden" class="panel-custom-select-value" id="panel-participants-operator" value="<%= selectedParticipantsOperator %>">
+                    <button type="button" class="panel-custom-select-trigger" id="panel-participants-operator-trigger" aria-label="Participant count comparison" aria-haspopup="listbox" aria-expanded="false" aria-controls="panel-participants-operator-menu">
+                      <span class="panel-custom-select-value-label"><%= comparisonLabels[selectedParticipantsOperator] %></span>
+                      <i class="fas fa-chevron-down panel-custom-select-chevron" aria-hidden="true"></i>
+                    </button>
+                    <div class="panel-custom-select-menu" id="panel-participants-operator-menu" hidden>
+                      <div class="panel-custom-select-options" role="listbox" aria-label="Participant comparison options">
+                        <% Object.entries(comparisonLabels).forEach(([value, label]) => { const isSelected = value === selectedParticipantsOperator; %>
+                          <button type="button" class="panel-custom-select-option <%= isSelected ? 'is-selected' : '' %>" role="option" aria-selected="<%= isSelected ? 'true' : 'false' %>" data-value="<%= value %>" data-label="<%= label %>"><span><%= label %></span><i class="fas fa-check" aria-hidden="true"></i></button>
+                        <% }); %>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="panel-input-wrap">
+                    <input class="panel-filter-input" id="panel-participants-value" type="number" min="0" step="1" inputmode="numeric" value="<%= selectedParticipantCount %>" placeholder="Any" aria-describedby="participants-filter-hint">
+                    <span class="panel-input-unit">people</span>
+                  </div>
+                </div>
+                <div class="panel-quick-values" aria-label="Quick participant values">
+                  <button type="button" class="panel-quick-value" data-filter-target="panel-participants-value" data-filter-value="10">10</button>
+                  <button type="button" class="panel-quick-value" data-filter-target="panel-participants-value" data-filter-value="25">25</button>
+                  <button type="button" class="panel-quick-value" data-filter-target="panel-participants-value" data-filter-value="50">50</button>
+                </div>
+                <p class="panel-filter-hint" id="participants-filter-hint">Counts distinct enrolled trainees.</p>
               </div>
             </div>
           </div>
@@ -2463,6 +2874,13 @@
       const endValue = document.getElementById('panel-end-date-value');
       const healthcareSelect = document.getElementById('panel-healthcare-filter');
       const moduleSelect = document.getElementById('panel-module-filter');
+      const durationOperator = document.getElementById('panel-duration-operator');
+      const durationValue = document.getElementById('panel-duration-value');
+      const participantsOperator = document.getElementById('panel-participants-operator');
+      const participantsValue = document.getElementById('panel-participants-value');
+      const quickValueButtons = Array.from(document.querySelectorAll('.panel-quick-value'));
+      const customSelectRoots = Array.from(document.querySelectorAll('[data-custom-select]'));
+      const customSelectApis = new Map();
       const presetInputs = Array.from(document.querySelectorAll('input[name="dashboardPreset"]'));
 
       const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' });
@@ -2539,6 +2957,143 @@
 
       function formatDisplayDate(date) {
         return date ? displayDateFormatter.format(date) : '';
+      }
+
+      function closeCustomSelects(exceptRoot = null) {
+        customSelectApis.forEach((api, root) => {
+          if (root !== exceptRoot) api.close(false);
+        });
+      }
+
+      function initializeCustomSelect(root) {
+        const hiddenInput = root.querySelector('.panel-custom-select-value');
+        const trigger = root.querySelector('.panel-custom-select-trigger');
+        const triggerLabel = root.querySelector('.panel-custom-select-value-label');
+        const menu = root.querySelector('.panel-custom-select-menu');
+        const search = root.querySelector('.panel-custom-select-search');
+        const emptyMessage = root.querySelector('.panel-custom-select-empty');
+        const options = Array.from(root.querySelectorAll('.panel-custom-select-option'));
+
+        const visibleOptions = () => options.filter(option => !option.hidden);
+
+        const filterOptions = query => {
+          const normalizedQuery = String(query || '').trim().toLocaleLowerCase();
+          let matchCount = 0;
+          options.forEach(option => {
+            const matches = !normalizedQuery || option.dataset.label.toLocaleLowerCase().includes(normalizedQuery);
+            option.hidden = !matches;
+            if (matches) matchCount += 1;
+          });
+          if (emptyMessage) emptyMessage.hidden = matchCount > 0;
+        };
+
+        const close = (returnFocus = false) => {
+          if (menu.hidden) return;
+          root.classList.remove('is-open');
+          menu.hidden = true;
+          trigger.setAttribute('aria-expanded', 'false');
+          if (returnFocus) trigger.focus();
+        };
+
+        const open = () => {
+          if (!menu.hidden) return;
+          closeCustomSelects(root);
+          root.classList.add('is-open');
+          menu.hidden = false;
+          trigger.setAttribute('aria-expanded', 'true');
+          if (search) {
+            search.value = '';
+            filterOptions('');
+            requestAnimationFrame(() => search.focus());
+          } else {
+            const selectedOption = options.find(option => option.classList.contains('is-selected')) || options[0];
+            requestAnimationFrame(() => selectedOption?.focus());
+          }
+        };
+
+        const setValue = (value, { returnFocus = true } = {}) => {
+          const nextOption = options.find(option => option.dataset.value === String(value)) || options[0];
+          if (!nextOption) return;
+          hiddenInput.value = nextOption.dataset.value;
+          triggerLabel.textContent = nextOption.dataset.label;
+          options.forEach(option => {
+            const isSelected = option === nextOption;
+            option.classList.toggle('is-selected', isSelected);
+            option.setAttribute('aria-selected', String(isSelected));
+          });
+          hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+          close(returnFocus);
+        };
+
+        trigger.addEventListener('click', () => {
+          if (menu.hidden) open();
+          else close(true);
+        });
+
+        trigger.addEventListener('keydown', event => {
+          if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) {
+            event.preventDefault();
+            open();
+          }
+        });
+
+        options.forEach(option => {
+          option.tabIndex = -1;
+          option.addEventListener('click', () => setValue(option.dataset.value));
+        });
+
+        menu.addEventListener('keydown', event => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            close(true);
+            return;
+          }
+
+          if (search && event.target === search && event.key === 'ArrowDown') {
+            event.preventDefault();
+            visibleOptions()[0]?.focus();
+            return;
+          }
+
+          if (!event.target.classList.contains('panel-custom-select-option')) return;
+          const availableOptions = visibleOptions();
+          const currentIndex = availableOptions.indexOf(event.target);
+          let nextIndex = currentIndex;
+          const navigationKeys = ['ArrowDown', 'ArrowUp', 'Home', 'End'];
+          if (!navigationKeys.includes(event.key)) return;
+          event.preventDefault();
+          if (event.key === 'ArrowDown') nextIndex = Math.min(currentIndex + 1, availableOptions.length - 1);
+          if (event.key === 'ArrowUp') nextIndex = Math.max(currentIndex - 1, 0);
+          if (event.key === 'Home') nextIndex = 0;
+          if (event.key === 'End') nextIndex = availableOptions.length - 1;
+          if (nextIndex !== currentIndex) {
+            availableOptions[nextIndex]?.focus();
+          }
+        });
+
+        if (search) {
+          search.addEventListener('input', () => filterOptions(search.value));
+        }
+
+        root.addEventListener('focusout', () => {
+          window.setTimeout(() => {
+            if (!root.contains(document.activeElement)) close(false);
+          }, 0);
+        });
+
+        return { root, close, open, setValue };
+      }
+
+      customSelectRoots.forEach(root => {
+        customSelectApis.set(root, initializeCustomSelect(root));
+      });
+
+      function setCustomSelectValue(input, value) {
+        if (!input) return;
+        const root = input.closest('[data-custom-select]');
+        const api = customSelectApis.get(root);
+        if (api) api.setValue(value, { returnFocus: false });
       }
 
       function applyPreset(preset) {
@@ -2660,6 +3215,7 @@
       }
 
       function closePanel() {
+        closeCustomSelects();
         overlay.classList.remove('is-open');
         panel.classList.remove('is-open');
         window.setTimeout(() => {
@@ -2669,6 +3225,13 @@
       }
 
       function applyFilter() {
+        if ((durationValue && !durationValue.checkValidity()) || (participantsValue && !participantsValue.checkValidity())) {
+          const invalidInput = [durationValue, participantsValue].find(input => input && !input.checkValidity());
+          invalidInput.reportValidity();
+          invalidInput.focus();
+          return;
+        }
+
         const url = new URL(window.location.href);
         url.searchParams.set('preset', activePreset || 'custom');
         if (activePreset === 'all_time') {
@@ -2688,6 +3251,20 @@
           url.searchParams.set('module', moduleSelect.value);
         } else {
           url.searchParams.delete('module');
+        }
+        if (durationValue && durationValue.value !== '') {
+          url.searchParams.set('durationOp', durationOperator.value);
+          url.searchParams.set('durationHours', durationValue.value);
+        } else {
+          url.searchParams.delete('durationOp');
+          url.searchParams.delete('durationHours');
+        }
+        if (participantsValue && participantsValue.value !== '') {
+          url.searchParams.set('participantsOp', participantsOperator.value);
+          url.searchParams.set('participants', participantsValue.value);
+        } else {
+          url.searchParams.delete('participantsOp');
+          url.searchParams.delete('participants');
         }
         window.location.href = url.toString();
       }
@@ -2711,10 +3288,27 @@
       cancelButton.addEventListener('click', closePanel);
       overlay.addEventListener('click', closePanel);
       applyButton.addEventListener('click', applyFilter);
+      quickValueButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          const input = document.getElementById(button.dataset.filterTarget);
+          if (!input) return;
+          input.value = button.dataset.filterValue;
+          input.focus();
+        });
+      });
+      document.addEventListener('pointerdown', event => {
+        customSelectApis.forEach(api => {
+          if (!api.root.contains(event.target)) api.close(false);
+        });
+      });
       clearButton.addEventListener('click', () => {
         applyPreset('this_month');
-        if (healthcareSelect) healthcareSelect.value = '';
-        if (moduleSelect) moduleSelect.value = '';
+        setCustomSelectValue(healthcareSelect, '');
+        setCustomSelectValue(moduleSelect, '');
+        setCustomSelectValue(durationOperator, 'gt');
+        if (durationValue) durationValue.value = '';
+        setCustomSelectValue(participantsOperator, 'gt');
+        if (participantsValue) participantsValue.value = '';
       });
       todayButton.addEventListener('click', () => applyPreset('today'));
       prevButton.addEventListener('click', () => {
