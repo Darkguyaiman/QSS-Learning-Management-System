@@ -218,6 +218,66 @@
       localStorage.setItem('settingsMenuExpanded', 'true');
     }
   }
+
+  const SIDEBAR_NAV_SCROLL_KEY = 'sidebarNavScrollTop';
+
+  function getSidebarNav() {
+    return document.querySelector('.sidebar-nav');
+  }
+
+  function saveSidebarNavScroll() {
+    const nav = getSidebarNav();
+    if (!nav) return;
+
+    try {
+      sessionStorage.setItem(SIDEBAR_NAV_SCROLL_KEY, String(nav.scrollTop));
+    } catch (e) {
+      // Ignore storage failures (private mode, quota, etc.)
+    }
+  }
+
+  function restoreSidebarNavScroll() {
+    const nav = getSidebarNav();
+    if (!nav) return;
+
+    try {
+      const saved = sessionStorage.getItem(SIDEBAR_NAV_SCROLL_KEY);
+      if (saved === null) return;
+
+      const top = parseInt(saved, 10);
+      if (!Number.isNaN(top)) {
+        nav.scrollTop = top;
+      }
+    } catch (e) {
+      // Ignore storage failures
+    }
+  }
+
+  function initSidebarNavScrollMemory() {
+    const nav = getSidebarNav();
+    if (!nav) return;
+
+    // Restore after the settings submenu has been expanded so the
+    // saved offset is not clamped against a collapsed nav height.
+    restoreSidebarNavScroll();
+    requestAnimationFrame(restoreSidebarNavScroll);
+
+    let ticking = false;
+    nav.addEventListener('scroll', function() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(function() {
+        saveSidebarNavScroll();
+        ticking = false;
+      });
+    }, { passive: true });
+
+    window.addEventListener('pagehide', saveSidebarNavScroll);
+    window.addEventListener('pageshow', restoreSidebarNavScroll);
+    nav.querySelectorAll('a[href]').forEach(function(link) {
+      link.addEventListener('click', saveSidebarNavScroll);
+    });
+  }
   
   // Initialize settings menu + active nav state on page load - uses global localStorage state
   document.addEventListener('DOMContentLoaded', function() {
@@ -344,6 +404,8 @@
         return;
       }
     });
+
+    initSidebarNavScrollMemory();
   });
 
   // Mobile sidebar toggle functionality
