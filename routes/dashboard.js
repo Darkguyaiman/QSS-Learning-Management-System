@@ -47,15 +47,9 @@ function getDashboardDateRange(query) {
   const validPresets = new Set([
     'all_time',
     'today',
-    'yesterday',
-    'last_7_days',
-    'last_14_days',
-    'last_28_days',
-    'last_30_days',
     'this_week',
-    'last_week',
     'this_month',
-    'last_month',
+    'this_year',
     'custom'
   ]);
   let preset = String(query.preset || 'this_month');
@@ -80,31 +74,6 @@ function getDashboardDateRange(query) {
         start = new Date(today);
         end = new Date(today);
         break;
-      case 'yesterday':
-        start = new Date(today);
-        start.setDate(start.getDate() - 1);
-        end = new Date(start);
-        break;
-      case 'last_7_days':
-        end = new Date(today);
-        start = new Date(today);
-        start.setDate(start.getDate() - 6);
-        break;
-      case 'last_14_days':
-        end = new Date(today);
-        start = new Date(today);
-        start.setDate(start.getDate() - 13);
-        break;
-      case 'last_28_days':
-        end = new Date(today);
-        start = new Date(today);
-        start.setDate(start.getDate() - 27);
-        break;
-      case 'last_30_days':
-        end = new Date(today);
-        start = new Date(today);
-        start.setDate(start.getDate() - 29);
-        break;
       case 'this_week': {
         const day = today.getDay() || 7;
         start = new Date(today);
@@ -113,17 +82,9 @@ function getDashboardDateRange(query) {
         end.setDate(end.getDate() + 6);
         break;
       }
-      case 'last_week': {
-        const day = today.getDay() || 7;
-        end = new Date(today);
-        end.setDate(end.getDate() - day);
-        start = new Date(end);
-        start.setDate(start.getDate() - 6);
-        break;
-      }
-      case 'last_month':
-        start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        end = new Date(today.getFullYear(), today.getMonth(), 0);
+      case 'this_year':
+        start = new Date(today.getFullYear(), 0, 1);
+        end = new Date(today.getFullYear(), 11, 31);
         break;
       case 'this_month':
       default:

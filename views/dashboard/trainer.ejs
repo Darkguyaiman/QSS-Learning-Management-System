@@ -2286,16 +2286,9 @@
           <div class="date-range-presets" id="date-range-presets">
             <label class="date-range-option"><input type="radio" name="dashboardPreset" value="all_time"> All time</label>
             <label class="date-range-option"><input type="radio" name="dashboardPreset" value="today"> Today</label>
-            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="yesterday"> Yesterday</label>
-            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="last_7_days"> Last 7 days</label>
-            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="last_14_days"> Last 14 days</label>
-            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="last_28_days"> Last 28 days</label>
-            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="last_30_days"> Last 30 days</label>
             <label class="date-range-option"><input type="radio" name="dashboardPreset" value="this_week"> This week</label>
-            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="last_week"> Last week</label>
             <label class="date-range-option"><input type="radio" name="dashboardPreset" value="this_month"> This month</label>
-            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="last_month"> Last month</label>
-            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="custom"> Custom</label>
+            <label class="date-range-option"><input type="radio" name="dashboardPreset" value="this_year"> This year</label>
           </div>
 
           <div class="date-range-workspace">
@@ -3130,33 +3123,19 @@
           const today = startOfDay(new Date());
           return [today, today];
         },
-        yesterday: () => {
-          const day = addDays(startOfDay(new Date()), -1);
-          return [day, day];
-        },
-        last_7_days: () => rangeEndingToday(6),
-        last_14_days: () => rangeEndingToday(13),
-        last_28_days: () => rangeEndingToday(27),
-        last_30_days: () => rangeEndingToday(29),
         this_week: () => {
           const today = startOfDay(new Date());
           const mondayOffset = (today.getDay() || 7) - 1;
           const start = addDays(today, -mondayOffset);
           return [start, addDays(start, 6)];
         },
-        last_week: () => {
-          const today = startOfDay(new Date());
-          const mondayOffset = (today.getDay() || 7) - 1;
-          const end = addDays(today, -mondayOffset - 1);
-          return [addDays(end, -6), end];
-        },
         this_month: () => {
           const today = new Date();
           return [new Date(today.getFullYear(), today.getMonth(), 1), new Date(today.getFullYear(), today.getMonth() + 1, 0)];
         },
-        last_month: () => {
+        this_year: () => {
           const today = new Date();
-          return [new Date(today.getFullYear(), today.getMonth() - 1, 1), new Date(today.getFullYear(), today.getMonth(), 0)];
+          return [new Date(today.getFullYear(), 0, 1), new Date(today.getFullYear(), 11, 31)];
         }
       };
 
@@ -3174,11 +3153,6 @@
         const next = new Date(date);
         next.setDate(next.getDate() + days);
         return next;
-      }
-
-      function rangeEndingToday(offsetDays) {
-        const end = startOfDay(new Date());
-        return [addDays(end, -offsetDays), end];
       }
 
       function parseDate(value) {
