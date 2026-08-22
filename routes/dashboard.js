@@ -1230,7 +1230,8 @@ router.get('/', async (req, res) => {
         : 0;
       
       // Get top 10 trainings with healthcare centres and device serial numbers
-      const [recentTrainings] = await req.db.query(`
+      const timeZone = getDashboardTimeZone(req.query);
+      const [recentTrainingRows] = await req.db.query(`
         SELECT 
           t.id,
           t.title,
@@ -1238,6 +1239,8 @@ router.get('/', async (req, res) => {
           t.start_datetime,
           t.end_datetime,
           t.status,
+          COALESCE(attendance_totals.attendance_session_count, 0) AS attendance_session_count,
+          COALESCE(attendance_totals.attendance_duration_hours, 0) AS attendance_duration_hours,
           GROUP_CONCAT(DISTINCT h.name ORDER BY h.name SEPARATOR ', ') as healthcare_centres,
           GROUP_CONCAT(
             DISTINCT COALESCE(dsn.serial_number, td.custom_serial_number) 
@@ -1249,11 +1252,17 @@ router.get('/', async (req, res) => {
         LEFT JOIN healthcare h ON th.healthcare_id = h.id
         LEFT JOIN training_devices td ON t.id = td.training_id
         LEFT JOIN device_serial_numbers dsn ON td.device_serial_number_id = dsn.id
+        LEFT JOIN (${ATTENDANCE_DURATION_TOTALS_SQL}) attendance_totals ON attendance_totals.training_id = t.id
         ${trainingDateWhereWithAlias.clause}
-        GROUP BY t.id, t.title, t.type, t.start_datetime, t.end_datetime, t.status
+        GROUP BY t.id, t.title, t.type, t.start_datetime, t.end_datetime, t.status,
+          attendance_totals.attendance_session_count, attendance_totals.attendance_duration_hours
         ORDER BY t.created_at DESC
         LIMIT 10
       `, trainingDateWhereWithAlias.params);
+      const recentTrainings = recentTrainingRows.map(training => ({
+        ...training,
+        duration_label: getTrainingDurationValues(training, timeZone).durationLabel
+      }));
 
       // Top clients by distinct trainings in the selected dashboard range
       const [topClientTrainingRows] = await req.db.query(`

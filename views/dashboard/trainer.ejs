@@ -2471,6 +2471,7 @@
                 <th>Training Type</th>
                 <th>Start Date & Time</th>
                 <th>End Date & Time</th>
+                <th>Training Duration</th>
                 <th>Participating Healthcare Centres</th>
                 <th>Device Serial Numbers</th>
                 <th>Status</th>
@@ -2479,7 +2480,7 @@
             <tbody>
               <% if (recentTrainings.length === 0) { %>
                 <tr>
-                  <td colspan="7" style="text-align: center; padding: 2rem; color: #5F6368;">
+                  <td colspan="8" style="text-align: center; padding: 2rem; color: #5F6368;">
                     No trainings found
                   </td>
                 </tr>
@@ -2514,6 +2515,7 @@
                           })
                         : '-' %>
                     </td>
+                    <td><%= training.duration_label || '-' %></td>
                     <td>
                       <% if (training.healthcare_centres) { %>
                         <div class="chip-container">
@@ -2616,6 +2618,10 @@
                             })
                           : '-' %>
                       </div>
+                    </div>
+                    <div class="table-card-row">
+                      <div class="table-card-label">Training Duration</div>
+                      <div class="table-card-value"><%= training.duration_label || '-' %></div>
                     </div>
                     <div class="table-card-row">
                       <div class="table-card-label">Participating Healthcare Centres</div>
