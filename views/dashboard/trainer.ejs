@@ -18,6 +18,7 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
+      flex-wrap: wrap;
       gap: clamp(1rem, 3vw, 2rem);
       min-width: 0;
     }
@@ -81,6 +82,80 @@
       flex: 1 1 22rem;
       min-width: 0;
       max-width: 100%;
+    }
+
+    .dashboard-active-filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.4rem;
+      flex: 1 1 100%;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .active-filter-chip {
+      display: inline-flex;
+      align-items: center;
+      min-width: 0;
+      max-width: min(14rem, 100%);
+      border: 1px solid rgba(255, 255, 255, 0.34);
+      background: rgba(255, 255, 255, 0.16);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .active-filter-chip-open {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: white;
+      min-width: 0;
+      max-width: 100%;
+      padding: 0.28rem 0.45rem 0.28rem 0.55rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.75rem;
+      font-weight: 600;
+      line-height: 1.2;
+      text-align: left;
+    }
+
+    .active-filter-chip-open i {
+      flex: 0 0 auto;
+      font-size: 0.68rem;
+      opacity: 0.9;
+    }
+
+    .active-filter-chip-open span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .active-filter-chip-open:hover,
+    .active-filter-chip-clear:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .active-filter-chip-clear {
+      appearance: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      width: 1.45rem;
+      height: 100%;
+      border: 0;
+      border-left: 1px solid rgba(255, 255, 255, 0.2);
+      background: transparent;
+      color: white;
+      text-decoration: none;
+      font-size: 0.62rem;
     }
 
     .report-download-control {
@@ -629,8 +704,7 @@
       transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     }
 
-    .panel-filter-select:focus,
-    .panel-filter-input:focus {
+    .panel-filter-select:focus {
       outline: none;
       border-color: #11358B;
       box-shadow: 0 0 0 3px rgba(17, 53, 139, 0.14);
@@ -698,8 +772,10 @@
 
     .panel-custom-select-menu {
       position: absolute;
-      top: calc(100% + 0.4rem);
+      top: auto;
+      bottom: calc(100% + 0.4rem);
       left: 0;
+      z-index: 40;
       width: 100%;
       min-width: min(280px, calc(100vw - 3rem));
       padding: 0.4rem;
@@ -712,11 +788,6 @@
     .panel-filter-group:nth-child(even) .panel-custom-select-menu {
       right: 0;
       left: auto;
-    }
-
-    .panel-threshold-control .panel-custom-select-menu {
-      top: auto;
-      bottom: calc(100% + 0.4rem);
     }
 
     .panel-custom-select-menu[hidden] {
@@ -787,6 +858,10 @@
       color: #11358B;
     }
 
+    .panel-custom-select-option[hidden] {
+      display: none;
+    }
+
     .panel-custom-select-option.is-selected {
       background: #EEF3FF;
       color: #11358B;
@@ -803,6 +878,26 @@
       opacity: 1;
     }
 
+    .panel-custom-select[data-multiselect] .panel-custom-select-option i {
+      width: 1.05rem;
+      height: 1.05rem;
+      border: 1.5px solid #C5D0DE;
+      border-radius: 4px;
+      background: #fff;
+      color: transparent;
+      opacity: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.55rem;
+    }
+
+    .panel-custom-select[data-multiselect] .panel-custom-select-option.is-selected i {
+      background: #11358B;
+      border-color: #11358B;
+      color: #fff;
+    }
+
     .panel-custom-select-empty {
       margin: 0;
       padding: 0.85rem 0.65rem;
@@ -813,79 +908,6 @@
 
     .panel-custom-select-empty[hidden] {
       display: none;
-    }
-
-    .panel-threshold-control {
-      display: grid;
-      grid-template-columns: minmax(118px, 0.9fr) minmax(120px, 1.1fr);
-      gap: 0.5rem;
-    }
-
-    .panel-input-wrap {
-      position: relative;
-    }
-
-    .panel-filter-input {
-      width: 100%;
-      min-height: 44px;
-      border: 1px solid #D6DEEA;
-      border-radius: 10px;
-      background: #F8FAFC;
-      color: #111827;
-      padding: 0.7rem 3.6rem 0.7rem 0.85rem;
-      font-size: 0.92rem;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-      -moz-appearance: textfield;
-    }
-
-    .panel-filter-input::-webkit-inner-spin-button,
-    .panel-filter-input::-webkit-outer-spin-button {
-      margin: 0;
-      -webkit-appearance: none;
-    }
-
-    .panel-input-unit {
-      position: absolute;
-      top: 50%;
-      right: 0.8rem;
-      transform: translateY(-50%);
-      color: #64748B;
-      font-size: 0.78rem;
-      pointer-events: none;
-    }
-
-    .panel-filter-hint {
-      margin: 0;
-      color: #64748B;
-      font-size: 0.76rem;
-      line-height: 1.35;
-    }
-
-    .panel-quick-values {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.35rem;
-    }
-
-    .panel-quick-value {
-      min-height: 30px;
-      border: 1px solid #D6DEEA;
-      border-radius: 999px;
-      background: #fff;
-      color: #475569;
-      padding: 0.25rem 0.65rem;
-      font: inherit;
-      font-size: 0.76rem;
-      cursor: pointer;
-      transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
-    }
-
-    .panel-quick-value:hover,
-    .panel-quick-value:focus-visible {
-      border-color: #11358B;
-      background: #EEF3FF;
-      color: #11358B;
-      outline: none;
     }
 
     .date-range-panel-footer {
@@ -933,7 +955,138 @@
       background: linear-gradient(135deg, #573FD7 0%, #11358B 100%);
       border-radius: 2px;
     }
+
+    .quick-actions.dashboard-section {
+      padding: 1.15rem 1.25rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .quick-actions.dashboard-section .action-cards {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 0;
+    }
+
+    .quick-actions.dashboard-section .action-card {
+      display: flex;
+      align-items: center;
+      height: auto;
+      min-height: 0;
+      border-radius: 12px;
+    }
+
+    .quick-actions.dashboard-section .card-image {
+      width: 84px;
+      height: 64px;
+      flex: 0 0 84px;
+    }
+
+    .quick-actions.dashboard-section .card-content {
+      padding: 0.7rem 0.85rem;
+      min-width: 0;
+    }
+
+    .quick-actions.dashboard-section .card-content h3 {
+      font-size: 0.95rem;
+      margin-bottom: 0.15rem;
+    }
+
+    .quick-actions.dashboard-section .card-content p {
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
     
+    .training-summary-section,
+    .trainee-status-section {
+      padding: 1.15rem 1.25rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .training-summary-section .stats-grid,
+    .trainee-status-section .stats-grid {
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.65rem;
+      margin-bottom: 1rem;
+    }
+
+    .trainee-status-section .stats-grid {
+      margin-bottom: 0;
+    }
+
+    .training-summary-section .stat-card,
+    .trainee-status-section .stat-card {
+      border-radius: 10px;
+      padding: 0.7rem 0.65rem 0.75rem;
+    }
+
+    .training-summary-section .stat-card::before,
+    .trainee-status-section .stat-card::before {
+      height: 3px;
+    }
+
+    .training-summary-section .stat-card:hover,
+    .trainee-status-section .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 14px rgba(87, 63, 215, 0.12);
+    }
+
+    .training-summary-section .stat-card h3,
+    .trainee-status-section .stat-card h3 {
+      font-size: 1.45rem;
+      margin: 0.2rem 0 0.25rem;
+    }
+
+    .training-summary-section .stat-card p,
+    .trainee-status-section .stat-card p {
+      font-size: 0.68rem;
+      letter-spacing: 0.3px;
+    }
+
+    .trainee-status-section .stat-card-desc {
+      margin-top: 0.2rem;
+      font-size: 0.68rem;
+      line-height: 1.25;
+    }
+
+    .training-summary-section .recent-trainings-header {
+      margin-bottom: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .training-summary-section .recent-trainings-header h3 {
+      margin: 0;
+      color: #202124;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .training-summary-section .recent-trainings-header h3 i {
+      margin-right: 0.35rem;
+      font-size: 0.85rem;
+    }
+
+    .training-summary-section .recent-trainings-subtitle {
+      color: #5F6368;
+      font-size: 0.75rem;
+    }
+
+    .training-summary-section .data-table {
+      font-size: 0.8rem;
+    }
+
+    .training-summary-section .data-table th {
+      font-size: 0.68rem;
+      padding: 0.55rem 0.55rem;
+    }
+
+    .training-summary-section .data-table td {
+      padding: 0.55rem 0.55rem !important;
+    }
+
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -1358,6 +1511,14 @@
         min-width: 0;
       }
 
+      .dashboard-active-filters {
+        width: 100%;
+      }
+
+      .active-filter-chip {
+        max-width: 100%;
+      }
+
       .report-download-control {
         max-width: 100%;
       }
@@ -1445,6 +1606,27 @@
     }
     
     @media (max-width: 480px) {
+      .training-summary-section .stats-grid,
+      .trainee-status-section .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+      }
+
+      .training-summary-section .stat-card,
+      .trainee-status-section .stat-card {
+        padding: 0.65rem 0.5rem 0.7rem;
+      }
+
+      .training-summary-section .stat-card h3,
+      .trainee-status-section .stat-card h3 {
+        font-size: 1.25rem;
+      }
+
+      .training-summary-section .stat-card p,
+      .trainee-status-section .stat-card p {
+        font-size: 0.64rem;
+      }
+
       .stats-grid {
         grid-template-columns: 1fr !important;
         gap: 1rem;
@@ -1574,6 +1756,11 @@
       .action-cards {
         grid-template-columns: 1fr !important;
         gap: 1rem;
+      }
+
+      .quick-actions.dashboard-section .action-cards {
+        grid-template-columns: 1fr;
+        gap: 0.65rem;
       }
       
       .dashboard-section {
@@ -1779,12 +1966,14 @@
         padding: 0.375rem 0.625rem;
       }
       
-      .quick-actions h2 {
-        font-size: 1rem;
+      .quick-actions.dashboard-section .action-card {
+        padding: 0;
       }
-      
-      .action-card {
-        padding: 1rem;
+
+      .quick-actions.dashboard-section .card-image {
+        width: 72px;
+        height: 56px;
+        flex-basis: 72px;
       }
       
       .action-card h3 {
@@ -1966,15 +2155,23 @@
   <%- include('../partials/sidebar', { user }) %>
   <%
     const activeDashboardDateRange = dashboardDateRange || {};
-    const selectedHealthcareId = activeFilters && activeFilters.healthcareId ? String(activeFilters.healthcareId) : '';
-    const selectedModuleId = activeFilters && activeFilters.moduleId ? String(activeFilters.moduleId) : '';
-    const selectedDurationOperator = activeFilters && activeFilters.durationOperator ? activeFilters.durationOperator : 'gt';
-    const selectedDurationHours = activeFilters && activeFilters.durationHours !== null ? String(activeFilters.durationHours) : '';
-    const selectedParticipantsOperator = activeFilters && activeFilters.participantsOperator ? activeFilters.participantsOperator : 'gt';
-    const selectedParticipantCount = activeFilters && activeFilters.participantCount !== null ? String(activeFilters.participantCount) : '';
-    const selectedHealthcareItem = (allHealthcare || []).find(item => String(item.id) === selectedHealthcareId);
-    const selectedModuleItem = (allModules || []).find(item => String(item.id) === selectedModuleId);
-    const comparisonLabels = { gt: 'More than', lt: 'Less than', eq: 'Exactly' };
+    const selectedHealthcareIds = ((activeFilters && activeFilters.healthcareIds) || []).map(String);
+    const selectedModuleIds = ((activeFilters && activeFilters.moduleIds) || []).map(String);
+    const hasActiveDashboardFilters = !!(
+      selectedHealthcareIds.length ||
+      selectedModuleIds.length ||
+      (activeDashboardDateRange.preset && activeDashboardDateRange.preset !== 'this_month')
+    );
+    const selectedHealthcareItems = (allHealthcare || []).filter(item => selectedHealthcareIds.includes(String(item.id)));
+    const selectedModuleItems = (allModules || []).filter(item => selectedModuleIds.includes(String(item.id)));
+    const summarizeFilterNames = (items, emptyLabel) => {
+      if (!items.length) return emptyLabel;
+      if (items.length === 1) return items[0].name;
+      if (items.length === 2) return `${items[0].name}, ${items[1].name}`;
+      return `${items[0].name} +${items.length - 1}`;
+    };
+    const healthcareTriggerLabel = summarizeFilterNames(selectedHealthcareItems, 'All healthcare');
+    const moduleTriggerLabel = summarizeFilterNames(selectedModuleItems, 'All modules');
     const dateRangeLabel = activeDashboardDateRange.preset === 'all_time'
       ? 'All time'
       : activeDashboardDateRange.startDate && activeDashboardDateRange.endDate
@@ -1985,21 +2182,18 @@
       dashboardPdfParams.push(`startDate=${encodeURIComponent(activeDashboardDateRange.startDate)}`);
       dashboardPdfParams.push(`endDate=${encodeURIComponent(activeDashboardDateRange.endDate)}`);
     }
-    if (selectedHealthcareId) {
-      dashboardPdfParams.push(`healthcare=${encodeURIComponent(selectedHealthcareId)}`);
+    if (selectedHealthcareIds.length) {
+      dashboardPdfParams.push(`healthcare=${encodeURIComponent(selectedHealthcareIds.join(','))}`);
     }
-    if (selectedModuleId) {
-      dashboardPdfParams.push(`module=${encodeURIComponent(selectedModuleId)}`);
-    }
-    if (selectedDurationHours) {
-      dashboardPdfParams.push(`durationOp=${encodeURIComponent(selectedDurationOperator)}`);
-      dashboardPdfParams.push(`durationHours=${encodeURIComponent(selectedDurationHours)}`);
-    }
-    if (selectedParticipantCount) {
-      dashboardPdfParams.push(`participantsOp=${encodeURIComponent(selectedParticipantsOperator)}`);
-      dashboardPdfParams.push(`participants=${encodeURIComponent(selectedParticipantCount)}`);
+    if (selectedModuleIds.length) {
+      dashboardPdfParams.push(`module=${encodeURIComponent(selectedModuleIds.join(','))}`);
     }
     const dashboardPdfUrl = `/dashboard/pdf?${dashboardPdfParams.join('&')}`;
+    const dashboardQueryWith = (key, ids) => {
+      const params = dashboardPdfParams.filter(param => !param.startsWith(`${key}=`));
+      if (ids.length) params.push(`${key}=${encodeURIComponent(ids.join(','))}`);
+      return params.join('&');
+    };
   %>
   
   <main class="main-content">
@@ -2014,7 +2208,7 @@
           </p>
         </div>
         <div class="dashboard-header-actions">
-          <button type="button" class="date-range-trigger" id="date-range-open" aria-haspopup="dialog" aria-controls="date-range-panel">
+          <button type="button" class="date-range-trigger js-open-filters" id="date-range-open" aria-haspopup="dialog" aria-controls="date-range-panel">
             <i class="fas fa-calendar-alt"></i>
             <span id="date-range-trigger-label"><%= dateRangeLabel %></span>
           </button>
@@ -2051,6 +2245,32 @@
           </div>
           <a href="/training/create" class="btn btn-primary">Create Training</a>
         </div>
+        <% if (selectedHealthcareItems.length || selectedModuleItems.length) { %>
+          <div class="dashboard-active-filters">
+            <% selectedHealthcareItems.forEach(item => { %>
+              <div class="active-filter-chip" title="<%= item.name %>">
+                <button type="button" class="active-filter-chip-open js-open-filters" aria-haspopup="dialog" aria-controls="date-range-panel">
+                  <i class="fas fa-hospital"></i>
+                  <span><%= item.name %></span>
+                </button>
+                <a class="active-filter-chip-clear" href="/dashboard?<%= dashboardQueryWith('healthcare', selectedHealthcareIds.filter(id => id !== String(item.id))) %>" aria-label="Remove <%= item.name %>">
+                  <i class="fas fa-times"></i>
+                </a>
+              </div>
+            <% }); %>
+            <% selectedModuleItems.forEach(item => { %>
+              <div class="active-filter-chip" title="<%= item.name %>">
+                <button type="button" class="active-filter-chip-open js-open-filters" aria-haspopup="dialog" aria-controls="date-range-panel">
+                  <i class="fas fa-book-open"></i>
+                  <span><%= item.name %></span>
+                </button>
+                <a class="active-filter-chip-clear" href="/dashboard?<%= dashboardQueryWith('module', selectedModuleIds.filter(id => id !== String(item.id))) %>" aria-label="Remove <%= item.name %>">
+                  <i class="fas fa-times"></i>
+                </a>
+              </div>
+            <% }); %>
+          </div>
+        <% } %>
       </div>
 
       <div class="date-range-overlay" id="date-range-overlay" hidden></div>
@@ -2107,20 +2327,20 @@
             <div class="panel-filter-grid">
               <div class="panel-filter-group">
                 <label class="panel-filter-label" for="panel-healthcare-trigger">Healthcare</label>
-                <div class="panel-custom-select" data-custom-select data-searchable="true">
-                  <input type="hidden" class="panel-custom-select-value" id="panel-healthcare-filter" value="<%= selectedHealthcareId %>">
+                <div class="panel-custom-select" data-custom-select data-searchable="true" data-multiselect="true">
+                  <input type="hidden" class="panel-custom-select-value" id="panel-healthcare-filter" value="<%= selectedHealthcareIds.join(',') %>">
                   <button type="button" class="panel-custom-select-trigger" id="panel-healthcare-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="panel-healthcare-menu">
-                    <span class="panel-custom-select-value-label"><%= selectedHealthcareItem ? selectedHealthcareItem.name : 'All healthcare' %></span>
+                    <span class="panel-custom-select-value-label"><%= healthcareTriggerLabel %></span>
                     <i class="fas fa-chevron-down panel-custom-select-chevron" aria-hidden="true"></i>
                   </button>
                   <div class="panel-custom-select-menu" id="panel-healthcare-menu" hidden>
                     <div class="panel-custom-select-search-wrap">
                       <i class="fas fa-search" aria-hidden="true"></i>
-                      <input type="search" class="panel-custom-select-search" placeholder="Search healthcare..." aria-label="Search healthcare">
+                      <input type="text" class="panel-custom-select-search" placeholder="Search healthcare..." aria-label="Search healthcare" autocomplete="off" spellcheck="false">
                     </div>
-                    <div class="panel-custom-select-options" role="listbox" aria-label="Healthcare options">
-                      <button type="button" class="panel-custom-select-option <%= selectedHealthcareId ? '' : 'is-selected' %>" role="option" aria-selected="<%= selectedHealthcareId ? 'false' : 'true' %>" data-value="" data-label="All healthcare"><span>All healthcare</span><i class="fas fa-check" aria-hidden="true"></i></button>
-                      <% (allHealthcare || []).forEach(item => { const isSelected = String(item.id) === selectedHealthcareId; %>
+                    <div class="panel-custom-select-options" role="listbox" aria-multiselectable="true" aria-label="Healthcare options">
+                      <button type="button" class="panel-custom-select-option <%= selectedHealthcareIds.length ? '' : 'is-selected' %>" role="option" aria-selected="<%= selectedHealthcareIds.length ? 'false' : 'true' %>" data-value="" data-label="All healthcare"><span>All healthcare</span><i class="fas fa-check" aria-hidden="true"></i></button>
+                      <% (allHealthcare || []).forEach(item => { const isSelected = selectedHealthcareIds.includes(String(item.id)); %>
                         <button type="button" class="panel-custom-select-option <%= isSelected ? 'is-selected' : '' %>" role="option" aria-selected="<%= isSelected ? 'true' : 'false' %>" data-value="<%= item.id %>" data-label="<%= item.name %>"><span><%= item.name %></span><i class="fas fa-check" aria-hidden="true"></i></button>
                       <% }); %>
                     </div>
@@ -2130,79 +2350,26 @@
               </div>
               <div class="panel-filter-group">
                 <label class="panel-filter-label" for="panel-module-trigger">Module</label>
-                <div class="panel-custom-select" data-custom-select>
-                  <input type="hidden" class="panel-custom-select-value" id="panel-module-filter" value="<%= selectedModuleId %>">
+                <div class="panel-custom-select" data-custom-select data-searchable="true" data-multiselect="true">
+                  <input type="hidden" class="panel-custom-select-value" id="panel-module-filter" value="<%= selectedModuleIds.join(',') %>">
                   <button type="button" class="panel-custom-select-trigger" id="panel-module-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="panel-module-menu">
-                    <span class="panel-custom-select-value-label"><%= selectedModuleItem ? selectedModuleItem.name : 'All modules' %></span>
+                    <span class="panel-custom-select-value-label"><%= moduleTriggerLabel %></span>
                     <i class="fas fa-chevron-down panel-custom-select-chevron" aria-hidden="true"></i>
                   </button>
                   <div class="panel-custom-select-menu" id="panel-module-menu" hidden>
-                    <div class="panel-custom-select-options" role="listbox" aria-label="Module options">
-                      <button type="button" class="panel-custom-select-option <%= selectedModuleId ? '' : 'is-selected' %>" role="option" aria-selected="<%= selectedModuleId ? 'false' : 'true' %>" data-value="" data-label="All modules"><span>All modules</span><i class="fas fa-check" aria-hidden="true"></i></button>
-                      <% (allModules || []).forEach(item => { const isSelected = String(item.id) === selectedModuleId; %>
+                    <div class="panel-custom-select-search-wrap">
+                      <i class="fas fa-search" aria-hidden="true"></i>
+                      <input type="text" class="panel-custom-select-search" placeholder="Search modules..." aria-label="Search modules" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div class="panel-custom-select-options" role="listbox" aria-multiselectable="true" aria-label="Module options">
+                      <button type="button" class="panel-custom-select-option <%= selectedModuleIds.length ? '' : 'is-selected' %>" role="option" aria-selected="<%= selectedModuleIds.length ? 'false' : 'true' %>" data-value="" data-label="All modules"><span>All modules</span><i class="fas fa-check" aria-hidden="true"></i></button>
+                      <% (allModules || []).forEach(item => { const isSelected = selectedModuleIds.includes(String(item.id)); %>
                         <button type="button" class="panel-custom-select-option <%= isSelected ? 'is-selected' : '' %>" role="option" aria-selected="<%= isSelected ? 'true' : 'false' %>" data-value="<%= item.id %>" data-label="<%= item.name %>"><span><%= item.name %></span><i class="fas fa-check" aria-hidden="true"></i></button>
                       <% }); %>
                     </div>
+                    <p class="panel-custom-select-empty" hidden>No modules match your search.</p>
                   </div>
                 </div>
-              </div>
-              <div class="panel-filter-group">
-                <label class="panel-filter-label" for="panel-duration-operator-trigger">Training duration</label>
-                <div class="panel-threshold-control">
-                  <div class="panel-custom-select" data-custom-select>
-                    <input type="hidden" class="panel-custom-select-value" id="panel-duration-operator" value="<%= selectedDurationOperator %>">
-                    <button type="button" class="panel-custom-select-trigger" id="panel-duration-operator-trigger" aria-label="Duration comparison" aria-haspopup="listbox" aria-expanded="false" aria-controls="panel-duration-operator-menu">
-                      <span class="panel-custom-select-value-label"><%= comparisonLabels[selectedDurationOperator] %></span>
-                      <i class="fas fa-chevron-down panel-custom-select-chevron" aria-hidden="true"></i>
-                    </button>
-                    <div class="panel-custom-select-menu" id="panel-duration-operator-menu" hidden>
-                      <div class="panel-custom-select-options" role="listbox" aria-label="Duration comparison options">
-                        <% Object.entries(comparisonLabels).forEach(([value, label]) => { const isSelected = value === selectedDurationOperator; %>
-                          <button type="button" class="panel-custom-select-option <%= isSelected ? 'is-selected' : '' %>" role="option" aria-selected="<%= isSelected ? 'true' : 'false' %>" data-value="<%= value %>" data-label="<%= label %>"><span><%= label %></span><i class="fas fa-check" aria-hidden="true"></i></button>
-                        <% }); %>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="panel-input-wrap">
-                    <input class="panel-filter-input" id="panel-duration-value" type="number" min="0" step="0.25" inputmode="decimal" value="<%= selectedDurationHours %>" placeholder="Any" aria-describedby="duration-filter-hint">
-                    <span class="panel-input-unit">hours</span>
-                  </div>
-                </div>
-                <div class="panel-quick-values" aria-label="Quick duration values">
-                  <button type="button" class="panel-quick-value" data-filter-target="panel-duration-value" data-filter-value="2">2h</button>
-                  <button type="button" class="panel-quick-value" data-filter-target="panel-duration-value" data-filter-value="4">4h</button>
-                  <button type="button" class="panel-quick-value" data-filter-target="panel-duration-value" data-filter-value="8">8h</button>
-                </div>
-                <p class="panel-filter-hint" id="duration-filter-hint">Leave empty to include any duration.</p>
-              </div>
-              <div class="panel-filter-group">
-                <label class="panel-filter-label" for="panel-participants-operator-trigger">Participants</label>
-                <div class="panel-threshold-control">
-                  <div class="panel-custom-select" data-custom-select>
-                    <input type="hidden" class="panel-custom-select-value" id="panel-participants-operator" value="<%= selectedParticipantsOperator %>">
-                    <button type="button" class="panel-custom-select-trigger" id="panel-participants-operator-trigger" aria-label="Participant count comparison" aria-haspopup="listbox" aria-expanded="false" aria-controls="panel-participants-operator-menu">
-                      <span class="panel-custom-select-value-label"><%= comparisonLabels[selectedParticipantsOperator] %></span>
-                      <i class="fas fa-chevron-down panel-custom-select-chevron" aria-hidden="true"></i>
-                    </button>
-                    <div class="panel-custom-select-menu" id="panel-participants-operator-menu" hidden>
-                      <div class="panel-custom-select-options" role="listbox" aria-label="Participant comparison options">
-                        <% Object.entries(comparisonLabels).forEach(([value, label]) => { const isSelected = value === selectedParticipantsOperator; %>
-                          <button type="button" class="panel-custom-select-option <%= isSelected ? 'is-selected' : '' %>" role="option" aria-selected="<%= isSelected ? 'true' : 'false' %>" data-value="<%= value %>" data-label="<%= label %>"><span><%= label %></span><i class="fas fa-check" aria-hidden="true"></i></button>
-                        <% }); %>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="panel-input-wrap">
-                    <input class="panel-filter-input" id="panel-participants-value" type="number" min="0" step="1" inputmode="numeric" value="<%= selectedParticipantCount %>" placeholder="Any" aria-describedby="participants-filter-hint">
-                    <span class="panel-input-unit">people</span>
-                  </div>
-                </div>
-                <div class="panel-quick-values" aria-label="Quick participant values">
-                  <button type="button" class="panel-quick-value" data-filter-target="panel-participants-value" data-filter-value="10">10</button>
-                  <button type="button" class="panel-quick-value" data-filter-target="panel-participants-value" data-filter-value="25">25</button>
-                  <button type="button" class="panel-quick-value" data-filter-target="panel-participants-value" data-filter-value="50">50</button>
-                </div>
-                <p class="panel-filter-hint" id="participants-filter-hint">Counts distinct enrolled trainees.</p>
               </div>
             </div>
           </div>
@@ -2215,7 +2382,7 @@
       </aside>
       
       <!-- Quick Actions -->
-      <div class="quick-actions dashboard-section" style="margin-bottom: 2rem;">
+      <div class="quick-actions dashboard-section">
         <h2><i class="fas fa-bolt" style="color: #573FD7;"></i> Quick Actions</h2>
         <div class="action-cards">
           <a href="/training" class="action-card">
@@ -2251,8 +2418,8 @@
       </div>
       
       <!-- Trainings Section -->
-      <section class="dashboard-section">
-        <h2><i class="fas fa-graduation-cap" style="color: #573FD7;"></i> Trainings</h2>
+      <section class="dashboard-section training-summary-section">
+        <h2><i class="fas fa-graduation-cap" style="color: #573FD7;"></i> Training Summary</h2>
         
         <div class="stats-grid">
           <div class="stat-card">
@@ -2285,12 +2452,12 @@
           </div>
         </div>
         
-        <div class="recent-trainings-header" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-          <h3 style="margin: 0; color: #202124; font-size: 1.25rem; font-weight: 600;">
-            <i class="fas fa-clock" style="color: #573FD7; margin-right: 0.5rem;"></i>
-            Recent Trainings
+        <div class="recent-trainings-header">
+          <h3>
+            <i class="fas fa-clock" style="color: #573FD7;"></i>
+            Training Details
           </h3>
-          <span class="recent-trainings-subtitle" style="color: #5F6368; font-size: 0.875rem;">
+          <span class="recent-trainings-subtitle">
             Showing latest 10 trainings
           </span>
         </div>
@@ -2636,7 +2803,7 @@
       </section>
       
       <!-- Trainee Registration Status -->
-      <section class="dashboard-section">
+      <section class="dashboard-section trainee-status-section">
         <h2><i class="fas fa-users" style="color: #573FD7;"></i> Trainee Registration Status</h2>
         
         <div class="stats-grid">
@@ -2713,6 +2880,7 @@
       </section>
       
       <!-- Recent Registrations Section -->
+      <% if (!hasActiveDashboardFilters) { %>
       <section class="dashboard-section">
         <h2><i class="fas fa-user-plus" style="color: #573FD7;"></i> Recent Registrations</h2>
         <div class="table-responsive">
@@ -2807,6 +2975,7 @@
           </div>
         </div>
       </section>
+      <% } %>
     </div>
   </main>
   
@@ -2944,11 +3113,6 @@
       const endValue = document.getElementById('panel-end-date-value');
       const healthcareSelect = document.getElementById('panel-healthcare-filter');
       const moduleSelect = document.getElementById('panel-module-filter');
-      const durationOperator = document.getElementById('panel-duration-operator');
-      const durationValue = document.getElementById('panel-duration-value');
-      const participantsOperator = document.getElementById('panel-participants-operator');
-      const participantsValue = document.getElementById('panel-participants-value');
-      const quickValueButtons = Array.from(document.querySelectorAll('.panel-quick-value'));
       const customSelectRoots = Array.from(document.querySelectorAll('[data-custom-select]'));
       const customSelectApis = new Map();
       const presetInputs = Array.from(document.querySelectorAll('input[name="dashboardPreset"]'));
@@ -3043,6 +3207,21 @@
         const search = root.querySelector('.panel-custom-select-search');
         const emptyMessage = root.querySelector('.panel-custom-select-empty');
         const options = Array.from(root.querySelectorAll('.panel-custom-select-option'));
+        const isMulti = root.getAttribute('data-multiselect') === 'true';
+
+        function optionLabel(option) {
+          return String(option.dataset.label || option.textContent || '').trim();
+        }
+
+        const allOption = options.find(option => option.dataset.value === '');
+        const allLabel = allOption ? optionLabel(allOption) : 'All';
+
+        const parseValues = value => String(Array.isArray(value) ? value.join(',') : (value || ''))
+          .split(',')
+          .map(item => item.trim())
+          .filter(Boolean);
+
+        const selectedValues = () => parseValues(hiddenInput.value);
 
         const visibleOptions = () => options.filter(option => !option.hidden);
 
@@ -3050,11 +3229,31 @@
           const normalizedQuery = String(query || '').trim().toLocaleLowerCase();
           let matchCount = 0;
           options.forEach(option => {
-            const matches = !normalizedQuery || option.dataset.label.toLocaleLowerCase().includes(normalizedQuery);
+            const matches = !normalizedQuery || optionLabel(option).toLocaleLowerCase().includes(normalizedQuery);
             option.hidden = !matches;
             if (matches) matchCount += 1;
           });
           if (emptyMessage) emptyMessage.hidden = matchCount > 0;
+        };
+
+        const syncUi = () => {
+          const values = selectedValues();
+          options.forEach(option => {
+            const isAll = option.dataset.value === '';
+            const isSelected = isAll ? values.length === 0 : values.includes(option.dataset.value);
+            option.classList.toggle('is-selected', isSelected);
+            option.setAttribute('aria-selected', String(isSelected));
+          });
+          const selectedOpts = options.filter(option => option.dataset.value && values.includes(option.dataset.value));
+          if (!selectedOpts.length) {
+            triggerLabel.textContent = allLabel;
+          } else if (selectedOpts.length === 1) {
+            triggerLabel.textContent = optionLabel(selectedOpts[0]);
+          } else if (selectedOpts.length === 2) {
+            triggerLabel.textContent = `${optionLabel(selectedOpts[0])}, ${optionLabel(selectedOpts[1])}`;
+          } else {
+            triggerLabel.textContent = `${optionLabel(selectedOpts[0])} +${selectedOpts.length - 1}`;
+          }
         };
 
         const close = (returnFocus = false) => {
@@ -3081,18 +3280,26 @@
           }
         };
 
-        const setValue = (value, { returnFocus = true } = {}) => {
-          const nextOption = options.find(option => option.dataset.value === String(value)) || options[0];
-          if (!nextOption) return;
-          hiddenInput.value = nextOption.dataset.value;
-          triggerLabel.textContent = nextOption.dataset.label;
-          options.forEach(option => {
-            const isSelected = option === nextOption;
-            option.classList.toggle('is-selected', isSelected);
-            option.setAttribute('aria-selected', String(isSelected));
-          });
+        const setValue = (value, { returnFocus = true, closeMenu = !isMulti } = {}) => {
+          const nextValues = (value === '' || value === null || typeof value === 'undefined')
+            ? []
+            : parseValues(value);
+          hiddenInput.value = isMulti ? nextValues.join(',') : (nextValues[0] || '');
+          syncUi();
           hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
-          close(returnFocus);
+          if (closeMenu) close(returnFocus);
+        };
+
+        const toggleValue = value => {
+          if (!isMulti || value === '') {
+            setValue(value, { closeMenu: !isMulti, returnFocus: false });
+            return;
+          }
+          const current = selectedValues();
+          const next = current.includes(value)
+            ? current.filter(item => item !== value)
+            : [...current, value];
+          setValue(next, { closeMenu: false, returnFocus: false });
         };
 
         trigger.addEventListener('click', () => {
@@ -3109,7 +3316,11 @@
 
         options.forEach(option => {
           option.tabIndex = -1;
-          option.addEventListener('click', () => setValue(option.dataset.value));
+          option.addEventListener('click', event => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleValue(option.dataset.value);
+          });
         });
 
         menu.addEventListener('keydown', event => {
@@ -3127,6 +3338,13 @@
           }
 
           if (!event.target.classList.contains('panel-custom-select-option')) return;
+
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            toggleValue(event.target.dataset.value);
+            return;
+          }
+
           const availableOptions = visibleOptions();
           const currentIndex = availableOptions.indexOf(event.target);
           let nextIndex = currentIndex;
@@ -3144,6 +3362,10 @@
 
         if (search) {
           search.addEventListener('input', () => filterOptions(search.value));
+          search.addEventListener('keydown', event => {
+            if (event.key === 'Enter') event.preventDefault();
+          });
+          search.addEventListener('click', event => event.stopPropagation());
         }
 
         root.addEventListener('focusout', () => {
@@ -3152,6 +3374,7 @@
           }, 0);
         });
 
+        syncUi();
         return { root, close, open, setValue };
       }
 
@@ -3163,7 +3386,7 @@
         if (!input) return;
         const root = input.closest('[data-custom-select]');
         const api = customSelectApis.get(root);
-        if (api) api.setValue(value, { returnFocus: false });
+        if (api) api.setValue(value, { returnFocus: false, closeMenu: false });
       }
 
       function applyPreset(preset) {
@@ -3295,13 +3518,6 @@
       }
 
       function applyFilter() {
-        if ((durationValue && !durationValue.checkValidity()) || (participantsValue && !participantsValue.checkValidity())) {
-          const invalidInput = [durationValue, participantsValue].find(input => input && !input.checkValidity());
-          invalidInput.reportValidity();
-          invalidInput.focus();
-          return;
-        }
-
         const url = new URL(window.location.href);
         url.searchParams.set('preset', activePreset || 'custom');
         if (activePreset === 'all_time') {
@@ -3322,20 +3538,10 @@
         } else {
           url.searchParams.delete('module');
         }
-        if (durationValue && durationValue.value !== '') {
-          url.searchParams.set('durationOp', durationOperator.value);
-          url.searchParams.set('durationHours', durationValue.value);
-        } else {
-          url.searchParams.delete('durationOp');
-          url.searchParams.delete('durationHours');
-        }
-        if (participantsValue && participantsValue.value !== '') {
-          url.searchParams.set('participantsOp', participantsOperator.value);
-          url.searchParams.set('participants', participantsValue.value);
-        } else {
-          url.searchParams.delete('participantsOp');
-          url.searchParams.delete('participants');
-        }
+        url.searchParams.delete('durationOp');
+        url.searchParams.delete('durationHours');
+        url.searchParams.delete('participantsOp');
+        url.searchParams.delete('participants');
         window.location.href = url.toString();
       }
 
@@ -3353,19 +3559,13 @@
         syncControls();
       });
 
-      openButton.addEventListener('click', openPanel);
+      document.querySelectorAll('.js-open-filters').forEach(button => {
+        button.addEventListener('click', openPanel);
+      });
       closeButton.addEventListener('click', closePanel);
       cancelButton.addEventListener('click', closePanel);
       overlay.addEventListener('click', closePanel);
       applyButton.addEventListener('click', applyFilter);
-      quickValueButtons.forEach(button => {
-        button.addEventListener('click', () => {
-          const input = document.getElementById(button.dataset.filterTarget);
-          if (!input) return;
-          input.value = button.dataset.filterValue;
-          input.focus();
-        });
-      });
       document.addEventListener('pointerdown', event => {
         customSelectApis.forEach(api => {
           if (!api.root.contains(event.target)) api.close(false);
@@ -3375,10 +3575,6 @@
         applyPreset('this_month');
         setCustomSelectValue(healthcareSelect, '');
         setCustomSelectValue(moduleSelect, '');
-        setCustomSelectValue(durationOperator, 'gt');
-        if (durationValue) durationValue.value = '';
-        setCustomSelectValue(participantsOperator, 'gt');
-        if (participantsValue) participantsValue.value = '';
       });
       todayButton.addEventListener('click', () => applyPreset('today'));
       prevButton.addEventListener('click', () => {

@@ -257,6 +257,16 @@
       flex-wrap: wrap;
     }
 
+    .trainee-cert-cell {
+      white-space: nowrap;
+    }
+
+    .trainee-cert-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
     .trainee-action-btn {
       display: inline-flex;
       align-items: center;
@@ -1080,6 +1090,8 @@
                 <th>Healthcare</th>
                 <th>Status</th>
                 <th>Completed Trainings</th>
+                <th>Certificate</th>
+                <th>Recertification</th>
                 <th>Registered</th>
                 <th>Actions</th>
               </tr>
@@ -1105,6 +1117,19 @@
                     <span class="badge badge-<%= trainee.trainee_status === 'active' ? 'success' : trainee.trainee_status === 'inactive' ? 'warning' : trainee.trainee_status === 'registered' ? 'info' : 'danger' %>"><%= trainee.trainee_status %></span>
                   </td>
                   <td><%= trainee.number_of_completed_trainings || 0 %></td>
+                  <td class="trainee-cert-cell">
+                    <% if (trainee.current_certificate_training_id && trainee.current_certificate_enrollment_id) { %>
+                      <a href="/training/<%= trainee.current_certificate_training_id %>/certificate/<%= trainee.current_certificate_enrollment_id %>" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline trainee-action-btn trainee-cert-link">
+                        <i class="fas fa-certificate"></i> View
+                      </a>
+                    <% } else { %>
+                      -
+                    <% } %>
+                  </td>
+                  <td>
+                    <% const recertificationDate = trainee.recertification_date || trainee.current_certificate_validity_end; %>
+                    <%= recertificationDate ? new Date(recertificationDate).toLocaleDateString() : '-' %>
+                  </td>
                   <td><%= new Date(trainee.created_at).toLocaleDateString() %></td>
                   <td>
                     <div class="trainee-actions-inline">
@@ -1183,6 +1208,31 @@
                     <i class="fas fa-graduation-cap"></i> Completed Trainings
                   </div>
                   <div class="trainee-card-value"><%= trainee.number_of_completed_trainings || 0 %></div>
+                </div>
+
+                <div class="trainee-card-row">
+                  <div class="trainee-card-label">
+                    <i class="fas fa-certificate"></i> Certificate
+                  </div>
+                  <div class="trainee-card-value">
+                    <% if (trainee.current_certificate_training_id && trainee.current_certificate_enrollment_id) { %>
+                      <a href="/training/<%= trainee.current_certificate_training_id %>/certificate/<%= trainee.current_certificate_enrollment_id %>" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline trainee-action-btn trainee-cert-link">
+                        <i class="fas fa-eye"></i> View
+                      </a>
+                    <% } else { %>
+                      -
+                    <% } %>
+                  </div>
+                </div>
+
+                <div class="trainee-card-row">
+                  <div class="trainee-card-label">
+                    <i class="fas fa-calendar-check"></i> Recertification
+                  </div>
+                  <div class="trainee-card-value">
+                    <% const cardRecertificationDate = trainee.recertification_date || trainee.current_certificate_validity_end; %>
+                    <%= cardRecertificationDate ? new Date(cardRecertificationDate).toLocaleDateString() : '-' %>
+                  </div>
                 </div>
                 
                 <div class="trainee-card-row">

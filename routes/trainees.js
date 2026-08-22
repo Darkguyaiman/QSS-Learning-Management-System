@@ -156,6 +156,9 @@ const TRAINEE_SELECT_SQL = `
     t.first_training,
     t.latest_training,
     t.recertification_date,
+    current_cert.training_id AS current_certificate_training_id,
+    current_cert.enrollment_id AS current_certificate_enrollment_id,
+    current_cert.validity_end AS current_certificate_validity_end,
     t.number_of_completed_trainings,
     t.trainee_status,
     t.profile_picture,
@@ -168,6 +171,14 @@ const TRAINEE_SELECT_SQL = `
   LEFT JOIN device_serial_numbers dsn ON dsn.id = t.device_serial_number_id
   LEFT JOIN trainee_area_of_specializations taos ON taos.trainee_id = t.id
   LEFT JOIN areas_of_specialization aos ON aos.id = taos.area_of_specialization_id
+  LEFT JOIN certificate_issues current_cert
+    ON current_cert.id = (
+      SELECT ci.id
+      FROM certificate_issues ci
+      WHERE ci.trainee_id = t.id
+      ORDER BY ci.validity_end DESC, ci.issued_at DESC, ci.id DESC
+      LIMIT 1
+    )
 `;
 
 const TRAINEE_GROUP_BY_SQL = `
@@ -185,6 +196,9 @@ const TRAINEE_GROUP_BY_SQL = `
     t.first_training,
     t.latest_training,
     t.recertification_date,
+    current_cert.training_id,
+    current_cert.enrollment_id,
+    current_cert.validity_end,
     t.number_of_completed_trainings,
     t.trainee_status,
     t.profile_picture,

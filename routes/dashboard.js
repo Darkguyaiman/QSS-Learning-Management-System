@@ -307,45 +307,74 @@ function getTrainingDurationCell(training, worksheetRow, timeZone) {
   return values.durationLabel;
 }
 
-function parseDashboardEntityFilter(value) {
-  const parsed = Number.parseInt(String(value || '').trim(), 10);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-}
+function parseDashboardEntityFilterList(value) {
+  const rawValues = Array.isArray(value) ? value : [value];
+  const ids = [];
+  const seen = new Set();
 
-function parseDashboardThresholdFilter(operatorValue, thresholdValue, { integer = false } = {}) {
-  const validOperators = new Set(['gt', 'lt', 'eq']);
-  const operator = validOperators.has(String(operatorValue || '')) ? String(operatorValue) : null;
-  const rawThreshold = String(thresholdValue ?? '').trim();
-  const threshold = Number(rawThreshold);
-  const isValidThreshold = rawThreshold !== ''
-    && Number.isFinite(threshold)
-    && threshold >= 0
-    && (!integer || Number.isInteger(threshold));
+  rawValues.forEach(entry => {
+    String(entry || '').split(',').forEach(part => {
+      const parsed = Number.parseInt(part.trim(), 10);
+      if (Number.isInteger(parsed) && parsed > 0 && !seen.has(parsed)) {
+        seen.add(parsed);
+        ids.push(parsed);
+      }
+    });
+  });
 
-  return {
-    operator: operator && isValidThreshold ? operator : null,
-    threshold: operator && isValidThreshold ? threshold : null
-  };
+  return ids;
 }
 
 function getDashboardEntityFilters(query) {
-  const duration = parseDashboardThresholdFilter(query.durationOp, query.durationHours);
-  const participants = parseDashboardThresholdFilter(query.participantsOp, query.participants, { integer: true });
+  return {
+    healthcareIds: parseDashboardEntityFilterList(query.healthcare),
+    moduleIds: parseDashboardEntityFilterList(query.module)
+  };
+}
+
+function sqlInClause(column, ids) {
+  if (!ids.length) return null;
+  return {
+    clause: `${column} IN (${ids.map(() => '?').join(', ')})`,
+    params: ids
+  };
+}
+
+function formatDashboardFilterNames(names, emptyLabel) {
+  return names.length ? names.join(', ') : emptyLabel;
+}
+
+async function resolveDashboardFilterLabels(db, filters) {
+  const healthcareNames = [];
+  const moduleNames = [];
+
+  if (filters.healthcareIds.length) {
+    const [rows] = await db.query(
+      `SELECT name FROM healthcare WHERE ${sqlInClause('id', filters.healthcareIds).clause} ORDER BY name ASC`,
+      filters.healthcareIds
+    );
+    healthcareNames.push(...(rows || []).map(row => row.name).filter(Boolean));
+  }
+
+  if (filters.moduleIds.length) {
+    const [rows] = await db.query(
+      `SELECT name FROM modules WHERE ${sqlInClause('id', filters.moduleIds).clause} ORDER BY name ASC`,
+      filters.moduleIds
+    );
+    moduleNames.push(...(rows || []).map(row => row.name).filter(Boolean));
+  }
 
   return {
-    healthcareId: parseDashboardEntityFilter(query.healthcare),
-    moduleId: parseDashboardEntityFilter(query.module),
-    durationOperator: duration.operator,
-    durationHours: duration.threshold,
-    participantsOperator: participants.operator,
-    participantCount: participants.threshold
+    healthcareNames,
+    moduleNames,
+    healthcareLabel: formatDashboardFilterNames(healthcareNames, 'All healthcare'),
+    moduleLabel: formatDashboardFilterNames(moduleNames, 'All modules')
   };
 }
 
 function buildTrainingFilterClause({ dashboardDateRange, filters, alias = '', leadingKeyword = 'WHERE' }) {
   const prefix = alias ? `${alias}.` : '';
   const trainingIdExpression = alias ? `${alias}.id` : 'trainings.id';
-  const comparisonOperators = { gt: '>', lt: '<', eq: '=' };
   const clauses = [];
   const params = [];
 
@@ -354,40 +383,23 @@ function buildTrainingFilterClause({ dashboardDateRange, filters, alias = '', le
     params.push(dashboardDateRange.startDate, dashboardDateRange.endDateExclusive);
   }
 
-  if (filters.moduleId) {
-    clauses.push(`${prefix}module_id = ?`);
-    params.push(filters.moduleId);
+  const moduleFilter = sqlInClause(`${prefix}module_id`, filters.moduleIds || []);
+  if (moduleFilter) {
+    clauses.push(moduleFilter.clause);
+    params.push(...moduleFilter.params);
   }
 
-  if (filters.healthcareId) {
+  const healthcareIds = filters.healthcareIds || [];
+  if (healthcareIds.length) {
     clauses.push(
       `EXISTS (
         SELECT 1
         FROM training_healthcare th_filter
         WHERE th_filter.training_id = ${trainingIdExpression}
-          AND th_filter.healthcare_id = ?
+          AND ${sqlInClause('th_filter.healthcare_id', healthcareIds).clause}
       )`
     );
-    params.push(filters.healthcareId);
-  }
-
-  if (filters.durationOperator && filters.durationHours !== null) {
-    clauses.push(
-      `(${prefix}start_datetime IS NOT NULL
-        AND ${prefix}end_datetime IS NOT NULL
-        AND ${prefix}end_datetime >= ${prefix}start_datetime
-        AND TIMESTAMPDIFF(MINUTE, ${prefix}start_datetime, ${prefix}end_datetime) / 60 ${comparisonOperators[filters.durationOperator]} ?)`
-    );
-    params.push(filters.durationHours);
-  }
-
-  if (filters.participantsOperator && filters.participantCount !== null) {
-    clauses.push(
-      `(SELECT COUNT(DISTINCT e_filter.trainee_id)
-        FROM enrollments e_filter
-        WHERE e_filter.training_id = ${trainingIdExpression}) ${comparisonOperators[filters.participantsOperator]} ?`
-    );
-    params.push(filters.participantCount);
+    params.push(...healthcareIds);
   }
 
   return {
@@ -400,6 +412,7 @@ async function getTrainerDashboardReportData(db, query) {
   const dashboardDateRange = getDashboardDateRange(query);
   const timeZone = getDashboardTimeZone(query);
   const activeFilters = getDashboardEntityFilters(query);
+  const filterLabels = await resolveDashboardFilterLabels(db, activeFilters);
   const trainingDateWhere = buildTrainingFilterClause({ dashboardDateRange, filters: activeFilters });
   const trainingDateWhereWithAlias = buildTrainingFilterClause({ dashboardDateRange, filters: activeFilters, alias: 't' });
   const createdTrainingDateClause = buildTrainingFilterClause({ dashboardDateRange, filters: activeFilters, leadingKeyword: 'AND' });
@@ -559,6 +572,7 @@ async function getTrainerDashboardReportData(db, query) {
     dashboardDateRange,
     timeZone,
     activeFilters,
+    filterLabels,
     dateRangeLabel: formatDashboardDateLabel(dashboardDateRange),
     trainingStats: {
       ...trainingStatsRow,
@@ -669,24 +683,41 @@ function drawDashboardPdf(doc, report, user) {
     });
   };
 
-  doc.rect(0, 0, pageWidth, 118).fill(navy);
-  doc.rect(0, 0, pageWidth, 118).fillOpacity(0.22).fill(purple).fillOpacity(1);
-  doc.font('Helvetica-Bold').fontSize(22).fillColor('#FFFFFF').text('Dashboard Report', margin, 34);
-  doc.font('Helvetica').fontSize(10).fillColor('#E8EAFF').text(`Date range: ${report.dateRangeLabel}`, margin, 64);
-  doc.text(`Prepared for: ${user.userName || 'User'}`, margin, 82);
-  doc.fontSize(9).text(`Generated: ${formatDashboardDateTime(new Date(), report.timeZone)}`, pageWidth - margin - 230, 76, {
+  const healthcareFilterLabel = report.filterLabels?.healthcareLabel || 'All healthcare';
+  const moduleFilterLabel = report.filterLabels?.moduleLabel || 'All modules';
+  const compact = (value, max = 88) => {
+    const text = String(value || '');
+    return text.length > max ? `${text.slice(0, max - 3)}...` : text;
+  };
+
+  doc.rect(0, 0, pageWidth, 148).fill(navy);
+  doc.rect(0, 0, pageWidth, 148).fillOpacity(0.22).fill(purple).fillOpacity(1);
+  doc.font('Helvetica-Bold').fontSize(22).fillColor('#FFFFFF').text('Dashboard Report', margin, 28);
+  doc.font('Helvetica').fontSize(10).fillColor('#E8EAFF').text(`Date range: ${report.dateRangeLabel}`, margin, 58, {
+    width: usableWidth - 240
+  });
+  doc.text(`Healthcare: ${compact(healthcareFilterLabel)}`, margin, 74, {
+    width: usableWidth - 240
+  });
+  doc.text(`Module: ${compact(moduleFilterLabel)}`, margin, 90, {
+    width: usableWidth - 240
+  });
+  doc.text(`Prepared for: ${user.userName || 'User'}`, margin, 106, {
+    width: usableWidth - 240
+  });
+  doc.fontSize(9).text(`Generated: ${formatDashboardDateTime(new Date(), report.timeZone)}`, pageWidth - margin - 230, 70, {
     width: 230,
     height: 12,
     align: 'right',
     ellipsis: true
   });
-  doc.fontSize(8).text(report.timeZone, pageWidth - margin - 230, 92, {
+  doc.fontSize(8).text(report.timeZone, pageWidth - margin - 230, 86, {
     width: 230,
     height: 11,
     align: 'right',
     ellipsis: true
   });
-  doc.y = 142;
+  doc.y = 168;
 
   sectionTitle('Executive Summary');
   const cardGap = 10;
@@ -873,7 +904,7 @@ function buildDashboardExcelWorkbook(report, user) {
   workbook.lastModifiedBy = user.userName || 'Quick Stop Solution LMS';
   workbook.created = new Date();
   workbook.modified = new Date();
-  workbook.subject = `Dashboard report for ${report.dateRangeLabel} (${report.timeZone})`;
+  workbook.subject = `Dashboard report for ${report.dateRangeLabel} | Healthcare: ${report.filterLabels?.healthcareLabel || 'All healthcare'} | Module: ${report.filterLabels?.moduleLabel || 'All modules'} (${report.timeZone})`;
   workbook.title = 'Dashboard Report';
   workbook.calcProperties.fullCalcOnLoad = true;
   workbook.calcProperties.forceFullCalc = true;
@@ -901,23 +932,26 @@ function buildDashboardExcelWorkbook(report, user) {
 
   const metadata = [
     ['Date range', report.dateRangeLabel],
+    ['Healthcare', report.filterLabels?.healthcareLabel || 'All healthcare'],
+    ['Module', report.filterLabels?.moduleLabel || 'All modules'],
     ['Prepared for', user.userName || 'User'],
     ['Generated', getExcelDateInTimeZone(new Date(), report.timeZone)],
     ['Time zone', report.timeZone]
   ];
-  summary.mergeCells('B4:E4');
-  summary.mergeCells('B5:E5');
-  summary.mergeCells('B6:E6');
-  summary.mergeCells('B7:E7');
+  metadata.forEach((_, index) => {
+    summary.mergeCells(4 + index, 2, 4 + index, 5);
+  });
   metadata.forEach((entry, index) => {
     const row = 4 + index;
     summary.getCell(row, 1).value = entry[0];
     summary.getCell(row, 1).font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF5F6368' } };
     summary.getCell(row, 2).value = entry[1];
     summary.getCell(row, 2).font = { name: 'Arial', size: 10, color: { argb: 'FF202124' } };
-    summary.getCell(row, 2).alignment = { vertical: 'middle', horizontal: 'left' };
+    summary.getCell(row, 2).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+    if (String(entry[1] || '').length > 60) summary.getRow(row).height = 32;
   });
-  summary.getCell('B6').numFmt = 'mmm d, yyyy h:mm AM/PM';
+  const generatedRow = 4 + metadata.findIndex(entry => entry[0] === 'Generated');
+  summary.getCell(generatedRow, 2).numFmt = 'mmm d, yyyy h:mm AM/PM';
 
   const stats = report.trainingStats;
   const traineeStats = report.traineeStats;
@@ -934,11 +968,12 @@ function buildDashboardExcelWorkbook(report, user) {
     ['Inactive Trainees', numberValue(traineeStats.inactive)]
   ];
 
-  summary.mergeCells('A9:E9');
-  summary.getCell('A9').value = 'Executive Summary';
-  summary.getCell('A9').font = { name: 'Arial', bold: true, size: 13, color: { argb: 'FF202124' } };
+  const summaryTitleRow = 4 + metadata.length + 1;
+  summary.mergeCells(summaryTitleRow, 1, summaryTitleRow, 5);
+  summary.getCell(summaryTitleRow, 1).value = 'Executive Summary';
+  summary.getCell(summaryTitleRow, 1).font = { name: 'Arial', bold: true, size: 13, color: { argb: 'FF202124' } };
   metrics.forEach((metric, index) => {
-    const row = 10 + Math.floor(index / 2);
+    const row = summaryTitleRow + 1 + Math.floor(index / 2);
     const column = index % 2 === 0 ? 1 : 4;
     summary.getCell(row, column).value = metric[0];
     summary.getCell(row, column).font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF5F6368' } };
@@ -947,7 +982,7 @@ function buildDashboardExcelWorkbook(report, user) {
     if (metric[0].includes('Rate')) summary.getCell(row, column + 1).numFmt = '0%';
   });
 
-  const statusStartRow = 17;
+  const statusStartRow = summaryTitleRow + 8;
   summary.getCell(statusStartRow, 1).value = 'Training Status Breakdown';
   summary.getCell(statusStartRow, 1).font = { name: 'Arial', bold: true, size: 13 };
   const statusRows = [
@@ -1293,43 +1328,51 @@ router.get('/', async (req, res) => {
         ORDER BY u.last_name, u.first_name
       `, trainerTrainingParams);
       
-      const traineeFilterClauses = [`t.trainee_status = 'registered'`];
-      const traineeFilterParams = [];
-      if (activeFilters.healthcareId) {
-        traineeFilterClauses.push('t.healthcare_id = ?');
-        traineeFilterParams.push(activeFilters.healthcareId);
-      }
+      const hasActiveDashboardFilters = Boolean(
+        (activeFilters.healthcareIds && activeFilters.healthcareIds.length) ||
+        (activeFilters.moduleIds && activeFilters.moduleIds.length) ||
+        (dashboardDateRange.preset && dashboardDateRange.preset !== 'this_month')
+      );
 
-      // Get recent registrations (trainees with status 'registered')
-      const [recentRegistrations] = await req.db.query(`
-        SELECT 
-          t.id,
-          t.trainee_id,
-          t.first_name,
-          t.last_name,
-          t.ic_passport,
-          h.name AS healthcare,
-          t.email,
-          t.handphone_number
-        FROM trainees t
-        LEFT JOIN healthcare h ON h.id = t.healthcare_id
-        WHERE ${traineeFilterClauses.join(' AND ')}
-        ORDER BY t.created_at DESC
-        LIMIT 10
-      `, traineeFilterParams);
+      let recentRegistrations = [];
+      if (!hasActiveDashboardFilters) {
+        const traineeFilterClauses = [`t.trainee_status = 'registered'`];
+        const traineeFilterParams = [];
+
+        // Get recent registrations (trainees with status 'registered')
+        const [recentRegistrationRows] = await req.db.query(`
+          SELECT 
+            t.id,
+            t.trainee_id,
+            t.first_name,
+            t.last_name,
+            t.ic_passport,
+            h.name AS healthcare,
+            t.email,
+            t.handphone_number
+          FROM trainees t
+          LEFT JOIN healthcare h ON h.id = t.healthcare_id
+          WHERE ${traineeFilterClauses.join(' AND ')}
+          ORDER BY t.created_at DESC
+          LIMIT 10
+        `, traineeFilterParams);
+        recentRegistrations = recentRegistrationRows;
+      }
 
       // Upcoming recertifications (next 60 days), grouped by hospital
       const recertFilterClauses = [
         'ci.validity_end BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 60 DAY)'
       ];
       const recertFilterParams = [];
-      if (activeFilters.healthcareId) {
-        recertFilterClauses.push('tr.healthcare_id = ?');
-        recertFilterParams.push(activeFilters.healthcareId);
+      const recertHealthcareFilter = sqlInClause('tr.healthcare_id', activeFilters.healthcareIds || []);
+      if (recertHealthcareFilter) {
+        recertFilterClauses.push(recertHealthcareFilter.clause);
+        recertFilterParams.push(...recertHealthcareFilter.params);
       }
-      if (activeFilters.moduleId) {
-        recertFilterClauses.push('t.module_id = ?');
-        recertFilterParams.push(activeFilters.moduleId);
+      const recertModuleFilter = sqlInClause('t.module_id', activeFilters.moduleIds || []);
+      if (recertModuleFilter) {
+        recertFilterClauses.push(recertModuleFilter.clause);
+        recertFilterParams.push(...recertModuleFilter.params);
       }
 
       const [recertRows] = await req.db.query(`
@@ -1362,9 +1405,10 @@ router.get('/', async (req, res) => {
         'training_reminder_due_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 60 DAY)'
       ];
       const healthcareReminderParams = [];
-      if (activeFilters.healthcareId) {
-        healthcareReminderClauses.push('id = ?');
-        healthcareReminderParams.push(activeFilters.healthcareId);
+      const reminderHealthcareFilter = sqlInClause('id', activeFilters.healthcareIds || []);
+      if (reminderHealthcareFilter) {
+        healthcareReminderClauses.push(reminderHealthcareFilter.clause);
+        healthcareReminderParams.push(...reminderHealthcareFilter.params);
       }
 
       const [healthcareReminderRows] = await req.db.query(`
